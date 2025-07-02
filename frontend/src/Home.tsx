@@ -3,7 +3,7 @@ import { Box, Typography, Link } from '@mui/material';
 const Home = (): JSX.Element => {
   // In a real app, these might be provided by your backend or environment
   const appVersion = "0.0.1"; // Replace with dynamic version if available
-  const hostname = "elideus.net"; // Replace with dynamic hostname if available
+  const hostname = "elideusgroup.com"; // Replace with dynamic hostname if available
 
   return (
     <Box
