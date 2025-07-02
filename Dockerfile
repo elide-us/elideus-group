@@ -36,6 +36,10 @@ RUN curl -fsSL -O https://packages.microsoft.com/config/debian/12/packages-micro
     dpkg -i packages-microsoft-prod.deb && \
     rm packages-microsoft-prod.deb
 
+# Force apt to only process amd64
+RUN dpkg --remove-architecture arm64 armhf || true && \
+    apt-get update
+
 # Install MSSQL for Linux
 RUN apt-get update && ACCEPT_EULA="${ACCEPT_EULA}" \
     apt-get install -y mssql-server
