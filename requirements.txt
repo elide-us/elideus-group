@@ -1,0 +1,15 @@
+fastapi
+gunicorn
+uvicorn
+dotenv
+discord.py
+openai
+lumaai
+azure-storage-blob
+aiofiles
+aiohttp
+python-dotenv
+asyncpg
+python-jose
+tiktoken
+atproto
