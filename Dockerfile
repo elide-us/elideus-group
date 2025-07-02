@@ -19,22 +19,24 @@ FROM python:3.12
 ARG MSSQL_PID
 ARG ACCEPT_EULA
 
-# RUN apt-get update && apt-get install -y ffmpeg
+# Install MSSQL on Linux pre-reqs
 RUN apt-get update && apt-get install -y ffmpeg curl gnupg apt-transport-https
 
-#RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-#RUN curl -sSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-server.list
-
-#RUN apt-get update && ACCEPT_EULA=$ACCEPT_EULA apt-get install -y mssql-server
 
 # Modern GPG key setup
-RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-  | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+#RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+#  | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
 
-RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
-  https://packages.microsoft.com/debian/12/prod bookworm main" \
-  > /etc/apt/sources.list.d/mssql-server.list
+#RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
+#  https://packages.microsoft.com/debian/12/prod bookworm main" \
+#  > /etc/apt/sources.list.d/mssql-server.list
 
+# Get the repository package details
+RUN curl -fsSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb && \
+    dpkg -i packages-microsoft-prod.deb && \
+    rm packages-microsoft-prod.deb
+
+# Install MSSQL for Linux
 RUN apt-get update && ACCEPT_EULA="${ACCEPT_EULA}" \
     apt-get install -y mssql-server
 
