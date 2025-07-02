@@ -11,4 +11,4 @@ app.include_router(web.router)
 
 @app.get("/")
 async def get_root():
-  return { "message": "You should not be here." }
+    return {"message": "You should not be here."}
