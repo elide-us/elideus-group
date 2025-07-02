@@ -22,11 +22,23 @@ ARG ACCEPT_EULA
 # RUN apt-get update && apt-get install -y ffmpeg
 RUN apt-get update && apt-get install -y ffmpeg curl gnupg apt-transport-https
 
-RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-RUN curl -sSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-server.list
+#RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+#RUN curl -sSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-server.list
 
-RUN apt-get update && ACCEPT_EULA=$ACCEPT_EULA apt-get install -y mssql-server
+#RUN apt-get update && ACCEPT_EULA=$ACCEPT_EULA apt-get install -y mssql-server
 
+# Modern GPG key setup
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+  | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
+  https://packages.microsoft.com/debian/12/prod bookworm main" \
+  > /etc/apt/sources.list.d/mssql-server.list
+
+RUN apt-get update && ACCEPT_EULA="${ACCEPT_EULA}" \
+    apt-get install -y mssql-server
+
+# mssql-conf setup step
 RUN --mount=type=secret,id=MSSQL_ADMIN_PASSWORD \
     export SA_PASSWORD=$(cat /run/secrets/MSSQL_ADMIN_PASSWORD) && \
     MSSQL_PID=$MSSQL_PID ACCEPT_EULA=$ACCEPT_EULA /opt/mssql/bin/mssql-conf -n setup-sa
