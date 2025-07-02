@@ -4,7 +4,7 @@ Welcome to TheOracleGPT web site repository! We're just getting started, but fee
 The following links are for the original site that we're rebuilding and check out Patreon for our project blogs!
 
 * Original TheOracleGPT: https://github.com/elide-us/TheOracle
-* Live site: https://elideusgroup.com
+* Live (Original) Site: https://elideusgroup.com
 * Patreon: https://patreon.com/Elideus
 
 ### TheOracleGPT - Tech Stack
