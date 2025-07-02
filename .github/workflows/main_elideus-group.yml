@@ -31,8 +31,11 @@ jobs:
       with:
         push: true
         tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_1e20f41167eb4d19983f94f5f4509ac8 }}/elideus/elideus-group:${{ github.sha }}
-        secrets: MSSQL_ADMIN_PASSWORD=${{ secrets.MSSQL_ADMIN_PASSWORD }}
-        build-args: ACCEPT_EULA=Y
+        secrets: |
+          MSSQL_ADMIN_PASSWORD=${{ secrets.MSSQL_ADMIN_PASSWORD }}
+        build-args: |
+          ACCEPT_EULA=Y
+          MSSQL_PID=Developer
         file: ./Dockerfile
 
   deploy:
