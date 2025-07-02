@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.4
+
 FROM node:18 AS builder
 
 RUN apt-get update && apt-get install -y curl
@@ -14,8 +16,20 @@ RUN npm run lint && npm run type-check
 RUN npm run build
 
 FROM python:3.12
+ARG MSSQL_PID
+ARG ACCEPT_EULA
 
-RUN apt-get update && apt-get install -y ffmpeg
+# RUN apt-get update && apt-get install -y ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg curl gnupg apt-transport-https
+
+RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+RUN curl -sSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-server.list
+
+RUN apt-get update && ACCEPT_EULA=$ACCEPT_EULA apt-get install -y mssql-server
+
+RUN --mount=type=secret,id=MSSQL_ADMIN_PASSWORD \
+    export SA_PASSWORD=$(cat /run/secrets/MSSQL_ADMIN_PASSWORD) && \
+    MSSQL_PID=$MSSQL_PID ACCEPT_EULA=$ACCEPT_EULA /opt/mssql/bin/mssql-conf -n setup-sa
 
 WORKDIR /app
 
