@@ -29,14 +29,15 @@ jobs:
     - name: Build and push container image to registry
       uses: docker/build-push-action@v5
       with:
-        push: true
-        tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_1e20f41167eb4d19983f94f5f4509ac8 }}/elideus/elideus-group:${{ github.sha }}
-        secrets: |
-          MSSQL_ADMIN_PASSWORD=${{ secrets.MSSQL_ADMIN_PASSWORD }}
+        platforms: linux/amd64
+        file: ./Dockerfile
         build-args: |
           ACCEPT_EULA=Y
           MSSQL_PID=Developer
-        file: ./Dockerfile
+        secrets: |
+          MSSQL_ADMIN_PASSWORD=${{ secrets.MSSQL_ADMIN_PASSWORD }}
+        push: true
+        tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_1e20f41167eb4d19983f94f5f4509ac8 }}/elideus/elideus-group:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
