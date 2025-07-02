@@ -15,12 +15,7 @@ RUN npm run build
 
 FROM python:3.12
 
-RUN apt-get update && \
-    apt-get install -y ffmpeg curl gnupg apt-transport-https && \
-    curl -sSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl -sSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-server.list && \
-    apt-get update && \
-    ACCEPT_EULA=Y apt-get install -y mssql-server
+RUN apt-get update && apt-get install -y ffmpeg
 
 WORKDIR /app
 
@@ -39,9 +34,6 @@ RUN python -m venv $VIRTUAL_ENV && \
     pip install --requirement requirements.txt
 
 RUN chmod +x /app/startup.sh
-
-ENV SA_PASSWORD="YourS3cureP@ssword!"
-ENV MSSQL_PID="Developer"
 
 EXPOSE 8000
 CMD ["/bin/sh", "/app/startup.sh"]
