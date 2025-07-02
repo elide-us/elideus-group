@@ -2,9 +2,6 @@
 
 FROM node:18 AS builder
 
-RUN apt-get update && apt-get install -y curl
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
-
 WORKDIR /frontend
 
 COPY frontend/package*.json ./
@@ -12,47 +9,39 @@ RUN npm ci
 
 COPY frontend/ ./
 RUN npm run lint && npm run type-check
-
 RUN npm run build
 
-FROM python:3.12
+# ---- Final stage ----
+FROM python:3.12-ubuntu22.04  # ✅ Use Ubuntu base so MSSQL can be installed
+
 ARG MSSQL_PID
 ARG ACCEPT_EULA
 
-# Install MSSQL on Linux pre-reqs
-RUN apt-get update && apt-get install -y ffmpeg curl gnupg apt-transport-https
+# Install prerequisites
+RUN apt-get update && apt-get install -y \
+    curl gnupg ffmpeg apt-transport-https software-properties-common
 
-
-# Modern GPG key setup
-#RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-#  | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-
-#RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
-#  https://packages.microsoft.com/debian/12/prod bookworm main" \
-#  > /etc/apt/sources.list.d/mssql-server.list
-
-# Get the repository package details
-RUN curl -fsSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb && \
+# Register the Microsoft SQL Server repo (✅ official method)
+RUN curl -fsSL -o packages-microsoft-prod.deb \
+    https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb && \
     dpkg -i packages-microsoft-prod.deb && \
     rm packages-microsoft-prod.deb
 
-# Force apt to only process amd64
-RUN dpkg --remove-architecture arm64 armhf || true && \
-    apt-get update
+# Install SQL Server
+RUN apt-get update && \
+    ACCEPT_EULA=$ACCEPT_EULA apt-get install -y mssql-server
 
-# Install MSSQL for Linux
-RUN apt-get update && ACCEPT_EULA="${ACCEPT_EULA}" \
-    apt-get install -y mssql-server
-
-# mssql-conf setup step
+# Configure SQL Server securely
 RUN --mount=type=secret,id=MSSQL_ADMIN_PASSWORD \
     export SA_PASSWORD=$(cat /run/secrets/MSSQL_ADMIN_PASSWORD) && \
-    MSSQL_PID=$MSSQL_PID ACCEPT_EULA=$ACCEPT_EULA /opt/mssql/bin/mssql-conf -n setup-sa
+    MSSQL_PID=$MSSQL_PID ACCEPT_EULA=$ACCEPT_EULA \
+    /opt/mssql/bin/mssql-conf -n setup-sa
 
+# Your app
 WORKDIR /app
 
 COPY . /app
-COPY --from=builder /static /app/static
+COPY --from=builder /frontend/dist /app/static  # Adjusted path from /static to /frontend/dist
 
 RUN ls -al /app
 RUN ls -al /app/static
@@ -60,6 +49,7 @@ RUN ls -al /app/static
 ARG PYTHON_ENV=/app/venv
 ENV VIRTUAL_ENV=$PYTHON_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 RUN python -m venv $VIRTUAL_ENV && \
     . $VIRTUAL_ENV/bin/activate && \
     pip install --upgrade pip && \
