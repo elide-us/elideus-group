@@ -1,17 +1,12 @@
 from typing import List
 from fastapi import Request, HTTPException
-from rpc.models import RPCResponse
-from rpc.admin.vars.models import AdminVarsVersion1, AdminVarsHostname1
+from rpc.admin.vars.services import get_version_v1, get_hostname_v1
 
 async def handle_vars_request(urn: List, request: Request):
   match urn[1:]:
     case ["get_version", "1"]:
-      version = request.app.state.version
-      payload = AdminVarsVersion1(version=version)
-      return RPCResponse(op="urn:admin:vars:version:1", payload=payload, version=1)
+      return await get_version_v1(request)
     case ["get_hostname", "1"]:
-      hostname = request.app.state.hostname
-      payload = AdminVarsHostname1(hostname=hostname)
-      return RPCResponse(op="urn:admin:vars:hostname:1", payload=payload, version=1)
+      return await get_hostname_v1(request)
     case _:
       raise HTTPException(status_code=404, detail="Unknown RPC operation")
