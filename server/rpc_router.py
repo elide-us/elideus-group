@@ -6,4 +6,5 @@ router = APIRouter()
 
 @router.post("/")
 async def post_root(rpc_request: RPCRequest, request: Request) -> RPCResponse:
-  await handle_rpc_request(rpc_request, request)
+  return await handle_rpc_request(rpc_request, request)
+

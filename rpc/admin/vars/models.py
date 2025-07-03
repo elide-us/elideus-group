@@ -5,3 +5,4 @@ class AdminVarsVersion1(BaseModel):
 
 class AdminVarsHostname1(BaseModel):
   hostname: str
+
