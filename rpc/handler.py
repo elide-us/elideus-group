@@ -1,10 +1,7 @@
-from fastapi import APIRouter, Request, HTTPException
-from routes.admin.rpc import handle_admin_request
-from models.rpc import RPCRequest, RPCResponse
+from fastapi import Request, HTTPException
+from rpc.admin.handler import handle_admin_request
+from rpc.models import RPCRequest, RPCResponse
 
-router = APIRouter()
-
-@router.post("/")
 async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   parts = rpc_request.op.split(":")
 

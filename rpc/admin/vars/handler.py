@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import Request, HTTPException
-from models.rpc import RPCResponse
-from models.admin.vars.rpc import AdminVarsVersion1, AdminVarsHostname1
+from rpc.models import RPCResponse
+from rpc.admin.vars.models import AdminVarsVersion1, AdminVarsHostname1
 
 async def handle_vars_request(urn: List, request: Request):
   match urn[1:]:
