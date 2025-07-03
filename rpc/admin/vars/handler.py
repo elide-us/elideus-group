@@ -4,7 +4,7 @@ from rpc.models import RPCResponse
 from rpc.admin.vars.models import AdminVarsVersion1, AdminVarsHostname1
 
 async def handle_vars_request(urn: List, request: Request):
-  match urn[1:]:
+  match urn:
     case ["get_version", "1"]:
       version = request.app.state.version
       payload = AdminVarsVersion1(version=version)
@@ -15,3 +15,4 @@ async def handle_vars_request(urn: List, request: Request):
       return RPCResponse(op="urn:admin:vars:hostname:1", payload=payload, version=1)
     case _:
       raise HTTPException(status_code=404, detail="Unknown RPC operation")
+

@@ -10,3 +10,5 @@ def _get_str_env_var(var_name: str, default: str | None = None) -> str:
 
 VERSION = _get_str_env_var("VERSION")
 HOSTNAME = _get_str_env_var("HOSTNAME")
+
+
