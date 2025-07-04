@@ -1,18 +1,18 @@
 export interface RPCRequest {
   op: string;
-  payload: any;
+  payload: unknown;
   version: number;
-  user_id: any;
-  timestamp: any;
-  metadata: any;
+  user_id: unknown;
+  timestamp: unknown;
+  metadata: unknown;
 }
 
 export interface RPCResponse {
   op: string;
-  payload: any;
+  payload: unknown;
   version: number;
-  timestamp: any;
-  metadata: any;
+  timestamp: unknown;
+  metadata: unknown;
 }
 
 export interface AdminVarsHostname1 {
