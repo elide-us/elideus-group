@@ -29,7 +29,11 @@ def load_module(path: str):
 
 
 def field_to_ts(name: str, annotation: Any) -> str:
-    ts_type = PY_TO_TS.get(annotation, 'any')
+    """Convert a single Pydantic field to TypeScript."""
+    ts_type = PY_TO_TS.get(annotation)
+    if ts_type is None:
+        # Avoid using the `any` type to satisfy ESLint's no-explicit-any rule.
+        ts_type = 'unknown'
     return f"  {name}: {ts_type};"
 
 
