@@ -9,7 +9,9 @@ import importlib.util
 from pydantic import BaseModel
 from typing import get_type_hints, Any
 
-ROOT = os.path.join(os.path.dirname(__file__), '..', 'rpc')
+REPO_ROOT = os.path.join(os.path.dirname(__file__), '..')
+ROOT = os.path.join(REPO_ROOT, 'rpc')
+FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src')
 
 PY_TO_TS = {
     str: 'string',
@@ -50,7 +52,8 @@ def main() -> None:
                 if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
                     interfaces.append(model_to_ts(obj))
 
-    out_path = os.path.join(ROOT, '..', 'generated_rpc_models.ts')
+    os.makedirs(FRONTEND_SRC, exist_ok=True)
+    out_path = os.path.join(FRONTEND_SRC, 'generated_rpc_models.tsx')
     with open(out_path, 'w') as f:
         f.write("\n".join(interfaces))
 

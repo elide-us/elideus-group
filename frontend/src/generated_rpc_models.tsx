@@ -22,4 +22,3 @@ export interface AdminVarsHostname1 {
 export interface AdminVarsVersion1 {
   version: string;
 }
-
