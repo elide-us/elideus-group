@@ -29,3 +29,11 @@ class RPCResponse(BaseModel):
     default=None,
     description="Optional metadata like processing time or status notes"
   )
+
+# User context models for frontend integration
+class UserData(BaseModel):
+ bearerToken: str
+
+
+class UserContext(BaseModel):
+ userData: Optional[UserData] = None
