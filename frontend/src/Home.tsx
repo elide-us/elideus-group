@@ -10,14 +10,16 @@ const Home = (): JSX.Element => {
     void (async () => {
       try {
         const version = await fetchVersion();
-        setAppVersion(version.version);
+        const cleanVersion = version.version.replace(/^"|"$/g, '');
+        setAppVersion(cleanVersion);
       } catch {
         setAppVersion('unknown');
       }
 
       try {
         const host = await fetchHostname();
-        setHostname(host.hostname);
+        const cleanHost = host.hostname.replace(/^"|"$/g, '');
+        setHostname(cleanHost);
       } catch {
         setHostname('unknown');
       }
