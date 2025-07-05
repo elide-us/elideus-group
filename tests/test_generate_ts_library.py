@@ -14,3 +14,13 @@ def test_model_to_ts_simple():
   assert 'age: number;' in ts
   assert 'active: boolean;' in ts
   assert 'pi: number;' in ts
+
+
+from scripts import generate_user_context as ugen
+
+
+def test_generate_user_context():
+ ts = ugen.generate_user_context()
+ assert 'export interface UserData' in ts
+ assert 'export interface UserContext' in ts
+ assert 'createContext<UserContext>' in ts

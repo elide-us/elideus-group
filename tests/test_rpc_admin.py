@@ -39,6 +39,6 @@ def test_get_repo():
   response = asyncio.run(handle_rpc_request(rpc_request, request))
 
   assert response.op == "urn:admin:vars:repo:1"
-  assert response.payload.repo == "https:///repo"
+  assert response.payload.repo == "https://repo"
   assert response.payload.build == "https://repo/actions"
 
