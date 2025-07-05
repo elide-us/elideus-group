@@ -1,14 +1,15 @@
-This repository is based on the elideus-metal template, it uses the following tech:
+## Elideus Group AGENT Alignment Document
+
+### Tech Stack
+This project uses the following technologies currently:
 - Node 18 (required for atproto)
-- TypeScript
-- ESLint
-- Vite
-- Docker
-- Python 3.12
-- FastAPI
+- React TypeScript + Vite
+- ESLint, Vitest, pytest
+- Dockerfile + .dockerignore
+- FastAPI on Python 3.12
 - atproto in React front end
 - atproto in Python back end
-- React TS
-We have some default components already configured in the React front end including a user session context class and a theme class wrapping the main SPA page.
 
-We will update this documet as more components are built so future analysis will remain relavant.
+## Coding Standards:
+- Python scripts use 2-space indentation by default
+- TypeScript scripts use 4-space TAB indentation by default

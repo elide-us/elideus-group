@@ -7,4 +7,3 @@ async def handle_admin_request(urn: list[str], request: Request):
       return await handle_vars_request(rest, request)
     case _:
       raise HTTPException(status_code=404, detail="Unknown RPC subdomain")
-

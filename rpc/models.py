@@ -29,4 +29,3 @@ class RPCResponse(BaseModel):
     default=None,
     description="Optional metadata like processing time or status notes"
   )
-
