@@ -18,6 +18,11 @@ export interface AdminVarsHostname1 {
   hostname: string;
 }
 
+export interface AdminVarsRepo1 {
+  repo: string;
+  build: string;
+}
+
 export interface AdminVarsVersion1 {
   version: string;
 }
