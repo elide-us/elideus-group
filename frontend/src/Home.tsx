@@ -1,10 +1,12 @@
 import { Box, Typography, Link } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { fetchHostname, fetchVersion } from './rpcClient';
+import { fetchHostname, fetchVersion, fetchRepo } from './rpcClient';
 
 const Home = (): JSX.Element => {
   const [appVersion, setAppVersion] = useState('');
   const [hostname, setHostname] = useState('');
+  const [repo, setRepo] = useState('');
+  const [build, setBuild] = useState('');
 
   useEffect(() => {
     void (async () => {
@@ -22,6 +24,17 @@ const Home = (): JSX.Element => {
         setHostname(cleanHost);
       } catch {
         setHostname('unknown');
+      }
+
+      try {
+        const repoInfo = await fetchRepo();
+        const cleanRepo = repoInfo.repo.replace(/^"|"$/g, '');
+        const cleanBuild = repoInfo.build.replace(/^"|"$/g, '');
+        setRepo(cleanRepo);
+        setBuild(cleanBuild);
+      } catch {
+        setRepo('');
+        setBuild('');
       }
     })();
   }, []);
@@ -53,7 +66,7 @@ const Home = (): JSX.Element => {
       <Typography sx={{ fontSize: 14, mt: 1 }}>
         GitHub:{' '}
         <Link
-          href="https://github.com/elide-us/elideus-group"
+          href={repo}
           target="_blank"
           rel="noopener noreferrer"
           sx={{ color: 'text.primary', textDecoration: 'none' }}
@@ -62,7 +75,7 @@ const Home = (): JSX.Element => {
         </Link>{' '}
         -{' '}
         <Link
-          href="https://github.com/elide-us/elideus-group/actions"
+          href={build}
           target="_blank"
           rel="noopener noreferrer"
           sx={{ color: 'text.primary', textDecoration: 'none' }}

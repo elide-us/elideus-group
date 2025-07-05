@@ -1,16 +1,18 @@
 import uuid
 import asyncio
+import os
 from importlib import reload
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
+os.environ.setdefault('REPO', 'https://repo')
 import server.config as config
 from server import lifespan
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
-from rpc.admin.vars.services import get_version_v1, get_hostname_v1
+from rpc.admin.vars.services import get_version_v1, get_hostname_v1, get_repo_v1
 from rpc.models import RPCRequest
 
 
@@ -23,12 +25,14 @@ def test_get_str_env_var_missing(monkeypatch):
 def test_lifespan_sets_state(monkeypatch):
     monkeypatch.setenv('VERSION', '1.2.3')
     monkeypatch.setenv('HOSTNAME', 'test-host')
+    monkeypatch.setenv('REPO', 'https://repo')
     reload(config)
     reload(lifespan)
     app = FastAPI(lifespan=lifespan.lifespan)
     with TestClient(app) as client:
         assert client.app.state.version == '1.2.3'
         assert client.app.state.hostname == 'test-host'
+        assert client.app.state.repo == 'https://repo'
 
 
 def test_handle_rpc_request_invalid_prefix():
@@ -61,9 +65,13 @@ def test_services_read_from_state():
     app = FastAPI()
     app.state.version = 'x.y.z'
     app.state.hostname = 'host'
+    app.state.repo = 'repo'
     request = Request({'type': 'http', 'app': app})
     version_res = asyncio.run(get_version_v1(request))
     assert version_res.payload.version == 'x.y.z'
     host_res = asyncio.run(get_hostname_v1(request))
     assert host_res.payload.hostname == 'host'
+    repo_res = asyncio.run(get_repo_v1(request))
+    assert repo_res.payload.repo == 'repo'
+    assert repo_res.payload.build == 'repo/actions'
 

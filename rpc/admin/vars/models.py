@@ -6,3 +6,7 @@ class AdminVarsVersion1(BaseModel):
 class AdminVarsHostname1(BaseModel):
   hostname: str
 
+class AdminVarsRepo1(BaseModel):
+  repo: str
+  build: str
+
