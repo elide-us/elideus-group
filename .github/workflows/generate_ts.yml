@@ -1,0 +1,28 @@
+name: Generate TypeScript Library
+
+on:
+  push:
+    branches:
+      - main-generate
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Generate TypeScript library
+        run: python scripts/generate_ts_library.py
+      - name: Commit generated library
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'frontend/src/generated_rpc_models.tsx'
+          message: 'chore: auto-generate TypeScript library'
