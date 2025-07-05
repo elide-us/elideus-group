@@ -31,8 +31,8 @@ const Home = (): JSX.Element => {
       sx={{
         height: '100vh',
         margin: 0,
-        backgroundColor: '#333',
-        color: '#c1c1c1',
+        bgcolor: 'background.paper',
+        color: 'text.primary',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -52,20 +52,20 @@ const Home = (): JSX.Element => {
       </Typography>
       <Typography sx={{ fontSize: 14, mt: 1 }}>
         GitHub:{' '}
-        <Link 
-          href="https://github.com/elide-us/elideus-group" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          sx={{ color: '#c1c1c1', textDecoration: 'none' }}
+        <Link
+          href="https://github.com/elide-us/elideus-group"
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ color: 'text.primary', textDecoration: 'none' }}
         >
           repo
         </Link>{' '}
         -{' '}
-        <Link 
-          href="https://github.com/elide-us/elideus-group/actions" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          sx={{ color: '#c1c1c1', textDecoration: 'none' }}
+        <Link
+          href="https://github.com/elide-us/elideus-group/actions"
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ color: 'text.primary', textDecoration: 'none' }}
         >
           build
         </Link>
