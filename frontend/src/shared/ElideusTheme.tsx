@@ -5,7 +5,7 @@ const ElideusTheme: Theme = createTheme({
 		mode: 'dark',
 		primary: { main: '#90caf9' },
 		secondary: { main: '#f48fb1' },
-                background: { default: '#121212', paper: '#000000' },
+		background: { default: '#121212', paper: '#000000' },
 		text: { primary: '#ffffff', secondary: '#b0b0c5' }
 	},
 	typography: {
