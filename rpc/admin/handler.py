@@ -1,8 +1,7 @@
-from typing import List
 from fastapi import Request, HTTPException
 from rpc.admin.vars.handler import handle_vars_request
 
-async def handle_admin_request(urn: List, request: Request):
+async def handle_admin_request(urn: list[str], request: Request):
   match urn:
     case ["vars", *rest]:
       return await handle_vars_request(rest, request)
