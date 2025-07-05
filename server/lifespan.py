@@ -11,3 +11,4 @@ async def lifespan(app: FastAPI):
     yield
   finally:
     return
+

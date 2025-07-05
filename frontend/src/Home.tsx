@@ -1,9 +1,28 @@
 import { Box, Typography, Link } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { fetchHostname, fetchVersion } from './rpcClient';
 
 const Home = (): JSX.Element => {
-  // In a real app, these might be provided by your backend or environment
-  const appVersion = "0.0.1"; // Replace with dynamic version if available
-  const hostname = "elideusgroup.com"; // Replace with dynamic hostname if available
+  const [appVersion, setAppVersion] = useState('');
+  const [hostname, setHostname] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const version = await fetchVersion();
+        setAppVersion(version.version);
+      } catch {
+        setAppVersion('unknown');
+      }
+
+      try {
+        const host = await fetchHostname();
+        setHostname(host.hostname);
+      } catch {
+        setHostname('unknown');
+      }
+    })();
+  }, []);
 
   return (
     <Box
