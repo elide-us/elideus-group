@@ -8,8 +8,8 @@ def _get_str_env_var(var_name: str, default: str | None = None) -> str:
     raise RuntimeError(f"ERROR: {var_name} missing.")
   return value
 
-VERSION = _get_str_env_var("VERSION")
-HOSTNAME = _get_str_env_var("HOSTNAME")
-REPO = _get_str_env_var("REPO")
+VERSION = _get_str_env_var("VERSION", "unset")
+HOSTNAME = _get_str_env_var("HOSTNAME", "unset")
+REPO = _get_str_env_var("REPO", "unset")
 
 
