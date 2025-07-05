@@ -10,7 +10,6 @@ const buildRequest = (op: string): RPCRequest => ({
   op,
   payload: null,
   version: 1,
-  user_id: crypto.randomUUID(),
   timestamp: Date.now(),
   metadata: null,
 });

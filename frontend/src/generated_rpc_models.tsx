@@ -2,7 +2,6 @@ export interface RPCRequest {
   op: string;
   payload: any;
   version: number;
-  user_id: any;
   timestamp: any;
   metadata: any;
 }

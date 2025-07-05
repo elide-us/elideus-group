@@ -34,7 +34,7 @@ def test_lifespan_sets_state(monkeypatch):
 def test_handle_rpc_request_invalid_prefix():
     app = FastAPI()
     request = Request({'type': 'http', 'app': app})
-    rpc_request = RPCRequest(op='invalid', user_id=uuid.uuid4())
+    rpc_request = RPCRequest(op='invalid')
     with pytest.raises(HTTPException) as exc:
         asyncio.run(handle_rpc_request(rpc_request, request))
     assert exc.value.status_code == 400
@@ -43,7 +43,7 @@ def test_handle_rpc_request_invalid_prefix():
 def test_handle_rpc_request_unknown_domain():
     app = FastAPI()
     request = Request({'type': 'http', 'app': app})
-    rpc_request = RPCRequest(op='urn:unknown:op:1', user_id=uuid.uuid4())
+    rpc_request = RPCRequest(op='urn:unknown:op:1')
     with pytest.raises(HTTPException) as exc:
         asyncio.run(handle_rpc_request(rpc_request, request))
     assert exc.value.status_code == 404

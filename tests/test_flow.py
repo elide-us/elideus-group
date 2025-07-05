@@ -26,7 +26,6 @@ def test_rpc_environment_flow(monkeypatch):
     with TestClient(app) as client:
         req = {
             "op": "urn:admin:vars:get_version:1",
-            "user_id": str(uuid.uuid4()),
         }
         res = client.post("/rpc", json=req)
         assert res.status_code == 200

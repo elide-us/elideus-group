@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Any, Optional
-from uuid import UUID
 from datetime import datetime, timezone
 
 class RPCRequest(BaseModel):
@@ -8,10 +7,6 @@ class RPCRequest(BaseModel):
   payload: Optional[dict[str, Any]] = None
   version: int = 1
 
-  user_id: UUID = Field(
-    ...,
-    description="Internal GUID uniquely identifying the authenticated user"
-  )
   timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),
     description="Client-supplied or default UTC timestamp"
