@@ -11,7 +11,15 @@ function App(): JSX.Element {
 			<CssBaseline />
 			<UserContextProvider>
 				<Router>
-					<Container sx={{ width: '100%', display: 'block' }}>
+                                        <Container
+                                                sx={{
+                                                        width: '100%',
+                                                        display: 'block',
+                                                        bgcolor: 'background.paper',
+                                                        color: 'text.primary',
+                                                        minHeight: '100vh'
+                                                }}
+                                        >
 						<Routes>
 							<Route path='/' element={<Home />} />
 						</Routes>
