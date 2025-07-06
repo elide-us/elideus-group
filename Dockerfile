@@ -67,23 +67,14 @@ RUN python -m venv $VIRTUAL_ENV \
 
 COPY . /app
 
-RUN ls -al /app
-
-RUN rm -rf /app/tests
-RUN rm -rf /app/scripts
-RUN rm -rf /app/frontend
-RUN rm /app/*.cmd
-RUN rm /app/*.md
-RUN rm /app/*.txt
-RUN rm /app/Dockerfile
-RUN rm /app/.dockerignore
-RUN rm /app/.env.example
-RUN rm -rf /app/.github
-RUN rm /app/.gitignore
-
-RUN ls -al /app
+RUN chmod +x /app/docker-cleanup.sh \
+ && /app/docker-cleanup.sh
+ 
+RUN rm /app/docker_cleanup.sh
 
 RUN chmod +x /app/startup.sh
+
+RUN ls -al /app
 
 EXPOSE 8000
 CMD ["/bin/sh", "/app/startup.sh"]
