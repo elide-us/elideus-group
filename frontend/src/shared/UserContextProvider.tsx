@@ -1,5 +1,6 @@
 import { useState, ReactNode } from 'react';
-import UserContext, { UserData } from './UserContext';
+import UserContext from './UserContext';
+import { UserData } from './RpcModels';
 
 interface UserContextProviderProps {
   	children: ReactNode;
