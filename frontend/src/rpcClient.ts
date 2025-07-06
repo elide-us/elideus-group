@@ -8,6 +8,7 @@ import {
         RPCResponse,
 } from './shared/RpcModels';
 
+
 const buildRequest = (op: string): RPCRequest => ({
     op,
     payload: null,
