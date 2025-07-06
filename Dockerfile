@@ -38,7 +38,7 @@ RUN python -m venv $VIRTUAL_ENV \
 # Copy your application code and tests
 COPY . /app
 
-# (Optional) verify layout
+# Verify layout
 RUN ls -R /app
 
 # Run the test suite
@@ -68,6 +68,10 @@ RUN python -m venv $VIRTUAL_ENV \
 # Copy application code (remove tests)
 COPY . /app
 RUN rm -rf /app/tests
+# RUN rm -rf /app/scripts
+
+# Verify layout
+RUN ls -R /app
 
 RUN chmod +x /app/startup.sh
 
