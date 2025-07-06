@@ -18,22 +18,18 @@ export interface UserData {
 export interface AdminLinksHome1 {
   links: LinkItem[];
 }
-
 export interface LinkItem {
   title: string;
   url: string;
 }
-
 export interface AdminLinksRoutes1 {
   routes: RouteItem[];
 }
-
 export interface RouteItem {
   path: string;
   name: string;
   icon: string;
 }
-
 export interface AdminVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }

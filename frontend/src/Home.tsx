@@ -51,15 +51,12 @@ const Home = (): JSX.Element => {
 				setFfmpegVersion('unknown');
 			}
 
-                        try {
-                                const homeLinks = await fetchHomeLinks();
-                                const normalized = Array.isArray(homeLinks.links)
-                                        ? homeLinks.links
-                                        : Object.values(homeLinks.links);
-                                setLinks(normalized);
-                        } catch {
-                                setLinks([]);
-                        }
+			try {
+				const homeLinks = await fetchHomeLinks();
+				setLinks(homeLinks.links);
+			} catch {
+				setLinks([]);
+			}
 		})();
 	}, []);
 
