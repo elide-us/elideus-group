@@ -132,3 +132,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+frontend/src/assets/elideus_group_green.png
