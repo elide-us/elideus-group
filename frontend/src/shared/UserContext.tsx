@@ -1,21 +1,19 @@
 import { createContext } from 'react';
 
 export interface UserData {
-	bearerToken: string;
+  bearerToken: string;
 }
-
-export interface UserContextType {
-	userData: UserData | null;
-	setUserData: (data: UserData | null) => void;
-	clearUserData: () => void;
+export interface UserContext {
+  userData: UserData | null;
+  setUserData: (data: UserData | null) => void;
+  clearUserData: () => void;
 }
-
-const defaultContext: UserContextType = {
-	userData: null,
-	setUserData: () => {},
-	clearUserData: () => {},
+const defaultContext: UserContext = {
+  userData: null,
+  setUserData: () => {},
+  clearUserData: () => {},
 };
 
-const UserContext = createContext<UserContextType>(defaultContext);
+const UserContextObject = createContext<UserContext>(defaultContext);
 
-export default UserContext;
+export default UserContextObject;
