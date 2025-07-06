@@ -30,3 +30,7 @@ export interface AdminVarsRepo1 {
 export interface AdminVarsVersion1 {
   version: string;
 }
+
+export interface AdminVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}

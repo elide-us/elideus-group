@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from server import lifespan, config
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
-from rpc.admin.vars.services import get_version_v1, get_hostname_v1, get_repo_v1
+from rpc.admin.vars.services import get_version_v1, get_hostname_v1, get_repo_v1, get_ffmpeg_version_v1
 from rpc.models import RPCRequest
 
 def test_get_missing_environment_variable(monkeypatch):
@@ -25,7 +25,7 @@ def test_lifespan_sets_state(monkeypatch):
     assert client.app.state.hostname == "unit-host"
     assert client.app.state.repo == "https://repo"
 
-def test_services_read_from_state():
+def test_services_read_from_state(monkeypatch):
   app = FastAPI()
   app.state.version = "9.9.9"
   app.state.hostname = "unit-host"
@@ -38,6 +38,14 @@ def test_services_read_from_state():
   repo_res = asyncio.run(get_repo_v1(request))
   assert repo_res.payload.repo == "https://repo"
   assert repo_res.payload.build == "https://repo/actions"
+  async def fake_exec(*args, **kwargs):
+    class Proc:
+      async def communicate(self):
+        return (b"ffmpeg version 6.0", b"")
+    return Proc()
+  monkeypatch.setattr('rpc.admin.vars.services.asyncio.create_subprocess_exec', fake_exec)
+  ffmpeg_res = asyncio.run(get_ffmpeg_version_v1(request))
+  assert ffmpeg_res.payload.ffmpeg_version == "ffmpeg version 6.0"
 
 def test_handle_rpc_request_invalid_prefix():
   app = FastAPI()
