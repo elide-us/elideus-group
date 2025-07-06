@@ -75,6 +75,7 @@ RUN rm /app/docker_cleanup.sh
 RUN chmod +x /app/startup.sh
 
 RUN ls -al /app
+RUN ls -Ral /app/static
 
 EXPOSE 8000
 CMD ["/bin/sh", "/app/startup.sh"]
