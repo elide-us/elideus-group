@@ -18,6 +18,15 @@ export interface UserData {
   bearerToken: string;
 }
 
+export interface AdminLinksHome1 {
+  links: any;
+}
+
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+
 export interface AdminVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }
@@ -32,13 +41,4 @@ export interface AdminVarsRepo1 {
 
 export interface AdminVarsVersion1 {
   version: string;
-}
-
-export interface AdminLinksHome1 {
-  links: any;
-}
-
-export interface LinkItem {
-  title: string;
-  url: string;
 }
