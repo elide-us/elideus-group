@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
 import { fetchVersion, fetchHostname, fetchFfmpegVersion } from '../src/rpcClient';
 
@@ -8,17 +8,17 @@ const mockedPost = axios.post as unknown as ReturnType<typeof vi.fn>;
 
 describe('rpcClient', () => {
 	it('fetchVersion posts correct request', async () => {
-		mockedPost.mockResolvedValueOnce({ data: { payload: { version: '1.0.0' } } });
+		mockedPost.mockResolvedValueOnce({ data: { payload: { version: '9.9.9' } } });
 		const res = await fetchVersion();
 		expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_version:1' }));
-		expect(res.version).toBe('1.0.0');
+		expect(res.version).toBe('9.9.9');
 	});
 
         it('fetchHostname posts correct request', async () => {
-                mockedPost.mockResolvedValueOnce({ data: { payload: { hostname: 'host' } } });
+                mockedPost.mockResolvedValueOnce({ data: { payload: { hostname: 'unit-host' } } });
                 const res = await fetchHostname();
                 expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_hostname:1' }));
-                expect(res.hostname).toBe('host');
+                expect(res.hostname).toBe('unit-host');
         });
 
         it('fetchFfmpegVersion posts correct request', async () => {
