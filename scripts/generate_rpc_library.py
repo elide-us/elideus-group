@@ -5,7 +5,7 @@ from genlib import model_to_ts
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), '..')
 ROOT = os.path.join(REPO_ROOT, 'rpc')
-FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src')
+FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
 
 def load_module(path: str):
   spec = importlib.util.spec_from_file_location("mod", path)
@@ -26,7 +26,7 @@ def main() -> None:
           interfaces.append(model_to_ts(obj))
 
     os.makedirs(FRONTEND_SRC, exist_ok=True)
-    out_path = os.path.join(FRONTEND_SRC, 'generated_rpc_models.tsx')
+    out_path = os.path.join(FRONTEND_SRC, 'RpcModels.tsx')
     with open(out_path, 'w') as f:
       f.write("\n".join(interfaces))
     print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
