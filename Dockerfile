@@ -67,8 +67,8 @@ RUN python -m venv $VIRTUAL_ENV \
 
 COPY . /app
 
-RUN chmod +x /app/docker-cleanup.sh \
- && /app/docker-cleanup.sh
+RUN chmod +x /app/docker_cleanup.sh \
+ && /app/docker_cleanup.sh
  
 RUN rm /app/docker_cleanup.sh
 

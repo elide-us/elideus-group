@@ -37,7 +37,6 @@ def test_services_read_from_state(monkeypatch):
   assert host_res.payload.hostname == "unit-host"
   repo_res = asyncio.run(get_repo_v1(request))
   assert repo_res.payload.repo == "https://repo"
-  assert repo_res.payload.build == "https://repo/actions"
   async def fake_exec(*args, **kwargs):
     class Proc:
       async def communicate(self):

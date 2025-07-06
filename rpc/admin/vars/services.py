@@ -15,7 +15,7 @@ async def get_hostname_v1(request: Request):
 
 async def get_repo_v1(request: Request):
   repo = request.app.state.repo
-  payload = AdminVarsRepo1(repo=repo, build=f"{repo}/actions")
+  payload = AdminVarsRepo1(repo=repo)
   return RPCResponse(op="urn:admin:vars:repo:1", payload=payload, version=1)
 
 async def get_ffmpeg_version_v1(request: Request):
