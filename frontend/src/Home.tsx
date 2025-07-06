@@ -1,6 +1,7 @@
 import { Box, Typography, Link, CardMedia } from '@mui/material';
 import { useEffect, useState } from 'react';
-import Links from './config/links';
+import { fetchHomeLinks } from './rpcClient';
+import type { LinkItem } from './shared/RpcModels';
 import Logo from './assets/elideus_group_green.png';
 import {
 	fetchHostname,
@@ -10,10 +11,11 @@ import {
 } from './rpcClient';
 
 const Home = (): JSX.Element => {
-	const [appVersion, setAppVersion] = useState('');
-	const [hostname, setHostname] = useState('');
-	const [repo, setRepo] = useState('');
-	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
+        const [appVersion, setAppVersion] = useState('');
+        const [hostname, setHostname] = useState('');
+        const [repo, setRepo] = useState('');
+        const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
+       const [links, setLinks] = useState<LinkItem[]>([]);
 
 	useEffect(() => {
 		void (async () => {
@@ -33,18 +35,25 @@ const Home = (): JSX.Element => {
 				setHostname('unknown');
 			}
 
-			try {
-				const repoInfo = await fetchRepo();
-				const cleanRepo = repoInfo.repo.replace(/^"|"$/g, '');
-				setRepo(cleanRepo);
-			} catch {
-				setRepo('');
-			}
+                        try {
+                                const repoInfo = await fetchRepo();
+                                const cleanRepo = repoInfo.repo.replace(/^"|"$/g, '');
+                                setRepo(cleanRepo);
+                        } catch {
+                                setRepo('');
+                        }
 
-			try {
-				const ffmpegInfo = await fetchFfmpegVersion();
-				const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
-				setFfmpegVersion(cleanFfmpeg);
+                        try {
+                                const homeLinks = await fetchHomeLinks();
+                                setLinks(homeLinks.links);
+                        } catch {
+                                setLinks([]);
+                        }
+
+                        try {
+                                const ffmpegInfo = await fetchFfmpegVersion();
+                                const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
+                                setFfmpegVersion(cleanFfmpeg);
 			} catch {
 				setFfmpegVersion('unknown');
 			}
@@ -65,13 +74,13 @@ const Home = (): JSX.Element => {
 		>
 			<CardMedia component="img" alt="Elideus Group Image" image={Logo} />
 			<Typography variant="body1">AI Engineering and Consulting Services</Typography>
-			<Box sx={{ marginTop: '20px', width: '300px', textAlign: 'center' }}>
-				{Links.map((link) => (
-					<Link
-						key={link.title}
-						href={link.url}
-						title={link.title}
-						underline="none"
+                       <Box sx={{ marginTop: '20px', width: '300px', textAlign: 'center' }}>
+                               {links.map((link) => (
+                                       <Link
+                                               key={link.title}
+                                               href={link.url}
+                                               title={link.title}
+                                               underline="none"
 						target="_blank"
 						rel="noopener noreferrer"
 					>
@@ -106,12 +115,16 @@ build
 			<Typography variant="body1" sx={{ marginTop: '4px' }}>
 				{ffmpegVersion ? ffmpegVersion : 'Loading version...'}
 			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '20px' }}>
-				Contact us at:{' '}
-				<Link underline="hover" href="mailto:contact@elideusgroup.com">
-					contact@elideusgroup.com
-				</Link>
-			</Typography>
+                       <Typography variant="body1" sx={{ marginTop: '20px' }}>
+                               Contact us at:{' '}
+                               <Link
+                                       href="mailto:contact@elideusgroup.com"
+                                       underline="none"
+                                       sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
+                               >
+                                       contact@elideusgroup.com
+                               </Link>
+                       </Typography>
 		</Box>
 	);
 };

@@ -1,9 +1,10 @@
 import axios from 'axios';
 import {
-        AdminVarsHostname1,
-        AdminVarsRepo1,
-        AdminVarsVersion1,
-        AdminVarsFfmpegVersion1,
+       AdminVarsHostname1,
+       AdminVarsRepo1,
+       AdminVarsVersion1,
+       AdminVarsFfmpegVersion1,
+       AdminLinksHome1,
         RPCRequest,
         RPCResponse,
 } from './shared/RpcModels';
@@ -39,4 +40,10 @@ export const fetchFfmpegVersion = async (): Promise<AdminVarsFfmpegVersion1> => 
     const request = buildRequest('urn:admin:vars:get_ffmpeg_version:1');
     const response = await axios.post<RPCResponse>('/rpc', request);
     return response.data.payload as AdminVarsFfmpegVersion1;
+};
+
+export const fetchHomeLinks = async (): Promise<AdminLinksHome1> => {
+    const request = buildRequest('urn:admin:links:get_home:1');
+    const response = await axios.post<RPCResponse>('/rpc', request);
+    return response.data.payload as AdminLinksHome1;
 };
