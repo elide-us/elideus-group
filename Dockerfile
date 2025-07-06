@@ -68,7 +68,11 @@ RUN python -m venv $VIRTUAL_ENV \
 # Copy application code (remove tests)
 COPY . /app
 RUN rm -rf /app/tests
-# RUN rm -rf /app/scripts
+RUN rm -rf /app/scripts
+RUN rm -rf /app/frontend
+RUN rm /app/*.cmd
+RUN rm /app/*.md
+RUN rm /app/*.txt
 
 # Verify layout
 RUN ls -R /app
