@@ -1,0 +1,17 @@
+import axios from 'axios';
+import { RPCRequest, RPCResponse, AdminLinksHome1, AdminLinksRoutes1 } from '@/shared/RpcModels';
+
+const rpcCall = async <T>(op: string): Promise<T> => {
+    const request: RPCRequest = {
+        op,
+        payload: null,
+        version: 1,
+        timestamp: Date.now(),
+        metadata: null,
+    };
+    const response = await axios.post<RPCResponse>('/rpc', request);
+    return response.data.payload as T;
+};
+
+export const fetchHome = (): Promise<AdminLinksHome1> => rpcCall('urn:admin:links:get_home:1');
+export const fetchRoutes = (): Promise<AdminLinksRoutes1> => rpcCall('urn:admin:links:get_routes:1');
