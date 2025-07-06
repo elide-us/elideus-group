@@ -32,3 +32,7 @@ class RPCResponse(BaseModel):
 
 class UserData(BaseModel):
  bearerToken: str
+
+class LinkItem(BaseModel):
+  title: str
+  url: str
