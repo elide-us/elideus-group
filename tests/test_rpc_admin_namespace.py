@@ -60,3 +60,15 @@ def test_get_ffmpeg_version(monkeypatch):
   assert response.op == "urn:admin:vars:ffmpeg_version:1"
   assert response.payload.ffmpeg_version == "ffmpeg version 6.0"
 
+
+def test_get_home_links():
+  app = FastAPI()
+  request = Request({"type": "http", "app": app})
+
+  rpc_request = RPCRequest(op="urn:admin:links:get_home:1")
+  response = asyncio.run(handle_rpc_request(rpc_request, request))
+
+  assert response.op == "urn:admin:links:home:1"
+  assert len(response.payload.links) == 6
+  assert response.payload.links[0].title == "Discord"
+

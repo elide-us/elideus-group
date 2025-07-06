@@ -1,7 +1,4 @@
-export interface LinkItem {
-	title: string;
-	url: string;
-}
+import { LinkItem } from '../shared/RpcModels';
 
 const Links: LinkItem[] = [
 	{ title: 'Discord', url: 'https://discord.gg/xXUZFTuzSw' },
