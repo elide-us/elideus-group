@@ -29,9 +29,8 @@ def test_generate_user_context():
     assert 'export interface UserContext' in ts or 'export interface UserContextType' in ts
     assert 'createContext<UserContext' in ts or 'createContext<UserContextType' in ts
 
-def test_main_writes_rpc_models(tmp_path, monkeypatch):
-    monkeypatch.setattr(rpcgen, 'FRONTEND_SRC', str(tmp_path))
-    rpcgen.main()
+def test_main_writes_rpc_models(tmp_path):
+    rpcgen.main(output_dir=str(tmp_path))
     assert (tmp_path / 'RpcModels.tsx').exists()
 
 def test_main_writes_user_context(tmp_path, monkeypatch):
