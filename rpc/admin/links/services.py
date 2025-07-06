@@ -1,8 +1,7 @@
 
 from fastapi import Request
-from rpc.models import RPCResponse
-from .models import LinkItem, AdminLinksHome1
-
+from rpc.models import RPCResponse, LinkItem
+from rpc.admin.links.models import AdminLinksHome1
 
 async def get_home_v1(request: Request) -> RPCResponse:
   links = [
@@ -16,4 +15,3 @@ async def get_home_v1(request: Request) -> RPCResponse:
 
   payload = AdminLinksHome1(links=links)
   return RPCResponse(op="urn:admin:links:home:1", payload=payload, version=1)
-
