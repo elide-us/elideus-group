@@ -56,3 +56,8 @@ def test_rpc_environment_flow(monkeypatch):
     assert res.status_code == 200
     assert isinstance(res.json()["payload"], dict)
     assert len(res.json()["payload"]["links"]) == 6
+    req["op"] = "urn:admin:links:get_routes:1"
+    res = client.post("/rpc", json=req)
+    assert res.status_code == 200
+    assert isinstance(res.json()["payload"], dict)
+    assert len(res.json()["payload"]["routes"]) == 7

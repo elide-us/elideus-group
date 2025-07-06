@@ -72,3 +72,14 @@ def test_get_home_links():
   assert len(response.payload.links) == 6
   assert response.payload.links[0].title == "Discord"
 
+
+def test_get_routes():
+  app = FastAPI()
+  request = Request({"type": "http", "app": app})
+
+  rpc_request = RPCRequest(op="urn:admin:links:get_routes:1")
+  response = asyncio.run(handle_rpc_request(rpc_request, request))
+
+  assert response.op == "urn:admin:links:routes:1"
+  assert len(response.payload.routes) == 7
+  assert response.payload.routes[0].path == "/"
