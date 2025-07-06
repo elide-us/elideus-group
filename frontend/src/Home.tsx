@@ -84,13 +84,24 @@ const Home = (): JSX.Element => {
 			</Typography>
 			<Typography variant="body1" sx={{ marginTop: '4px' }}>
 				GitHub:{' '}
-				<Link href={repo} target="_blank" rel="noopener noreferrer">
-					repo
-				</Link>
-				{' '}-{' '}
-				<Link href={repo ? `${repo}/actions` : ''} target="_blank" rel="noopener noreferrer">
-					build
-				</Link>
+<Link
+href={repo}
+target="_blank"
+rel="noopener noreferrer"
+underline="none"
+sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
+>
+repo
+</Link>{' '}-{' '}
+<Link
+href={repo ? `${repo}/actions` : ''}
+target="_blank"
+rel="noopener noreferrer"
+underline="none"
+sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
+>
+build
+</Link>
 			</Typography>
 			<Typography variant="body1" sx={{ marginTop: '4px' }}>
 				{ffmpegVersion ? ffmpegVersion : 'Loading version...'}
