@@ -1,12 +1,13 @@
 import { Box, Typography, Link } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { fetchHostname, fetchVersion, fetchRepo } from './rpcClient';
+import { fetchHostname, fetchVersion, fetchRepo, fetchFfmpegVersion } from './rpcClient';
 
 const Home = (): JSX.Element => {
   const [appVersion, setAppVersion] = useState('');
   const [hostname, setHostname] = useState('');
   const [repo, setRepo] = useState('');
   const [build, setBuild] = useState('');
+  const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +36,14 @@ const Home = (): JSX.Element => {
       } catch {
         setRepo('');
         setBuild('');
+      }
+
+      try {
+        const ffmpegInfo = await fetchFfmpegVersion();
+        const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
+        setFfmpegVersion(cleanFfmpeg);
+      } catch {
+        setFfmpegVersion('unknown');
       }
     })();
   }, []);
@@ -82,6 +91,9 @@ const Home = (): JSX.Element => {
         >
           build
         </Link>
+      </Typography>
+      <Typography sx={{ fontSize: 14, mt: 1 }}>
+        {ffmpegVersion ? ffmpegVersion : 'Loading version...'}
       </Typography>
     </Box>
   );

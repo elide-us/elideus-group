@@ -42,3 +42,22 @@ def test_get_repo():
   assert response.payload.repo == "https://repo"
   assert response.payload.build == "https://repo/actions"
 
+def test_get_ffmpeg_version(monkeypatch):
+  app = FastAPI()
+  request = Request({"type": "http", "app": app})
+
+  async def fake_exec(*args, **kwargs):
+    class Proc:
+      async def communicate(self):
+        return (b"ffmpeg version 6.0", b"")
+    return Proc()
+
+  import rpc.admin.vars.services as services
+  monkeypatch.setattr(services.asyncio, "create_subprocess_exec", fake_exec)
+
+  rpc_request = RPCRequest(op="urn:admin:vars:get_ffmpeg_version:1")
+  response = asyncio.run(handle_rpc_request(rpc_request, request))
+
+  assert response.op == "urn:admin:vars:ffmpeg_version:1"
+  assert response.payload.ffmpeg_version == "ffmpeg version 6.0"
+
