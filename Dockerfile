@@ -73,9 +73,10 @@ RUN rm -rf /app/frontend
 RUN rm /app/*.cmd
 RUN rm /app/*.md
 RUN rm /app/*.txt
+RUN rm /app/Dockerfile
 
 # Verify layout
-RUN ls -R /app
+RUN ls -al /app
 
 RUN chmod +x /app/startup.sh
 
