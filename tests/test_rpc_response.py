@@ -37,3 +37,17 @@ def test_rpc_environment_flow(monkeypatch):
     assert res.status_code == 200
     assert res.json()["payload"]["repo"] == "https://repo"
     assert res.json()["payload"]["build"] == "https://repo/actions"
+
+    import rpc.admin.vars.services as services
+
+    async def fake_exec(*args, **kwargs):
+      class Proc:
+        async def communicate(self):
+          return (b"ffmpeg version 6.0", b"")
+      return Proc()
+
+    monkeypatch.setattr(services.asyncio, "create_subprocess_exec", fake_exec)
+    req["op"] = "urn:admin:vars:get_ffmpeg_version:1"
+    res = client.post("/rpc", json=req)
+    assert res.status_code == 200
+    assert res.json()["payload"]["ffmpeg_version"] == "ffmpeg version 6.0"
