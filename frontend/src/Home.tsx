@@ -15,7 +15,7 @@ const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');
 	const [repo, setRepo] = useState('');
 	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
-	const [links, setLinks] = useState<LinkItem[]>([]);
+        const [links, setLinks] = useState<LinkItem[]>([]);
 
 	useEffect(() => {
 		void (async () => {
@@ -51,12 +51,15 @@ const Home = (): JSX.Element => {
 				setFfmpegVersion('unknown');
 			}
 
-			try {
-				const homeLinks = await fetchHomeLinks();
-				setLinks(homeLinks.links);
-			} catch {
-				setLinks([]);
-			}
+                        try {
+                                const homeLinks = await fetchHomeLinks();
+                                const normalized = Array.isArray(homeLinks.links)
+                                        ? homeLinks.links
+                                        : Object.values(homeLinks.links);
+                                setLinks(normalized);
+                        } catch {
+                                setLinks([]);
+                        }
 		})();
 	}, []);
 
