@@ -1,5 +1,26 @@
-scripts/
-__pycache__/
-*.pyc
-.env
+# Ignore test directories
 tests/
+
+# Ignore scripts directories
+scripts/
+
+# Ignore frontend directories
+frontend/
+
+# Ignore command scripts
+*.cmd
+
+# Ignore documentation and text files
+*.md
+*.txt
+
+# Ignore Docker-related files
+Dockerfile
+.dockerignore
+
+# Ignore example environment file
+.env.example
+
+# Ignore Git files and directories
+.github/
+.gitignore

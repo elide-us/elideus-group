@@ -65,8 +65,10 @@ RUN python -m venv $VIRTUAL_ENV \
  && pip install --upgrade pip \
  && pip install -r requirements.txt
 
-# Copy application code (remove tests)
 COPY . /app
+
+RUN ls -al /app
+
 RUN rm -rf /app/tests
 RUN rm -rf /app/scripts
 RUN rm -rf /app/frontend
@@ -74,8 +76,11 @@ RUN rm /app/*.cmd
 RUN rm /app/*.md
 RUN rm /app/*.txt
 RUN rm /app/Dockerfile
+RUN rm /app/.dockerignore
+RUN rm /app/.env.example
+RUN rm /app/.gihub
+RUN rm /app/.gitignore
 
-# Verify layout
 RUN ls -al /app
 
 RUN chmod +x /app/startup.sh
