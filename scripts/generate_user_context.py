@@ -1,20 +1,14 @@
 from __future__ import annotations
-import os, sys
-
-from genlib import model_to_ts
+import os
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, REPO_ROOT)
-
-from rpc.models import UserData
 
 FRONTEND_SRC = os.path.join(REPO_ROOT, "frontend", "src", "shared")
 
 def generate_user_context() -> str:
-    content: list[str] = ["import { createContext } from 'react';", ""]
+    content: list[str] = ["import { createContext } from 'react';", "import type { UserData } from './RpcModels';", ""]
 
-    # ✅ Step 1: Generate UserData from Pydantic
-    content.append(model_to_ts(UserData).strip())
+    # UserData interface is defined in RpcModels.tsx
 
     # ✅ Step 2: Manually write the correct React-facing UserContext interface
     content.append('export interface UserContext {')

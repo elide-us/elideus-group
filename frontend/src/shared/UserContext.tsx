@@ -1,8 +1,6 @@
 import { createContext } from 'react';
+import type { UserData } from './RpcModels';
 
-export interface UserData {
-  bearerToken: string;
-}
 export interface UserContext {
   userData: UserData | null;
   setUserData: (data: UserData | null) => void;
