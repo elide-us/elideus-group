@@ -18,6 +18,10 @@ export interface UserData {
   bearerToken: string;
 }
 
+export interface AdminVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+
 export interface AdminVarsHostname1 {
   hostname: string;
 }
@@ -30,6 +34,11 @@ export interface AdminVarsVersion1 {
   version: string;
 }
 
-export interface AdminVarsFfmpegVersion1 {
-  ffmpeg_version: string;
+export interface AdminLinksHome1 {
+  links: any;
+}
+
+export interface LinkItem {
+  title: string;
+  url: string;
 }

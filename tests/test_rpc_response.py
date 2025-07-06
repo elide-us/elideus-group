@@ -50,3 +50,9 @@ def test_rpc_environment_flow(monkeypatch):
     res = client.post("/rpc", json=req)
     assert res.status_code == 200
     assert res.json()["payload"]["ffmpeg_version"] == "ffmpeg version 6.0"
+
+    req["op"] = "urn:admin:links:get_home:1"
+    res = client.post("/rpc", json=req)
+    assert res.status_code == 200
+    assert isinstance(res.json()["payload"], dict)
+    assert len(res.json()["payload"]["links"]) == 6
