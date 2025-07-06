@@ -8,7 +8,7 @@ sys.path.insert(0, REPO_ROOT)
 
 from rpc.models import UserData
 
-FRONTEND_SRC = os.path.join(REPO_ROOT, "frontend", "src")
+FRONTEND_SRC = os.path.join(REPO_ROOT, "frontend", "src", "shared")
 
 def generate_user_context() -> str:
     content: list[str] = ["import { createContext } from 'react';", ""]
@@ -39,7 +39,8 @@ def generate_user_context() -> str:
     return "\n".join(content)
 
 def main() -> None:
-  out_path = os.path.join(FRONTEND_SRC, "generated_user_context.tsx")
+  os.makedirs(FRONTEND_SRC, exist_ok=True)
+  out_path = os.path.join(FRONTEND_SRC, "UserContext.tsx")
   with open(out_path, "w") as f:
     f.write(generate_user_context())
   print(f"✅ Wrote UserContext to '{out_path}'")
