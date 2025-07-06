@@ -45,7 +45,6 @@ from genlib import model_to_ts
 REPO_ROOT = os.path.join(os.path.dirname(__file__), '..')
 ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
-OUT_FILE = os.path.join(FRONTEND_SRC, 'RpcModels.tsx')
 
 HEADER_COMMENT = [
   "// ================================================",
@@ -79,16 +78,19 @@ def find_all_interfaces() -> List[str]:
       interfaces.extend(extract_interfaces_from_models_py(models_path))
   return interfaces
 
-def write_interfaces_to_file(interfaces: List[str]) -> None:
-  os.makedirs(FRONTEND_SRC, exist_ok=True)
-  with open(OUT_FILE, 'w') as f:
+def write_interfaces_to_file(interfaces: List[str], output_dir: str) -> None:
+  os.makedirs(output_dir, exist_ok=True)
+  out_path = os.path.join(output_dir, 'RpcModels.tsx')
+  with open(out_path, 'w') as f:
     f.write("\n".join(HEADER_COMMENT + interfaces))
-  print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{OUT_FILE}'")
+  print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
 
-def main() -> None:
+
+def main(output_dir: str = FRONTEND_SRC) -> None:
   print("✨ Starting RPC model extraction and TS generation...")
   interfaces = find_all_interfaces()
-  write_interfaces_to_file(interfaces)
+  write_interfaces_to_file(interfaces, output_dir)
+
 
 if __name__ == "__main__":
   main()
