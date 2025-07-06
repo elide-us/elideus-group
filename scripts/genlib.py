@@ -6,6 +6,9 @@ PY_TO_TS = {
   int: 'number',
   float: 'number',
   bool: 'boolean',
+  list: "array",
+  dict: "object",
+  type(None): "null",
 }
 
 def field_to_ts(name: str, annotation: Any) -> str:
