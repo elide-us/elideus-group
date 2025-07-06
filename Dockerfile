@@ -78,7 +78,7 @@ RUN rm /app/*.txt
 RUN rm /app/Dockerfile
 RUN rm /app/.dockerignore
 RUN rm /app/.env.example
-RUN rm /app/.gihub
+RUN rm -rf /app/.github
 RUN rm /app/.gitignore
 
 RUN ls -al /app
