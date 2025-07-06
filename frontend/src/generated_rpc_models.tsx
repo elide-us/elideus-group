@@ -14,6 +14,10 @@ export interface RPCResponse {
   metadata: any;
 }
 
+export interface UserData {
+  bearerToken: string;
+}
+
 export interface AdminVarsHostname1 {
   hostname: string;
 }

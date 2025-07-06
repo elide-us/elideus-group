@@ -1,37 +1,17 @@
 from __future__ import annotations
 import os, inspect, importlib.util
 from pydantic import BaseModel
-from typing import get_type_hints, Any
+from genlib import model_to_ts
 
 REPO_ROOT = os.path.join(os.path.dirname(__file__), '..')
 ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src')
-
-PY_TO_TS = {
-  str: 'string',
-  int: 'number',
-  float: 'number',
-  bool: 'boolean',
-}
 
 def load_module(path: str):
   spec = importlib.util.spec_from_file_location("mod", path)
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)  # type: ignore
   return module
-
-def field_to_ts(name: str, annotation: Any) -> str:
-  """Convert a single Pydantic field to TypeScript."""
-  ts_type = PY_TO_TS.get(annotation, 'any')
-  return f"  {name}: {ts_type};"
-
-def model_to_ts(cls: type[BaseModel]) -> str:
-  fields = []
-  hints = get_type_hints(cls, include_extras=True)
-  for name, typ in hints.items():
-    fields.append(field_to_ts(name, typ))
-  body = "\n".join(fields)
-  return f"export interface {cls.__name__} {{\n{body}\n}}\n"
 
 def main() -> None:
   print("✨ Starting RPC model extraction and TS generation...")
