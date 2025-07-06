@@ -36,7 +36,6 @@ def test_rpc_environment_flow(monkeypatch):
     res = client.post("/rpc", json=req)
     assert res.status_code == 200
     assert res.json()["payload"]["repo"] == "https://repo"
-    assert res.json()["payload"]["build"] == "https://repo/actions"
 
     import rpc.admin.vars.services as services
 

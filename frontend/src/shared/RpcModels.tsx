@@ -24,7 +24,6 @@ export interface AdminVarsHostname1 {
 
 export interface AdminVarsRepo1 {
   repo: string;
-  build: string;
 }
 
 export interface AdminVarsVersion1 {

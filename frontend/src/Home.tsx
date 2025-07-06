@@ -6,7 +6,6 @@ const Home = (): JSX.Element => {
   const [appVersion, setAppVersion] = useState('');
   const [hostname, setHostname] = useState('');
   const [repo, setRepo] = useState('');
-  const [build, setBuild] = useState('');
   const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,12 +29,9 @@ const Home = (): JSX.Element => {
       try {
         const repoInfo = await fetchRepo();
         const cleanRepo = repoInfo.repo.replace(/^"|"$/g, '');
-        const cleanBuild = repoInfo.build.replace(/^"|"$/g, '');
         setRepo(cleanRepo);
-        setBuild(cleanBuild);
       } catch {
         setRepo('');
-        setBuild('');
       }
 
       try {
@@ -84,7 +80,7 @@ const Home = (): JSX.Element => {
         </Link>{' '}
         -{' '}
         <Link
-          href={build}
+          href={repo ? `${repo}/actions` : ''}
           target="_blank"
           rel="noopener noreferrer"
           sx={{ color: 'text.primary', textDecoration: 'none' }}

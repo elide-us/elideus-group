@@ -8,7 +8,6 @@ class AdminVarsHostname1(BaseModel):
 
 class AdminVarsRepo1(BaseModel):
   repo: str
-  build: str
 
 class AdminVarsFfmpegVersion1(BaseModel):
   ffmpeg_version: str
