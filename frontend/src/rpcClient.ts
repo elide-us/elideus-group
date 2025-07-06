@@ -5,6 +5,7 @@ import {
        AdminVarsVersion1,
        AdminVarsFfmpegVersion1,
        AdminLinksHome1,
+       AdminLinksRoutes1,
         RPCRequest,
         RPCResponse,
 } from './shared/RpcModels';
@@ -46,4 +47,10 @@ export const fetchHomeLinks = async (): Promise<AdminLinksHome1> => {
     const request = buildRequest('urn:admin:links:get_home:1');
     const response = await axios.post<RPCResponse>('/rpc', request);
     return response.data.payload as AdminLinksHome1;
+};
+
+export const fetchRoutes = async (): Promise<AdminLinksRoutes1> => {
+    const request = buildRequest('urn:admin:links:get_routes:1');
+    const response = await axios.post<RPCResponse>('/rpc', request);
+    return response.data.payload as AdminLinksRoutes1;
 };

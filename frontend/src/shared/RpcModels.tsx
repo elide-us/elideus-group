@@ -22,9 +22,19 @@ export interface AdminLinksHome1 {
   links: any;
 }
 
+export interface AdminLinksRoutes1 {
+  routes: any;
+}
+
 export interface LinkItem {
   title: string;
   url: string;
+}
+
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
 }
 
 export interface AdminVarsFfmpegVersion1 {

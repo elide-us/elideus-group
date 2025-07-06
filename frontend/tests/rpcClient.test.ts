@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
-import { fetchVersion, fetchHostname, fetchFfmpegVersion, fetchHomeLinks } from '../src/rpcClient';
+import { fetchVersion, fetchHostname, fetchFfmpegVersion, fetchHomeLinks, fetchRoutes } from '../src/rpcClient';
 
 vi.mock('axios');
 
@@ -35,3 +35,9 @@ describe('rpcClient', () => {
                 expect(Array.isArray(res.links)).toBe(true);
         });
 });
+        it('fetchRoutes posts correct request', async () => {
+                mockedPost.mockResolvedValueOnce({ data: { payload: { routes: [] } } });
+                const res = await fetchRoutes();
+                expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_routes:1' }));
+                expect(Array.isArray(res.routes)).toBe(true);
+        });
