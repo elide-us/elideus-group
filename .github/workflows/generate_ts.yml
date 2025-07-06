@@ -20,9 +20,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Generate TypeScript library
-        run: python scripts/generate_ts_library.py
+        run: |
+          python scripts/generate_rpc_library.py
+          python scripts/generate_user_context.py
       - name: Commit generated library
         uses: EndBug/add-and-commit@v9
         with:
-          add: 'frontend/src/generated_rpc_models.tsx'
+          add: 'frontend/src/shared/RpcModels.tsx frontend/src/shared/UserContext.tsx'
           message: 'chore: auto-generate TypeScript library'

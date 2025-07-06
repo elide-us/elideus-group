@@ -16,6 +16,13 @@ IF ERRORLEVEL 1 (
     EXIT /b 1
 )
 
+:: Generate TypeScript libraries
+CALL devgenerate.cmd
+IF ERRORLEVEL 1 (
+    ECHO "devgenerate failed. Exiting."
+    EXIT /b 1
+)
+
 :: Run frontend tasks
 CD frontend
 ECHO Running npm ci on Frontend...

@@ -6,7 +6,8 @@ import {
         AdminVarsFfmpegVersion1,
         RPCRequest,
         RPCResponse,
-} from './generated_rpc_models';
+} from './shared/RpcModels';
+
 
 const buildRequest = (op: string): RPCRequest => ({
     op,
