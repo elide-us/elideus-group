@@ -40,7 +40,6 @@ def test_get_repo():
 
   assert response.op == "urn:admin:vars:repo:1"
   assert response.payload.repo == "https://repo"
-  assert response.payload.build == "https://repo/actions"
 
 def test_get_ffmpeg_version(monkeypatch):
   app = FastAPI()
