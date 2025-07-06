@@ -10,3 +10,11 @@ class LinkItem(BaseModel):
 class AdminLinksHome1(BaseModel):
   links: list[LinkItem]
 
+
+class RouteItem(BaseModel):
+  path: str
+  name: str
+  icon: str
+
+class AdminLinksRoutes1(BaseModel):
+  routes: list[RouteItem]
