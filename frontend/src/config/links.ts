@@ -4,10 +4,12 @@ export interface LinkItem {
 }
 
 const Links: LinkItem[] = [
-	{ title: 'Original TheOracleGPT', url: 'https://github.com/elide-us/TheOracle' },
-	{ title: 'Live (Original) Site', url: 'https://elideusgroup.com' },
+	{ title: 'Discord', url: 'https://discord.gg/xXUZFTuzSw' },
+    { title: 'GitHub', url: 'https://github.com/elide-us' },
+    { title: 'TikTok', url: 'https://www.tiktok.com/@elide.us' },
+    { title: 'BlueSky', url: 'https://bsky.app/profile/elideusgroup.com' },
+    { title: 'Suno', url: 'https://suno.com/@elideus' },
 	{ title: 'Patreon', url: 'https://patreon.com/Elideus' },
-	{ title: 'Live (Rebuild) Site', url: 'https://elideus-group.azurewebsites.net' },
 ];
 
 export default Links;

@@ -59,7 +59,7 @@ const Home = (): JSX.Element => {
 				alignItems: 'center',
 				justifyContent: 'flex-start',
 				height: '100vh',
-				backgroundColor: 'background.default',
+				backgroundColor: 'background.paper',
 				paddingTop: '20px',
 			}}
 		>
@@ -86,13 +86,9 @@ const Home = (): JSX.Element => {
 				GitHub:{' '}
 				<Link href={repo} target="_blank" rel="noopener noreferrer">
 					repo
-				</Link>{' '}
-				-{' '}
-				<Link
-					href={repo ? `${repo}/actions` : ''}
-					target="_blank"
-					rel="noopener noreferrer"
-				>
+				</Link>
+				{' '}-{' '}
+				<Link href={repo ? `${repo}/actions` : ''} target="_blank" rel="noopener noreferrer">
 					build
 				</Link>
 			</Typography>
