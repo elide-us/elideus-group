@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
-import { fetchVersion, fetchHostname, fetchFfmpegVersion } from '../src/rpcClient';
+import { fetchVersion, fetchHostname, fetchFfmpegVersion, fetchHomeLinks } from '../src/rpcClient';
 
 vi.mock('axios');
 
@@ -26,5 +26,12 @@ describe('rpcClient', () => {
                 const res = await fetchFfmpegVersion();
                 expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_ffmpeg_version:1' }));
                 expect(res.ffmpeg_version).toBe('ffmpeg version 6.0');
+        });
+
+        it('fetchHomeLinks posts correct request', async () => {
+                mockedPost.mockResolvedValueOnce({ data: { payload: { links: [] } } });
+                const res = await fetchHomeLinks();
+                expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_home:1' }));
+                expect(Array.isArray(res.links)).toBe(true);
         });
 });
