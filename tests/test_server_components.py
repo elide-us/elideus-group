@@ -2,7 +2,7 @@ import asyncio, pytest
 from importlib import reload
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
-from server import lifespan, config
+from server import lifespan
 from server.providers.env_provider import EnvironmentProvider
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
@@ -11,15 +11,15 @@ from rpc.models import RPCRequest
 
 def test_get_missing_environment_variable(monkeypatch):
   monkeypatch.delenv("MISSING_VAR", raising=False)
+  env = EnvironmentProvider(app := FastAPI())
   with pytest.raises(RuntimeError):
-    config.get_environment_variable("MISSING_VAR")
+    env._load_required("MISSING_VAR")
 
 def test_lifespan_sets_state(monkeypatch):
   monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  reload(config)
   reload(lifespan)
   app = FastAPI(lifespan=lifespan.lifespan)
   with TestClient(app) as client:
