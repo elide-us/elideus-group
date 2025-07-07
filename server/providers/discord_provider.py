@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from . import Provider
 
-from server.config import get_discord_secret, get_discord_syschan
+"""Discord provider using environment variables from EnvironmentProvider."""
 
 import discord, asyncio
 from discord.ext import commands
@@ -9,11 +9,11 @@ from discord.ext import commands
 class DiscordProvider(Provider):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.secret = get_discord_secret()
-    self.syschan = get_discord_syschan()
+    self.env = app.state.env_provider
+    self.secret: str | None = None
+    self.syschan: int | None = None
     self.bot = self._init_discord_bot('!')
     self.bot.app = self.app
-    self._init_bot_routes()
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
@@ -47,6 +47,9 @@ class DiscordProvider(Provider):
     await self.bot.start(self.secret)
 
   async def startup(self):
+    self.secret = self.env.get("DISCORD_SECRET")
+    self.syschan = self.env.get_int("DISCORD_SYSCHAN")
+    self._init_bot_routes()
     self.task = asyncio.create_task(self._start_discord_bot())
 
   async def shutdown(self):
