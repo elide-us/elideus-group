@@ -33,13 +33,11 @@ def test_main_writes_rpc_models(tmp_path):
     rpcgen.main(output_dir=str(tmp_path))
     assert (tmp_path / 'RpcModels.tsx').exists()
 
-def test_main_writes_user_context(tmp_path, monkeypatch):
-    monkeypatch.setattr(ctxgen, 'FRONTEND_SRC', str(tmp_path))
-    ctxgen.main()
+def test_main_writes_user_context(tmp_path):
+    ctxgen.main(output_dir=str(tmp_path))
     assert (tmp_path / 'UserContext.tsx').exists()
 from scripts import generate_rpc_client as clientgen
 
-def test_main_writes_rpc_client(tmp_path, monkeypatch):
-  monkeypatch.setattr(clientgen, 'FRONTEND_RPC', str(tmp_path))
-  clientgen.main()
+def test_main_writes_rpc_client(tmp_path):
+  clientgen.main(output_dir=str(tmp_path))
   assert (tmp_path / 'admin' / 'vars' / 'index.ts').exists()
