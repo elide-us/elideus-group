@@ -4,6 +4,7 @@ import { CssBaseline, Container } from '@mui/material'
 import ElideusTheme from './shared/ElideusTheme'
 import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
+import NavBar from './NavBar'
 
 function App(): JSX.Element {
 	return (
@@ -11,9 +12,10 @@ function App(): JSX.Element {
 			<CssBaseline />
 			<UserContextProvider>
 				<Router>
+					<NavBar />
 					<Container
 						sx={{
-							width: '100%', 
+							width: '100%',
 							display: 'block',
 							bgcolor: 'background.paper',
 							color: 'text.primary',

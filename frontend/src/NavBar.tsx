@@ -37,11 +37,12 @@ const NavBar = (): JSX.Element => {
 		<Drawer
 			variant="permanent"
 			open={open}
-			sx={{
-				width: open ? DRAWER_OPEN : DRAWER_CLOSED,
-				position: 'fixed',
-				height: '100%',
-				zIndex: 1300,
+                        sx={{
+                                width: open ? DRAWER_OPEN : DRAWER_CLOSED,
+                                position: 'fixed',
+                                height: '100%',
+                                zIndex: 1300,
+                                left: (theme) => theme.spacing(3),
 				'& .MuiDrawer-paper': {
 					width: open ? DRAWER_OPEN : DRAWER_CLOSED,
 					overflowX: 'hidden',
