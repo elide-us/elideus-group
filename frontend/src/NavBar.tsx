@@ -50,7 +50,7 @@ const NavBar = (): JSX.Element => {
 				},
 			}}
 		>
-			<Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
+			<Box sx={{ display: 'flex', justifyContent: 'flex-start', pl: 2, py: 1 }}>
 				<Tooltip title="Toggle Menu">
 					<IconButton onClick={() => setOpen(!open)}>
 						<MenuIcon />
