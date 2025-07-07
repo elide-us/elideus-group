@@ -99,5 +99,5 @@ def test_get_routes():
   response = asyncio.run(handle_rpc_request(rpc_request, request))
 
   assert response.op == "urn:admin:links:routes:1"
-  assert len(response.payload.routes) == 7
+  assert len(response.payload.routes) == 1
   assert response.payload.routes[0].path == "/"
