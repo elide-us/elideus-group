@@ -72,5 +72,5 @@ class ProviderRegistry:
       await provider.startup()
 
   async def shutdown(self):
-    for key, provider in reversed(self.providers.items()):
+    for key, provider in reversed(list(self.providers.items())):
       await provider.shutdown()
