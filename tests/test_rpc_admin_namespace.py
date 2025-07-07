@@ -1,13 +1,18 @@
 import asyncio
 from fastapi import FastAPI, Request
+from server.providers.env_provider import EnvironmentProvider
 
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
-def test_get_version():
-  app = FastAPI()
-  app.state.version = "9.9.9"
-  app.state.hostname = "unit-host"
+def test_get_version(monkeypatch):
+  monkeypatch.setenv("VERSION", "9.9.9")
+  monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
+  env = EnvironmentProvider(app := FastAPI())
+  app.state.env_provider = env
+  asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_version:1")
@@ -16,10 +21,14 @@ def test_get_version():
   assert response.op == "urn:admin:vars:version:1"
   assert response.payload.version == "9.9.9"
 
-def test_get_hostname():
-  app = FastAPI()
-  app.state.version = "9.9.9"
-  app.state.hostname = "unit-host"
+def test_get_hostname(monkeypatch):
+  monkeypatch.setenv("VERSION", "9.9.9")
+  monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
+  env = EnvironmentProvider(app := FastAPI())
+  app.state.env_provider = env
+  asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_hostname:1")
@@ -28,11 +37,14 @@ def test_get_hostname():
   assert response.op == "urn:admin:vars:hostname:1"
   assert response.payload.hostname == "unit-host"
 
-def test_get_repo():
-  app = FastAPI()
-  app.state.version = "9.9.9"
-  app.state.hostname = "unit-host"
-  app.state.repo = "https://repo"
+def test_get_repo(monkeypatch):
+  monkeypatch.setenv("VERSION", "9.9.9")
+  monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
+  env = EnvironmentProvider(app := FastAPI())
+  app.state.env_provider = env
+  asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_repo:1")
@@ -42,7 +54,13 @@ def test_get_repo():
   assert response.payload.repo == "https://repo"
 
 def test_get_ffmpeg_version(monkeypatch):
-  app = FastAPI()
+  monkeypatch.setenv("VERSION", "9.9.9")
+  monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
+  env = EnvironmentProvider(app := FastAPI())
+  app.state.env_provider = env
+  asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
   async def fake_exec(*args, **kwargs):

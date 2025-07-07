@@ -12,10 +12,7 @@ def test_rpc_environment_flow(monkeypatch):
   monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
-
-  # reload config after setting env vars
-  import server.config as config
-  reload(config)
+  monkeypatch.setenv("DISCORD_SECRET", "token")
   reload(lifespan)
 
   app = FastAPI(lifespan=lifespan.lifespan)

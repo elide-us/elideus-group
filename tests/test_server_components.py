@@ -3,6 +3,7 @@ from importlib import reload
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from server import lifespan, config
+from server.providers.env_provider import EnvironmentProvider
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
 from rpc.admin.vars.services import get_version_v1, get_hostname_v1, get_repo_v1, get_ffmpeg_version_v1
@@ -17,19 +18,25 @@ def test_lifespan_sets_state(monkeypatch):
   monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
   reload(config)
   reload(lifespan)
   app = FastAPI(lifespan=lifespan.lifespan)
   with TestClient(app) as client:
-    assert client.app.state.version == "9.9.9"
-    assert client.app.state.hostname == "unit-host"
-    assert client.app.state.repo == "https://repo"
+    env = client.app.state.env_provider
+    assert env.get("VERSION") == "9.9.9"
+    assert env.get("HOSTNAME") == "unit-host"
+    assert env.get("REPO") == "https://repo"
 
 def test_services_read_from_state(monkeypatch):
+  monkeypatch.setenv("VERSION", "9.9.9")
+  monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("REPO", "https://repo")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
   app = FastAPI()
-  app.state.version = "9.9.9"
-  app.state.hostname = "unit-host"
-  app.state.repo = "https://repo"
+  env = EnvironmentProvider(app)
+  app.state.env_provider = env
+  asyncio.run(env.startup())
   request = Request({'type': 'http', 'app': app})
   version_res = asyncio.run(get_version_v1(request))
   assert version_res.payload.version == "9.9.9"
