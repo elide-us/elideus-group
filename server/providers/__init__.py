@@ -1,48 +1,41 @@
-# server/providers/__init__.py
-
+import pkgutil, importlib, inspect
 from abc import ABC, abstractmethod
 from fastapi import FastAPI
 
-
-# === Base Class ===
-
 class Provider(ABC):
-    def __init__(self, app: FastAPI):
-        self.app = app
+  def __init__(self, app: FastAPI):
+    self.app = app
 
-    @abstractmethod
-    async def startup(self):
-        pass
+  @abstractmethod
+  async def startup(self):
+    pass
 
-    @abstractmethod
-    async def shutdown(self):
-        pass
-
-# === Registry ===
-
-from server.providers.database_provider import DatabaseProvider
-from server.providers.openai_provider import OpenAIProvider
-from server.providers.discord_provider import DiscordProvider
+  @abstractmethod
+  async def shutdown(self):
+    pass
 
 class ProviderRegistry:
-    def __init__(self, app: FastAPI):
-        self.app = app
-        self.providers: dict[str, Provider] = {}
+  def __init__(self, app: FastAPI):
+    self.app = app
+    self.providers: dict[str, Provider] = {}
+    self._discover_and_register_providers()
 
-        self._register("openai", OpenAIProvider)
-        self._register("discord", DiscordProvider)
-        self._register("database", DatabaseProvider)
+  def _discover_and_register_providers(self):
+    for _, module_name, _ in pkgutil.iter_modules(__path__):
+      if module_name.endswith("_provider"):
+        module = importlib.import_module(f"{__name__}.{module_name}")
+        for name, obj in inspect.getmembers(module, inspect.isclass):
+          if issubclass(obj, Provider) and obj is not Provider:
+            key = module_name.replace("_provider", "")
+            instance = obj(self.app)
+            self.providers[key] = instance
+            setattr(self.app.state, f"{key}_provider", instance)
 
-    def _register(self, name: str, provider_cls: type[Provider]):
-        instance = provider_cls(self.app)
-        self.providers[name] = instance
-        setattr(self.app.state, f"{name}_provider", instance)
+  async def startup(self):
+    for provider in self.providers.values():
+      await provider.startup()
 
-    async def startup(self):
-        for provider in self.providers.values():
-            await provider.startup()
-
-    async def shutdown(self):
-        for provider in self.providers.values():
-            await provider.shutdown()
+  async def shutdown(self):
+    for provider in self.providers.values():
+      await provider.shutdown()
 
