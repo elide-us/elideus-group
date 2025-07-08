@@ -17,9 +17,7 @@ class EnvironmentProvider(Provider):
     self._load_required("HOSTNAME", "MISSING_ENV_HOSTNAME")
     self._load_required("REPO", "MISSING_ENV_REPO")
     self._load_required("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
-    
-    # Constants (like hardcoded channel IDs) can be stored too
-    self._env["DISCORD_SYSCHAN"] = str(1391617075843174531)
+    self._load_required("DISCORD_SYSCHAN", "MISSING_ENV_DISCORD_SYSCHAN")
 
   async def shutdown(self):
     # Nothing to clean up, but defined for interface compliance
