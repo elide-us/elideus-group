@@ -1,4 +1,5 @@
-import os
+import os, json
+from pathlib import Path
 import dotenv
 from fastapi import FastAPI
 from server.providers import Provider
@@ -11,9 +12,10 @@ class EnvironmentProvider(Provider):
 
     # Use internal dict to store all loaded values
     self._env: dict[str, str] = {}
+    self._version: dict[str, str] = {}
 
   async def startup(self):
-    self._load_required("VERSION", "MISSING_ENV_VERSION")
+    self._load_version_file()
     self._load_required("HOSTNAME", "MISSING_ENV_HOSTNAME")
     self._load_required("REPO", "MISSING_ENV_REPO")
     self._load_required("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
@@ -22,6 +24,18 @@ class EnvironmentProvider(Provider):
   async def shutdown(self):
     # Nothing to clean up, but defined for interface compliance
     pass
+
+  def _load_version_file(self):
+    path = Path('version.json')
+    if path.exists():
+      with path.open() as f:
+        self._version = json.load(f)
+    else:
+      self._version = {"tag": "v0.0.0", "commit": "unknown", "run": ""}
+    self._env["VERSION"] = f"{self._version.get('tag')}.{self._version.get('commit')}"
+
+  def get_version_info(self) -> dict[str, str]:
+    return self._version
 
   def _load_required(self, var_name: str, default: str | None = None):
     value = os.getenv(var_name, default)

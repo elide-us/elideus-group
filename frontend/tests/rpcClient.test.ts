@@ -8,10 +8,11 @@ const mockedPost = axios.post as unknown as ReturnType<typeof vi.fn>;
 
 describe('rpcClient', () => {
     it('fetchVersion posts correct request', async () => {
-        mockedPost.mockResolvedValueOnce({ data: { payload: { version: '9.9.9' } } });
+        mockedPost.mockResolvedValueOnce({ data: { payload: { version: 'v9.9.9.abc123', commit: 'abc123', run: 'run' } } });
         const res = await fetchVersion();
         expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_version:1' }));
-        expect(res.version).toBe('9.9.9');
+        expect(res.version).toBe('v9.9.9.abc123');
+        expect(res.run).toBe('run');
     });
 
     it('fetchHostname posts correct request', async () => {

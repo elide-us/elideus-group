@@ -12,20 +12,23 @@ import { fetchHome } from './rpc/admin/links';
 
 const Home = (): JSX.Element => {
 	const [appVersion, setAppVersion] = useState('');
-	const [hostname, setHostname] = useState('');
-	const [repo, setRepo] = useState('');
+        const [hostname, setHostname] = useState('');
+        const [repo, setRepo] = useState('');
+        const [runLink, setRunLink] = useState('');
 	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
 	const [links, setLinks] = useState<LinkItem[]>([]);
 
 	useEffect(() => {
 		void (async () => {
-			try {
-				const version = await fetchVersion();
-				const cleanVersion = version.version.replace(/^"|"$/g, '');
-				setAppVersion(cleanVersion);
-			} catch {
-				setAppVersion('unknown');
-			}
+                        try {
+                                const version = await fetchVersion();
+                                const cleanVersion = version.version.replace(/^"|"$/g, '');
+                                setAppVersion(cleanVersion);
+                                setRunLink(version.run);
+                        } catch {
+                                setAppVersion('unknown');
+                                setRunLink('');
+                        }
 
 			try {
 				const host = await fetchHostname();
@@ -105,9 +108,9 @@ const Home = (): JSX.Element => {
 					repo
 				</Link>
 					{' '}-{' '}
-				<Link
-					href={repo ? `${repo}/actions` : ''}
-					target="_blank"
+                                <Link
+                                        href={runLink}
+                                        target="_blank"
 					rel="noopener noreferrer"
 					underline="none"
 					sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}

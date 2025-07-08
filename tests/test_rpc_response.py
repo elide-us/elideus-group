@@ -2,6 +2,7 @@ from importlib import reload
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from server import rpc_router, lifespan
+import json, pathlib
 
 def create_app():
   from main import app
@@ -9,7 +10,7 @@ def create_app():
 
 
 def test_rpc_environment_flow(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
+  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -22,7 +23,7 @@ def test_rpc_environment_flow(monkeypatch):
     req = { "op": "urn:admin:vars:get_version:1" }
     res = client.post("/rpc", json=req)
     assert res.status_code == 200
-    assert res.json()["payload"]["version"] == "9.9.9"
+    assert res.json()["payload"]["version"] == "v9.9.9.abc123"
 
     req["op"] = "urn:admin:vars:get_hostname:1"
     res = client.post("/rpc", json=req)
