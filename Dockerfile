@@ -4,18 +4,19 @@
 FROM node:18 AS builder
 
 # Download and install Node 18
-RUN apt-get update && apt-get install -y curl
+RUN apt-get update && apt-get install -y curl python3 python3-pip
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
+RUN pip install pydantic
 
-WORKDIR /frontend
+WORKDIR /app
 
-# Copy packages and execute node install
-COPY frontend/package*.json ./
+COPY . .
+
+RUN python3 scripts/generate_rpc_library.py && python3 scripts/generate_rpc_client.py
+
+WORKDIR /app/frontend
+
 RUN npm ci
-
-COPY frontend/ ./
-
-# Run package build script
 RUN npm run build
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ RUN apt-get update && apt-get install -y ffmpeg
 WORKDIR /app
 
 # Copy only what we need from builder & runtime deps from tester
-COPY --from=builder /static /app/static
+COPY --from=builder /app/static /app/static
 COPY requirements.txt ./
 
 # Configure the Python environment
@@ -50,11 +51,8 @@ RUN rm /app/docker_cleanup.sh
 
 RUN chmod +x /app/startup.sh
 
-# Finaly output of the Python and React build
-RUN ls -al /app
-RUN ls -Ral /app/server
+# Informative log output of RPC namespace
 RUN ls -Ral /app/rpc
-RUN ls -Ral /app/static
 
 # Setup dockerfile entry point
 EXPOSE 8000
