@@ -6,7 +6,7 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 def test_get_version(monkeypatch):
-  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
+  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123"}))
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -20,7 +20,6 @@ def test_get_version(monkeypatch):
 
   assert response.op == "urn:admin:vars:version:1"
   assert response.payload.version == "v9.9.9.abc123"
-  assert response.payload.run == "run"
 
 def test_get_hostname(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")

@@ -31,7 +31,7 @@ class EnvironmentProvider(Provider):
       with path.open() as f:
         self._version = json.load(f)
     else:
-      self._version = {"tag": "v0.0.0", "commit": "unknown", "run": ""}
+      self._version = {"tag": "v0.0.0", "commit": "unknown"}
     self._env["VERSION"] = f"{self._version.get('tag')}.{self._version.get('commit')}"
 
   def get_version_info(self) -> dict[str, str]:
