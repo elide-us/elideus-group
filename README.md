@@ -44,5 +44,14 @@ These items were previously implemented and are on the rebuild roadmap.
    9. Define Startup Script
 5. Deploy container to Azure Web App
 
+### Pull Request Testing
+GitHub Actions run both the Node and Python test suites whenever a pull request targets the `main` branch. The workflow is defined in `.github/workflows/pr-tests.yml`.
+
+To require these tests before merging you will need to enable branch protection in GitHub:
+1. Open your repository **Settings** and navigate to **Branches**.
+2. Create or edit the rule for `main`.
+3. Enable **Require status checks to pass before merging** and select **Pull Request Tests**.
+4. Save the rule.
+
 ### AI Usage Details
 We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified tools that it can use on a virtual command line where it can search your code with grep, list file names with ls and execute build and test steps during its research phase. This does require some additional configuration, I effectively duplicated the build script for the Codex agent so that it is working even with the live output from the build in the virtual workspace. The advanced integration and agentification of the coding tool greatly improves the results, but it does require very careful prompting because it can take upwards of 7-10 minutes to execute each prompt. This is no chat bot, this thing performs a deep research activity for each task you give it, and can even run multiple scenarios if you desire, and you can also run several tasks at the same time.
