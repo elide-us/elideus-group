@@ -12,9 +12,8 @@ import { fetchHome } from './rpc/admin/links';
 
 const Home = (): JSX.Element => {
 	const [appVersion, setAppVersion] = useState('');
-        const [hostname, setHostname] = useState('');
-        const [repo, setRepo] = useState('');
-        const [runLink, setRunLink] = useState('');
+	const [hostname, setHostname] = useState('');
+	const [repo, setRepo] = useState('');
 	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
 	const [links, setLinks] = useState<LinkItem[]>([]);
 
@@ -24,10 +23,8 @@ const Home = (): JSX.Element => {
                                 const version = await fetchVersion();
                                 const cleanVersion = version.version.replace(/^"|"$/g, '');
                                 setAppVersion(cleanVersion);
-                                setRunLink(version.run);
                         } catch {
                                 setAppVersion('unknown');
-                                setRunLink('');
                         }
 
 			try {
@@ -91,7 +88,7 @@ const Home = (): JSX.Element => {
 				))}
 			</Box>
 			<Typography variant="body1" sx={{ marginTop: '20px' }}>
-				v{appVersion} running on {hostname}
+				{appVersion} running on {hostname}
 			</Typography>
 			<Typography variant="body1" sx={{ marginTop: '4px' }}>
 				{ffmpegVersion ? ffmpegVersion : 'Loading version...'}
@@ -108,9 +105,9 @@ const Home = (): JSX.Element => {
 					repo
 				</Link>
 					{' '}-{' '}
-                                <Link
-                                        href={runLink}
-                                        target="_blank"
+				<Link
+					href={repo ? `${repo}/actions` : ''}
+					target="_blank"
 					rel="noopener noreferrer"
 					underline="none"
 					sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
