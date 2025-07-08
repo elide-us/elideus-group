@@ -17,7 +17,7 @@ class EnvironmentProvider(Provider):
     self._load_required("HOSTNAME", "MISSING_ENV_HOSTNAME")
     self._load_required("REPO", "MISSING_ENV_REPO")
     self._load_required("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
-    self._load_required("DISCORD_SYSCHAN", "MISSING_ENV_DISCORD_SYSCHAN")
+    self._load_required("DISCORD_SYSCHAN", 0)
 
   async def shutdown(self):
     # Nothing to clean up, but defined for interface compliance
