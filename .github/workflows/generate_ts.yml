@@ -22,9 +22,8 @@ jobs:
       - name: Generate TypeScript library
         run: |
           python scripts/generate_rpc_library.py
-          python scripts/generate_user_context.py
       - name: Commit generated library
         uses: EndBug/add-and-commit@v9
         with:
-          add: 'frontend/src/shared/RpcModels.tsx frontend/src/shared/UserContext.tsx'
+          add: 'frontend/src/shared/RpcModels.tsx'
           message: 'chore: auto-generate TypeScript library'

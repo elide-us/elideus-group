@@ -7,7 +7,6 @@ sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, SCRIPTS_DIR)
 
 from scripts import generate_rpc_library as rpcgen
-from scripts import generate_user_context as ctxgen
 
 def test_model_to_ts_simple():
     class Sample(BaseModel):
@@ -23,19 +22,10 @@ def test_model_to_ts_simple():
     assert 'active: boolean;' in ts
     assert 'pi: number;' in ts
 
-def test_generate_user_context():
-    ts = ctxgen.generate_user_context()
-    assert "import type { UserData } from './RpcModels';" in ts or "import { UserData } from './RpcModels';" in ts
-    assert 'export interface UserContext' in ts or 'export interface UserContextType' in ts
-    assert 'createContext<UserContext' in ts or 'createContext<UserContextType' in ts
-
 def test_main_writes_rpc_models(tmp_path):
     rpcgen.main(output_dir=str(tmp_path))
     assert (tmp_path / 'RpcModels.tsx').exists()
 
-def test_main_writes_user_context(tmp_path):
-    ctxgen.main(output_dir=str(tmp_path))
-    assert (tmp_path / 'UserContext.tsx').exists()
 from scripts import generate_rpc_client as clientgen
 
 def test_main_writes_rpc_client(tmp_path):
