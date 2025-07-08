@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, json, pathlib
 from fastapi import FastAPI, Request
 from server.providers.env_provider import EnvironmentProvider
 
@@ -6,7 +6,7 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 def test_get_version(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
+  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -19,10 +19,10 @@ def test_get_version(monkeypatch):
   response = asyncio.run(handle_rpc_request(rpc_request, request))
 
   assert response.op == "urn:admin:vars:version:1"
-  assert response.payload.version == "9.9.9"
+  assert response.payload.version == "v9.9.9.abc123"
+  assert response.payload.run == "run"
 
 def test_get_hostname(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -38,7 +38,6 @@ def test_get_hostname(monkeypatch):
   assert response.payload.hostname == "unit-host"
 
 def test_get_repo(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -54,7 +53,6 @@ def test_get_repo(monkeypatch):
   assert response.payload.repo == "https://repo"
 
 def test_get_ffmpeg_version(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")

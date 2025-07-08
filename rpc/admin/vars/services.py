@@ -5,8 +5,9 @@ from rpc.models import RPCResponse
 
 async def get_version_v1(request: Request):
   env = request.app.state.env_provider
-  version = env.get("VERSION")
-  payload = AdminVarsVersion1(version=version)
+  info = env.get_version_info()
+  version = f"{info.get('tag')}.{info.get('commit')}"
+  payload = AdminVarsVersion1(version=version, commit=info.get('commit'), run=info.get('run'))
   return RPCResponse(op="urn:admin:vars:version:1", payload=payload, version=1)
 
 async def get_hostname_v1(request: Request):

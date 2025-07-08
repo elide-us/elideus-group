@@ -1,4 +1,4 @@
-import asyncio, pytest
+import asyncio, pytest, json, pathlib
 from importlib import reload
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
@@ -16,7 +16,7 @@ def test_get_missing_environment_variable(monkeypatch):
     env._load_required("MISSING_VAR")
 
 def test_lifespan_sets_state(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
+  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -24,12 +24,12 @@ def test_lifespan_sets_state(monkeypatch):
   app = FastAPI(lifespan=lifespan.lifespan)
   with TestClient(app) as client:
     env = client.app.state.env_provider
-    assert env.get("VERSION") == "9.9.9"
+    assert env.get_version_info()["tag"] == "v9.9.9"
     assert env.get("HOSTNAME") == "unit-host"
     assert env.get("REPO") == "https://repo"
 
 def test_services_read_from_state(monkeypatch):
-  monkeypatch.setenv("VERSION", "9.9.9")
+  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -39,7 +39,7 @@ def test_services_read_from_state(monkeypatch):
   asyncio.run(env.startup())
   request = Request({'type': 'http', 'app': app})
   version_res = asyncio.run(get_version_v1(request))
-  assert version_res.payload.version == "9.9.9"
+  assert version_res.payload.version == "v9.9.9.abc123"
   host_res = asyncio.run(get_hostname_v1(request))
   assert host_res.payload.hostname == "unit-host"
   repo_res = asyncio.run(get_repo_v1(request))

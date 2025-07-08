@@ -47,4 +47,5 @@ export interface AdminVarsRepo1 {
 }
 export interface AdminVarsVersion1 {
   version: string;
-}
+  commit: string;
+  run: string;}
