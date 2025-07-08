@@ -20,6 +20,7 @@ class ProviderRegistry:
   def __init__(self, app: FastAPI):
     self.app = app
     self.providers: dict[str, Provider] = {}
+    setattr(self.app.state, "providers", self)
 
     # Step 1: Manually register 'env' first
     env_provider = EnvironmentProvider(app)
@@ -28,6 +29,11 @@ class ProviderRegistry:
 
     # Step 2: Dynamically register all other providers
     self._discover_and_register_providers(exclude={"env_provider"})
+
+  def get_provider(self, key: str) -> Provider:
+    if key not in self.providers:
+      raise KeyError(f"Provider '{key}' not registered")
+    return self.providers[key]
 
   def _discover_and_register_providers(self, exclude: set[str] = set()):
     for _, module_name, _ in pkgutil.iter_modules(__path__):
