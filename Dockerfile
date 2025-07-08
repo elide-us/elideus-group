@@ -4,11 +4,17 @@
 FROM node:18 AS builder
 
 # Download and install Node 18
-RUN apt-get update && apt-get install -y curl python3 python3-pip
+RUN apt-get update && apt-get install -y curl python3 python3-pip python3-venv
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
-RUN python3 -m pip install pydantic
-
 WORKDIR /app
+
+ARG PYTHON_ENV=/app/venv
+ENV VIRTUAL_ENV=$PYTHON_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN python3 -m venv $VIRTUAL_ENV \
+ && pip3 install --upgrade pip3 \
+ && pip3 install pydantic
 
 COPY . .
 
@@ -18,6 +24,10 @@ WORKDIR /app/frontend
 
 RUN npm ci
 RUN npm run build
+
+
+
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Python build
