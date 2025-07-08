@@ -6,7 +6,7 @@ FROM node:18 AS builder
 # Download and install Node 18
 RUN apt-get update && apt-get install -y curl python3 python3-pip
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
-RUN pip install pydantic
+RUN pip3 install pydantic
 
 WORKDIR /app
 
