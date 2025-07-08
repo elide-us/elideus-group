@@ -13,8 +13,8 @@ ENV VIRTUAL_ENV=$PYTHON_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN python3 -m venv $VIRTUAL_ENV \
- && pip3 install --upgrade pip3 \
- && pip3 install pydantic
+ && $VIRTUAL_ENV/bin/pip install --upgrade pip \
+ && $VIRTUAL_ENV/bin/pip install pydantic
 
 COPY . .
 
