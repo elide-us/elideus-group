@@ -19,13 +19,13 @@ const Home = (): JSX.Element => {
 
 	useEffect(() => {
 		void (async () => {
-                        try {
-                                const version = await fetchVersion();
-                                const cleanVersion = version.version.replace(/^"|"$/g, '');
-                                setAppVersion(cleanVersion);
-                        } catch {
-                                setAppVersion('unknown');
-                        }
+			try {
+					const version = await fetchVersion();
+					const cleanVersion = version.version.replace(/^"|"$/g, '');
+					setAppVersion(cleanVersion);
+			} catch {
+					setAppVersion('unknown');
+			}
 
 			try {
 				const host = await fetchHostname();
