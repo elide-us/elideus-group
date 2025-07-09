@@ -53,5 +53,11 @@ To require these tests before merging you will need to enable branch protection 
 3. Enable **Require status checks to pass before merging** and select **Pull Request Tests**.
 4. Save the rule.
 
+### Running Tests Locally
+Run `python scripts/run_tests.py` before committing changes. This script
+generates the RPC TypeScript libraries and then executes both the frontend and
+backend test suites. Keeping the generated files in sync ensures that any
+inconsistencies are caught by the tests.
+
 ### AI Usage Details
 We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified tools that it can use on a virtual command line where it can search your code with grep, list file names with ls and execute build and test steps during its research phase. This does require some additional configuration, I effectively duplicated the build script for the Codex agent so that it is working even with the live output from the build in the virtual workspace. The advanced integration and agentification of the coding tool greatly improves the results, but it does require very careful prompting because it can take upwards of 7-10 minutes to execute each prompt. This is no chat bot, this thing performs a deep research activity for each task you give it, and can even run multiple scenarios if you desire, and you can also run several tasks at the same time.
