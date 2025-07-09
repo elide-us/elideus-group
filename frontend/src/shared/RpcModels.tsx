@@ -47,5 +47,13 @@ export interface AdminVarsRepo1 {
 }
 export interface AdminVarsVersion1 {
   version: string;
-  commit: string;
-  run: string;}
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+}

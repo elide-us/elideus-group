@@ -1,4 +1,4 @@
-import asyncio, json, pathlib
+import asyncio
 from fastapi import FastAPI, Request
 from server.providers.env_provider import EnvironmentProvider
 
@@ -6,7 +6,7 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 def test_get_version(monkeypatch):
-  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123"}))
+  monkeypatch.setenv("VERSION", "v0.0.0")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
@@ -19,7 +19,7 @@ def test_get_version(monkeypatch):
   response = asyncio.run(handle_rpc_request(rpc_request, request))
 
   assert response.op == "urn:admin:vars:version:1"
-  assert response.payload.version == "v9.9.9.abc123"
+  assert response.payload.version == "v0.0.0"
 
 def test_get_hostname(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
