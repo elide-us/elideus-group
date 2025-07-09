@@ -11,22 +11,14 @@ import {
 import { fetchHome } from './rpc/admin/links';
 
 const Home = (): JSX.Element => {
-	const [appVersion, setAppVersion] = useState('');
 	const [hostname, setHostname] = useState('');
+	const [version, setVersion] = useState('');
 	const [repo, setRepo] = useState('');
 	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
 	const [links, setLinks] = useState<LinkItem[]>([]);
 
 	useEffect(() => {
 		void (async () => {
-			try {
-					const version = await fetchVersion();
-					const cleanVersion = version.version.replace(/^"|"$/g, '');
-					setAppVersion(cleanVersion);
-			} catch {
-					setAppVersion('unknown');
-			}
-
 			try {
 				const host = await fetchHostname();
 				const cleanHost = host.hostname.replace(/^"|"$/g, '');
@@ -41,6 +33,14 @@ const Home = (): JSX.Element => {
 				setRepo(cleanRepo);
 			} catch {
 				setRepo('unknown');
+			}
+
+			try {
+				const versionInfo = await fetchVersion();
+				const cleanVersion = versionInfo.version.replace(/^"|"$/g, '');
+				setVersion(cleanVersion);
+			} catch {
+				setVersion('v0.0.0');
 			}
 
 			try {
@@ -88,7 +88,7 @@ const Home = (): JSX.Element => {
 				))}
 			</Box>
 			<Typography variant="body1" sx={{ marginTop: '20px' }}>
-				{appVersion} running on {hostname}
+				{version} running on {hostname}
 			</Typography>
 			<Typography variant="body1" sx={{ marginTop: '4px' }}>
 				{ffmpegVersion ? ffmpegVersion : 'Loading version...'}

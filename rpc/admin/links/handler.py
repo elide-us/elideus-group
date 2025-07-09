@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-import rpc.admin.links.services as services
+from rpc.admin.links import services
 
 async def handle_links_request(urn: list[str], request: Request):
   match urn:

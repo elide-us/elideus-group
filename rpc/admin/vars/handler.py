@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-import rpc.admin.vars.services as services
+from rpc.admin.vars import services
 
 async def handle_vars_request(urn: list[str], request: Request):
   match urn:

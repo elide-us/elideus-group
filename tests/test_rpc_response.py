@@ -2,7 +2,6 @@ from importlib import reload
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from server import rpc_router, lifespan
-import json, pathlib
 
 def create_app():
   from main import app
@@ -10,10 +9,9 @@ def create_app():
 
 
 def test_rpc_environment_flow(monkeypatch):
-  pathlib.Path('version.json').write_text(json.dumps({"tag": "v9.9.9", "commit": "abc123", "run": "run"}))
+  monkeypatch.setenv("VERSION", "v0.0.0")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
-  monkeypatch.setenv("DISCORD_SECRET", "token")
   reload(lifespan)
 
   app = FastAPI(lifespan=lifespan.lifespan)
@@ -23,7 +21,7 @@ def test_rpc_environment_flow(monkeypatch):
     req = { "op": "urn:admin:vars:get_version:1" }
     res = client.post("/rpc", json=req)
     assert res.status_code == 200
-    assert res.json()["payload"]["version"] == "v9.9.9.abc123"
+    assert res.json()["payload"]["version"] == "v0.0.0"
 
     req["op"] = "urn:admin:vars:get_hostname:1"
     res = client.post("/rpc", json=req)
@@ -35,7 +33,7 @@ def test_rpc_environment_flow(monkeypatch):
     assert res.status_code == 200
     assert res.json()["payload"]["repo"] == "https://repo"
 
-    import rpc.admin.vars.services as services
+    from rpc.admin.vars import services
 
     async def fake_exec(*args, **kwargs):
       class Proc:
@@ -54,6 +52,7 @@ def test_rpc_environment_flow(monkeypatch):
     assert res.status_code == 200
     assert isinstance(res.json()["payload"], dict)
     assert len(res.json()["payload"]["links"]) == 6
+    
     req["op"] = "urn:admin:links:get_routes:1"
     res = client.post("/rpc", json=req)
     assert res.status_code == 200
