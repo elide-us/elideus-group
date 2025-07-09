@@ -62,6 +62,7 @@ RUN rm /app/docker_cleanup.sh
 RUN chmod +x /app/startup.sh
 
 # Informative log output of RPC namespace
+RUN ls -al /app
 RUN ls -Ral /app/rpc
 
 # Setup dockerfile entry point
