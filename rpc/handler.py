@@ -1,5 +1,6 @@
 from fastapi import Request, HTTPException
 from rpc.admin.handler import handle_admin_request
+from rpc.auth.handler import handle_auth_request
 from rpc.models import RPCRequest, RPCResponse
 
 async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCResponse:
@@ -11,5 +12,7 @@ async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCRe
   match parts[1:]:
     case ["admin", *rest]:
       return await handle_admin_request(rest, request)
+    case ["auth", *rest]:
+      return await handle_auth_request(rest, rpc_request, request)
     case _:
       raise HTTPException(status_code=404, detail="Unknown RPC domain")
