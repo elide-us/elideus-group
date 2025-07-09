@@ -1,0 +1,14 @@
+from __future__ import annotations
+import subprocess, sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+def main() -> None:
+  subprocess.check_call([sys.executable, 'scripts/generate_rpc_library.py'], cwd=ROOT)
+  subprocess.check_call([sys.executable, 'scripts/generate_rpc_client.py'], cwd=ROOT)
+  subprocess.check_call(['npx', 'vitest', 'run'], cwd=ROOT / 'frontend')
+  subprocess.check_call(['pytest', '-q'], cwd=ROOT)
+
+if __name__ == '__main__':
+  main()
