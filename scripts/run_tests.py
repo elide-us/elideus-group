@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> None:
+  subprocess.check_call([sys.executable, 'scripts/update_version.py'], cwd=ROOT)
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_library.py'], cwd=ROOT)
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_client.py'], cwd=ROOT)
   subprocess.check_call(['npx', 'vitest', 'run'], cwd=ROOT / 'frontend')
