@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from server.providers import ProviderRegistry
+from server.modules import ModuleRegistry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-  registry = ProviderRegistry(app)
-  app.state.providers = registry
+  registry = ModuleRegistry(app)
+  app.state.modules = registry
 
   await registry.startup()
 

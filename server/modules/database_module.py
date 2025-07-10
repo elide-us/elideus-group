@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from . import Provider
+from . import BaseModule
 
-class DatabaseProvider(Provider):
+class DatabaseModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
   async def startup(self):

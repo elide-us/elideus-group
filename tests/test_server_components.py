@@ -3,7 +3,7 @@ from importlib import reload
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from server import lifespan
-from server.providers.env_provider import EnvironmentProvider
+from server.modules.env_module import EnvironmentModule
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
 from rpc.admin.vars.services import get_version_v1, get_hostname_v1, get_repo_v1, get_ffmpeg_version_v1
@@ -11,7 +11,7 @@ from rpc.models import RPCRequest
 
 def test_get_missing_environment_variable(monkeypatch):
   monkeypatch.delenv("MISSING_VAR", raising=False)
-  env = EnvironmentProvider(app := FastAPI())
+  env = EnvironmentModule(app := FastAPI())
   with pytest.raises(RuntimeError):
     env._load_required("MISSING_VAR")
 
@@ -32,7 +32,7 @@ def test_services_read_from_state(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   app = FastAPI()
-  env = EnvironmentProvider(app)
+  env = EnvironmentModule(app)
   app.state.env_provider = env
   asyncio.run(env.startup())
   request = Request({'type': 'http', 'app': app})
