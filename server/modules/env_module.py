@@ -1,12 +1,10 @@
-import os, json
-from pathlib import Path
-import dotenv
+import os, dotenv
 from fastapi import FastAPI
-from server.providers import Provider
+from server.modules import BaseModule
 
 dotenv.load_dotenv()
 
-class EnvironmentProvider(Provider):
+class EnvironmentModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
 

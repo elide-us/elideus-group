@@ -1,15 +1,15 @@
 from fastapi import FastAPI
-from . import Provider
+from . import BaseModule
 
 """Discord provider using environment variables from EnvironmentProvider."""
 
 import discord, asyncio
 from discord.ext import commands
 
-class DiscordProvider(Provider):
+class DiscordModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.env = app.state.providers.get_provider("env")
+    self.env = app.state.modules.get_module("env")
     self.secret: str | None = None
     self.syschan: int | None = None
     self.bot = self._init_discord_bot('!')
