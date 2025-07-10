@@ -1,4 +1,4 @@
-import os, dotenv
+import os, dotenv, logging
 from fastapi import FastAPI
 from server.modules import BaseModule
 
@@ -18,6 +18,7 @@ class EnvironmentModule(BaseModule):
     self._load_required("REPO", "MISSING_ENV_REPO")
     self._load_required("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
     self._load_required("DISCORD_SYSCHAN", 0)
+    logging.info("Environment module loaded")
 
   async def shutdown(self):
     # Nothing to clean up, but defined for interface compliance

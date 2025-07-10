@@ -1,4 +1,4 @@
-import pkgutil, importlib, inspect
+import pkgutil, importlib, inspect, logging
 from abc import ABC, abstractmethod
 from fastapi import FastAPI
 
@@ -51,7 +51,9 @@ class ModuleRegistry:
   async def startup(self):
     for key, module in self.modules.items():
       await module.startup()
+      logging.info(f"Module '{key}' started")
 
   async def shutdown(self):
     for key, module in reversed(list(self.modules.items())):
       await module.shutdown()
+      logging.info(f"Module '{key}' shutdown")

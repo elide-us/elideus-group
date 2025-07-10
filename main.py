@@ -6,13 +6,17 @@
 ################################################################################
 
 # External imports
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+import logging
 from fastapi.staticfiles import StaticFiles
 
 # Internal imports
 from server import lifespan
 from server.routers import rpc_router
 from server.routers import web_router
+
+logging.basicConfig(level=logging.INFO)
 
 # Create the FastAPI app
 app = FastAPI(lifespan=lifespan.lifespan)
@@ -28,3 +32,9 @@ app.include_router(web_router.router)
 @app.get("/")
 async def get_root():
   return {"message": "If you are seeing this the React app is misconfigured."}
+
+
+@app.exception_handler(Exception)
+async def log_exceptions(request: Request, exc: Exception):
+  logging.exception("Unhandled exception")
+  return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
