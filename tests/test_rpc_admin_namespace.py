@@ -11,7 +11,7 @@ def test_get_version(monkeypatch):
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
   env = EnvironmentModule(app := FastAPI())
-  app.state.env_provider = env
+  app.state.env_module = env
   asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
@@ -26,7 +26,7 @@ def test_get_hostname(monkeypatch):
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
   env = EnvironmentModule(app := FastAPI())
-  app.state.env_provider = env
+  app.state.env_module = env
   asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
@@ -41,7 +41,7 @@ def test_get_repo(monkeypatch):
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
   env = EnvironmentModule(app := FastAPI())
-  app.state.env_provider = env
+  app.state.env_module = env
   asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 
@@ -56,7 +56,7 @@ def test_get_ffmpeg_version(monkeypatch):
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
   env = EnvironmentModule(app := FastAPI())
-  app.state.env_provider = env
+  app.state.env_module = env
   asyncio.run(env.startup())
   request = Request({"type": "http", "app": app})
 

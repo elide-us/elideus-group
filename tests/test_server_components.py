@@ -22,7 +22,7 @@ def test_lifespan_sets_state(monkeypatch):
   reload(lifespan)
   app = FastAPI(lifespan=lifespan.lifespan)
   with TestClient(app) as client:
-    env = client.app.state.env_provider
+    env = client.app.state.env_module
     assert env.get("VERSION") == "v9.9.9"
     assert env.get("HOSTNAME") == "unit-host"
     assert env.get("REPO") == "https://repo"
@@ -33,7 +33,7 @@ def test_services_read_from_state(monkeypatch):
   monkeypatch.setenv("REPO", "https://repo")
   app = FastAPI()
   env = EnvironmentModule(app)
-  app.state.env_provider = env
+  app.state.env_module = env
   asyncio.run(env.startup())
   request = Request({'type': 'http', 'app': app})
   version_res = asyncio.run(get_version_v1(request))
