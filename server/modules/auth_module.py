@@ -1,4 +1,4 @@
-import os, aiohttp, base64
+import os, aiohttp, base64, logging
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,11 +34,12 @@ class AuthModule(BaseModule):
     try:
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
+      logging.info("Auth module loaded")
     except Exception as e:
       print(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
 
   async def shutdown(self):
-    pass
+    logging.info("Auth module shutdown")
 
   async def verify_ms_id_token(self, id_token: str) -> Dict:
     if not self.ms_jwks:

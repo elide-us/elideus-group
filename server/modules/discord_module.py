@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from . import BaseModule
+from server.helpers.logging import configure_discord_logging, remove_discord_logging
+import logging
 
 """Discord provider using environment variables from EnvironmentProvider."""
 
@@ -32,6 +34,7 @@ class DiscordModule(BaseModule):
       channel = bot.get_channel(syschan)
       if channel:
         await channel.send("TheOracleRPC Online.")
+        logging.info("Discord bot ready")
       else:
         print("[DiscordProvider] System channel not found on ready.")
 
@@ -40,6 +43,7 @@ class DiscordModule(BaseModule):
       channel = bot.get_channel(syschan)
       if channel:
         await channel.send(f"Joined {guild.name} ({guild.id})")
+        logging.info(f"Joined guild {guild.name} ({guild.id})")
       else:
         print(f"[DiscordProvider] System channel not found when joining {guild.name}.")
 
@@ -50,9 +54,12 @@ class DiscordModule(BaseModule):
     self.secret = self.env.get("DISCORD_SECRET")
     self.syschan = self.env.get_int("DISCORD_SYSCHAN")
     self._init_bot_routes()
+    configure_discord_logging(self)
+    logging.info("Discord module loaded")
     self.task = asyncio.create_task(self._start_discord_bot())
 
   async def shutdown(self):
     await self.bot.close()
     if self.task:
       self.task.cancel()
+    remove_discord_logging(self)

@@ -1,4 +1,4 @@
-import os, json, asyncpg
+import os, json, asyncpg, logging
 from uuid import UUID, uuid4
 from fastapi import FastAPI
 from . import BaseModule
@@ -33,11 +33,13 @@ class DatabaseModule(BaseModule):
     dsn = self._db_connection_string()
     if dsn:
       self.pool = await asyncpg.create_pool(dsn=dsn)
+      logging.info("Database module loaded")
 
   async def shutdown(self):
     if self.pool:
       await self.pool.close()
       self.pool = None
+    logging.info("Database module shutdown")
 
   async def _fetch_many(self, query: str, *args):
     if not self.pool:
