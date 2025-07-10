@@ -12,12 +12,13 @@ We'll update this section as we move through the rebuild.
 - Azure Web App (Container/Linux B1)
 - Azure Container Registry
 - GitHub Actions CI/CD Integration
-- Python, Node, React, TypeScript, Docker, Vite, ESLint
+- Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
+- OAuth2 Microsoft Identity - In progress
+- Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.
 - Azure Storage Account (blob and file share)
-- OpenAI, LumaAI, BlueSky Social, Discord
-- OAuth2 Identity
+- OpenAI, LumaAI, BlueSky Social
 - SQL Database
 
 ### Technical Details
@@ -33,4 +34,4 @@ These items were previously implemented and are on the rebuild roadmap.
 GitHub Actions run both the Node and Python test suites whenever a pull request targets the `main` branch. The workflow is defined in `.github/workflows/pr-tests.yml`.
 
 ### AI Usage Details
-We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified tools that it can use on a virtual command line where it can search your code with grep, list file names with ls and execute build and test steps during its research phase. This does require some additional configuration, I effectively duplicated the build script for the Codex agent so that it is working even with the live output from the build in the virtual workspace. The advanced integration and agentification of the coding tool greatly improves the results, but it does require very careful prompting because it can take upwards of 7-10 minutes to execute each prompt. This is no chat bot, this thing performs a deep research activity for each task you give it, and can even run multiple scenarios if you desire, and you can also run several tasks at the same time.
+We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified access to a full suite of command line build and editing tools.
