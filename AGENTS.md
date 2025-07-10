@@ -36,6 +36,7 @@ BUILD:
     - Stage React App
     - Cleanup Workdir
     - Set Entrypoint (expose/startup)
+
 DEPLOY:
 - Send to Azure Container Registry
 - Update Azure Web App
