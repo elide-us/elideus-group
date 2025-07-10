@@ -30,7 +30,7 @@ class ModuleRegistry:
     # Step 2: Dynamically register all other providers
     self._discover_and_register_modules(exclude={"env_module"})
 
-  def get_provider(self, key: str) -> BaseModule:
+  def get_module(self, key: str) -> BaseModule:
     if key not in self.modules:
       raise KeyError(f"Module '{key}' not registered")
     return self.modules[key]

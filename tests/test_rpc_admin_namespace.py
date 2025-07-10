@@ -1,5 +1,7 @@
 import asyncio
 from fastapi import FastAPI, Request
+
+from server.modules import ModuleRegistry
 from server.modules.env_module import EnvironmentModule
 
 from rpc.handler import handle_rpc_request
@@ -10,9 +12,9 @@ def test_get_version(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  env = EnvironmentModule(app := FastAPI())
-  app.state.env_module = env
-  asyncio.run(env.startup())
+  modules = ModuleRegistry(app := FastAPI())
+  app.state.modules = modules
+  asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_version:1")
@@ -25,9 +27,9 @@ def test_get_hostname(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  env = EnvironmentModule(app := FastAPI())
-  app.state.env_module = env
-  asyncio.run(env.startup())
+  modules = ModuleRegistry(app := FastAPI())
+  app.state.modules = modules
+  asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_hostname:1")
@@ -40,9 +42,9 @@ def test_get_repo(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  env = EnvironmentModule(app := FastAPI())
-  app.state.env_module = env
-  asyncio.run(env.startup())
+  modules = ModuleRegistry(app := FastAPI())
+  app.state.modules = modules
+  asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
   rpc_request = RPCRequest(op="urn:admin:vars:get_repo:1")
@@ -55,9 +57,9 @@ def test_get_ffmpeg_version(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  env = EnvironmentModule(app := FastAPI())
-  app.state.env_module = env
-  asyncio.run(env.startup())
+  modules = ModuleRegistry(app := FastAPI())
+  app.state.modules = modules
+  asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
   async def fake_exec(*args, **kwargs):

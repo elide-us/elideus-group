@@ -3,6 +3,7 @@ from importlib import reload
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from server import lifespan
+from server.modules import ModuleRegistry
 from server.modules.env_module import EnvironmentModule
 from rpc.handler import handle_rpc_request
 from rpc.admin.vars.handler import handle_vars_request
@@ -22,7 +23,7 @@ def test_lifespan_sets_state(monkeypatch):
   reload(lifespan)
   app = FastAPI(lifespan=lifespan.lifespan)
   with TestClient(app) as client:
-    env = client.app.state.env_module
+    env = client.app.state.modules.get_module("env")
     assert env.get("VERSION") == "v9.9.9"
     assert env.get("HOSTNAME") == "unit-host"
     assert env.get("REPO") == "https://repo"
@@ -32,9 +33,9 @@ def test_services_read_from_state(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   app = FastAPI()
-  env = EnvironmentModule(app)
-  app.state.env_module = env
-  asyncio.run(env.startup())
+  modules = ModuleRegistry(app)
+  app.state.modules = modules
+  asyncio.run(modules.startup())
   request = Request({'type': 'http', 'app': app})
   version_res = asyncio.run(get_version_v1(request))
   assert version_res.payload.version == "v9.9.9"

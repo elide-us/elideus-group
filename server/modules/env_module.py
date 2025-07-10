@@ -1,6 +1,4 @@
-import os, json
-from pathlib import Path
-import dotenv
+import os, dotenv
 from fastapi import FastAPI
 from server.modules import BaseModule
 

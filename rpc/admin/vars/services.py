@@ -4,19 +4,19 @@ from rpc.admin.vars.models import AdminVarsVersion1, AdminVarsHostname1, AdminVa
 from rpc.models import RPCResponse
 
 async def get_version_v1(request: Request):
-  env = request.app.state.env_provider
+  env = request.app.state.modules.get_module("env")
   version = env.get("VERSION")
   payload = AdminVarsVersion1(version=version)
   return RPCResponse(op="urn:admin:vars:version:1", payload=payload, version=1)
 
 async def get_hostname_v1(request: Request):
-  env = request.app.state.env_provider
+  env = request.app.state.modules.get_module("env")
   hostname = env.get("HOSTNAME")
   payload = AdminVarsHostname1(hostname=hostname)
   return RPCResponse(op="urn:admin:vars:hostname:1", payload=payload, version=1)
 
 async def get_repo_v1(request: Request):
-  env = request.app.state.env_provider
+  env = request.app.state.modules.get_module("env")
   repo = env.get("REPO")
   payload = AdminVarsRepo1(repo=repo)
   return RPCResponse(op="urn:admin:vars:repo:1", payload=payload, version=1)
