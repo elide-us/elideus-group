@@ -1,19 +1,26 @@
 from fastapi import Request
 from rpc.models import RPCResponse, RPCRequest
 from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
+from server.modules.auth_module import AuthModule
 
 async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
+  auth: AuthModule = request.app.state.modules.get_module("auth")
 
-  # Stubbed authentication logic. In a future implementation this will
-  # verify the Microsoft tokens and load or create the user from a database.
+  guid, profile = await auth.handle_ms_auth_login(
+    payload.get("idToken"),
+    payload.get("accessToken"),
+  )
+
+  token = auth.make_bearer_token(guid)
+
   login_data = AuthMicrosoftLoginData1(
-    bearerToken="stub-token",
+    bearerToken=token,
     defaultProvider="microsoft",
-    username=payload.get("username", "stub-user"),
-    email=payload.get("email", "stub@example.com"),
+    username=profile["username"],
+    email=profile["email"],
     backupEmail=payload.get("backupEmail"),
-    profilePicture=payload.get("profilePicture"),
+    profilePicture=profile.get("profilePicture"),
     credits=0,
   )
 
