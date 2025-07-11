@@ -7,6 +7,10 @@ class DiscordHandler(logging.Handler):
 
   def emit(self, record):
     msg = self.format(record)
+
+    if not msg or msg == "None":
+      return
+
     try:
       chan = self.discord.bot.get_channel(self.discord.syschan)
       if chan:
