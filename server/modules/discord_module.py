@@ -63,3 +63,8 @@ class DiscordModule(BaseModule):
     if self.task:
       self.task.cancel()
     remove_discord_logging(self)
+
+  async def send_sys_message(self, message: str):
+    channel = self.bot.get_channel(self.syschan)
+    if channel:
+      await channel.send(message)
