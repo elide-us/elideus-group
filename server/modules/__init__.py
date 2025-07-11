@@ -14,7 +14,9 @@ class BaseModule(ABC):
   async def shutdown(self):
     pass
 
-from server.modules.env_module import EnvironmentModule  # Explicit manual import
+from server.modules.env_module import EnvironmentModule   # Explicit manual import
+from server.modules.discord_module import DiscordModule   # Explicit manual import
+from server.modules.database_module import DatabaseModule # Explicit manual import
 
 class ModuleRegistry:
   def __init__(self, app: FastAPI):
@@ -27,8 +29,18 @@ class ModuleRegistry:
     self.modules["env"] = env_module
     setattr(self.app.state, "env_module", env_module)
 
+    # Step 1.a: Manually register 'discord' second
+    discord_module = DiscordModule(app)
+    self.modules["discord"] = discord_module
+    setattr(self.app.state, "discord_module", discord_module)
+
+    # Step 1.b: Manually register 'database' third
+    database_module = DatabaseModule(app)
+    self.modules["database"] = database_module
+    setattr(self.app.state, "database_module", database_module)
+
     # Step 2: Dynamically register all other providers
-    self._discover_and_register_modules(exclude={"env_module"})
+    self._discover_and_register_modules(exclude={"env_module", "discord_module", "database_module"})
 
   def get_module(self, key: str) -> BaseModule:
     if key not in self.modules:
