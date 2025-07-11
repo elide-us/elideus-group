@@ -25,21 +25,36 @@ class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.ms_jwks: Optional[Dict] = None
-    self.ms_api_id: Optional[str] = os.getenv("MS_API_ID")
-    self.jwt_secret: str = os.getenv("JWT_SECRET", "secret")
+    if hasattr(app.state, "modules"):
+      self.env = app.state.modules.get_module("env")
+      self.discord = app.state.modules.get_module("discord")
+    else:
+      self.env = None
+      self.discord = None
+    self.ms_api_id: Optional[str] = None
+    self.jwt_secret: str = "secret"
     self.jwt_algo_ms: str = "RS256"
     self.jwt_algo_int: str = "HS256"
 
   async def startup(self):
+    if self.env:
+      self.ms_api_id = self.env.get("MS_API_ID")
+      secret = self.env.get("JWT_SECRET")
+      if secret:
+        self.jwt_secret = secret
     try:
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
       logging.info("Auth module loaded")
+      if self.discord:
+        await self.discord.send_sys_message("Auth module loaded")
     except Exception as e:
       print(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
 
   async def shutdown(self):
     logging.info("Auth module shutdown")
+    if self.discord:
+      await self.discord.send_sys_message("Auth module shutdown")
 
   async def verify_ms_id_token(self, id_token: str) -> Dict:
     if not self.ms_jwks:
