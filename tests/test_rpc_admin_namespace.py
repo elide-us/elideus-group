@@ -1,19 +1,37 @@
 import asyncio
 from fastapi import FastAPI, Request
 
-from server.modules import ModuleRegistry
+from server.modules import ModuleRegistry, BaseModule
 from server.modules.env_module import EnvironmentModule
 
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
+
+
+class DummyModule(BaseModule):
+  async def startup(self):
+    pass
+
+  async def shutdown(self):
+    pass
+
+
+def setup_modules(app: FastAPI) -> ModuleRegistry:
+  app.state.env = EnvironmentModule(app)
+  app.state.discord = DummyModule(app)
+  app.state.database = DummyModule(app)
+  app.state.auth = DummyModule(app)
+  modules = ModuleRegistry(app)
+  app.state.modules = modules
+  return modules
 
 def test_get_version(monkeypatch):
   monkeypatch.setenv("VERSION", "v0.0.0")
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  modules = ModuleRegistry(app := FastAPI())
-  app.state.modules = modules
+  app = FastAPI()
+  modules = setup_modules(app)
   asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
@@ -27,8 +45,8 @@ def test_get_hostname(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  modules = ModuleRegistry(app := FastAPI())
-  app.state.modules = modules
+  app = FastAPI()
+  modules = setup_modules(app)
   asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
@@ -42,8 +60,8 @@ def test_get_repo(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  modules = ModuleRegistry(app := FastAPI())
-  app.state.modules = modules
+  app = FastAPI()
+  modules = setup_modules(app)
   asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
@@ -57,8 +75,8 @@ def test_get_ffmpeg_version(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("REPO", "https://repo")
   monkeypatch.setenv("DISCORD_SECRET", "token")
-  modules = ModuleRegistry(app := FastAPI())
-  app.state.modules = modules
+  app = FastAPI()
+  modules = setup_modules(app)
   asyncio.run(modules.startup())
   request = Request({"type": "http", "app": app})
 
