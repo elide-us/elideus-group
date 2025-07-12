@@ -27,10 +27,8 @@ class DatabaseModule(BaseModule):
     self.pool: asyncpg.Pool | None = None
     if hasattr(app.state, "modules"):
       self.env = app.state.modules.get_module("env")
-      self.discord = app.state.modules.get_module("discord")
     else:
       self.env = None
-      self.discord = None
 
   def _db_connection_string(self) -> str | None:
     if self.env:
@@ -42,16 +40,12 @@ class DatabaseModule(BaseModule):
     if dsn:
       self.pool = await asyncpg.create_pool(dsn=dsn)
       logging.info("Database module loaded")
-      if self.discord:
-        await self.discord.send_sys_message("Database module loaded")
 
   async def shutdown(self):
     if self.pool:
       await self.pool.close()
       self.pool = None
     logging.info("Database module shutdown")
-    if self.discord:
-      await self.discord.send_sys_message("Database module shutdown")
 
   async def _fetch_many(self, query: str, *args):
     if not self.pool:
