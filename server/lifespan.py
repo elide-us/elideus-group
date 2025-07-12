@@ -10,18 +10,11 @@ from server.modules.auth_module import AuthModule         # Explicit manual impo
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   app.state.env = EnvironmentModule(app)
-  app.state.env.startup()
   app.state.discord = DiscordModule(app)
-  app.state.discord.startup()
   app.state.database = DatabaseModule(app)
-  app.state.database.startup()
+  await app.state.database.startup()
   app.state.auth = AuthModule(app)
   app.state.auth.startup()
-
-  mr = ModuleRegistry(app)
-  app.state.modules = mr
-
-  # await mr.startup()
 
   try:
     yield

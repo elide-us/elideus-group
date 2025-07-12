@@ -25,8 +25,8 @@ class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.ms_jwks: Optional[Dict] = None
-    if hasattr(app.state, "modules"):
-      self.env = app.state.modules.get_module("env")
+    if hasattr(app.state, "env"):
+      self.env = app.state.env
     else:
       self.env = None
     self.ms_api_id: Optional[str] = None

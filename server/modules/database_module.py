@@ -25,10 +25,11 @@ class DatabaseModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.pool: asyncpg.Pool | None = None
-    if hasattr(app.state, "modules"):
-      self.env = app.state.modules.get_module("env")
-    else:
-      self.env = None
+    try:
+      self.env = app.state.env
+      self.discord = app.state.discord
+    except AttributeError:
+      raise Exception("Env and Discord modules must be loaded first")
 
   def _db_connection_string(self) -> str | None:
     if self.env:

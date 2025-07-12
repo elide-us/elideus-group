@@ -14,7 +14,7 @@ class DiscordHandler(logging.Handler):
     try:
       chan = self.discord.bot.get_channel(self.discord.syschan)
       if chan:
-        self.discord.bot.loop.create_task(chan.send(msg))
+        self.discord.bot.loop.create_task(chan.send(msg)) # Dispatch async task in sync method
     except Exception:
       pass
 
