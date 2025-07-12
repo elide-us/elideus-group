@@ -2,6 +2,8 @@ import json, asyncpg, logging
 from uuid import UUID, uuid4
 from fastapi import FastAPI
 from . import BaseModule
+from .env_module import EnvironmentModule
+from .discord_module import DiscordModule
 
 def _maybe_loads_json(data):
   if isinstance(data, str):
@@ -26,8 +28,8 @@ class DatabaseModule(BaseModule):
     super().__init__(app)
     self.pool: asyncpg.Pool | None = None
     try:
-      self.env = app.state.env
-      self.discord = app.state.discord
+      self.env: EnvironmentModule = app.state.env
+      self.discord: DiscordModule = app.state.discord
     except AttributeError:
       raise Exception("Env and Discord modules must be loaded first")
 

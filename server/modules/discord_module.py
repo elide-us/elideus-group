@@ -1,24 +1,21 @@
+import logging, discord, asyncio
+from .env_module import EnvironmentModule
 from fastapi import FastAPI
-from server.helpers.logging import configure_discord_logging #, remove_discord_logging
-import logging
-
-"""Discord provider using environment variables from EnvironmentProvider."""
-
-import discord, asyncio
 from discord.ext import commands
+from server.helpers.logging import configure_discord_logging #, remove_discord_logging
 
 class DiscordModule():
   def __init__(self, app: FastAPI):
     self.app = app
     try:
-      self.env = app.state.env
+      self.env: EnvironmentModule = app.state.env
     except AttributeError:
       raise Exception("Env module must be initialized first")
     self.secret = self.env.get("DISCORD_SECRET")
     self.bot = self._init_discord_bot('!')
-    self.bot.app = self.app
+    self.bot.app: FastAPI = self.app
 
-    self.syschan = self.env.get_int("DISCORD_SYSCHAN")
+    self.syschan = self.env.get_as_int("DISCORD_SYSCHAN")
     self._init_bot_routes(self)
     configure_discord_logging(self)
 

@@ -5,6 +5,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from typing import Dict, Optional
 from . import BaseModule
+from .env_module import EnvironmentModule
+from .discord_module import DiscordModule
 
 async def fetch_ms_jwks_uri() -> str:
   async with aiohttp.ClientSession() as session:
@@ -25,10 +27,11 @@ class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.ms_jwks: Optional[Dict] = None
-    if hasattr(app.state, "env"):
-      self.env = app.state.env
-    else:
-      self.env = None
+    try:
+      self.env: EnvironmentModule = app.state.env
+      self.discord: DiscordModule = app.state.discord
+    except AttributeError:
+      raise Exception("Env and Discord modules must be loaded first")
     self.ms_api_id: Optional[str] = None
     self.jwt_secret: str = "secret"
     self.jwt_algo_ms: str = "RS256"
