@@ -1,0 +1,47 @@
+import pytest
+import asyncio
+from fastapi import FastAPI
+from types import SimpleNamespace
+import server.modules.discord_module as discord_mod
+from server.modules.env_module import EnvironmentModule
+from server.modules.discord_module import DiscordModule
+
+class DummyBot:
+  def __init__(self):
+    self.loop = asyncio.new_event_loop()
+  def start(self, secret):
+    self.started = secret
+  def get_channel(self, chan):
+    return None
+  def event(self, fn):
+    return fn
+
+@pytest.fixture
+def discord_app(monkeypatch):
+  monkeypatch.setenv("VERSION", "1")
+  monkeypatch.setenv("HOSTNAME", "host")
+  monkeypatch.setenv("REPO", "repo")
+  monkeypatch.setenv("DISCORD_SECRET", "secret")
+  monkeypatch.setenv("DISCORD_SYSCHAN", "1")
+  monkeypatch.setenv("JWT_SECRET", "jwt")
+  monkeypatch.setenv("MS_API_ID", "msid")
+  monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
+  app = FastAPI()
+  env = EnvironmentModule(app)
+  app.state.env = env
+  return app
+
+def test_discord_module_init(monkeypatch, discord_app):
+  monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)
+  monkeypatch.setattr(discord_mod.asyncio, "create_task", lambda coro: None)
+  monkeypatch.setattr(DiscordModule, "_init_bot_routes", lambda self: None)
+  monkeypatch.setattr(DiscordModule, "_init_discord_bot", lambda self, p: DummyBot())
+  mod = DiscordModule(discord_app)
+  assert mod.secret == "secret"
+  assert mod.syschan == 1
+  assert isinstance(mod.bot, DummyBot)
+
+def test_discord_module_missing_env():
+  app = FastAPI()
+  with pytest.raises(Exception):
+    DiscordModule(app)
