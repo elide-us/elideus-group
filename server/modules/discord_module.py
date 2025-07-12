@@ -6,17 +6,17 @@ from server.helpers.logging import configure_discord_logging #, remove_discord_l
 
 class DiscordModule():
   def __init__(self, app: FastAPI):
-    self.app = app
+    self.app: FastAPI = app
     try:
       self.env: EnvironmentModule = app.state.env
     except AttributeError:
       raise Exception("Env module must be initialized first")
     self.secret = self.env.get("DISCORD_SECRET")
     self.bot = self._init_discord_bot('!')
-    self.bot.app: FastAPI = self.app
+    self.bot.app = self.app
 
     self.syschan = self.env.get_as_int("DISCORD_SYSCHAN")
-    self._init_bot_routes(self)
+    self._init_bot_routes()
     configure_discord_logging(self)
 
     logging.info("Discord module loaded")
