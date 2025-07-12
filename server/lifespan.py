@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from server.modules import ModuleRegistry
 
 from server.modules.env_module import EnvironmentModule   # Explicit manual import
 from server.modules.discord_module import DiscordModule   # Explicit manual import
