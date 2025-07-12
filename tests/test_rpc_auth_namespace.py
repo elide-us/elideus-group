@@ -1,14 +1,33 @@
 import asyncio
 from fastapi import FastAPI, Request
-from server.modules import ModuleRegistry
+from server.modules import ModuleRegistry, BaseModule
 from server.modules.auth_module import AuthModule
+from server.modules.env_module import EnvironmentModule
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 
-def test_ms_user_login_stub(monkeypatch):
-  modules = ModuleRegistry(app := FastAPI())
+class DummyModule(BaseModule):
+  async def startup(self):
+    pass
+
+  async def shutdown(self):
+    pass
+
+
+def setup_modules(app: FastAPI) -> ModuleRegistry:
+  app.state.env = EnvironmentModule(app)
+  app.state.discord = DummyModule(app)
+  app.state.database = DummyModule(app)
+  app.state.auth = AuthModule(app)
+  modules = ModuleRegistry(app)
   app.state.modules = modules
+  return modules
+
+
+def test_ms_user_login_stub(monkeypatch):
+  app = FastAPI()
+  modules = setup_modules(app)
   request = Request({"type": "http", "app": app})
 
   async def fake_handle(self, id_token, access_token):
