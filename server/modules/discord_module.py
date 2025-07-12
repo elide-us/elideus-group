@@ -16,7 +16,7 @@ class DiscordModule():
     self.bot.app = self.app
 
     self.syschan = self.env.get_as_int("DISCORD_SYSCHAN")
-    self._init_bot_routes(self)
+    self._init_bot_routes()
     configure_discord_logging(self)
 
     logging.info("Discord module loaded")
