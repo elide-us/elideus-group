@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import server.modules.auth_module as auth_mod
 from server.modules.auth_module import AuthModule
 from server.modules.env_module import EnvironmentModule
+from jose import jwt
 
 @pytest.fixture
 def auth_app(monkeypatch):
@@ -49,3 +50,26 @@ def test_decode_invalid_token(auth_app):
   am = AuthModule(auth_app)
   with pytest.raises(Exception):
     asyncio.run(am.decode_bearer_token("bad"))
+
+def test_decode_expired_token(auth_app):
+  am = AuthModule(auth_app)
+  token = am.make_bearer_token("uid")
+  payload = jwt.get_unverified_claims(token)
+  payload["exp"] = 0
+  bad = jwt.encode(payload, am.jwt_secret, algorithm=am.jwt_algo_int)
+  with pytest.raises(Exception):
+    asyncio.run(am.decode_bearer_token(bad))
+
+
+def test_handle_ms_auth_login(monkeypatch, auth_app):
+  am = AuthModule(auth_app)
+  async def fake_verify(idt):
+    return {"sub": "guid"}
+  async def fake_profile(at):
+    return {"email": "e", "username": "u", "profilePicture": None}
+  monkeypatch.setattr(am, "verify_ms_id_token", fake_verify)
+  monkeypatch.setattr(am, "fetch_ms_user_profile", fake_profile)
+  guid, profile = asyncio.run(am.handle_ms_auth_login("id", "ac"))
+  assert guid == "guid"
+  assert profile["email"] == "e"
+

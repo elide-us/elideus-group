@@ -45,3 +45,31 @@ def test_discord_module_missing_env():
   app = FastAPI()
   with pytest.raises(Exception):
     DiscordModule(app)
+
+class Chan:
+  def __init__(self):
+    self.messages = []
+  async def send(self, msg):
+    self.messages.append(msg)
+
+def _setup(monkeypatch, discord_app, chan=None):
+  monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)
+  monkeypatch.setattr(discord_mod.asyncio, "create_task", lambda coro: None)
+  monkeypatch.setattr(DiscordModule, "_init_bot_routes", lambda self: None)
+  def _make_bot(self, p):
+    bot = DummyBot()
+    bot.get_channel = lambda c: chan
+    return bot
+  monkeypatch.setattr(DiscordModule, "_init_discord_bot", _make_bot)
+  return DiscordModule(discord_app)
+
+def test_send_sys_message(monkeypatch, discord_app):
+  chan = Chan()
+  mod = _setup(monkeypatch, discord_app, chan)
+  asyncio.run(mod.send_sys_message("hi"))
+  assert chan.messages == ["hi"]
+
+def test_send_sys_message_no_channel(monkeypatch, discord_app):
+  mod = _setup(monkeypatch, discord_app, None)
+  asyncio.run(mod.send_sys_message("hi"))
+
