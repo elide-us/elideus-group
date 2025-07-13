@@ -1,13 +1,13 @@
 import { useState, ReactNode } from 'react';
 import UserContext from './UserContext';
-import { UserData } from './RpcModels';
+import type { AuthMicrosoftLoginData1 } from './RpcModels';
 
 interface UserContextProviderProps {
   	children: ReactNode;
 }
 
 const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Element => {
-  	const [userData, setUserData] = useState<UserData | null>(null);
+        const [userData, setUserData] = useState<AuthMicrosoftLoginData1 | null>(null);
 
   	const clearUserData = () => {
     	setUserData(null);

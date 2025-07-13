@@ -1,15 +1,15 @@
 import { createContext } from 'react';
-import type { UserData } from './RpcModels';
+import type { AuthMicrosoftLoginData1 } from './RpcModels';
 
 export interface UserContext {
-  userData: UserData | null;
-  setUserData: (data: UserData | null) => void;
-  clearUserData: () => void;
+	userData: AuthMicrosoftLoginData1 | null;
+	setUserData: (data: AuthMicrosoftLoginData1 | null) => void;
+	clearUserData: () => void;
 }
 const defaultContext: UserContext = {
-  userData: null,
-  setUserData: () => {},
-  clearUserData: () => {},
+	userData: null,
+	setUserData: () => {},
+	clearUserData: () => {},
 };
 
 const UserContextObject = createContext<UserContext>(defaultContext);

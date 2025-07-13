@@ -14,6 +14,7 @@ import { Menu as MenuIcon } from '@mui/icons-material';
 import type { RouteItem, AdminLinksRoutes1 } from './shared/RpcModels';
 import { fetchRoutes } from './rpc/admin/links';
 import { iconMap, defaultIcon } from './icons';
+import Login from './shared/Login';
 
 const DRAWER_OPEN = 240;
 const DRAWER_CLOSED = 60;
@@ -70,10 +71,10 @@ const NavBar = (): JSX.Element => {
 					);
 				})}
 			</List>
-			<Box sx={{ mt: 'auto', p: 1 }}>
-				{/* Login component placeholder */}
-			</Box>
-		</Drawer>
+                        <Box sx={{ mt: 'auto', p: 1 }}>
+                                <Login open={open} />
+                        </Box>
+                </Drawer>
 	);
 };
 
