@@ -7,10 +7,10 @@
 import axios from 'axios';
 import { RPCRequest, RPCResponse, AdminVarsFfmpegVersion1, AdminVarsHostname1, AdminVarsRepo1, AdminVarsVersion1 } from '../../../shared/RpcModels';
 
-const rpcCall = async <T>(op: string): Promise<T> => {
+const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
     const request: RPCRequest = {
         op,
-        payload: null,
+        payload,
         version: 1,
         timestamp: Date.now(),
         metadata: null,
@@ -19,7 +19,7 @@ const rpcCall = async <T>(op: string): Promise<T> => {
     return response.data.payload as T;
 };
 
-export const fetchVersion = (): Promise<AdminVarsVersion1> => rpcCall('urn:admin:vars:get_version:1');
-export const fetchHostname = (): Promise<AdminVarsHostname1> => rpcCall('urn:admin:vars:get_hostname:1');
-export const fetchRepo = (): Promise<AdminVarsRepo1> => rpcCall('urn:admin:vars:get_repo:1');
-export const fetchFfmpegVersion = (): Promise<AdminVarsFfmpegVersion1> => rpcCall('urn:admin:vars:get_ffmpeg_version:1');
+export const fetchVersion = (payload: any = null): Promise<AdminVarsVersion1> => rpcCall('urn:admin:vars:get_version:1', payload);
+export const fetchHostname = (payload: any = null): Promise<AdminVarsHostname1> => rpcCall('urn:admin:vars:get_hostname:1', payload);
+export const fetchRepo = (payload: any = null): Promise<AdminVarsRepo1> => rpcCall('urn:admin:vars:get_repo:1', payload);
+export const fetchFfmpegVersion = (payload: any = null): Promise<AdminVarsFfmpegVersion1> => rpcCall('urn:admin:vars:get_ffmpeg_version:1', payload);
