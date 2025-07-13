@@ -1,10 +1,14 @@
-import logging
+import logging, asyncio, time
 import sys
 
 class DiscordHandler(logging.Handler):
-  def __init__(self, discord_module):
+  def __init__(self, discord_module, interval: float = 1.0, delay: float = 5.0):
     super().__init__()
     self.discord = discord_module
+    self.interval = interval
+    self.delay = delay
+    self.async_lock = asyncio.Lock()
+    self.last_sent = 0.0
 
   def emit(self, record):
     msg = self.format(record)
@@ -15,9 +19,32 @@ class DiscordHandler(logging.Handler):
     try:
       chan = self.discord.bot.get_channel(self.discord.syschan)
       if chan:
-        self.discord.bot.loop.create_task(chan.send(msg)) # Dispatch async task in sync method
+        self.discord.bot.loop.create_task(self._send(msg))
     except Exception:
       pass
+
+  async def _send(self, msg: str):
+    async with self.async_lock:
+      now = time.monotonic()
+      wait = self.interval - (now - self.last_sent)
+      if wait > 0:
+        await asyncio.sleep(wait)
+
+      chan = self.discord.bot.get_channel(self.discord.syschan)
+      if not chan:
+        return
+
+      try:
+        await chan.send(msg)
+      except Exception as e:
+        if getattr(e, 'status', None) == 429:
+          await asyncio.sleep(self.delay)
+          try:
+            await chan.send('Discord logging rate limited, resuming.')
+            await chan.send(msg)
+          except Exception:
+            pass
+      self.last_sent = time.monotonic()
 
 def configure_discord_logging(discord_module):
   handler = DiscordHandler(discord_module)

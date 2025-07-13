@@ -1,6 +1,7 @@
 import logging, asyncio
 from types import SimpleNamespace
 from server.helpers.logging import DiscordHandler, configure_discord_logging, remove_discord_logging
+import server.helpers.logging as logging_mod
 
 
 class DummyChannel:
@@ -8,6 +9,18 @@ class DummyChannel:
     self.messages = []
   async def send(self, msg):
     self.messages.append(msg)
+
+class RateLimitChannel(DummyChannel):
+  def __init__(self):
+    super().__init__()
+    self.calls = 0
+  async def send(self, msg):
+    self.calls += 1
+    if self.calls == 1:
+      class Err(Exception):
+        status = 429
+      raise Err()
+    await super().send(msg)
 
 
 class DummyLoop:
@@ -39,6 +52,10 @@ def test_configure_logging_emits_message():
   bot = DummyBot(channel)
   discord = SimpleNamespace(bot=bot, syschan=1)
   configure_discord_logging(discord)
+  # avoid real sleeps
+  async def no_sleep(_):
+    pass
+  setattr(logging_mod.asyncio, 'sleep', no_sleep)
   logging.getLogger().setLevel(logging.INFO)
   logging.info("hello")
   assert len(bot.loop.tasks) == 1
@@ -63,5 +80,21 @@ def test_emit_without_channel():
   logging.getLogger().setLevel(logging.INFO)
   logging.info("msg")
   assert bot.loop.tasks == []
+  remove_discord_logging(discord)
+
+
+def test_rate_limit(monkeypatch):
+  channel = RateLimitChannel()
+  bot = DummyBot(channel)
+  discord = SimpleNamespace(bot=bot, syschan=1)
+  configure_discord_logging(discord)
+  async def no_sleep(_):
+    pass
+  monkeypatch.setattr(logging_mod.asyncio, 'sleep', no_sleep)
+  logging.getLogger().setLevel(logging.INFO)
+  logging.info('hi')
+  assert len(bot.loop.tasks) == 1
+  asyncio.run(bot.loop.tasks[0])
+  assert channel.messages == ['Discord logging rate limited, resuming.', '[INFO] hi']
   remove_discord_logging(discord)
 
