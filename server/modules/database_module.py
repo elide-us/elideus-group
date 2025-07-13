@@ -23,9 +23,9 @@ def _stou(value: str) -> UUID:
 def _utos(value: UUID) -> str:
   return str(value)
 
-class DatabaseModule(BaseModule):
+class DatabaseModule():
   def __init__(self, app: FastAPI):
-    super().__init__(app)
+    self.app = app
     self.pool: asyncpg.Pool | None = None
     try:
       self.env: EnvironmentModule = app.state.env
@@ -33,16 +33,13 @@ class DatabaseModule(BaseModule):
     except AttributeError:
       raise Exception("Env and Discord modules must be loaded first")
 
-  def _db_connection_string(self) -> str | None:
-    if self.env:
-      return self.env.get("POSTGRES_CONNECTION_STRING")
-    return None
-
   async def startup(self):
-    dsn = self._db_connection_string()
+    dsn = self.env.get("POSTGRES_CONNECTION_STRING")
     if dsn:
       self.pool = await asyncpg.create_pool(dsn=dsn)
       logging.info("Database module loaded")
+    else:
+      logging.error("No DSN")
 
   async def shutdown(self):
     if self.pool:

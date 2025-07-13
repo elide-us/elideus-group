@@ -43,6 +43,8 @@ class AuthModule(BaseModule):
       secret = self.env.get("JWT_SECRET")
       if secret:
         self.jwt_secret = secret
+      else:
+        logging.error("Unable to load JWT secret")
     try:
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
