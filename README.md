@@ -35,3 +35,9 @@ GitHub Actions run both the Node and Python test suites whenever a pull request 
 
 ### AI Usage Details
 We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified access to a full suite of command line build and editing tools.
+
+### Database Utilities
+Two helper scripts in the `scripts` directory manage the project database:
+- `create_or_upgrade_database.py` applies the SQL schema found in `db/schema.sql`.
+- `interrogate_database_structure.py` prints the current table, column and index details.
+Both scripts read the `POSTGRES_CONNECTION_STRING` environment variable so they can run against any configured PostgreSQL server.
