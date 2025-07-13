@@ -4,6 +4,8 @@
 // overwritten the next time the generator runs.
 // ================================================
 
+import axios from "axios";
+
 export interface RPCRequest {
   op: string;
   payload: any | null;
@@ -56,4 +58,16 @@ export interface AuthMicrosoftLoginData1 {
   backupEmail: string | null;
   profilePicture: string | null;
   credits: number | null;
+}
+
+export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
+    const request: RPCRequest = {
+        op,
+        payload,
+        version: 1,
+        timestamp: Date.now(),
+        metadata: null,
+    };
+    const response = await axios.post<RPCResponse>('/rpc', request);
+    return response.data.payload as T;
 }

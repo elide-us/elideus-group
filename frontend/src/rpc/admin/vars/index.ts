@@ -4,20 +4,7 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import axios from 'axios';
-import { RPCRequest, RPCResponse, AdminVarsFfmpegVersion1, AdminVarsHostname1, AdminVarsRepo1, AdminVarsVersion1 } from '../../../shared/RpcModels';
-
-const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
-    const request: RPCRequest = {
-        op,
-        payload,
-        version: 1,
-        timestamp: Date.now(),
-        metadata: null,
-    };
-    const response = await axios.post<RPCResponse>('/rpc', request);
-    return response.data.payload as T;
-};
+import { rpcCall, AdminVarsFfmpegVersion1, AdminVarsHostname1, AdminVarsRepo1, AdminVarsVersion1 } from '../../../shared/RpcModels';
 
 export const fetchVersion = (payload: any = null): Promise<AdminVarsVersion1> => rpcCall('urn:admin:vars:get_version:1', payload);
 export const fetchHostname = (payload: any = null): Promise<AdminVarsHostname1> => rpcCall('urn:admin:vars:get_hostname:1', payload);
