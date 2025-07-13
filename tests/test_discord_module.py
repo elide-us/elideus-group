@@ -15,6 +15,11 @@ class DummyBot:
     return None
   def event(self, fn):
     return fn
+  def command(self, name=None):
+    def decorator(fn):
+      self.cmd = fn
+      return fn
+    return decorator
 
 @pytest.fixture
 def discord_app(monkeypatch):
@@ -72,4 +77,28 @@ def test_send_sys_message(monkeypatch, discord_app):
 def test_send_sys_message_no_channel(monkeypatch, discord_app):
   mod = _setup(monkeypatch, discord_app, None)
   asyncio.run(mod.send_sys_message("hi"))
+
+
+def test_rpc_command(monkeypatch, discord_app):
+  messages = []
+
+  def _make_bot(self, p):
+    bot = DummyBot()
+    bot.get_channel = lambda c: None
+    return bot
+
+  monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)
+  monkeypatch.setattr(discord_mod.asyncio, "create_task", lambda coro: None)
+  monkeypatch.setattr(DiscordModule, "_init_discord_bot", _make_bot)
+
+  mod = DiscordModule(discord_app)
+
+  class Ctx:
+    async def send(self, m):
+      messages.append(m)
+
+  ctx = Ctx()
+  asyncio.run(mod.bot.cmd(ctx, op="urn:admin:vars:get_hostname:1"))
+
+  assert messages == ['{"hostname": "host"}']
 

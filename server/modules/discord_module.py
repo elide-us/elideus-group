@@ -1,6 +1,6 @@
-import logging, discord, asyncio
+import logging, discord, asyncio, json
 from .env_module import EnvironmentModule
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from discord.ext import commands
 from server.helpers.logging import configure_discord_logging #, remove_discord_logging
 
@@ -55,6 +55,23 @@ class DiscordModule():
         logging.info(f"Joined guild {guild.name} ({guild.id})")
       else:
         print(f"[DiscordProvider] System channel not found when joining {guild.name}.")
+
+    @self.bot.command(name="rpc")
+    async def rpc_command(ctx, *, op: str):
+      req = Request({"type": "http", "app": self.app})
+      from rpc.handler import handle_rpc_request
+      from rpc.models import RPCRequest
+      rpc_req = RPCRequest(op=op)
+      try:
+        resp = await handle_rpc_request(rpc_req, req)
+        payload = resp.payload
+        if hasattr(payload, "model_dump"):
+          data = json.dumps(payload.model_dump())
+        else:
+          data = str(payload)
+        await ctx.send(data)
+      except Exception as e:
+        await ctx.send(f"Error: {e}")
 
   # async def shutdown(self):
   #   await self.bot.close()
