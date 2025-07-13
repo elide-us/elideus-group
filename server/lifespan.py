@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
   app.state.database = DatabaseModule(app)
   await app.state.database.startup()
   app.state.auth = AuthModule(app)
-  app.state.auth.startup()
+  await app.state.auth.startup()
 
   try:
     yield

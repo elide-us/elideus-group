@@ -42,7 +42,9 @@ def test_lifespan_initializes_modules(monkeypatch):
     return {"keys": []}
   monkeypatch.setattr(auth_mod, "fetch_ms_jwks_uri", fake_uri)
   monkeypatch.setattr(auth_mod, "fetch_ms_jwks", fake_jwks)
-  monkeypatch.setattr(auth_mod.AuthModule, "startup", lambda self: None)
+  async def fake_startup(self):
+    return None
+  monkeypatch.setattr(auth_mod.AuthModule, "startup", fake_startup)
 
   app = FastAPI()
 
