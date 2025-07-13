@@ -5,6 +5,7 @@ import ElideusTheme from './shared/ElideusTheme'
 import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
 import NavBar from './NavBar'
+import LoginPage from './LoginPage'
 
 function App(): JSX.Element {
 	return (
@@ -22,9 +23,10 @@ function App(): JSX.Element {
 							minHeight: '100vh'
 						}}
 					>
-						<Routes>
-							<Route path='/' element={<Home />} />
-						</Routes>
+                                                <Routes>
+                                                        <Route path='/' element={<Home />} />
+                                                        <Route path='/login' element={<LoginPage />} />
+                                                </Routes>
 					</Container>
 				</Router>
 			</UserContextProvider>
