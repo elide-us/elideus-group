@@ -1,4 +1,5 @@
 import logging
+import sys
 
 class DiscordHandler(logging.Handler):
   def __init__(self, discord_module):
@@ -22,6 +23,16 @@ def configure_discord_logging(discord_module):
   handler = DiscordHandler(discord_module)
   handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
   logging.getLogger().addHandler(handler)
+
+
+def configure_root_logging():
+  logger = logging.getLogger()
+  if logger.handlers:
+    logger.handlers.clear()
+  handler = logging.StreamHandler(sys.stdout)
+  handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+  logger.addHandler(handler)
+  logger.setLevel(logging.INFO)
 
 
 def remove_discord_logging(discord_module):
