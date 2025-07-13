@@ -4,19 +4,6 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import axios from 'axios';
-import { RPCRequest, RPCResponse, AuthMicrosoftLoginData1 } from '../../../shared/RpcModels';
-
-const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
-    const request: RPCRequest = {
-        op,
-        payload,
-        version: 1,
-        timestamp: Date.now(),
-        metadata: null,
-    };
-    const response = await axios.post<RPCResponse>('/rpc', request);
-    return response.data.payload as T;
-};
+import { rpcCall, AuthMicrosoftLoginData1 } from '../../../shared/RpcModels';
 
 export const fetchUserLogin = (payload: any = null): Promise<AuthMicrosoftLoginData1> => rpcCall('urn:auth:microsoft:user_login:1', payload);

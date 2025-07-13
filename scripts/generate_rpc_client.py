@@ -57,25 +57,13 @@ def generate_ts(base: list[str], ops: list[dict[str, str]], service_models: dict
   models = {service_models.get(o['func'], 'any') for o in ops}
   model_imports = ', '.join(sorted(m for m in models if m != 'any'))
 
-  lines = HEADER_COMMENT + ["import axios from 'axios';"]
+  lines = HEADER_COMMENT.copy()
 
   if model_imports:
-    lines.append(f"import {{ RPCRequest, RPCResponse, {model_imports} }} from '../../../shared/RpcModels';")
+    lines.append(f"import {{ rpcCall, {model_imports} }} from '../../../shared/RpcModels';")
   else:
-    lines.append("import { RPCRequest, RPCResponse } from '../../../shared/RpcModels';")
+    lines.append("import { rpcCall } from '../../../shared/RpcModels';")
 
-  lines.append('')
-  lines.append('const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {')
-  lines.append('    const request: RPCRequest = {')
-  lines.append('        op,')
-  lines.append('        payload,')
-  lines.append('        version: 1,')
-  lines.append('        timestamp: Date.now(),')
-  lines.append('        metadata: null,')
-  lines.append('    };')
-  lines.append("    const response = await axios.post<RPCResponse>('/rpc', request);")
-  lines.append('    return response.data.payload as T;')
-  lines.append('};')
   lines.append('')
 
   base_urn = ':'.join(['urn'] + base)

@@ -6,6 +6,20 @@ from typing import List
 from pydantic import BaseModel
 from genlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
 
+RPC_CALL_FUNC = [
+  "export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {",
+  "    const request: RPCRequest = {",
+  "        op,",
+  "        payload,",
+  "        version: 1,",
+  "        timestamp: Date.now(),",
+  "        metadata: null,",
+  "    };",
+  "    const response = await axios.post<RPCResponse>('/rpc', request);",
+  "    return response.data.payload as T;",
+  "}",
+]
+
 ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
 
@@ -31,7 +45,9 @@ def write_interfaces_to_file(interfaces: List[str], output_dir: str) -> None:
   os.makedirs(output_dir, exist_ok=True)
   out_path = os.path.join(output_dir, 'RpcModels.tsx')
   with open(out_path, 'w') as f:
-    f.write("\n".join(HEADER_COMMENT + interfaces))
+    lines = HEADER_COMMENT + ['import axios from \"axios\";', '']
+    lines += interfaces + [''] + RPC_CALL_FUNC + ['']
+    f.write("\n".join(lines))
   print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
 
 

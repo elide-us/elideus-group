@@ -4,20 +4,7 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import axios from 'axios';
-import { RPCRequest, RPCResponse, AdminLinksHome1, AdminLinksRoutes1 } from '../../../shared/RpcModels';
-
-const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
-    const request: RPCRequest = {
-        op,
-        payload,
-        version: 1,
-        timestamp: Date.now(),
-        metadata: null,
-    };
-    const response = await axios.post<RPCResponse>('/rpc', request);
-    return response.data.payload as T;
-};
+import { rpcCall, AdminLinksHome1, AdminLinksRoutes1 } from '../../../shared/RpcModels';
 
 export const fetchHome = (payload: any = null): Promise<AdminLinksHome1> => rpcCall('urn:admin:links:get_home:1', payload);
 export const fetchRoutes = (payload: any = null): Promise<AdminLinksRoutes1> => rpcCall('urn:admin:links:get_routes:1', payload);
