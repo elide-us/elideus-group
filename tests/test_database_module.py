@@ -34,3 +34,81 @@ def test_db_fetch_one_without_pool(db_app):
   dbm = DatabaseModule(db_app)
   with pytest.raises(RuntimeError):
     asyncio.run(dbm._fetch_one("SELECT 1"))
+
+class DummyConn:
+  def __init__(self, row=None):
+    self.row = row
+    self.executed = []
+  async def fetchrow(self, query, *args):
+    self.fetched = (query, args)
+    return self.row
+  async def fetchval(self, query, *args):
+    self.fetched = (query, args)
+    return self.row
+  async def execute(self, query, *args):
+    self.executed.append((query, args))
+  def transaction(self):
+    class T:
+      async def __aenter__(self2):
+        return None
+      async def __aexit__(self2, *exc):
+        return False
+    return T()
+  async def __aenter__(self):
+    return self
+  async def __aexit__(self, *exc):
+    return False
+
+class DummyAcquire:
+  def __init__(self, conn):
+    self.conn = conn
+  async def __aenter__(self):
+    return self.conn
+  async def __aexit__(self, *exc):
+    return False
+
+class DummyPool:
+  def __init__(self, row=None):
+    self.row = row
+  def acquire(self):
+    return DummyAcquire(DummyConn(self.row))
+  async def close(self):
+    pass
+
+
+def test_secure_fetch_one(monkeypatch, db_app):
+  dbm = DatabaseModule(db_app)
+  dbm.pool = DummyPool(row={"a": 1})
+  result = asyncio.run(dbm._secure_fetch_one("Q", "00000000-0000-0000-0000-000000000000"))
+  assert result == {"a": 1}
+
+
+def test_update_user_credits(monkeypatch, db_app):
+  conn = DummyConn({"credits": 5})
+  dbm = DatabaseModule(db_app)
+  dbm.pool = DummyPool()
+  dbm.pool.acquire = lambda: DummyAcquire(conn)
+  res = asyncio.run(dbm.update_user_credits(3, "00000000-0000-0000-0000-000000000000"))
+  assert res["success"] is True
+  assert res["credits"] == 2
+
+
+def test_update_user_credits_insufficient(monkeypatch, db_app):
+  conn = DummyConn({"credits": 2})
+  dbm = DatabaseModule(db_app)
+  dbm.pool = DummyPool()
+  dbm.pool.acquire = lambda: DummyAcquire(conn)
+  res = asyncio.run(dbm.update_user_credits(3, "00000000-0000-0000-0000-000000000000"))
+  assert res["success"] is False
+  assert res["error"] == "Insufficient credits"
+
+
+def test_update_user_credits_purchased(monkeypatch, db_app):
+  conn = DummyConn({"credits": 2})
+  dbm = DatabaseModule(db_app)
+  dbm.pool = DummyPool()
+  dbm.pool.acquire = lambda: DummyAcquire(conn)
+  res = asyncio.run(dbm.update_user_credits_purchased(5, "00000000-0000-0000-0000-000000000000"))
+  assert res["success"] is True
+  assert res["credits"] == 7
+
