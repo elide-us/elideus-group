@@ -23,18 +23,6 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
-export interface AdminVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface AdminVarsHostname1 {
-  hostname: string;
-}
-export interface AdminVarsRepo1 {
-  repo: string;
-}
-export interface AdminVarsVersion1 {
-  version: string;
-}
 export interface AdminLinksHome1 {
   links: LinkItem[];
 }
@@ -49,6 +37,18 @@ export interface RouteItem {
   path: string;
   name: string;
   icon: string;
+}
+export interface AdminVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface AdminVarsHostname1 {
+  hostname: string;
+}
+export interface AdminVarsRepo1 {
+  repo: string;
+}
+export interface AdminVarsVersion1 {
+  version: string;
 }
 export interface AuthMicrosoftLoginData1 {
   bearerToken: string;
