@@ -65,10 +65,10 @@ def generate_ts(base: list[str], ops: list[dict[str, str]], service_models: dict
     lines.append("import { RPCRequest, RPCResponse } from '../../../shared/RpcModels';")
 
   lines.append('')
-  lines.append('const rpcCall = async <T>(op: string): Promise<T> => {')
+  lines.append('const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {')
   lines.append('    const request: RPCRequest = {')
   lines.append('        op,')
-  lines.append('        payload: null,')
+  lines.append('        payload,')
   lines.append('        version: 1,')
   lines.append('        timestamp: Date.now(),')
   lines.append('        metadata: null,')
@@ -83,7 +83,7 @@ def generate_ts(base: list[str], ops: list[dict[str, str]], service_models: dict
     func_name = urn_to_func(o['op'])
     model = service_models.get(o['func'], 'any')
     urn = f"{base_urn}:{o['op']}:{o['version']}"
-    lines.append(f"export const {func_name} = (): Promise<{model}> => rpcCall('{urn}');")
+    lines.append(f"export const {func_name} = (payload: any = null): Promise<{model}> => rpcCall('{urn}', payload);")
 
   lines.append('')
   return "\n".join(lines)

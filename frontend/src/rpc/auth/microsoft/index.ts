@@ -5,12 +5,12 @@
 // ================================================
 
 import axios from 'axios';
-import { RPCRequest, RPCResponse } from '../../../shared/RpcModels';
+import { RPCRequest, RPCResponse, AuthMicrosoftLoginData1 } from '../../../shared/RpcModels';
 
-const rpcCall = async <T>(op: string): Promise<T> => {
+const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
     const request: RPCRequest = {
         op,
-        payload: null,
+        payload,
         version: 1,
         timestamp: Date.now(),
         metadata: null,
@@ -19,4 +19,4 @@ const rpcCall = async <T>(op: string): Promise<T> => {
     return response.data.payload as T;
 };
 
-export const fetchUserLogin = (): Promise<any> => rpcCall('urn:auth:microsoft:user_login:1');
+export const fetchUserLogin = (payload: any = null): Promise<AuthMicrosoftLoginData1> => rpcCall('urn:auth:microsoft:user_login:1', payload);

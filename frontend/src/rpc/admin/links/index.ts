@@ -7,10 +7,10 @@
 import axios from 'axios';
 import { RPCRequest, RPCResponse, AdminLinksHome1, AdminLinksRoutes1 } from '../../../shared/RpcModels';
 
-const rpcCall = async <T>(op: string): Promise<T> => {
+const rpcCall = async <T>(op: string, payload: any = null): Promise<T> => {
     const request: RPCRequest = {
         op,
-        payload: null,
+        payload,
         version: 1,
         timestamp: Date.now(),
         metadata: null,
@@ -19,5 +19,5 @@ const rpcCall = async <T>(op: string): Promise<T> => {
     return response.data.payload as T;
 };
 
-export const fetchHome = (): Promise<AdminLinksHome1> => rpcCall('urn:admin:links:get_home:1');
-export const fetchRoutes = (): Promise<AdminLinksRoutes1> => rpcCall('urn:admin:links:get_routes:1');
+export const fetchHome = (payload: any = null): Promise<AdminLinksHome1> => rpcCall('urn:admin:links:get_home:1', payload);
+export const fetchRoutes = (payload: any = null): Promise<AdminLinksRoutes1> => rpcCall('urn:admin:links:get_routes:1', payload);
