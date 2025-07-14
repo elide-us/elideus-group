@@ -1,6 +1,6 @@
 import logging, asyncio
 from types import SimpleNamespace
-from server.helpers.logging import DiscordHandler, configure_discord_logging, remove_discord_logging
+from server.helpers.logging import DiscordHandler, configure_discord_logging, remove_discord_logging, MAX_DISCORD_MESSAGE_LEN
 import server.helpers.logging as logging_mod
 
 
@@ -96,5 +96,23 @@ def test_rate_limit(monkeypatch):
   assert len(bot.loop.tasks) == 1
   asyncio.run(bot.loop.tasks[0])
   assert channel.messages == ['Discord logging rate limited, resuming.', '[INFO] hi']
+  remove_discord_logging(discord)
+
+
+def test_split_long_message(monkeypatch):
+  channel = DummyChannel()
+  bot = DummyBot(channel)
+  discord = SimpleNamespace(bot=bot, syschan=1)
+  configure_discord_logging(discord)
+  async def no_sleep(_):
+    pass
+  monkeypatch.setattr(logging_mod.asyncio, 'sleep', no_sleep)
+  logging.getLogger().setLevel(logging.INFO)
+  long = 'a' * 3000
+  logging.info(long)
+  assert len(bot.loop.tasks) == 1
+  asyncio.run(bot.loop.tasks[0])
+  msg = '[INFO] ' + long
+  assert channel.messages == [msg[:MAX_DISCORD_MESSAGE_LEN], msg[MAX_DISCORD_MESSAGE_LEN:]]
   remove_discord_logging(discord)
 

@@ -34,7 +34,9 @@ class DiscordModule():
   async def send_sys_message(self, message: str):
     channel = self.bot.get_channel(self.syschan)
     if channel:
-      await channel.send(message)
+      from server.helpers.logging import split_message
+      for part in split_message(message):
+        await channel.send(part)
 
   # This will be moved to discord_router at a later time
   def _init_bot_routes(self):

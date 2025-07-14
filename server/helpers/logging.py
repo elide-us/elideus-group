@@ -1,6 +1,11 @@
 import logging, asyncio, time
 import sys
 
+MAX_DISCORD_MESSAGE_LEN = 1900
+
+def split_message(msg: str, limit: int = MAX_DISCORD_MESSAGE_LEN) -> list[str]:
+  return [msg[i:i + limit] for i in range(0, len(msg), limit)]
+
 class DiscordHandler(logging.Handler):
   def __init__(self, discord_module, interval: float = 1.0, delay: float = 5.0):
     super().__init__()
@@ -34,17 +39,18 @@ class DiscordHandler(logging.Handler):
       if not chan:
         return
 
-      try:
-        await chan.send(msg)
-      except Exception as e:
-        if getattr(e, 'status', None) == 429:
-          await asyncio.sleep(self.delay)
-          try:
-            await chan.send('Discord logging rate limited, resuming.')
-            await chan.send(msg)
-          except Exception:
-            pass
-      self.last_sent = time.monotonic()
+      for part in split_message(msg):
+        try:
+          await chan.send(part)
+        except Exception as e:
+          if getattr(e, 'status', None) == 429:
+            await asyncio.sleep(self.delay)
+            try:
+              await chan.send('Discord logging rate limited, resuming.')
+              await chan.send(part)
+            except Exception:
+              pass
+        self.last_sent = time.monotonic()
 
 def configure_discord_logging(discord_module):
   handler = DiscordHandler(discord_module)
