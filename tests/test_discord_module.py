@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import server.modules.discord_module as discord_mod
 from server.modules.env_module import EnvironmentModule
 from server.modules.discord_module import DiscordModule
+from server.helpers.logging import MAX_DISCORD_MESSAGE_LEN
 
 class DummyBot:
   def __init__(self):
@@ -77,6 +78,13 @@ def test_send_sys_message(monkeypatch, discord_app):
 def test_send_sys_message_no_channel(monkeypatch, discord_app):
   mod = _setup(monkeypatch, discord_app, None)
   asyncio.run(mod.send_sys_message("hi"))
+
+def test_send_sys_message_long(monkeypatch, discord_app):
+  chan = Chan()
+  mod = _setup(monkeypatch, discord_app, chan)
+  long_msg = "a" * 3000
+  asyncio.run(mod.send_sys_message(long_msg))
+  assert chan.messages == ["a" * MAX_DISCORD_MESSAGE_LEN, "a" * (3000 - MAX_DISCORD_MESSAGE_LEN)]
 
 
 def test_rpc_command(monkeypatch, discord_app):
