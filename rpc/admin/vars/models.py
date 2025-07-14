@@ -12,3 +12,7 @@ class AdminVarsRepo1(BaseModel):
 class AdminVarsFfmpegVersion1(BaseModel):
   ffmpeg_version: str
 
+
+class AdminVarsHostnameViewDiscord1(BaseModel):
+  content: str
+
