@@ -18,7 +18,7 @@ async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCRe
         response = await handle_auth_request(rest, rpc_request, request)
       case _:
         raise HTTPException(status_code=404, detail="Unknown RPC domain")
-    logging.debug(f"RPC completed: {rpc_request.op}")
+    logging.info(f"RPC completed: {rpc_request.op}")
     return response
   except Exception:
     logging.exception(f"RPC failed: {rpc_request.op}")
