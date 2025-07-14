@@ -2,7 +2,7 @@ from fastapi import Request
 from rpc.models import RPCResponse, RPCRequest
 from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule
+from server.modules.database_module import DatabaseModule, _utos
 
 async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   req_payload = rpc_request.payload or {}
@@ -18,7 +18,9 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   if not user:
     user = await db.insert_ms_user(guid, profile["email"], profile["username"])
 
-  token = auth.make_bearer_token(user["guid"])
+  #token = auth.make_bearer_token(user["guid"])
+  token = auth.make_bearer_token(_utos(user["guid"]))
+
 
   payload = AuthMicrosoftLoginData1(
     bearerToken=token,
