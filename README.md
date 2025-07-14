@@ -24,7 +24,7 @@ These items were previously implemented and are on the rebuild roadmap.
 ### Technical Details
 - Docker buildx creates a WSGI compliant container that Azure Web App can run.
 - The project contains a startup.sh which will be executed by the environment on activation.
-- The project contains a devstart.cmd which will build and execute the project locally (on Windows).
+- The project contains a dev.cmd script that supports `generate`, `start`, `fast`, and `test` subcommands for local development on Windows.
 - Environment variables are configured in .env for local work, but are set up as environment variables on the web app.
 - You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
 - Recommend using the Azure Web App Container Quickstart configuration.
