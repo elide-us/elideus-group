@@ -71,4 +71,4 @@ IF ERRORLEVEL 1 (
 )
 
 ECHO Starting Uvicorn...
-CALL python -m uvicorn main:app --reload
+CALL python -m uvicorn main:app --reload --host localhost
