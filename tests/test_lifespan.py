@@ -54,5 +54,6 @@ def test_lifespan_initializes_modules(monkeypatch):
       assert app.state.discord is not None
       assert app.state.database is not None
       assert app.state.auth is not None
+      assert app.state.views is not None
 
   asyncio.run(run())
