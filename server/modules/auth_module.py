@@ -113,6 +113,7 @@ class AuthModule(BaseModule):
     if not guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
     profile = await self.fetch_ms_user_profile(access_token)
+    logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
     return guid, profile
 
   def make_bearer_token(self, guid: str) -> str:

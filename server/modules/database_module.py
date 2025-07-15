@@ -84,7 +84,7 @@ class DatabaseModule(BaseModule):
 
   async def select_ms_user(self, microsoft_id: str):
     query = """
-      SELECT 
+      SELECT
         u.guid,
         u.microsoft_id,
         u.email,
@@ -96,7 +96,13 @@ class DatabaseModule(BaseModule):
       JOIN auth_provider p ON u.default_provider = p.id
       WHERE u.microsoft_id = $1;
     """
-    return await self._fetch_one(query, microsoft_id)
+    result = await self._fetch_one(query, microsoft_id)
+    if result:
+      logging.info(
+        f"Found {result['provider_name']} user for {result['guid']}: "
+        f"{result['username']}, {result['email']}, Credits: {result['credits']}"
+      )
+    return result
 
   async def insert_ms_user(self, microsoft_id: str, email: str, username: str):
     new_uuid = _utos(uuid4())
