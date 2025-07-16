@@ -101,7 +101,7 @@ class DatabaseModule(BaseModule):
       LEFT JOIN user_credits uc ON uc.user_id = u.id
       WHERE ap.name = $1 AND ua.provider_user_id = $2;
     """
-    result = await self._fetch_one(query, provider, provider_user_id)
+    result = await self._fetch_one(query, provider, _stou(provider_user_id))
     if result:
       logging.info(
         f"Found {result['provider_name']} user for {result['guid']}: "
