@@ -107,14 +107,16 @@ class AuthModule(BaseModule):
         "profilePicture": profile_picture_base64,
       }
 
-  async def handle_ms_auth_login(self, id_token: str, access_token: str):
-    payload = await self.verify_ms_id_token(id_token)
-    guid = payload.get("sub")
-    if not guid:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
-    profile = await self.fetch_ms_user_profile(access_token)
-    logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
-    return guid, profile
+  async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
+    if provider == "microsoft":
+      payload = await self.verify_ms_id_token(id_token)
+      guid = payload.get("sub")
+      if not guid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
+      profile = await self.fetch_ms_user_profile(access_token)
+      logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
+      return guid, profile
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
 
   def make_bearer_token(self, guid: str) -> str:
     exp = datetime.now(timezone.utc) + timedelta(hours=24)

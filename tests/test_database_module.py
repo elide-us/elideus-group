@@ -83,32 +83,17 @@ def test_secure_fetch_one(monkeypatch, db_app):
   assert result == {"a": 1}
 
 
-def test_update_user_credits(monkeypatch, db_app):
-  conn = DummyConn({"credits": 5})
+def test_select_user(monkeypatch, db_app):
   dbm = DatabaseModule(db_app)
-  dbm.pool = DummyPool()
-  dbm.pool.acquire = lambda: DummyAcquire(conn)
-  res = asyncio.run(dbm.update_user_credits(3, "00000000-0000-0000-0000-000000000000"))
-  assert res["success"] is True
-  assert res["credits"] == 2
-
-
-def test_update_user_credits_insufficient(monkeypatch, db_app):
-  conn = DummyConn({"credits": 2})
-  dbm = DatabaseModule(db_app)
-  dbm.pool = DummyPool()
-  dbm.pool.acquire = lambda: DummyAcquire(conn)
-  res = asyncio.run(dbm.update_user_credits(3, "00000000-0000-0000-0000-000000000000"))
-  assert res["success"] is False
-  assert res["error"] == "Insufficient credits"
-
-
-def test_update_user_credits_purchased(monkeypatch, db_app):
-  conn = DummyConn({"credits": 2})
-  dbm = DatabaseModule(db_app)
-  dbm.pool = DummyPool()
-  dbm.pool.acquire = lambda: DummyAcquire(conn)
-  res = asyncio.run(dbm.update_user_credits_purchased(5, "00000000-0000-0000-0000-000000000000"))
-  assert res["success"] is True
-  assert res["credits"] == 7
+  async def fake_fetch(query, *args):
+    return {
+      "guid": "uid",
+      "display_name": "u",
+      "email": "e",
+      "credits": 10,
+      "provider_name": "microsoft",
+    }
+  monkeypatch.setattr(dbm, "_fetch_one", fake_fetch)
+  result = asyncio.run(dbm.select_user("microsoft", "pid"))
+  assert result["provider_name"] == "microsoft"
 

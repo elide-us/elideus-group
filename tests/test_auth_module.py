@@ -61,7 +61,7 @@ def test_decode_expired_token(auth_app):
     asyncio.run(am.decode_bearer_token(bad))
 
 
-def test_handle_ms_auth_login(monkeypatch, auth_app):
+def test_handle_auth_login(monkeypatch, auth_app):
   am = AuthModule(auth_app)
   async def fake_verify(idt):
     return {"sub": "guid"}
@@ -69,7 +69,7 @@ def test_handle_ms_auth_login(monkeypatch, auth_app):
     return {"email": "e", "username": "u", "profilePicture": None}
   monkeypatch.setattr(am, "verify_ms_id_token", fake_verify)
   monkeypatch.setattr(am, "fetch_ms_user_profile", fake_profile)
-  guid, profile = asyncio.run(am.handle_ms_auth_login("id", "ac"))
+  guid, profile = asyncio.run(am.handle_auth_login("microsoft", "id", "ac"))
   assert guid == "guid"
   assert profile["email"] == "e"
 

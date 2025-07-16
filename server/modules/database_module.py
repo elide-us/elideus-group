@@ -82,132 +82,57 @@ class DatabaseModule(BaseModule):
     sub_uuid = _stou(sub)
     await self._run(query, sub_uuid, *args)
 
-  async def select_ms_user(self, microsoft_id: str):
+  async def select_user(self, provider: str, provider_user_id: str):
     query = """
       SELECT
         u.guid,
-        u.microsoft_id,
+        u.display_name,
         u.email,
-        u.username,
-        u.backup_email,
-        u.credits,
-        p.name AS provider_name
-      FROM users u
-      JOIN auth_provider p ON u.default_provider = p.id
-      WHERE u.microsoft_id = $1;
+        COALESCE(uc.balance, 0) AS credits,
+        ap.name AS provider_name
+      FROM user_auth ua
+      JOIN auth_providers ap ON ua.provider_id = ap.id
+      JOIN users u ON ua.user_id = u.id
+      LEFT JOIN user_credits uc ON uc.user_id = u.id
+      WHERE ap.name = $1 AND ua.provider_user_id = $2;
     """
-    result = await self._fetch_one(query, microsoft_id)
+    result = await self._fetch_one(query, provider, provider_user_id)
     if result:
       logging.info(
         f"Found {result['provider_name']} user for {result['guid']}: "
-        f"{result['username']}, {result['email']}, Credits: {result['credits']}"
+        f"{result.get('display_name')}, {result['email']}, Credits: {result['credits']}"
       )
     return result
 
-  async def insert_ms_user(self, microsoft_id: str, email: str, username: str):
-    new_uuid = _utos(uuid4())
-    query = """
-      INSERT INTO users (guid, microsoft_id, email, username, security, credits)
-      VALUES ($1, $2, $3, $4, 1, 50);
-    """
-    await self._run(query, new_uuid, microsoft_id, email, username)
-    return await self.select_ms_user(microsoft_id)
-
-  async def select_user_details(self, sub: str):
-    query = """
-      SELECT u.username, u.email, u.backup_email, u.credits, ap.name AS provider_name
-      FROM users u
-      LEFT JOIN auth_provider ap ON u.default_provider = ap.id
-      WHERE u.guid = $1
-    """
-    result = await self._secure_fetch_one(query, sub)
-    return {
-      "guid": sub,
-      "username": result.get("username", "No user found"),
-      "email": result.get("email", "No email found"),
-      "backup_email": result.get("backup_email", "No backup email found"),
-      "credits": result.get("credits", 0),
-      "default_provider": result.get("provider_name", "No provider found"),
-    }
-
-  async def select_user_security(self, sub: str):
-    query = """
-      SELECT security, guid FROM users WHERE guid = $1
-    """
-    result = await self._secure_fetch_one(query, sub)
-    return {"guid": sub, "security": result["security"]}
-
-  async def select_public_routes(self):
-    query = """
-      SELECT json_agg(
-        json_build_object('path', path, 'name', name, 'icon', icon)
-      ) AS routes
-      FROM (
-        SELECT path, name, icon 
-        FROM routes 
-        WHERE security < 1 
-        ORDER BY sequence) subquery;
-    """
-    return await self._fetch_many(query)
-
-  async def select_secure_routes(self, sub: str):
-    query = """
-      SELECT json_agg(
-        json_build_object(
-          'path', r.path,
-          'name', r.name,
-          'icon', r.icon
+  async def insert_user(self, provider: str, provider_user_id: str, email: str, username: str):
+    if not self.pool:
+      raise RuntimeError("Database pool not initialized")
+    new_guid = _utos(uuid4())
+    async with self.pool.acquire() as conn:
+      async with conn.transaction():
+        provider_id = await conn.fetchval(
+          "SELECT id FROM auth_providers WHERE name = $1", provider
         )
-      ) AS routes
-      FROM (
-        SELECT r.path, r.name, r.icon
-        FROM routes r
-        JOIN users u ON u.guid = $1
-        WHERE r.security < u.security
-        ORDER BY r.sequence
-      ) subquery;
-    """
-    return await self._secure_fetch_many(query, sub)
-
-  async def update_user_credits(self, amount: int, sub: str):
-    if not self.pool:
-      raise RuntimeError("Database pool not initialized")
-    sub_uuid = _stou(sub)
-    query_select = "SELECT credits FROM users WHERE guid = $1"
-    query_update = "UPDATE users SET credits = $1 WHERE guid = $2"
-    async with self.pool.acquire() as conn:
-      async with conn.transaction():
-        result = await conn.fetchrow(query_select, sub_uuid)
-        if result:
-          credits = result["credits"]
-          if credits >= amount:
-            new_credits = credits - amount
-            await conn.execute(query_update, new_credits, sub_uuid)
-            return {"success": True, "guid": sub, "credits": new_credits}
-          else:
-            return {
-              "success": False,
-              "guid": sub,
-              "credits": credits,
-              "error": "Insufficient credits",
-            }
-        else:
-          return {"success": False, "guid": sub, "error": "User not found"}
-
-  async def update_user_credits_purchased(self, amount: int, sub: str):
-    if not self.pool:
-      raise RuntimeError("Database pool not initialized")
-    sub_uuid = _stou(sub)
-    query_select = "SELECT credits FROM users WHERE guid = $1"
-    query_update = "UPDATE users SET credits = $1 WHERE guid = $2"
-    async with self.pool.acquire() as conn:
-      async with conn.transaction():
-        result = await conn.fetchrow(query_select, sub_uuid)
-        if result:
-          credits = result["credits"]
-          new_credits = credits + amount
-          await conn.execute(query_update, new_credits, sub_uuid)
-          return {"success": True, "guid": sub, "credits": new_credits}
-        else:
-          return {"success": False, "guid": sub, "error": "User not found"}
+        if provider_id is None:
+          raise RuntimeError("Unknown provider")
+        user_id = await conn.fetchval(
+          "INSERT INTO users (guid, email, display_name, primary_provider_id) VALUES ($1, $2, $3, $4) RETURNING id",
+          new_guid,
+          email,
+          username,
+          provider_id,
+        )
+        await conn.execute(
+          "INSERT INTO user_auth (user_id, provider_id, provider_user_id, email, username) VALUES ($1, $2, $3, $4, $5)",
+          user_id,
+          provider_id,
+          provider_user_id,
+          email,
+          username,
+        )
+        await conn.execute(
+          "INSERT INTO user_credits (user_id, balance, reserved) VALUES ($1, 50, 0)",
+          user_id,
+        )
+    return await self.select_user(provider, provider_user_id)
 
