@@ -63,10 +63,20 @@ class DiscordModule():
       req = Request({"type": "http", "app": self.app})
       from rpc.handler import handle_rpc_request
       from rpc.models import RPCRequest
+
+      parts = op.split(":")
+      if "view" not in parts:
+        op = f"{op}:view:discord:1"
+
       rpc_req = RPCRequest(op=op)
       try:
         resp = await handle_rpc_request(rpc_req, req)
         payload = resp.payload
+
+        if hasattr(payload, "content"):
+          await ctx.send(payload.content)
+          return
+
         if hasattr(payload, "model_dump"):
           data = json.dumps(payload.model_dump())
         else:
