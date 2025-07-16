@@ -302,12 +302,6 @@
         "column_default": null
       },
       {
-        "column_name": "microsoft_id",
-        "data_type": "text",
-        "is_nullable": "NO",
-        "column_default": null
-      },
-      {
         "column_name": "credits",
         "data_type": "integer",
         "is_nullable": "YES",
@@ -324,30 +318,6 @@
         "data_type": "integer",
         "is_nullable": "YES",
         "column_default": null
-      },
-      {
-        "column_name": "auth_microsoft_id",
-        "data_type": "integer",
-        "is_nullable": "YES",
-        "column_default": null
-      },
-      {
-        "column_name": "auth_discord_id",
-        "data_type": "integer",
-        "is_nullable": "YES",
-        "column_default": null
-      },
-      {
-        "column_name": "auth_google_id",
-        "data_type": "integer",
-        "is_nullable": "YES",
-        "column_default": null
-      },
-      {
-        "column_name": "auth_apple_id",
-        "data_type": "integer",
-        "is_nullable": "YES",
-        "column_default": null
       }
     ],
     "indexes": [
@@ -358,10 +328,6 @@
       {
         "indexname": "users_guid_email_username_key",
         "indexdef": "CREATE UNIQUE INDEX users_guid_email_username_key ON public.users USING btree (guid, email, username)"
-      },
-      {
-        "indexname": "users_microsoft_id_key",
-        "indexdef": "CREATE UNIQUE INDEX users_microsoft_id_key ON public.users USING btree (microsoft_id)"
       },
       {
         "indexname": "idx_users_default_provider",
