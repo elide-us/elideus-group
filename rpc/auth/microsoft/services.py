@@ -28,8 +28,8 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   )
 
   user = await db.select_user(provider, guid)
-  if not user:
-    user = await db.insert_user(provider, guid, profile["email"], profile["username"])
+  # if not user:
+  #   user = await db.insert_user(provider, guid, profile["email"], profile["username"])
   logging.info("user_login_v1 user=%s", user)
 
   #token = auth.make_bearer_token(user["guid"])
