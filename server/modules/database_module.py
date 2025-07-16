@@ -83,6 +83,11 @@ class DatabaseModule(BaseModule):
     await self._run(query, sub_uuid, *args)
 
   async def select_user(self, provider: str, provider_user_id: str):
+    logging.info(
+      "select_user provider=%s provider_user_id=%s",
+      provider,
+      provider_user_id,
+    )
     query = """
       SELECT
         u.guid,
@@ -105,6 +110,13 @@ class DatabaseModule(BaseModule):
     return result
 
   async def insert_user(self, provider: str, provider_user_id: str, email: str, username: str):
+    logging.info(
+      "insert_user provider=%s provider_user_id=%s email=%s username=%s",
+      provider,
+      provider_user_id,
+      email,
+      username,
+    )
     if not self.pool:
       raise RuntimeError("Database pool not initialized")
     new_guid = _utos(uuid4())
