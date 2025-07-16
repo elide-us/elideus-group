@@ -28,7 +28,11 @@ const LoginPage = (): JSX.Element => {
 			const loginResponse = await pca.loginPopup(loginRequest);
 			const { idToken, accessToken } = loginResponse;
 
-			const data = await fetchUserLogin({ idToken, accessToken });
+			const data = await fetchUserLogin({
+				idToken,
+				accessToken,
+				provider: 'microsoft',
+			});
 			const profilePictureBase64 = data.profilePicture ? `data:image/png;base64,${data.profilePicture}` : null;
 
 			setUserData({

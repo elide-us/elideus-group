@@ -97,3 +97,48 @@ def test_select_user(monkeypatch, db_app):
   result = asyncio.run(dbm.select_user("microsoft", "pid"))
   assert result["provider_name"] == "microsoft"
 
+
+def test_insert_user_unknown_provider(monkeypatch, db_app):
+  dbm = DatabaseModule(db_app)
+
+  class InsertConn:
+    async def fetchrow(self, query, *args):
+      return None
+    async def fetchval(self, query, *args):
+      if "SELECT id FROM auth_providers" in query:
+        return None
+      return None
+    async def execute(self, query, *args):
+      pass
+    def transaction(self):
+      class T:
+        async def __aenter__(self2):
+          return None
+        async def __aexit__(self2, *exc):
+          return False
+      return T()
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, *exc):
+      return False
+
+  class InsertPool:
+    def __init__(self, conn):
+      self.conn = conn
+    def acquire(self):
+      class A:
+        def __init__(self, c):
+          self.c = c
+        async def __aenter__(self):
+          return self.c
+        async def __aexit__(self, *exc):
+          return False
+      return A(self.conn)
+    async def close(self):
+      pass
+
+  dbm.pool = InsertPool(InsertConn())
+
+  with pytest.raises(RuntimeError):
+    asyncio.run(dbm.insert_user("microsoft", "pid", "e", "u"))
+
