@@ -27,7 +27,7 @@ def test_get_version(app):
     rpc_request = RPCRequest(op="urn:admin:vars:get_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:vars:version:1"
+    assert resp.op == "urn:admin:vars:version:1:view:default:1"
     assert resp.payload.version == "v1.2.3"
 
 def test_get_hostname(app):
@@ -35,7 +35,7 @@ def test_get_hostname(app):
     rpc_request = RPCRequest(op="urn:admin:vars:get_hostname:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:vars:hostname:1"
+    assert resp.op == "urn:admin:vars:hostname:1:view:default:1"
     assert resp.payload.hostname == "unit-host"
 
 def test_get_repo(app):
@@ -43,7 +43,7 @@ def test_get_repo(app):
     rpc_request = RPCRequest(op="urn:admin:vars:get_repo:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:vars:repo:1"
+    assert resp.op == "urn:admin:vars:repo:1:view:default:1"
     assert resp.payload.repo == "https://repo"
 
 def test_get_ffmpeg_version(app, monkeypatch):
@@ -60,7 +60,7 @@ def test_get_ffmpeg_version(app, monkeypatch):
     rpc_request = RPCRequest(op="urn:admin:vars:get_ffmpeg_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:vars:ffmpeg_version:1"
+    assert resp.op == "urn:admin:vars:ffmpeg_version:1:view:default:1"
     assert resp.payload.ffmpeg_version == "ffmpeg version 6.0"
 
 def test_get_home_links(app):
@@ -68,7 +68,7 @@ def test_get_home_links(app):
     rpc_request = RPCRequest(op="urn:admin:links:get_home:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:links:home:1"
+    assert resp.op == "urn:admin:links:home:1:view:default:1"
     assert len(resp.payload.links) == 6
     assert resp.payload.links[0].title == "Discord"
 
@@ -77,6 +77,6 @@ def test_get_routes(app):
     rpc_request = RPCRequest(op="urn:admin:links:get_routes:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:admin:links:routes:1"
+    assert resp.op == "urn:admin:links:routes:1:view:default:1"
     assert len(resp.payload.routes) == 1
     assert resp.payload.routes[0].path == "/"

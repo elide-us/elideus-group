@@ -3,7 +3,6 @@ import pytest
 from fastapi import FastAPI, Request
 
 from server.modules.env_module import EnvironmentModule
-from server.modules.views_module import ViewsModule
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
@@ -18,7 +17,6 @@ def app():
   app = FastAPI()
   env_module = EnvironmentModule(app)
   app.state.env = env_module
-  app.state.views = ViewsModule(app)
   return app
 
 

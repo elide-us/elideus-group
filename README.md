@@ -44,12 +44,12 @@ Several helper scripts in the `scripts` directory manage the project database:
 These scripts read the `POSTGRES_CONNECTION_STRING` environment variable so they can run against any configured PostgreSQL server.
 
 ### RPC Response Views
-RPC methods can return alternate representations using URN suffixes of the form
-`urn:{domain}:{subdomain}:{function}:{version}:view:{context}:{variant}`. When a
-view suffix is provided, the core method executes and the response is formatted
-for the requested context and variant. Requests without a view suffix continue
-to return the default models.
+Responses support a simple view suffix in the URN:
+`urn:{domain}:{sub}:{func}:{ver}:view:{context}:{variant}`. Each handler
+parses these values and applies the appropriate transform after calling the
+service function. When no view section is supplied the handler inserts the
+default `:view:default:1` suffix which leaves the payload unchanged.
 
-The available mappings are exposed via `rpc.get_view_registry()`.
-For example, `urn:admin:vars:get_hostname:1:view:discord:1` will return a
-Discord-friendly hostname message.
+For example `urn:admin:vars:get_hostname:1:view:discord:1` returns a
+Discord-friendly hostname string while `urn:admin:vars:get_hostname:1`
+returns `urn:admin:vars:hostname:1:view:default:1` with the raw payload.
