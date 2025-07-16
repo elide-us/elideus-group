@@ -9,12 +9,12 @@ import rpc.auth.handler as auth_handler
 import rpc.auth.microsoft.handler as ms_handler
 
 def test_rpc_dispatch_admin(monkeypatch):
-  async def fake_admin(rest, request):
+  async def fake_admin(parts, request):
     return RPCResponse(op="admin", payload=None)
   monkeypatch.setattr(rpc_handler, "handle_admin_request", fake_admin)
   req = Request({"type": "http", "app": FastAPI()})
   resp = asyncio.run(handle_rpc_request(RPCRequest(op="urn:admin:test:1"), req))
-  assert resp.op == "admin"
+  assert resp.op == "admin:view:default:1"
 
 def test_rpc_unknown_domain():
   req = Request({"type": "http", "app": FastAPI()})
@@ -22,7 +22,7 @@ def test_rpc_unknown_domain():
     asyncio.run(handle_rpc_request(RPCRequest(op="urn:bad:op:1"), req))
 
 def test_admin_handler_links(monkeypatch):
-  async def fake_links(rest, req):
+  async def fake_links(parts, req):
     return RPCResponse(op="links", payload=None)
   monkeypatch.setattr(admin_handler, "handle_links_request", fake_links)
   req = Request({"type": "http", "app": FastAPI()})

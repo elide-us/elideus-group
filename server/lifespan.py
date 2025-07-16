@@ -5,7 +5,6 @@ from server.modules.env_module import EnvironmentModule   # Explicit manual impo
 from server.modules.discord_module import DiscordModule   # Explicit manual import
 from server.modules.database_module import DatabaseModule # Explicit manual import
 from server.modules.auth_module import AuthModule         # Explicit manual import
-from server.modules.views_module import ViewsModule       # Explicit manual import
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,7 +14,6 @@ async def lifespan(app: FastAPI):
   await app.state.database.startup()
   app.state.auth = AuthModule(app)
   await app.state.auth.startup()
-  app.state.views = ViewsModule(app)
 
   try:
     yield
