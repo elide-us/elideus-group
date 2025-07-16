@@ -1,0 +1,430 @@
+{
+  "assistants": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('assistants_id_seq'::regclass)"
+      },
+      {
+        "column_name": "model",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "max_tokens",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "role",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "assistants_pkey",
+        "indexdef": "CREATE UNIQUE INDEX assistants_pkey ON public.assistants USING btree (id)"
+      },
+      {
+        "indexname": "idx_assistants_name",
+        "indexdef": "CREATE INDEX idx_assistants_name ON public.assistants USING btree (name)"
+      }
+    ]
+  },
+  "auth_provider": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('auth_provider_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "auth_provider_pkey",
+        "indexdef": "CREATE UNIQUE INDEX auth_provider_pkey ON public.auth_provider USING btree (id)"
+      },
+      {
+        "indexname": "auth_provider_name_key",
+        "indexdef": "CREATE UNIQUE INDEX auth_provider_name_key ON public.auth_provider USING btree (name)"
+      }
+    ]
+  },
+  "categories": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('categories_id_seq'::regclass)"
+      },
+      {
+        "column_name": "name",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "categories_pkey",
+        "indexdef": "CREATE UNIQUE INDEX categories_pkey ON public.categories USING btree (id)"
+      },
+      {
+        "indexname": "categories_name_key",
+        "indexdef": "CREATE UNIQUE INDEX categories_name_key ON public.categories USING btree (name)"
+      },
+      {
+        "indexname": "idx_categories_id",
+        "indexdef": "CREATE INDEX idx_categories_id ON public.categories USING btree (id)"
+      }
+    ]
+  },
+  "keys": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('keys_id_seq'::regclass)"
+      },
+      {
+        "column_name": "layer",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "key_value",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "subkey_value",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "public_value",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "private_value",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "keys_pkey",
+        "indexdef": "CREATE UNIQUE INDEX keys_pkey ON public.keys USING btree (id)"
+      },
+      {
+        "indexname": "unique_layer_key_subkey",
+        "indexdef": "CREATE UNIQUE INDEX unique_layer_key_subkey ON public.keys USING btree (layer, key_value, subkey_value)"
+      }
+    ]
+  },
+  "routes": {
+    "columns": [
+      {
+        "column_name": "path",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "icon",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "sequence",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "0"
+      },
+      {
+        "column_name": "security",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "0"
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "routes_pkey",
+        "indexdef": "CREATE UNIQUE INDEX routes_pkey ON public.routes USING btree (path)"
+      }
+    ]
+  },
+  "templates": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('templates_id_seq'::regclass)"
+      },
+      {
+        "column_name": "title",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "image_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "layer1",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "layer2",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "layer3",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "layer4",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "input",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "private_template",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "category_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "templates_pkey",
+        "indexdef": "CREATE UNIQUE INDEX templates_pkey ON public.templates USING btree (id)"
+      },
+      {
+        "indexname": "idx_templates_category_id",
+        "indexdef": "CREATE INDEX idx_templates_category_id ON public.templates USING btree (category_id)"
+      }
+    ]
+  },
+  "users": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('users_id_seq'::regclass)"
+      },
+      {
+        "column_name": "guid",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "email",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "backup_email",
+        "data_type": "character varying",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "username",
+        "data_type": "character varying",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "microsoft_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "credits",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "security",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "0"
+      },
+      {
+        "column_name": "default_provider",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "auth_microsoft_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "auth_discord_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "auth_google_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "auth_apple_id",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "users_pkey",
+        "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+      },
+      {
+        "indexname": "users_guid_email_username_key",
+        "indexdef": "CREATE UNIQUE INDEX users_guid_email_username_key ON public.users USING btree (guid, email, username)"
+      },
+      {
+        "indexname": "users_microsoft_id_key",
+        "indexdef": "CREATE UNIQUE INDEX users_microsoft_id_key ON public.users USING btree (microsoft_id)"
+      },
+      {
+        "indexname": "idx_users_default_provider",
+        "indexdef": "CREATE INDEX idx_users_default_provider ON public.users USING btree (default_provider)"
+      },
+      {
+        "indexname": "unique_guid",
+        "indexdef": "CREATE UNIQUE INDEX unique_guid ON public.users USING btree (guid)"
+      }
+    ]
+  },
+  "users_auth": {
+    "columns": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": "nextval('users_auth_id_seq'::regclass)"
+      },
+      {
+        "column_name": "users_guid",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "provider_id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "unique_id",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "column_name": "username",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "column_name": "email",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "indexname": "users_auth_pkey",
+        "indexdef": "CREATE UNIQUE INDEX users_auth_pkey ON public.users_auth USING btree (id)"
+      },
+      {
+        "indexname": "users_auth_unique_id_key",
+        "indexdef": "CREATE UNIQUE INDEX users_auth_unique_id_key ON public.users_auth USING btree (unique_id)"
+      },
+      {
+        "indexname": "unique_provider_user",
+        "indexdef": "CREATE UNIQUE INDEX unique_provider_user ON public.users_auth USING btree (provider_id, unique_id)"
+      }
+    ]
+  }
+}
