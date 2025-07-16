@@ -9,14 +9,16 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   auth: AuthModule = request.app.state.auth
   db: DatabaseModule = request.app.state.database
 
-  guid, profile = await auth.handle_ms_auth_login(
+  provider = req_payload.get("provider", "microsoft")
+  guid, profile = await auth.handle_auth_login(
+    provider,
     req_payload.get("idToken"),
     req_payload.get("accessToken"),
   )
 
-  user = await db.select_ms_user(guid)
+  user = await db.select_user(provider, guid)
   if not user:
-    user = await db.insert_ms_user(guid, profile["email"], profile["username"])
+    user = await db.insert_user(provider, guid, profile["email"], profile["username"])
 
   #token = auth.make_bearer_token(user["guid"])
   token = auth.make_bearer_token(_utos(user["guid"]))
@@ -24,10 +26,10 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
 
   payload = AuthMicrosoftLoginData1(
     bearerToken=token,
-    defaultProvider=user.get("provider_name", "microsoft"),
-    username=user.get("username", profile["username"]),
+    defaultProvider=user.get("provider_name", provider),
+    username=user.get("display_name", profile["username"]),
     email=user.get("email", profile["email"]),
-    backupEmail=user.get("backup_email"),
+    backupEmail=None,
     profilePicture=profile.get("profilePicture"),
     credits=user.get("credits", 0),
   )
