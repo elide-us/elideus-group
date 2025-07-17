@@ -54,7 +54,7 @@ class AuthModule(BaseModule):
     logging.info("Auth module shutdown")
 
   async def verify_ms_id_token(self, id_token: str) -> Dict:
-    logging.info("verify_ms_id_token id_token=%s", id_token)
+    logging.debug("verify_ms_id_token id_token=%s", id_token)
     if not self.ms_jwks:
       raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Microsoft keys unavailable")
     try:
@@ -81,7 +81,7 @@ class AuthModule(BaseModule):
         audience=self.ms_api_id,
         issuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0",
       )
-      logging.info("verify_ms_id_token payload=%s", payload)
+      logging.debug("verify_ms_id_token payload=%s", payload)
       return payload
     except jwt.ExpiredSignatureError:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired.")
@@ -91,7 +91,7 @@ class AuthModule(BaseModule):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token validation failed.")
 
   async def fetch_ms_user_profile(self, access_token: str) -> Dict:
-    logging.info("fetch_ms_user_profile access_token=%s", access_token)
+    logging.debug("fetch_ms_user_profile access_token=%s", access_token)
     async with aiohttp.ClientSession() as session:
       headers = {"Authorization": f"Bearer {access_token}"}
       async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
@@ -111,7 +111,7 @@ class AuthModule(BaseModule):
       }
 
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
-    logging.info(
+    logging.debug(
       "handle_auth_login provider=%s id_token=%s access_token=%s",
       provider,
       id_token,

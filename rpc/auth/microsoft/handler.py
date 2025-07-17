@@ -4,7 +4,7 @@ from rpc.auth.microsoft import services
 from rpc.models import RPCRequest, RPCResponse
 
 async def handle_ms_request(parts: list[str], rpc_request: RPCRequest, request: Request) -> RPCResponse:
-  logging.info(
+  logging.debug(
     "handle_ms_request parts=%s op=%s payload=%s",
     parts,
     rpc_request.op,

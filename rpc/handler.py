@@ -8,7 +8,7 @@ from rpc.suffix import split_suffix, apply_suffixes
 
 async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   parts = rpc_request.op.split(":")
-  logging.info(
+  logging.debug(
     "handle_rpc_request op=%s parts=%s payload=%s",
     rpc_request.op,
     parts,
