@@ -6,6 +6,20 @@ from server.modules.env_module import EnvironmentModule
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
+
+class DummyDB:
+    async def select_routes(self):
+        return [
+            {
+                "id": 1,
+                "path": "/",
+                "name": "Home",
+                "icon": "home",
+                "required_roles": 0,
+                "sequence": 10,
+            }
+        ]
+
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
     monkeypatch.setenv("VERSION", "v1.2.3")
@@ -20,6 +34,7 @@ def app():
     env_module = EnvironmentModule(app)
     # services do `request.app.state.env`, so set it here
     app.state.env = env_module
+    app.state.database = DummyDB()
     return app
 
 def test_get_version(app):
