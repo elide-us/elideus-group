@@ -70,21 +70,6 @@ class DatabaseModule(BaseModule):
     async with self.pool.acquire() as conn:
       await conn.execute(query, *args)
 
-  # ###REVIEW### currently unused utility for scoped fetch
-  async def _secure_fetch_many(self, query: str, sub: str, *args):
-    sub_uuid = _stou(sub)
-    return await self._fetch_many(query, sub_uuid, *args)
-
-  # ###REVIEW### currently unused utility for scoped fetch
-  async def _secure_fetch_one(self, query: str, sub: str, *args):
-    sub_uuid = _stou(sub)
-    return await self._fetch_one(query, sub_uuid, *args)
-
-  # ###REVIEW### currently unused utility for scoped execution
-  async def _secure_run(self, query: str, sub: str, *args):
-    sub_uuid = _stou(sub)
-    await self._run(query, sub_uuid, *args)
-
   async def select_user(self, provider: str, provider_user_id: str):
     logging.debug(
       "select_user provider=%s provider_user_id=%s",
@@ -105,7 +90,7 @@ class DatabaseModule(BaseModule):
     """
     result = await self._fetch_one(query, provider_user_id, provider)
     if result:
-      logging.debug(
+      logging.info(
         f"Found {result['provider_name']} user for {result['guid']}: "
         f"{result.get('display_name')}, {result['email']}, Credits: {result['credits']}"
       )
