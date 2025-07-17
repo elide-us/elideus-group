@@ -17,6 +17,11 @@ def app():
   app = FastAPI()
   env_module = EnvironmentModule(app)
   app.state.env = env_module
+  class DB:
+    async def get_config_value(self, key):
+      if key == "Hostname":
+        return "unit-host"
+  app.state.database = DB()
   return app
 
 

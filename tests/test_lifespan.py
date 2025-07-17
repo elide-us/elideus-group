@@ -18,11 +18,7 @@ class DummyBot:
 
 
 def test_lifespan_initializes_modules(monkeypatch):
-  monkeypatch.setenv("VERSION", "1")
-  monkeypatch.setenv("HOSTNAME", "host")
-  monkeypatch.setenv("REPO", "repo")
   monkeypatch.setenv("DISCORD_SECRET", "secret")
-  monkeypatch.setenv("DISCORD_SYSCHAN", "1")
   monkeypatch.setenv("JWT_SECRET", "jwt")
   monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
@@ -35,6 +31,12 @@ def test_lifespan_initializes_modules(monkeypatch):
   async def fake_pool(**kwargs):
     return "pool"
   monkeypatch.setattr(db_mod.asyncpg, "create_pool", fake_pool)
+
+  async def fake_get_config(self, key):
+    if key == "DiscordSyschan":
+      return "1"
+    return "0"
+  monkeypatch.setattr(db_mod.DatabaseModule, "get_config_value", fake_get_config)
 
   async def fake_uri():
     return "url"

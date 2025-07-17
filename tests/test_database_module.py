@@ -8,11 +8,7 @@ from server.modules.env_module import EnvironmentModule
 
 @pytest.fixture
 def db_app(monkeypatch):
-  monkeypatch.setenv("VERSION", "1")
-  monkeypatch.setenv("HOSTNAME", "host")
-  monkeypatch.setenv("REPO", "repo")
   monkeypatch.setenv("DISCORD_SECRET", "secret")
-  monkeypatch.setenv("DISCORD_SYSCHAN", "1")
   monkeypatch.setenv("JWT_SECRET", "jwt")
   monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
@@ -26,12 +22,12 @@ def test_db_startup(monkeypatch, db_app):
   async def fake_pool(**kwargs):
     return "pool"
   monkeypatch.setattr(db_mod.asyncpg, "create_pool", fake_pool)
-  dbm = DatabaseModule(db_app)
+  dbm = DatabaseModule(db_app, dsn="postgres://user@host/db")
   asyncio.run(dbm.startup())
   assert dbm.pool == "pool"
 
 def test_db_fetch_one_without_pool(db_app):
-  dbm = DatabaseModule(db_app)
+  dbm = DatabaseModule(db_app, dsn="postgres://user@host/db")
   with pytest.raises(RuntimeError):
     asyncio.run(dbm._fetch_one("SELECT 1"))
 
@@ -93,11 +89,24 @@ def test_select_user_new_schema(db_app):
     def acquire(self):
       return DummyAcquire(Conn())
 
-  dbm = DatabaseModule(db_app)
+  dbm = DatabaseModule(db_app, dsn="postgres://user@host/db")
   dbm.pool = Pool()
   result = asyncio.run(dbm.select_user('microsoft', 'pid'))
   assert captured['args'] == ('microsoft', 'pid')
   assert result['provider_name'] == 'microsoft'
+
+
+def test_get_config_value(db_app):
+  class Pool(DummyPool):
+    def __init__(self):
+      self.row = {'value': 'v'}
+    def acquire(self):
+      return DummyAcquire(DummyConn(self.row))
+
+  dbm = DatabaseModule(db_app, dsn="postgres://user@host/db")
+  dbm.pool = Pool()
+  result = asyncio.run(dbm.get_config_value('Version'))
+  assert result == 'v'
 
 
 #def test_secure_fetch_one(monkeypatch, db_app):

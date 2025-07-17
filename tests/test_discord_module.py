@@ -35,6 +35,13 @@ def discord_app(monkeypatch):
   app = FastAPI()
   env = EnvironmentModule(app)
   app.state.env = env
+  class DB:
+    async def get_config_value(self, key):
+      if key == "DiscordSyschan":
+        return "1"
+      if key == "Hostname":
+        return "host"
+  app.state.database = DB()
   return app
 
 def test_discord_module_init(monkeypatch, discord_app):
@@ -43,6 +50,7 @@ def test_discord_module_init(monkeypatch, discord_app):
   monkeypatch.setattr(DiscordModule, "_init_bot_routes", lambda self: None)
   monkeypatch.setattr(DiscordModule, "_init_discord_bot", lambda self, p: DummyBot())
   mod = DiscordModule(discord_app)
+  asyncio.run(mod.startup())
   assert mod.secret == "secret"
   assert mod.syschan == 1
   assert isinstance(mod.bot, DummyBot)
@@ -67,7 +75,9 @@ def _setup(monkeypatch, discord_app, chan=None):
     bot.get_channel = lambda c: chan
     return bot
   monkeypatch.setattr(DiscordModule, "_init_discord_bot", _make_bot)
-  return DiscordModule(discord_app)
+  mod = DiscordModule(discord_app)
+  asyncio.run(mod.startup())
+  return mod
 
 def test_send_sys_message(monkeypatch, discord_app):
   chan = Chan()
@@ -100,6 +110,7 @@ def test_rpc_command(monkeypatch, discord_app):
   monkeypatch.setattr(DiscordModule, "_init_discord_bot", _make_bot)
 
   mod = DiscordModule(discord_app)
+  asyncio.run(mod.startup())
 
   class Ctx:
     async def send(self, m):
