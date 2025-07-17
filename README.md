@@ -38,7 +38,7 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 
 ### Database Utilities
 Several helper scripts in the `scripts` directory manage the project database:
-- `create_or_upgrade_database.py` applies the SQL schema found in `db/schema.sql`.
+- `create_or_upgrade_database.py` creates the basic user tables if they do not already exist.
 - `interrogate_database_structure.py` prints the current table, column and index details.
 - `database_cli.py` opens an interactive console with shortcuts for common queries.
 These scripts read the `POSTGRES_CONNECTION_STRING` environment variable so they can run against any configured PostgreSQL server.
