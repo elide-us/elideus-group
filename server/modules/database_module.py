@@ -154,3 +154,11 @@ class DatabaseModule(BaseModule):
     if row:
       return row.get("value")
     return None
+
+  async def set_config_value(self, key: str, value: str):
+    logging.debug("set_config_value key=%s", key)
+    query = (
+      "INSERT INTO configuration(key, value) VALUES($1, $2) "
+      "ON CONFLICT(key) DO UPDATE SET value=excluded.value;"
+    )
+    await self._run(query, key, value)
