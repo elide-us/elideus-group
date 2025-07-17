@@ -20,7 +20,6 @@ class DummyBot:
 def test_lifespan_initializes_modules(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
 
   monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)

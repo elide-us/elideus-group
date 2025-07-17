@@ -17,7 +17,8 @@ def test_env_defaults(monkeypatch):
   monkeypatch.delenv("MS_API_ID", raising=False)
   app = FastAPI()
   env = EnvironmentModule(app)
-  assert env.get("MS_API_ID") == "MISSING_ENV_MS_API_ID"
+  with pytest.raises(RuntimeError):
+    env.get("MS_API_ID")
 
 def test_getenv_required(monkeypatch):
   app = FastAPI()

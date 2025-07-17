@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from . import BaseModule
 from .env_module import EnvironmentModule
 from .discord_module import DiscordModule
+from .database_module import DatabaseModule
 
 async def fetch_ms_jwks_uri() -> str:
   async with aiohttp.ClientSession() as session:
@@ -30,16 +31,18 @@ class AuthModule(BaseModule):
     try:
       self.env: EnvironmentModule = app.state.env
       self.discord: DiscordModule = app.state.discord
+      self.db: DatabaseModule = app.state.database
     except AttributeError:
-      raise Exception("Env and Discord modules must be loaded first")
+      raise Exception("Env, Database and Discord modules must be loaded first")
     self.ms_api_id: Optional[str] = None
     self.jwt_secret: str = "secret"
     self.jwt_algo_ms: str = "RS256"
     self.jwt_algo_int: str = "HS256"
 
   async def startup(self):
+    if self.db:
+      self.ms_api_id = await self.db.get_config_value("MsApiId")
     if self.env:
-      self.ms_api_id = self.env.get("MS_API_ID")
       secret = self.env.get("JWT_SECRET")
       if secret:
         self.jwt_secret = secret

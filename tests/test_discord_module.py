@@ -30,7 +30,6 @@ def discord_app(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("DISCORD_SYSCHAN", "1")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
   app = FastAPI()
   env = EnvironmentModule(app)

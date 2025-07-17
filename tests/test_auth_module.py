@@ -15,12 +15,17 @@ def auth_app(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("DISCORD_SYSCHAN", "1")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
   app = FastAPI()
   env = EnvironmentModule(app)
   app.state.env = env
   app.state.discord = SimpleNamespace()
+  class DB:
+    async def get_config_value(self, key):
+      if key == "MsApiId":
+        return "msid"
+      return None
+  app.state.database = DB()
   return app
 
 def test_auth_startup(monkeypatch, auth_app):

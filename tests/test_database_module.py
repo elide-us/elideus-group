@@ -10,7 +10,6 @@ from server.modules.env_module import EnvironmentModule
 def db_app(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("MS_API_ID", "msid")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
   app = FastAPI()
   env = EnvironmentModule(app)
