@@ -72,11 +72,30 @@ def apply_suffixes(response: RPCResponse, suffixes: List[Tuple[str, List[str]]],
     response.op = f"{response.op}:" + ":".join(encode_suffixes([("view", ["default", "1"])]))
   return response
 
+# @register_suffix("example", 2)
+# def _example_handler(resp: RPCResponse, args: List[str]) -> RPCResponse:
+#   from rpc.example.namespace.models import ExampleSuffix1
+#   example, version = args
+#   if resp.op == "urn:example:namespace:operation:1" and example == "example" and version == "1":
+#     assert isinstance(resp.payload, ExampleSuffix1)
+#     resp.payload = ExampleSuffix1(content=f"Example: {resp.payload.example}")
+#   return resp
+
 @register_suffix("view", 2)
 def _view_handler(resp: RPCResponse, args: List[str]) -> RPCResponse:
-  context, variant = args
-  if resp.op == "urn:admin:vars:hostname:1" and context == "discord" and variant == "1":
-    from rpc.admin.vars.models import AdminVarsHostname1, AdminVarsHostnameViewDiscord1
+  from rpc.admin.vars.models import ViewDiscord1
+  context, version = args
+  if resp.op == "urn:admin:vars:hostname:1" and context == "discord" and version == "1":
+    from rpc.admin.vars.models import AdminVarsHostname1
     assert isinstance(resp.payload, AdminVarsHostname1)
-    resp.payload = AdminVarsHostnameViewDiscord1(content=f"Hostname: {resp.payload.hostname}")
+    resp.payload = ViewDiscord1(content=f"Hostname: {resp.payload.hostname}")
+  if resp.op == "urn:admin:vars:version:1" and context == "discord" and version == "1":
+    from rpc.admin.vars.models import AdminVarsVersion1
+    assert isinstance(resp.payload, AdminVarsVersion1)
+    resp.payload = ViewDiscord1(content=f"Version: {resp.payload.version}")
+  if resp.op == "urn:admin:vars:repo:1" and context == "discord" and version == "1":
+    from rpc.admin.vars.models import AdminVarsRepo1
+    assert isinstance(resp.payload, AdminVarsRepo1)
+    resp.payload = ViewDiscord1(content=f"GitHub: {resp.payload.repo}")
   return resp
+
