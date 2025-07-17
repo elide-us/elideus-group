@@ -93,15 +93,14 @@ class DatabaseModule(BaseModule):
         u.guid,
         u.display_name,
         u.email,
-        COALESCE(uc.balance, 0) AS credits,
-        ap.name AS provider_name
-      FROM user_auth ua
-      JOIN auth_providers ap ON ua.provider_id = ap.id
-      JOIN users u ON ua.user_id = u.id
-      LEFT JOIN user_credits uc ON uc.user_id = u.id
-      WHERE ap.name = $1 AND ua.provider_user_id = $2;
+        COALESCE(uc.credits, 0) AS credits,
+        $2::text AS provider_name
+      FROM users u
+      JOIN users_auth ua ON ua.user_guid = u.guid
+      LEFT JOIN users_credits uc ON uc.user_guid = u.guid
+      WHERE ua.microsoft_id = $1;
     """
-    result = await self._fetch_one(query, provider, _stou(provider_user_id))
+    result = await self._fetch_one(query, _stou(provider_user_id), provider)
     if result:
       logging.info(
         f"Found {result['provider_name']} user for {result['guid']}: "
@@ -122,29 +121,21 @@ class DatabaseModule(BaseModule):
     new_guid = _utos(uuid4())
     async with self.pool.acquire() as conn:
       async with conn.transaction():
-        provider_id = await conn.fetchval(
-          "SELECT id FROM auth_providers WHERE name = $1", provider
-        )
-        if provider_id is None:
-          raise RuntimeError("Unknown provider")
-        user_id = await conn.fetchval(
-          "INSERT INTO users (guid, email, display_name, primary_provider_id) VALUES ($1, $2, $3, $4) RETURNING id",
+        await conn.execute(
+          "INSERT INTO users (guid, email, display_name, auth_provider) VALUES ($1, $2, $3, $4)",
           new_guid,
           email,
           username,
-          provider_id,
+          1,
         )
         await conn.execute(
-          "INSERT INTO user_auth (user_id, provider_id, provider_user_id, email, username) VALUES ($1, $2, $3, $4, $5)",
-          user_id,
-          provider_id,
+          "INSERT INTO users_auth (user_guid, microsoft_id) VALUES ($1, $2)",
+          new_guid,
           provider_user_id,
-          email,
-          username,
         )
         await conn.execute(
-          "INSERT INTO user_credits (user_id, balance, reserved) VALUES ($1, 50, 0)",
-          user_id,
+          "INSERT INTO users_credits (user_guid, credits) VALUES ($1, 50)",
+          new_guid,
         )
     return await self.select_user(provider, provider_user_id)
 
