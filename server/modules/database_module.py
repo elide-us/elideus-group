@@ -82,13 +82,14 @@ class DatabaseModule(BaseModule):
         u.display_name,
         u.email,
         COALESCE(uc.credits, 0) AS credits,
-        $2::text AS provider_name
+        ap.name AS provider_name
       FROM users u
       JOIN users_auth ua ON ua.user_guid = u.guid
+      JOIN auth_provider ap ON ap.id = ua.provider_id
       LEFT JOIN users_credits uc ON uc.user_guid = u.guid
-      WHERE ua.microsoft_id = $1;
+      WHERE ap.name = $1 AND ua.provider_user_id = $2;
     """
-    result = await self._fetch_one(query, provider_user_id, provider)
+    result = await self._fetch_one(query, provider, provider_user_id)
     if result:
       logging.info(
         f"Found {result['provider_name']} user for {result['guid']}: "
@@ -124,14 +125,12 @@ class DatabaseModule(BaseModule):
           auth_provider_id,
         )
 
-        if provider == "microsoft":
-          await conn.execute(
-            "INSERT INTO users_auth (user_guid, microsoft_id) VALUES ($1, $2)",
-            new_guid,
-            provider_user_id,
-          )
-        else:
-          raise NotImplementedError(f"Insert for provider '{provider}' not yet implemented")
+        await conn.execute(
+          "INSERT INTO users_auth (user_guid, provider_id, provider_user_id) VALUES ($1, $2, $3)",
+          new_guid,
+          auth_provider_id,
+          provider_user_id,
+        )
 
         await conn.execute(
           "INSERT INTO users_credits (user_guid, credits) VALUES ($1, 50)",

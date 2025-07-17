@@ -75,6 +75,30 @@ class DummyPool:
   async def close(self):
     pass
 
+def test_select_user_new_schema(db_app):
+  captured = {}
+
+  class Conn(DummyConn):
+    async def fetchrow(self, query, *args):
+      captured['args'] = args
+      return {
+        'guid': 'uid',
+        'display_name': 'u',
+        'email': 'e',
+        'credits': 0,
+        'provider_name': 'microsoft',
+      }
+
+  class Pool(DummyPool):
+    def acquire(self):
+      return DummyAcquire(Conn())
+
+  dbm = DatabaseModule(db_app)
+  dbm.pool = Pool()
+  result = asyncio.run(dbm.select_user('microsoft', 'pid'))
+  assert captured['args'] == ('microsoft', 'pid')
+  assert result['provider_name'] == 'microsoft'
+
 
 #def test_secure_fetch_one(monkeypatch, db_app):
 #  dbm = DatabaseModule(db_app)
