@@ -40,7 +40,8 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 Several helper scripts in the `scripts` directory manage the project database:
 - `create_or_upgrade_database.py` creates the basic user tables if they do not already exist.
 - `interrogate_database_structure.py` prints the current table, column and index details.
-- `database_cli.py` opens an interactive console with shortcuts for common queries.
+- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides `schema dump` and `schema apply` commands for managing schema snapshots.
+- `data_dump.py` creates a JSON backup containing schema and data.
 These scripts read the `POSTGRES_CONNECTION_STRING` environment variable so they can run against any configured PostgreSQL server.
 
 ### RPC Response Views
