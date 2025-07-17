@@ -3,7 +3,6 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
-from .discord_module import DiscordModule
 
 def _maybe_loads_json(data):
   if isinstance(data, str):
@@ -24,18 +23,17 @@ def _utos(value: UUID) -> str:
   return str(value)
 
 class DatabaseModule(BaseModule):
-  def __init__(self, app: FastAPI):
+  def __init__(self, app: FastAPI, dsn: str | None = None):
     super().__init__(app)
     self.pool: asyncpg.Pool | None = None
-    try:
-      self.env: EnvironmentModule = app.state.env
-      self.discord: DiscordModule = app.state.discord
-    except AttributeError:
-      raise Exception("Env and Discord modules must be loaded first")
+    self.dsn = dsn
 
   def _db_connection_string(self) -> str | None:
-    if self.env:
-      return self.env.get("POSTGRES_CONNECTION_STRING")
+    if self.dsn:
+      return self.dsn
+    env: EnvironmentModule | None = getattr(self.app.state, 'env', None)
+    if env:
+      return env.get("POSTGRES_CONNECTION_STRING")
     return None
 
   async def startup(self):
@@ -148,3 +146,11 @@ class DatabaseModule(BaseModule):
         "Returning %d routes: %s", len(result), names
       )
     return result
+
+  async def get_config_value(self, key: str) -> str | None:
+    logging.debug("get_config_value key=%s", key)
+    query = "SELECT value FROM config WHERE key=$1;"
+    row = await self._fetch_one(query, key)
+    if row:
+      return row.get("value")
+    return None

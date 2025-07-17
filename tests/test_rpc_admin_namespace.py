@@ -20,6 +20,13 @@ class DummyDB:
             }
         ]
 
+    async def get_config_value(self, key):
+        return {
+            "Version": "v1.2.3",
+            "Hostname": "unit-host",
+            "Repo": "https://repo",
+        }.get(key)
+
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
     monkeypatch.setenv("VERSION", "v1.2.3")

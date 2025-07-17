@@ -1,5 +1,6 @@
 import logging, discord, asyncio, json
 from .env_module import EnvironmentModule
+from server.modules.database_module import DatabaseModule
 from fastapi import FastAPI, Request
 from discord.ext import commands
 from server.helpers.logging import configure_discord_logging #, remove_discord_logging
@@ -9,18 +10,22 @@ class DiscordModule():
     self.app: FastAPI = app
     try:
       self.env: EnvironmentModule = app.state.env
+      self.db: DatabaseModule = app.state.database
     except AttributeError:
-      raise Exception("Env module must be initialized first")
+      raise Exception("Env and Database modules must be loaded first")
     self.secret = self.env.get("DISCORD_SECRET")
     self.bot = self._init_discord_bot('!')
     self.bot.app = self.app
-
-    self.syschan = self.env.get_as_int("DISCORD_SYSCHAN")
+    self.syschan = 0
+    self.task = None
     self._init_bot_routes()
     configure_discord_logging(self)
 
     logging.info("Discord module loaded")
 
+  async def startup(self):
+    val = await self.db.get_config_value("DiscordSyschan")
+    self.syschan = int(val or 0)
     self.task = asyncio.create_task(self.bot.start(self.secret))
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
