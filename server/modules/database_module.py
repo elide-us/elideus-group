@@ -140,7 +140,7 @@ class DatabaseModule(BaseModule):
 
   async def select_routes(self):
     logging.debug("select_routes")
-    query = "SELECT * FROM routes;"
+    query = "SELECT * FROM routes ORDER BY sequence ASC;"
     result = await self._fetch_many(query)
     if result:
       names = ", ".join(route.get("name", "Unnamed") for route in result)
