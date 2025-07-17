@@ -109,18 +109,30 @@ class DatabaseModule(BaseModule):
     new_guid = _utos(uuid4())
     async with self.pool.acquire() as conn:
       async with conn.transaction():
+        auth_provider_id = await conn.fetchval(
+          "SELECT id FROM auth_provider WHERE name = $1",
+          provider
+        )
+        if not auth_provider_id:
+          raise ValueError(f"Unknown auth provider: {provider}")
+
         await conn.execute(
           "INSERT INTO users (guid, email, display_name, auth_provider) VALUES ($1, $2, $3, $4)",
           new_guid,
           email,
           username,
-          1,
+          auth_provider_id,
         )
-        await conn.execute(
-          "INSERT INTO users_auth (user_guid, microsoft_id) VALUES ($1, $2)",
-          new_guid,
-          provider_user_id,
-        )
+
+        if provider == "microsoft":
+          await conn.execute(
+            "INSERT INTO users_auth (user_guid, microsoft_id) VALUES ($1, $2)",
+            new_guid,
+            provider_user_id,
+          )
+        else:
+          raise NotImplementedError(f"Insert for provider '{provider}' not yet implemented")
+
         await conn.execute(
           "INSERT INTO users_credits (user_guid, credits) VALUES ($1, 50)",
           new_guid,
@@ -130,5 +142,10 @@ class DatabaseModule(BaseModule):
   async def select_routes(self):
     logging.debug("select_routes")
     query = "SELECT * FROM routes;"
-    return await self._fetch_many(query)
-
+    result = await self._fetch_many(query)
+    if result:
+      names = ", ".join(route.get("name", "Unnamed") for route in result)
+      logging.info(
+        "Returning %d routes: %s", len(result), names
+      )
+    return result
