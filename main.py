@@ -17,7 +17,7 @@ from server.routers import rpc_router
 from server.routers import web_router
 from server.helpers.logging import configure_root_logging
 
-configure_root_logging()
+configure_root_logging(debug=lifespan.DEBUG_LOGGING)
 
 # Create the FastAPI app
 app = FastAPI(lifespan=lifespan.lifespan)

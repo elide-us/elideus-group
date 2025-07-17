@@ -58,14 +58,14 @@ def configure_discord_logging(discord_module):
   logging.getLogger().addHandler(handler)
 
 
-def configure_root_logging():
+def configure_root_logging(debug: bool = False):
   logger = logging.getLogger()
   if logger.handlers:
     logger.handlers.clear()
   handler = logging.StreamHandler(sys.stdout)
   handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
   logger.addHandler(handler)
-  logger.setLevel(logging.INFO)
+  logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
 def remove_discord_logging(discord_module):

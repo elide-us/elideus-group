@@ -30,5 +30,7 @@ class RPCResponse(BaseModel):
     description="Optional metadata like processing time or status notes"
   )
 
+# ###REVIEW### Unused model, verify necessity
 class UserData(BaseModel):
- bearerToken: str
+  bearerToken: str
+

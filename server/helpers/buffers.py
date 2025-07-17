@@ -1,6 +1,7 @@
 import aiohttp, io
 
-# Async Context Manager for buffer
+# ###REVIEW### This helper is only used in tests and is not
+# referenced by the application runtime.
 class AsyncBufferWriter():
   def __init__(self, url):
     self.buffer = None
@@ -22,3 +23,4 @@ class AsyncBufferWriter():
   async def __aexit__(self, exc_type, exc_val, exc_tb):
     if self.buffer:
       self.buffer.close()
+

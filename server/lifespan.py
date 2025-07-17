@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import os
+
+# Toggle debug logging globally
+DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "0") == "1"
 
 from server.modules.env_module import EnvironmentModule   # Explicit manual import
 from server.modules.discord_module import DiscordModule   # Explicit manual import
