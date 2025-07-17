@@ -54,7 +54,7 @@ class DatabaseModule(BaseModule):
     if not self.pool:
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
-      result = await conn.fetchval(query, *args)
+      result = await conn.fetch(query, *args)
     return _maybe_loads_json(result)
 
   async def _fetch_one(self, query: str, *args):
@@ -126,4 +126,9 @@ class DatabaseModule(BaseModule):
           new_guid,
         )
     return await self.select_user(provider, provider_user_id)
+
+  async def select_routes(self):
+    logging.debug("select_routes")
+    query = "SELECT * FROM routes;"
+    return await self._fetch_many(query)
 
