@@ -63,6 +63,24 @@ export interface AuthMicrosoftLoginData1 {
   credits: number | null;
 }
 
+export interface FrontendUserProfileData1 {
+  displayName: string;
+  providerUsername: string;
+  email: string;
+  displayEmail: boolean;
+  primaryProvider: string;
+  linkedProviders: string[];
+  profilePicture: string | null;
+  credits: number;
+  storageUsed: number;
+  storageQuota: number;
+}
+
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
+}
+
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
     const request: RPCRequest = {
         op,

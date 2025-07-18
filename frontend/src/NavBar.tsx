@@ -10,7 +10,7 @@ import {
 	ListItemIcon,
 	ListItemText,
 } from '@mui/material';
-import { Menu as MenuIcon } from '@mui/icons-material';
+import { Menu as MenuIcon, Key as KeyIcon } from '@mui/icons-material';
 import type { RouteItem, AdminLinksRoutes1 } from './shared/RpcModels';
 import { fetchRoutes } from './rpc/admin/links';
 import { iconMap, defaultIcon } from './icons';
@@ -59,17 +59,23 @@ const NavBar = (): JSX.Element => {
 				</Tooltip>
 			</Box>
 			<List sx={{ flexGrow: 1 }}>
-				{routes.map((route) => {
-					const IconComp = iconMap[route.icon] || defaultIcon;
-					return (
-						<ListItemButton component={Link} to={route.path} key={route.path}>
-							<ListItemIcon>
-								<IconComp />
-							</ListItemIcon>
-							{open && <ListItemText primary={route.name} />}
-						</ListItemButton>
-					);
-				})}
+                                {routes.map((route) => {
+                                        const IconComp = iconMap[route.icon] || defaultIcon;
+                                        return (
+                                                <ListItemButton component={Link} to={route.path} key={route.path}>
+                                                        <ListItemIcon>
+                                                                <IconComp />
+                                                        </ListItemIcon>
+                                                        {open && <ListItemText primary={route.name} />}
+                                                </ListItemButton>
+                                        );
+                                })}
+                                <ListItemButton component={Link} to="/userpanel" key="/userpanel">
+                                        <ListItemIcon>
+                                                <KeyIcon />
+                                        </ListItemIcon>
+                                        {open && <ListItemText primary="User" />}
+                                </ListItemButton>
 			</List>
                         <Box sx={{ mt: 'auto', p: 1 }}>
                                 <Login open={open} />
