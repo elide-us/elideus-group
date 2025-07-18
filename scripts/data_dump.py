@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio, json, datetime
-from database_cli import connect, get_schema
+from dblib import connect, get_schema
 
 async def main(prefix: str = 'backup') -> None:
   conn = await connect()

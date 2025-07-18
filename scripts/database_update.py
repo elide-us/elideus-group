@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from database_cli import connect
+from dblib import connect
 
 async def column_exists(conn, table: str, column: str) -> bool:
   row = await conn.fetchrow(
