@@ -153,7 +153,7 @@ class DatabaseModule(BaseModule):
     result = await self._fetch_many(query)
     if result:
       titles = ", ".join(link.get("title", "Untitled") for link in result)
-      logging.inf(
+      logging.info(
         "Returning %d routes: %s", len(result), titles
       )
     return result
