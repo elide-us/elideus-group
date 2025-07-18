@@ -1,5 +1,5 @@
 from __future__ import annotations
-import subprocess, os, sys, importlib.util, dotenv, asyncio, asyncpg
+import subprocess, os, sys, importlib.util, dotenv, asyncio, asyncpg, argparse
 from pathlib import Path
 
 dotenv.load_dotenv()
@@ -53,8 +53,19 @@ async def update_build_version() -> None:
 
 ROOT = Path(__file__).resolve().parent.parent
 
+def parse_args() -> argparse.Namespace:
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+    '--test', action='store_true',
+    help='Run tests without updating build version'
+  )
+  return parser.parse_args()
+
+
 def main() -> None:
-  asyncio.run(update_build_version())
+  args = parse_args()
+  if not args.test:
+    asyncio.run(update_build_version())
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_library.py'], cwd=ROOT)
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_client.py'], cwd=ROOT)
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'frontend')
