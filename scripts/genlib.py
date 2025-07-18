@@ -1,11 +1,24 @@
-"""Shared helpers for code generation scripts."""
-
 from typing import Any, Union, get_origin, get_args
 from pydantic import BaseModel
 import os, importlib.util
+from pathlib import Path
 
 # Root of the repository relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Root of the solution using Pathlib
+ROOT = Path(__file__).resolve().parent.parent
+
+# Map bare Python types to TS primitives (won't be used for generic types)
+PY_TO_TS = {
+  str: 'string',
+  int: 'number',
+  float: 'number',
+  bool: 'boolean',
+  type(None): 'null',
+  dict: 'Record<string, any>',
+  list: 'any[]',  # fallback for untyped list
+}
 
 # Standard header included at the top of generated files
 HEADER_COMMENT = [
@@ -22,62 +35,44 @@ def camel_case(name: str) -> str:
   return "".join(part.capitalize() for part in name.split("_"))
 
 def load_module(path: str):
-  """Import a Python module from *path* and return it."""
   spec = importlib.util.spec_from_file_location("mod", path)
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)  # type: ignore[attr-defined]
   return module
 
-# Map bare Python types to TS primitives (won't be used for generic types)
-PY_TO_TS = {
-    str: 'string',
-    int: 'number',
-    float: 'number',
-    bool: 'boolean',
-    type(None): 'null',
-    dict: 'Record<string, any>',
-    list: 'any[]',  # fallback for untyped list
-}
-
 def py_to_ts(py_type: Any) -> str:
-    origin = get_origin(py_type)
-    args = get_args(py_type)
+  origin = get_origin(py_type)
+  args = get_args(py_type)
 
-    # Handle generics: List[X] or Tuple[X, ...]
-    if origin in (list, tuple):
-        inner_type = py_to_ts(args[0]) if args else 'any'
-        return f"{inner_type}[]"
+  # Handle generics: List[X] or Tuple[X, ...]
+  if origin in (list, tuple):
+    inner_type = py_to_ts(args[0]) if args else 'any'
+    return f"{inner_type}[]"
 
-    # Handle Optional[X] (i.e. Union[X, None])
-    if origin is Union:
-        non_none = [arg for arg in args if arg is not type(None)]
-        if len(non_none) == 1:
-            return f"{py_to_ts(non_none[0])} | null"
-        return " | ".join(py_to_ts(arg) for arg in args)
+  # Handle Optional[X] (i.e. Union[X, None])
+  if origin is Union:
+    non_none = [arg for arg in args if arg is not type(None)]
+    if len(non_none) == 1:
+      return f"{py_to_ts(non_none[0])} | null"
+    return " | ".join(py_to_ts(arg) for arg in args)
 
-    # Known primitives
-    if py_type in PY_TO_TS:
-        return PY_TO_TS[py_type]
+  # Known primitives
+  if py_type in PY_TO_TS:
+    return PY_TO_TS[py_type]
 
-    # Pydantic models → use interface name
-    if isinstance(py_type, type) and issubclass(py_type, BaseModel):
-        return py_type.__name__
+  # Pydantic models → use interface name
+  if isinstance(py_type, type) and issubclass(py_type, BaseModel):
+    return py_type.__name__
 
-    # Fallback
-    return 'any'
+  # Fallback
+  return 'any'
 
 def model_to_ts(model: type[BaseModel]) -> str:
-    """
-    Generate a TS interface from a Pydantic model.
-    Works with Pydantic v2 (model.model_fields) or v1 (__fields__).
-    """
-    lines = [f"export interface {model.__name__} {{"]
-    # Try Pydantic v2
-    fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
-    for name, field in fields.items():
-        # field.annotation is v2; outer_type_ exists in both v1/v2
-        annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
-        ts_type = py_to_ts(annotation)
-        lines.append(f"  {name}: {ts_type};")
-    lines.append("}")
-    return "\n".join(lines)
+  lines = [f"export interface {model.__name__} {{"]
+  fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
+  for name, field in fields.items():
+    annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
+    ts_type = py_to_ts(annotation)
+    lines.append(f"  {name}: {ts_type};")
+  lines.append("}")
+  return "\n".join(lines)

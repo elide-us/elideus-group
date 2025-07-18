@@ -13,13 +13,14 @@ We'll update this section as we move through the rebuild.
 - Azure Container Registry
 - GitHub Actions CI/CD Integration
 - Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
-- OAuth2 Microsoft Identity - In progress
+- OAuth2 Microsoft Identity
+- PostgresSQL Database
 - Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.
 - Azure Storage Account (blob and file share)
 - OpenAI, LumaAI, BlueSky Social
-- SQL Database
+- OAuth for Google, Discord, Apple
 
 ### Technical Details
 - Docker buildx creates a WSGI compliant container that Azure Web App can run.
@@ -36,13 +37,15 @@ GitHub Actions run both the Node and Python test suites whenever a pull request 
 ### AI Usage Details
 We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified access to a full suite of command line build and editing tools.
 
-### Database Utilities
-Several helper scripts in the `scripts` directory manage the project database:
-- `create_or_upgrade_database.py` creates the basic user tables if they do not already exist.
-- `interrogate_database_structure.py` prints the current table, column and index details.
-- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides `schema dump` and `schema apply` commands for managing schema snapshots.
-- `data_dump.py` creates a JSON backup containing schema and data.
-These scripts read the `POSTGRES_CONNECTION_STRING` environment variable so they can run against any configured PostgreSQL server.
+### CLI Utilities
+Several helper scripts in the `scripts` directory manage the project database and data entities:
+- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details.
+- `run_tests.py` executes various test, generate, and update operations for build automation.
+    - Requires `POSTGRES_CONNECTION_STRING` environment variable to function properly.
+- `generate_rpc_client.py` generates function accessors for the RPC namespace defining required interface types.
+- `generate_rpc_library.py` generates a data entity library for use in the front end.
+- `genlib.py` handles common RPC namespace generation functions.
+- `dblib.py` handles most of the database querying operations.
 
 ### RPC Response Views
 Responses support a simple view suffix in the URN:
