@@ -11,7 +11,7 @@ class DummyDB:
   async def get_user_profile(self, guid):
     return {
       'guid': guid,
-      'display_name': 'u',
+      'display_name': getattr(self, 'name', 'u'),
       'email': 'e',
       'display_email': True,
       'credits': 0,
@@ -19,6 +19,10 @@ class DummyDB:
       'rotation_token': None,
       'rotation_expires': None,
     }
+
+  async def update_display_name(self, guid, name):
+    self.updated = (guid, name)
+    self.name = name
 
 def test_get_profile_data_v1():
   app = FastAPI()
@@ -30,3 +34,18 @@ def test_get_profile_data_v1():
   assert resp.op == 'urn:frontend:user:profile_data:1'
   assert resp.payload.email == 'e'
   assert resp.payload.displayEmail is True
+
+
+def test_set_display_name_v1():
+  app = FastAPI()
+  auth = DummyAuth()
+  db = DummyDB()
+  app.state.auth = auth
+  app.state.database = db
+  req = Request({'type': 'http', 'app': app})
+  rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token', 'displayName': 'n'})
+  resp = asyncio.run(services.set_display_name_v1(rpc_req, req))
+  assert resp.op == 'urn:frontend:user:set_display_name:1'
+  assert resp.payload.username == 'n'
+  assert db.updated == ('uid', 'n')
+

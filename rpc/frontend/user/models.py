@@ -10,6 +10,11 @@ class FrontendUserProfileData1(BaseModel):
   backupEmail: Optional[str] = None
   profilePicture: Optional[str] = None
   credits: Optional[int] = None
+  storageUsed: Optional[int] = None
   displayEmail: bool = False
   rotationToken: Optional[str] = None
   rotationExpires: Optional[datetime] = None
+
+class FrontendUserSetDisplayName1(BaseModel):
+  bearerToken: str
+  displayName: str
