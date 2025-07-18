@@ -30,6 +30,7 @@ These items were previously implemented and are on the rebuild roadmap.
 - You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
 - Recommend using the Azure Web App Container Quickstart configuration.
 - Use Deployment Center to configure CI/CD from GitHub Actions post deploy, target build-ready repo.
+- Run `python scripts/upgrade_schema.py` to apply database migrations before deployment.
 
 ### Pull Request Testing
 GitHub Actions run both the Node and Python test suites whenever a pull request targets the `main` branch. The workflow is defined in `.github/workflows/pr-tests.yml`.
