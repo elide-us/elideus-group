@@ -12,6 +12,9 @@ on:
 jobs:
   build:
     runs-on: 'ubuntu-latest'
+    
+    env:
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
 
     steps:
     - uses: actions/checkout@v2

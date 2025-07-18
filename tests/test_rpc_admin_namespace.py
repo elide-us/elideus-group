@@ -19,6 +19,14 @@ class DummyDB:
                 "sequence": 10,
             }
         ]
+    async def select_links(self):
+        return [
+            {
+                "id": 1,
+                "title": "Discord",
+                "url": "https://link",
+            }
+        ]
 
     async def get_config_value(self, key):
         return {
@@ -85,13 +93,13 @@ def test_get_ffmpeg_version(app, monkeypatch):
     assert resp.op == "urn:admin:vars:ffmpeg_version:1:view:default:1"
     assert resp.payload.ffmpeg_version == "ffmpeg version 6.0"
 
-def test_get_home_links(app):
+def test_get_links(app):
     request = Request({"type": "http", "app": app})
     rpc_request = RPCRequest(op="urn:admin:links:get_home:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
     assert resp.op == "urn:admin:links:home:1:view:default:1"
-    assert len(resp.payload.links) == 6
+    assert len(resp.payload.links) == 1
     assert resp.payload.links[0].title == "Discord"
 
 def test_get_routes(app):

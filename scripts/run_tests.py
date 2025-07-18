@@ -1,6 +1,11 @@
 from __future__ import annotations
-import subprocess, sys, importlib.util
+import subprocess, os, sys, importlib.util, dotenv
 from pathlib import Path
+
+dotenv.load_dotenv()
+
+dsn = os.environ["POSTGRES_CONNECTION_STRING"]
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
