@@ -13,6 +13,16 @@ def _parse_version(ver: str) -> tuple[int, int, int, int]:
   return major, minor, patch, build
 
 
+async def _update_config(conn, key: str, value: str):
+  res = await conn.execute(
+    "UPDATE config SET value=$1 WHERE key=$2", value, key
+  )
+  if res.startswith("UPDATE 0"):
+    await conn.execute(
+      "INSERT INTO config(key, value) VALUES($1, $2)", key, value
+    )
+
+
 async def update_build_version() -> None:
   try:
     pool = await asyncpg.create_pool(dsn=dsn)
@@ -28,24 +38,16 @@ async def update_build_version() -> None:
       return
     if not last:
       last = cur
-    cur_m, cur_n, cur_p, _ = _parse_version(cur)
-    last_m, last_n, last_p, last_b = _parse_version(last)
+    cur_m, cur_n, cur_p, cur_b = _parse_version(cur)
+    last_m, last_n, last_p, _ = _parse_version(last)
     if (cur_m, cur_n, cur_p) != (last_m, last_n, last_p):
       build = 1
     else:
-      build = last_b + 1
+      build = cur_b + 1
     new_ver = f"v{cur_m}.{cur_n}.{cur_p}.{build}"
     print(f'Updating build version: {cur} -> {new_ver}')
-    await conn.execute(
-      "INSERT INTO config(key, value) VALUES('Version', $1) "
-      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-      new_ver,
-    )
-    await conn.execute(
-      "INSERT INTO config(key, value) VALUES('LastVersion', $1) "
-      "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-      new_ver,
-    )
+    await _update_config(conn, 'Version', new_ver)
+    await _update_config(conn, 'LastVersion', cur)
   await pool.close()
 
 
