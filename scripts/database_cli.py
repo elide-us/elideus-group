@@ -4,14 +4,18 @@ import subprocess
 import dblib as db
 
 
+import subprocess
+
 def _commit_and_tag(version: str, schema_file: str) -> None:
-  subprocess.check_call(f'git add {schema_file}', shell=True)
-  subprocess.check_call(
-    f'git commit -m "Export schema for {version}"', shell=True
-  )
-  subprocess.check_call(f'git tag {version}', shell=True)
-  subprocess.check_call('git push origin release', shell=True)
-  subprocess.check_call('git push origin --tags', shell=True)
+    subprocess.check_call(f'git add {schema_file}', shell=True)
+    subprocess.check_call(f'git commit -m "Exported DB schema for {version}"', shell=True)
+    subprocess.check_call(f'git tag {version}', shell=True)
+
+    current_branch = subprocess.check_output(
+        "git rev-parse --abbrev-ref HEAD", shell=True, text=True
+    ).strip()
+    subprocess.check_call(f'git push origin {current_branch}', shell=True)
+    subprocess.check_call('git push origin --tags', shell=True)
 
 
 def _parse_version(ver: str) -> tuple[int, int, int, int]:

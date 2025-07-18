@@ -1,0 +1,230 @@
+{
+  "tables": [
+    {
+      "name": "routes",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": "nextval('routes_id_seq'::regclass)"
+        },
+        {
+          "name": "path",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "icon",
+          "type": "text",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "required_roles",
+          "type": "bigint",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "sequence",
+          "type": "integer",
+          "nullable": true,
+          "default": "0"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "config",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": "nextval('config_id_seq'::regclass)"
+        },
+        {
+          "name": "key",
+          "type": "text",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "value",
+          "type": "text",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "auth_provider",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "links",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": "nextval('links_id_seq'::regclass)"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "url",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": "nextval('users_id_seq'::regclass)"
+        },
+        {
+          "name": "guid",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "auth_provider",
+          "type": "integer",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "auth_provider",
+          "ref_table": "auth_provider",
+          "ref_column": "id"
+        }
+      ]
+    },
+    {
+      "name": "users_credits",
+      "columns": [
+        {
+          "name": "user_guid",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "credits",
+          "type": "integer",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "user_guid"
+      ],
+      "foreign_keys": [
+        {
+          "column": "user_guid",
+          "ref_table": "users",
+          "ref_column": "guid"
+        }
+      ]
+    },
+    {
+      "name": "users_auth",
+      "columns": [
+        {
+          "name": "user_guid",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "provider_id",
+          "type": "integer",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "provider_user_id",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "provider_id",
+        "provider_user_id"
+      ],
+      "foreign_keys": [
+        {
+          "column": "provider_id",
+          "ref_table": "auth_provider",
+          "ref_column": "id"
+        }
+      ]
+    }
+  ]
+}
