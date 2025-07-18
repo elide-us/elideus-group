@@ -136,6 +136,28 @@ class DatabaseModule(BaseModule):
         )
     return await self.select_user(provider, provider_user_id)
 
+  async def get_user_profile(self, guid: str):
+    logging.debug("get_user_profile guid=%s", guid)
+    query = """
+      SELECT
+        u.guid,
+        u.display_name,
+        u.email,
+        u.display_email,
+        u.rotation_token,
+        u.rotation_expires,
+        COALESCE(uc.credits, 0) AS credits,
+        ap.name AS provider_name
+      FROM users u
+      LEFT JOIN users_credits uc ON uc.user_guid = u.guid
+      LEFT JOIN users_auth ua ON ua.user_guid = u.guid
+      LEFT JOIN auth_provider ap ON ap.id = ua.provider_id
+      WHERE u.guid = $1
+      LIMIT 1;
+    """
+    result = await self._fetch_one(query, guid)
+    return result
+
   async def select_routes(self):
     logging.debug("select_routes")
     query = "SELECT * FROM routes ORDER BY sequence ASC;"

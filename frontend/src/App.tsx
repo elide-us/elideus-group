@@ -6,6 +6,7 @@ import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
 import NavBar from './NavBar'
 import LoginPage from './LoginPage'
+import UserPage from './UserPage'
 
 function App(): JSX.Element {
 	return (
@@ -26,6 +27,7 @@ function App(): JSX.Element {
                                                 <Routes>
                                                         <Route path='/' element={<Home />} />
                                                         <Route path='/login' element={<LoginPage />} />
+                                                        <Route path='/userpanel' element={<UserPage />} />
                                                 </Routes>
 					</Container>
 				</Router>

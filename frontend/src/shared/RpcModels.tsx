@@ -53,6 +53,18 @@ export interface AdminVarsVersion1 {
 export interface ViewDiscord1 {
   content: string;
 }
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  displayEmail: boolean;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
 export interface AuthMicrosoftLoginData1 {
   bearerToken: string;
   defaultProvider: string;

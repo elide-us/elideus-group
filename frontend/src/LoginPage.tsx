@@ -35,15 +35,18 @@ const LoginPage = (): JSX.Element => {
 			});
 			const profilePictureBase64 = data.profilePicture ? `data:image/png;base64,${data.profilePicture}` : null;
 
-			setUserData({
-				bearerToken: data.bearerToken,
-				defaultProvider: data.defaultProvider,
-				username: data.username,
-				email: data.email,
-				backupEmail: data.backupEmail,
-				profilePicture: profilePictureBase64,
-				credits: data.credits ?? 0
-			});
+                        setUserData({
+                                bearerToken: data.bearerToken,
+                                defaultProvider: data.defaultProvider,
+                                username: data.username,
+                                email: data.email,
+                                backupEmail: data.backupEmail,
+                                profilePicture: profilePictureBase64,
+                                credits: data.credits ?? 0,
+                                displayEmail: false,
+                                rotationToken: null,
+                                rotationExpires: null
+                        });
 
 			setNotification({ open: true, severity: 'success', message: 'Login successful!' });
 			navigate('/');
