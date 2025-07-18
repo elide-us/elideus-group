@@ -1,6 +1,7 @@
 # Local environment specific
 .azure/
 .vscode/
+*_BACKUP.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
