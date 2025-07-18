@@ -147,6 +147,17 @@ class DatabaseModule(BaseModule):
       )
     return result
 
+  async def select_links(self):
+    logging.debug("select_links")
+    query = "SELECT * FROM links;"
+    result = await self._fetch_many(query)
+    if result:
+      titles = ", ".join(link.get("title", "Untitled") for link in result)
+      logging.inf(
+        "Returning %d routes: %s", len(result), titles
+      )
+    return result
+
   async def get_config_value(self, key: str) -> str | None:
     logging.debug("get_config_value key=%s", key)
     query = "SELECT value FROM config WHERE key=$1;"
