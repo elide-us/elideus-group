@@ -112,7 +112,7 @@ async def interactive_console(conn):
             pa = 0
           case 'patch':
             pa += 1
-        new_ver = f"v{ma}.{mi}.{pa}.{bu}"
+        new_ver = f"v{ma}.{mi}.{pa}"
         await _update_config(conn, 'Version', new_ver)
         print(f'Updated Version: {cur} -> {new_ver}')
         schema_file = await db.dump_schema(conn, new_ver)
