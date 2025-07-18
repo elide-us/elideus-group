@@ -43,34 +43,72 @@ const UserPage = (): JSX.Element => {
     };
 
     return (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Box sx={{ maxWidth: 400, width: '100%' }}>
-                <Stack spacing={2} sx={{ mt: 2 }}>
-                    <Typography variant='h5' gutterBottom>User Profile</Typography>
-                        {userData && (
-                            <Stack spacing={2} sx={{ mt: 2 }}>
-                                <Avatar src={userData.profilePicture ?? undefined} sx={{ width: 80, height: 80 }} />
-                                <TextField label='Display Name' value={displayName} onChange={handleNameChange} fullWidth />
-                                <Typography>Credits: {userData.credits ?? 0}</Typography>
-                                <Typography>Storage Used: {userData.storageUsed ?? 0} MB</Typography>
-                                <Typography>Email: {userData.email}</Typography>
-                                <RadioGroup value={provider} onChange={handleProviderChange}>
-                                    <FormControlLabel value='microsoft' control={<Radio />} label='Microsoft' />
-                                    <FormControlLabel value='google' control={<Radio />} label='Google' disabled />
-                                    <FormControlLabel value='discord' control={<Radio />} label='Discord' disabled />
-                                    <FormControlLabel value='apple' control={<Radio />} label='Apple' disabled />
-                                </RadioGroup>
-                                <FormControlLabel
-                                    control={<Switch checked={displayEmail} onChange={handleToggle} />}
-                                    label='Display email publicly'
-                                />
-                                <Stack direction='row' spacing={2}>
-                                    <Button variant='contained' onClick={handleApply} disabled={!dirty}>Apply</Button>
-                                    <Button variant='outlined' onClick={handleCancel} disabled={!dirty}>Cancel</Button>
-                                    <Button variant='contained' color='error'>Delete</Button>
-                                </Stack>
-                            </Stack>
-                        )}
+                <Stack
+                spacing={2}
+                sx={{ mt: 2, display: 'flex', alignItems: 'flex-end', textAlign: 'right' }}
+                >
+                <Typography variant='h5' gutterBottom>User Profile</Typography>
+
+                {userData && (
+                    <Stack spacing={2} sx={{ mt: 2, alignItems: 'flex-end', width: '100%' }}>
+                    <Avatar
+                        src={userData.profilePicture ?? undefined}
+                        sx={{ width: 80, height: 80 }}
+                    />
+
+                    <TextField
+                        label='Display Name'
+                        value={displayName}
+                        onChange={handleNameChange}
+                        fullWidth
+                        slotProps={{
+                            input: {
+                                style: { textAlign: 'right' }
+                            }
+                        }}
+                    />
+
+                    <Typography>Credits: {userData.credits ?? 0}</Typography>
+                    <Typography>Storage Used: {userData.storageUsed ?? 0} MB</Typography>
+                    <Typography>Email: {userData.email}</Typography>
+
+                    <RadioGroup
+                        value={provider}
+                        onChange={handleProviderChange}
+                        sx={{ alignItems: 'flex-end' }}
+                    >
+                        <FormControlLabel value='microsoft' control={<Radio />} label='Microsoft' />
+                        <FormControlLabel value='google' control={<Radio />} label='Google' disabled />
+                        <FormControlLabel value='discord' control={<Radio />} label='Discord' disabled />
+                        <FormControlLabel value='apple' control={<Radio />} label='Apple' disabled />
+                    </RadioGroup>
+
+                    <FormControlLabel
+                        control={<Switch checked={displayEmail} onChange={handleToggle} />}
+                        label='Display email publicly'
+                        labelPlacement='start'
+                        sx={{ alignSelf: 'flex-end' }}
+                    />
+
+                    <Stack
+                        direction='row'
+                        spacing={2}
+                        sx={{ justifyContent: 'flex-end', width: '100%' }}
+                    >
+                        <Button variant='contained' onClick={handleApply} disabled={!dirty}>
+                        Apply
+                        </Button>
+                        <Button variant='outlined' onClick={handleCancel} disabled={!dirty}>
+                        Cancel
+                        </Button>
+                        <Button variant='contained' color='error'>
+                        Delete
+                        </Button>
+                    </Stack>
+                    </Stack>
+                )}
                 </Stack>
             </Box>
         </Box>
