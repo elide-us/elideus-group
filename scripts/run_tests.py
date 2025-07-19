@@ -66,6 +66,7 @@ def main() -> None:
 
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_library.py'], cwd=ROOT)
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_client.py'], cwd=ROOT)
+  subprocess.check_call([sys.executable, 'scripts/generate_rpc_metadata.py'], cwd=ROOT)
   
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'frontend')
   subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'frontend')

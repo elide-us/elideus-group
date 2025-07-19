@@ -6,6 +6,7 @@ from server.modules.env_module import EnvironmentModule
 from server.modules.discord_module import DiscordModule
 from server.modules.database_module import DatabaseModule
 from server.modules.auth_module import AuthModule
+from server.modules.permcap_module import PermCapModule
 from server.helpers.logging import configure_root_logging
 
 @asynccontextmanager
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
   await app.state.discord.startup()
   app.state.auth = AuthModule(app)
   await app.state.auth.startup()
+  app.state.permcap = PermCapModule(app)
+  await app.state.permcap.startup()
 
   try:
     yield

@@ -158,10 +158,24 @@ class DatabaseModule(BaseModule):
     result = await self._fetch_one(query, guid)
     return result
 
-  async def select_routes(self):
-    logging.debug("select_routes")
-    query = "SELECT * FROM routes ORDER BY sequence ASC;"
-    result = await self._fetch_many(query)
+  async def get_user_roles(self, guid: str) -> int:
+    query = "SELECT roles FROM users_roles WHERE user_guid=$1;"
+    row = await self._fetch_one(query, guid)
+    return row.get('roles', 0) if row else 0
+
+  async def get_user_enablements(self, guid: str) -> int:
+    query = "SELECT enablements FROM users_enablements WHERE user_guid=$1;"
+    row = await self._fetch_one(query, guid)
+    return row.get('enablements', 0) if row else 0
+
+  async def select_routes(self, role_mask: int = 0):
+    logging.debug("select_routes role_mask=%s", role_mask)
+    query = (
+      "SELECT * FROM routes "
+      "WHERE required_roles = 0 OR (required_roles & $1) = required_roles "
+      "ORDER BY sequence ASC;"
+    )
+    result = await self._fetch_many(query, role_mask)
     if result:
       names = ", ".join(route.get("name", "Unnamed") for route in result)
       logging.info(
@@ -169,10 +183,13 @@ class DatabaseModule(BaseModule):
       )
     return result
 
-  async def select_links(self):
-    logging.debug("select_links")
-    query = "SELECT * FROM links;"
-    result = await self._fetch_many(query)
+  async def select_links(self, role_mask: int = 0):
+    logging.debug("select_links role_mask=%s", role_mask)
+    query = (
+      "SELECT * FROM links "
+      "WHERE required_roles = 0 OR (required_roles & $1) = required_roles;"
+    )
+    result = await self._fetch_many(query, role_mask)
     if result:
       titles = ", ".join(link.get("title", "Untitled") for link in result)
       logging.info(
