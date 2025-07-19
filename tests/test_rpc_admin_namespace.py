@@ -8,7 +8,7 @@ from rpc.models import RPCRequest
 
 
 class DummyDB:
-    async def select_routes(self):
+    async def select_routes(self, role_mask=0):
         return [
             {
                 "id": 1,
@@ -19,12 +19,13 @@ class DummyDB:
                 "sequence": 10,
             }
         ]
-    async def select_links(self):
+    async def select_links(self, role_mask=0):
         return [
             {
                 "id": 1,
                 "title": "Discord",
                 "url": "https://link",
+                "required_roles": 0,
             }
         ]
 
@@ -34,6 +35,10 @@ class DummyDB:
             "Hostname": "unit-host",
             "Repo": "https://repo",
         }.get(key)
+
+class DummyPermCap:
+    def filter_routes(self, data, role_mask):
+        return data
 
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
@@ -50,6 +55,7 @@ def app():
     # services do `request.app.state.env`, so set it here
     app.state.env = env_module
     app.state.database = DummyDB()
+    app.state.permcap = DummyPermCap()
     return app
 
 def test_get_version(app):
@@ -110,3 +116,4 @@ def test_get_routes(app):
     assert resp.op == "urn:admin:links:routes:1:view:default:1"
     assert len(resp.payload.routes) == 1
     assert resp.payload.routes[0].path == "/"
+
