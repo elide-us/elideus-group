@@ -217,3 +217,14 @@ class DatabaseModule(BaseModule):
     logging.debug("update_display_name guid=%s display_name=%s", guid, display_name)
     query = "UPDATE users SET display_name=$1 WHERE guid=$2;"
     await self._run(query, display_name, guid)
+
+  async def select_users(self):
+    query = "SELECT guid, display_name FROM users ORDER BY display_name;"
+    return await self._fetch_many(query)
+
+  async def set_user_roles(self, guid: str, roles: int):
+    query = (
+      "INSERT INTO users_roles(user_guid, roles) VALUES($1, $2) "
+      "ON CONFLICT(user_guid) DO UPDATE SET roles=excluded.roles;"
+    )
+    await self._run(query, guid, roles)
