@@ -9,6 +9,7 @@ import {
     Key as KeyIcon,
     Adjust as AdjustIcon,
     Menu as MenuIcon,
+    PeopleOutline as PeopleOutlineIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -20,6 +21,7 @@ export const iconMap: Record<string, ElementType> = {
     pets: PetsIcon,
     key: KeyIcon,
     menu: MenuIcon,
+    users: PeopleOutlineIcon,
 };
 
 export const defaultIcon = AdjustIcon;
