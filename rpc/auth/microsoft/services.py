@@ -16,20 +16,21 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
 
   provider = req_payload.get("provider", "microsoft")
   logging.debug("user_login_v1 provider=%s", provider)
-  guid, profile = await auth.handle_auth_login(
-    provider,
-    req_payload.get("idToken"),
-    req_payload.get("accessToken"),
-  )
-  logging.debug(
-    "user_login_v1 guid=%s profile=%s",
-    guid,
-    profile,
-  )
-
+  id_token = req_payload.get("idToken")
+  access_token = req_payload.get("accessToken")
+  data = await auth.verify_ms_id_token(id_token)
+  guid = data.get("sub")
   user = await db.select_user(provider, guid)
+  profile = None
+  profile_picture = None
   if not user:
+    profile = await auth.fetch_ms_user_profile(access_token)
     user = await db.insert_user(provider, guid, profile["email"], profile["username"])
+    profile_picture = profile.get("profilePicture")
+    if profile_picture:
+      await db.set_user_profile_image(_utos(user["guid"]), profile_picture)
+  else:
+    profile_picture = user.get("profile_image")
   logging.debug("user_login_v1 user=%s", user)
 
   token = auth.make_bearer_token(_utos(user["guid"]))
@@ -40,10 +41,10 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   payload = AuthMicrosoftLoginData1(
     bearerToken=token,
     defaultProvider=user.get("provider_name", provider),
-    username=user.get("display_name", profile["username"]),
-    email=user.get("email", profile["email"]),
+    username=user.get("display_name", profile["username"] if profile else ""),
+    email=user.get("email", profile["email"] if profile else ""),
     backupEmail=None,
-    profilePicture=profile.get("profilePicture"),
+    profilePicture=profile_picture,
     credits=user.get("credits", 0),
     rotationToken=rotation_token,
     rotationExpires=rotation_exp,

@@ -5,8 +5,10 @@ from rpc.auth.microsoft import services
 
 
 class DummyAuth:
-  async def handle_auth_login(self, provider, idt, act):
-    return 'g', {'email': 'e', 'username': 'u', 'profilePicture': None}
+  async def verify_ms_id_token(self, idt):
+    return {'sub': 'g'}
+  async def fetch_ms_user_profile(self, act):
+    return {'email': 'e', 'username': 'u', 'profilePicture': None}
   def make_bearer_token(self, guid):
     return 'token'
   def make_rotation_token(self, guid):
@@ -24,6 +26,9 @@ class DummyDB:
 
   async def insert_user(self, provider, mid, email, username):
     return await self.select_user(provider, mid)
+
+  async def set_user_profile_image(self, guid, image):
+    self.image = (guid, image)
 
   async def set_user_rotation_token(self, guid, token, exp):
     self.rtoken = (guid, token, exp)

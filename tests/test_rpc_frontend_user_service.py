@@ -13,6 +13,7 @@ class DummyDB:
       'guid': guid,
       'display_name': getattr(self, 'name', 'u'),
       'email': 'e',
+      'profile_image': 'img',
       'display_email': True,
       'credits': 0,
       'provider_name': 'microsoft',
@@ -34,6 +35,7 @@ def test_get_profile_data_v1():
   assert resp.op == 'urn:frontend:user:profile_data:1'
   assert resp.payload.email == 'e'
   assert resp.payload.displayEmail is True
+  assert resp.payload.profilePicture == 'img'
 
 
 def test_set_display_name_v1():
@@ -48,4 +50,5 @@ def test_set_display_name_v1():
   assert resp.op == 'urn:frontend:user:set_display_name:1'
   assert resp.payload.username == 'n'
   assert db.updated == ('uid', 'n')
+  assert resp.payload.profilePicture == 'img'
 

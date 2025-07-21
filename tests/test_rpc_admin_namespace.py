@@ -44,6 +44,7 @@ class DummyDB:
             "guid": guid,
             "display_name": "User",
             "email": "u@example.com",
+            "profile_image": "img",
             "display_email": False,
             "credits": getattr(self, "credits", 0),
             "provider_name": "microsoft",
