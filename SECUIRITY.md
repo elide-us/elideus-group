@@ -2,8 +2,8 @@
 
 63 0x4000 0000 0000 0000  ROLE_SERVICE_ADMIN        Access to urn:service:(config | vars) namespace
 62 0x2000 0000 0000 0000  ROLE_SYSTEM_ADMIN         Access to urn:system namespace
-61 0x1000 0000 0000 0000  ROLE_MODERATOR            Access to urn:moderator namespace
-60 0x0800 0000 0000 0000  ROLE_SUPPORT              Access to urn:support namespace
+61 0x0800 0000 0000 0000  ROLE_MODERATOR            Access to urn:moderator namespace
+60 0x0400 0000 0000 0000  ROLE_SUPPORT              Access to urn:support namespace
 
 ## Combined User Role Examples
 ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT
@@ -53,12 +53,15 @@ These bits define system-level trust and access within internal namespaces.
 Bit	Hex Mask	Role Name	Description
 63      0x4000000000000000      ROLE_SERVICE_ADMIN	Grants access to urn:service:* namespace including secrets/config
 62      0x2000000000000000      ROLE_SYSTEM_ADMIN	Grants access to urn:system:* (admin panels, orchestration, audits)
-61      0x1000000000000000      ROLE_MODERATOR	    Grants access to urn:moderator:* (content and abuse queues)
-60      0x0800000000000000      ROLE_SUPPORT	    Grants access to urn:support:* (user impersonation, account adjustments)
+61      0x0800000000000000      ROLE_MODERATOR	    Grants access to urn:moderator:* (content and abuse queues)
+60      0x0400000000000000      ROLE_SUPPORT	    Grants access to urn:support:* (user impersonation, account adjustments)
 
 👥 Role Combinations
 ROLE_GLOBAL_ADMIN   = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT
 ROLE_SERVICE_AGENT  = ROLE_MODERATOR | ROLE_SUPPORT
+
+By default, a session may not have an associated user. When a user logs in they
+are registered in the database and assigned the default role `0x0000000000000001`.
 
 🔓 User Enablement Flags (Bits 1–4)
 These bits are user-specific flags to control interface access per user.
