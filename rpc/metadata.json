@@ -53,6 +53,14 @@
       "capabilities": 0
     },
     {
+      "op": "urn:auth:session:invalidate:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:auth:session:refresh:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:frontend:user:get_profile_data:1",
       "capabilities": 0
     },

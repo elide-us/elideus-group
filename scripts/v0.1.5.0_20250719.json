@@ -303,6 +303,21 @@
           "ref_column": "guid"
         }
       ]
+    },
+    {
+      "name": "user_sessions",
+      "columns": [
+        { "name": "session_id", "type": "uuid", "nullable": false, "default": null },
+        { "name": "user_guid", "type": "uuid", "nullable": false, "default": null },
+        { "name": "bearer_token", "type": "text", "nullable": false, "default": null },
+        { "name": "rotation_token", "type": "text", "nullable": false, "default": null },
+        { "name": "created_at", "type": "timestamp with time zone", "nullable": false, "default": "now()" },
+        { "name": "expires_at", "type": "timestamp with time zone", "nullable": false, "default": null }
+      ],
+      "primary_key": ["session_id"],
+      "foreign_keys": [
+        { "column": "user_guid", "ref_table": "users", "ref_column": "guid" }
+      ]
     }
   ]
 }
