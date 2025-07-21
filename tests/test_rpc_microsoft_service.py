@@ -49,3 +49,20 @@ def test_user_login_v1():
   assert resp.payload.bearerToken == 'token'
   assert resp.payload.rotationToken == 'rtoken'
 
+
+class DummyAuthImage(DummyAuth):
+  async def fetch_ms_user_profile(self, act):
+    return {'email': 'e', 'username': 'u', 'profilePicture': 'img'}
+
+
+def test_user_login_profile_update():
+  app = FastAPI()
+  auth = DummyAuthImage()
+  db = DummyDB()
+  app.state.auth = auth
+  app.state.database = db
+  req = Request({'type': 'http', 'app': app})
+  rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
+  asyncio.run(services.user_login_v1(rpc_req, req))
+  assert db.image == ('uid', 'img')
+

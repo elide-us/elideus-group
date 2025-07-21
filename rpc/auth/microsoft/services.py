@@ -21,14 +21,12 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   data = await auth.verify_ms_id_token(id_token)
   guid = data.get("sub")
   user = await db.select_user(provider, guid)
-  profile = None
-  profile_picture = None
+  profile = await auth.fetch_ms_user_profile(access_token)
+  profile_picture = profile.get("profilePicture")
   if not user:
-    profile = await auth.fetch_ms_user_profile(access_token)
     user = await db.insert_user(provider, guid, profile["email"], profile["username"])
-    profile_picture = profile.get("profilePicture")
-    if profile_picture:
-      await db.set_user_profile_image(_utos(user["guid"]), profile_picture)
+  if profile_picture:
+    await db.set_user_profile_image(_utos(user["guid"]), profile_picture)
   else:
     profile_picture = user.get("profile_image")
   logging.debug("user_login_v1 user=%s", user)
