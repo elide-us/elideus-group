@@ -51,7 +51,7 @@ async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
   payload = AdminUserProfile1(
-    guid=user.get('guid'),
+    guid=_utos(user.get('guid')),
     defaultProvider=user.get('provider_name', 'microsoft'),
     username=user.get('display_name', ''),
     email=user.get('email', ''),
@@ -60,7 +60,7 @@ async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     credits=user.get('credits', 0),
     storageUsed=user.get('storage_used', 0),
     displayEmail=user.get('display_email', False),
-    rotationToken=user.get('rotation_token'),
+    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:admin:users:get_profile:1', payload=payload, version=1)

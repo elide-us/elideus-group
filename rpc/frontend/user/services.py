@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
 from rpc.frontend.user.models import FrontendUserProfileData1, FrontendUserSetDisplayName1
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule
+from server.modules.database_module import DatabaseModule, _utos
 
 async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
@@ -26,7 +26,7 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     credits=user.get('credits', 0),
     storageUsed=user.get('storage_used', 0),
     displayEmail=user.get('display_email', False),
-    rotationToken=user.get('rotation_token'),
+    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:frontend:user:profile_data:1', payload=payload, version=1)
@@ -53,7 +53,7 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     credits=user.get('credits', 0),
     storageUsed=user.get('storage_used', 0),
     displayEmail=user.get('display_email', False),
-    rotationToken=user.get('rotation_token'),
+    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:frontend:user:set_display_name:1', payload=payload, version=1)
