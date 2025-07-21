@@ -11,3 +11,4 @@ export const fetchRoles = (payload: any = null): Promise<AdminUserRoles1> => rpc
 export const fetchSetRoles = (payload: any = null): Promise<AdminUserRoles1> => rpcCall('urn:admin:users:set_roles:1', payload);
 export const fetchListRoles = (payload: any = null): Promise<AdminUserRoles1> => rpcCall('urn:admin:users:list_roles:1', payload);
 export const fetchProfile = (payload: any = null): Promise<AdminUserProfile1> => rpcCall('urn:admin:users:get_profile:1', payload);
+export const fetchSetCredits = (payload: any = null): Promise<AdminUserProfile1> => rpcCall('urn:admin:users:set_credits:1', payload);

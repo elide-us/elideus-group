@@ -3,13 +3,14 @@ import { useParams } from 'react-router-dom';
 import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { AdminUserRoles1, AdminUserProfile1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile } from './rpc/admin/users';
+import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits } from './rpc/admin/users';
 
 const AdminUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
     const [profile, setProfile] = useState<AdminUserProfile1 | null>(null);
+    const [credits, setCredits] = useState<number>(0);
     const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
     const [selectedRight, setSelectedRight] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ const AdminUserPanel = (): JSX.Element => {
                 setAssigned(roles.roles);
                 setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
                 setProfile(prof);
+                setCredits(prof.credits ?? 0);
             } catch {
                 setAssigned([]);
                 setAvailable([]);
@@ -48,6 +50,7 @@ const AdminUserPanel = (): JSX.Element => {
     const handleSave = async (): Promise<void> => {
         if (!guid) return;
         await fetchSetRoles({ userGuid: guid, roles: assigned });
+        await fetchSetCredits({ userGuid: guid, credits });
     };
 
     return (
@@ -58,7 +61,7 @@ const AdminUserPanel = (): JSX.Element => {
                     <Avatar src={profile.profilePicture ?? undefined} sx={{ width: 80, height: 80 }} />
                     <TextField label='Display Name' value={profile.username} InputProps={{ readOnly: true }} />
                     <Typography>Email: {profile.email}</Typography>
-                    <Typography>Credits: {profile.credits ?? 0}</Typography>
+                    <TextField label='Credits' type='number' value={credits} onChange={e => setCredits(Number(e.target.value))} />
                 </Stack>
             )}
             <Stack direction='row' spacing={2}>

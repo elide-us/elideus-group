@@ -15,6 +15,10 @@ class AdminUserRolesUpdate1(BaseModel):
   userGuid: str
   roles: list[str]
 
+class AdminUserCreditsUpdate1(BaseModel):
+  userGuid: str
+  credits: int
+
 class AdminUserProfile1(BaseModel):
   guid: str
   defaultProvider: str

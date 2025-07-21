@@ -5,6 +5,7 @@ from rpc.admin.users.models import (
   UserListItem,
   AdminUserRoles1,
   AdminUserRolesUpdate1,
+  AdminUserCreditsUpdate1,
   AdminUserProfile1,
 )
 from server.modules.database_module import DatabaseModule, _utos
@@ -64,3 +65,26 @@ async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:admin:users:get_profile:1', payload=payload, version=1)
+
+async def set_user_credits_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+  payload = rpc_request.payload or {}
+  data = AdminUserCreditsUpdate1(**payload)
+  db: DatabaseModule = request.app.state.database
+  await db.set_user_credits(data.userGuid, data.credits)
+  user = await db.get_user_profile(data.userGuid)
+  if not user:
+    raise HTTPException(status_code=404, detail='User not found')
+  payload = AdminUserProfile1(
+    guid=_utos(user.get('guid')),
+    defaultProvider=user.get('provider_name', 'microsoft'),
+    username=user.get('display_name', ''),
+    email=user.get('email', ''),
+    backupEmail=None,
+    profilePicture=None,
+    credits=user.get('credits', data.credits),
+    storageUsed=user.get('storage_used', 0),
+    displayEmail=user.get('display_email', False),
+    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
+    rotationExpires=user.get('rotation_expires'),
+  )
+  return RPCResponse(op='urn:admin:users:set_credits:1', payload=payload, version=1)
