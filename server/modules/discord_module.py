@@ -69,7 +69,7 @@ class DiscordModule():
 
     @self.bot.command(name="rpc")
     async def rpc_command(ctx, *, op: str):
-      req = Request({"type": "http", "app": self.app})
+      req = Request({"type": "http", "app": self.app, "headers": []})
       from rpc.handler import handle_rpc_request
       from rpc.models import RPCRequest
 
