@@ -7,7 +7,7 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 
-from server.helpers.roles import ROLE_SYSTEM_ADMIN
+from server.helpers.roles import ROLE_SYSTEM_ADMIN, ROLE_REGISTERED
 
 
 class DummyDB:
@@ -37,7 +37,7 @@ class DummyDB:
                 "path": "/file-manager",
                 "name": "File Manager",
                 "icon": "files",
-                "required_roles": 1,
+                "required_roles": ROLE_REGISTERED,
                 "sequence": 30,
             },
             {
@@ -45,7 +45,7 @@ class DummyDB:
                 "path": "/user-admin",
                 "name": "User Admin",
                 "icon": "admin",
-                "required_roles": ROLE_SYSTEM_ADMIN | 1,
+                "required_roles": ROLE_SYSTEM_ADMIN | ROLE_REGISTERED,
                 "sequence": 40,
             },
         ]
