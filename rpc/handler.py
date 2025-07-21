@@ -25,7 +25,7 @@ async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCRe
     base_parts, suffixes = split_suffix(remainder)
     match domain:
       case "admin":
-        response = await handle_admin_request(base_parts, request)
+        response = await handle_admin_request(base_parts, rpc_request, request)
       case "auth":
         response = await handle_auth_request(base_parts, rpc_request, request)
       case "frontend":

@@ -9,7 +9,7 @@ import rpc.auth.handler as auth_handler
 import rpc.auth.microsoft.handler as ms_handler
 
 def test_rpc_dispatch_admin(monkeypatch):
-  async def fake_admin(parts, request):
+  async def fake_admin(parts, rpc_request, request):
     return RPCResponse(op="admin", payload=None)
   monkeypatch.setattr(rpc_handler, "handle_admin_request", fake_admin)
   req = Request({"type": "http", "app": FastAPI()})
@@ -26,13 +26,21 @@ def test_admin_handler_links(monkeypatch):
     return RPCResponse(op="links", payload=None)
   monkeypatch.setattr(admin_handler, "handle_links_request", fake_links)
   req = Request({"type": "http", "app": FastAPI()})
-  resp = asyncio.run(admin_handler.handle_admin_request(["links", "list"], req))
+  resp = asyncio.run(admin_handler.handle_admin_request(["links", "list"], RPCRequest(op='x'), req))
   assert resp.op == "links"
 
 def test_admin_handler_unknown():
   req = Request({"type": "http", "app": FastAPI()})
   with pytest.raises(HTTPException):
-    asyncio.run(admin_handler.handle_admin_request(["nope"], req))
+    asyncio.run(admin_handler.handle_admin_request(["nope"], RPCRequest(op='x'), req))
+
+def test_admin_users_handler_profile(monkeypatch):
+  async def fake_users(parts, rpc_request, req):
+    return RPCResponse(op="profile", payload=None)
+  monkeypatch.setattr(admin_handler, "handle_users_request", fake_users)
+  req = Request({"type": "http", "app": FastAPI()})
+  resp = asyncio.run(admin_handler.handle_admin_request(["users", "get_profile", "1"], RPCRequest(op='x'), req))
+  assert resp.op == "profile"
 
 def test_auth_handler_ms(monkeypatch):
   async def fake_ms(rest, rpc_request, req):

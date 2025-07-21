@@ -23,6 +23,23 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  displayEmail: boolean;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
+}
 export interface AuthMicrosoftLoginData1 {
   bearerToken: string;
   defaultProvider: string;
@@ -47,6 +64,29 @@ export interface AdminVarsVersion1 {
 export interface ViewDiscord1 {
   content: string;
 }
+export interface AdminUserProfile1 {
+  guid: string;
+  displayName: string;
+  email: string;
+  credits: number | null;
+  storageUsed: number | null;
+  displayEmail: boolean;
+  defaultProvider: string | null;
+}
+export interface AdminUserRoles1 {
+  roles: string[];
+}
+export interface AdminUserRolesUpdate1 {
+  userGuid: string;
+  roles: string[];
+}
+export interface AdminUsersList1 {
+  users: UserListItem[];
+}
+export interface UserListItem {
+  guid: string;
+  displayName: string;
+}
 export interface AdminLinksHome1 {
   links: LinkItem[];
 }
@@ -61,23 +101,6 @@ export interface RouteItem {
   path: string;
   name: string;
   icon: string;
-}
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  displayEmail: boolean;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
