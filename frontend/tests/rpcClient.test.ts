@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
 import { fetchVersion, fetchHostname, fetchRepo, fetchFfmpegVersion } from '../src/rpc/admin/vars';
 import { fetchHome, fetchRoutes } from '../src/rpc/admin/links';
+import { fetchList as fetchUsers, fetchProfile } from '../src/rpc/admin/users';
 
 vi.mock('axios');
 const mockedPost = axios.post as unknown as ReturnType<typeof vi.fn>;
@@ -47,5 +48,19 @@ describe('rpcClient', () => {
         const res = await fetchRoutes();
         expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_routes:1' }));
         expect(Array.isArray(res.routes)).toBe(true);
+    });
+
+    it('fetchUsers posts correct request', async () => {
+        mockedPost.mockResolvedValueOnce({ data: { payload: { users: [] } } });
+        const res = await fetchUsers();
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:list:1' }));
+        expect(Array.isArray(res.users)).toBe(true);
+    });
+
+    it('fetchProfile posts correct request', async () => {
+        mockedPost.mockResolvedValueOnce({ data: { payload: { email: 'e' } } });
+        const res = await fetchProfile({ userGuid: 'uid' });
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:get_profile:1' }));
+        expect(res.email).toBe('e');
     });
 });

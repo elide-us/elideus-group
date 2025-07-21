@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton } from '@mui/material';
+import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
-import type { AdminUserRoles1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles } from './rpc/admin/users';
+import type { AdminUserRoles1, AdminUserProfile1 } from './shared/RpcModels';
+import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile } from './rpc/admin/users';
 
 const AdminUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
+    const [profile, setProfile] = useState<AdminUserProfile1 | null>(null);
     const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
     const [selectedRight, setSelectedRight] = useState<string | null>(null);
 
@@ -18,11 +19,14 @@ const AdminUserPanel = (): JSX.Element => {
             try {
                 const roles: AdminUserRoles1 = await fetchRoles({ userGuid: guid });
                 const all: AdminUserRoles1 = await fetchListRoles();
+                const prof: AdminUserProfile1 = await fetchProfile({ userGuid: guid });
                 setAssigned(roles.roles);
                 setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
+                setProfile(prof);
             } catch {
                 setAssigned([]);
                 setAvailable([]);
+                setProfile(null);
             }
         })();
     }, [guid]);
@@ -47,7 +51,16 @@ const AdminUserPanel = (): JSX.Element => {
     };
 
     return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
+            {profile && (
+                <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
+                    <Typography variant='h5'>User Profile</Typography>
+                    <Avatar src={profile.profilePicture ?? undefined} sx={{ width: 80, height: 80 }} />
+                    <TextField label='Display Name' value={profile.username} InputProps={{ readOnly: true }} />
+                    <Typography>Email: {profile.email}</Typography>
+                    <Typography>Credits: {profile.credits ?? 0}</Typography>
+                </Stack>
+            )}
             <Stack direction='row' spacing={2}>
                 <List sx={{ width: 200, border: 1 }}>
                     {available.map((r) => (
