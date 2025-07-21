@@ -34,3 +34,8 @@ class RPCResponse(BaseModel):
 class UserData(BaseModel):
   bearerToken: str
 
+class BrowserSessionData1(BaseModel):
+  bearerToken: Optional[str] = None
+  rotationToken: Optional[str] = None
+  rotationExpires: Optional[datetime] = None
+

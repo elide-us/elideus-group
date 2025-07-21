@@ -33,7 +33,7 @@ const LoginPage = (): JSX.Element => {
 				accessToken,
 				provider: 'microsoft',
 			});
-			const profilePictureBase64 = data.profilePicture ? `data:image/png;base64,${data.profilePicture}` : null;
+                        const profilePictureBase64 = data.profilePicture ? `data:image/png;base64,${data.profilePicture}` : null;
 
                         setUserData({
                                 bearerToken: data.bearerToken,
@@ -45,9 +45,14 @@ const LoginPage = (): JSX.Element => {
                                 credits: data.credits ?? 0,
                                 storageUsed: 0,
                                 displayEmail: false,
-                                rotationToken: null,
-                                rotationExpires: null
+                                rotationToken: data.rotationToken ?? null,
+                                rotationExpires: data.rotationExpires ?? null
                         });
+                        localStorage.setItem('authTokens', JSON.stringify({
+                                bearerToken: data.bearerToken,
+                                rotationToken: data.rotationToken,
+                                rotationExpires: data.rotationExpires
+                        }));
 
 			setNotification({ open: true, severity: 'success', message: 'Login successful!' });
 			navigate('/');

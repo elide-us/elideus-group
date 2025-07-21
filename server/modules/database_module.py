@@ -1,5 +1,6 @@
 import json, asyncpg, logging
 from uuid import UUID, uuid4
+from datetime import datetime
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
@@ -235,3 +236,31 @@ class DatabaseModule(BaseModule):
       "ON CONFLICT(user_guid) DO UPDATE SET credits=excluded.credits;"
     )
     await self._run(query, guid, credits)
+
+  async def set_user_rotation_token(self, guid: str, token: str, expires: datetime):
+    query = "UPDATE users SET rotation_token=$1, rotation_expires=$2 WHERE guid=$3;"
+    await self._run(query, token, expires, guid)
+
+  async def create_user_session(self, user_guid: str, bearer: str, rotation: str, expires: datetime) -> str:
+    session_id = _utos(uuid4())
+    await self._run("DELETE FROM user_sessions WHERE user_guid=$1", user_guid)
+    query = (
+      "INSERT INTO user_sessions(session_id, user_guid, bearer_token, rotation_token, created_at, expires_at) "
+      "VALUES($1, $2, $3, $4, NOW(), $5);"
+    )
+    await self._run(query, session_id, user_guid, bearer, rotation, expires)
+    return session_id
+
+  async def get_session_by_rotation(self, rotation_token: str):
+    query = "SELECT * FROM user_sessions WHERE rotation_token=$1;"
+    return await self._fetch_one(query, rotation_token)
+
+  async def update_session_tokens(self, session_id: str, bearer: str, rotation: str, expires: datetime):
+    query = (
+      "UPDATE user_sessions SET bearer_token=$2, rotation_token=$3, expires_at=$4 "
+      "WHERE session_id=$1;"
+    )
+    await self._run(query, session_id, bearer, rotation, expires)
+
+  async def delete_session(self, session_id: str):
+    await self._run("DELETE FROM user_sessions WHERE session_id=$1", session_id)

@@ -6,6 +6,11 @@
 
 import axios from "axios";
 
+export interface BrowserSessionData1 {
+  bearerToken: string | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
 export interface RPCRequest {
   op: string;
   payload: any | null;
@@ -22,6 +27,22 @@ export interface RPCResponse {
 }
 export interface UserData {
   bearerToken: string;
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
 }
 export interface FrontendUserProfileData1 {
   bearerToken: string;
@@ -40,14 +61,35 @@ export interface FrontendUserSetDisplayName1 {
   bearerToken: string;
   displayName: string;
 }
-export interface AuthMicrosoftLoginData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
+export interface AdminLinksHome1 {
+  links: LinkItem[];
+}
+export interface AdminLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
+}
+export interface AdminVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface AdminVarsHostname1 {
+  hostname: string;
+}
+export interface AdminVarsRepo1 {
+  repo: string;
+}
+export interface AdminVarsVersion1 {
+  version: string;
+}
+export interface ViewDiscord1 {
+  content: string;
 }
 export interface AdminUserCreditsUpdate1 {
   userGuid: string;
@@ -79,36 +121,6 @@ export interface AdminUsersList1 {
 export interface UserListItem {
   guid: string;
   displayName: string;
-}
-export interface AdminVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface AdminVarsHostname1 {
-  hostname: string;
-}
-export interface AdminVarsRepo1 {
-  repo: string;
-}
-export interface AdminVarsVersion1 {
-  version: string;
-}
-export interface ViewDiscord1 {
-  content: string;
-}
-export interface AdminLinksHome1 {
-  links: LinkItem[];
-}
-export interface AdminLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
-  name: string;
-  icon: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

@@ -136,7 +136,28 @@ class AuthModule(BaseModule):
     token = jwt.encode(token_data, self.jwt_secret, algorithm=self.jwt_algo_int)
     return token
 
+  def make_rotation_token(self, guid: str) -> tuple[str, datetime]:
+    exp = datetime.now(timezone.utc) + timedelta(days=15)
+    token_data = {"sub": guid, "exp": exp.timestamp(), "type": "rotation"}
+    token = jwt.encode(token_data, self.jwt_secret, algorithm=self.jwt_algo_int)
+    return token, exp
+
   async def decode_bearer_token(self, token: str) -> Dict:
+    try:
+      payload = jwt.decode(token, self.jwt_secret, algorithms=[self.jwt_algo_int])
+    except JWTError:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
+    exp = payload.get("exp")
+    if not exp:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Expiry not found", headers={"WWW-Authenticate": "Bearer"})
+    if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
+    sub = payload.get("sub")
+    if not sub:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
+    return {"guid": sub}
+
+  async def decode_rotation_token(self, token: str) -> Dict:
     try:
       payload = jwt.decode(token, self.jwt_secret, algorithms=[self.jwt_algo_int])
     except JWTError:
