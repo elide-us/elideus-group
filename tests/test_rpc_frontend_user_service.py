@@ -29,7 +29,7 @@ def test_get_profile_data_v1():
   app = FastAPI()
   app.state.auth = DummyAuth()
   app.state.database = DummyDB()
-  req = Request({'type': 'http', 'app': app})
+  req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token'})
   resp = asyncio.run(services.get_profile_data_v1(rpc_req, req))
   assert resp.op == 'urn:frontend:user:profile_data:1'
@@ -44,7 +44,7 @@ def test_set_display_name_v1():
   db = DummyDB()
   app.state.auth = auth
   app.state.database = db
-  req = Request({'type': 'http', 'app': app})
+  req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token', 'displayName': 'n'})
   resp = asyncio.run(services.set_display_name_v1(rpc_req, req))
   assert resp.op == 'urn:frontend:user:set_display_name:1'

@@ -5,7 +5,7 @@ from rpc.models import RPCRequest, RPCResponse
 from server.routers import rpc_router, web_router
 
 async def _call_rpc():
-  req = Request({'type': 'http', 'app': FastAPI()})
+  req = Request({'type': 'http', 'app': FastAPI(), 'headers': []})
   return await rpc_router.post_root(RPCRequest(op='op'), req)
 
 

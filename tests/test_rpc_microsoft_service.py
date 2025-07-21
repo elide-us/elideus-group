@@ -42,7 +42,7 @@ def test_user_login_v1():
   app = FastAPI()
   app.state.auth = DummyAuth()
   app.state.database = DummyDB()
-  req = Request({'type': 'http', 'app': app})
+  req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   resp = asyncio.run(services.user_login_v1(rpc_req, req))
   assert resp.op == 'urn:auth:microsoft:login_data:1'
@@ -61,7 +61,7 @@ def test_user_login_profile_update():
   db = DummyDB()
   app.state.auth = auth
   app.state.database = db
-  req = Request({'type': 'http', 'app': app})
+  req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   asyncio.run(services.user_login_v1(rpc_req, req))
   assert db.image == ('uid', 'img')
