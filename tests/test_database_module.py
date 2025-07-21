@@ -107,6 +107,22 @@ def test_get_config_value(db_app):
   result = asyncio.run(dbm.get_config_value('Version'))
   assert result == 'v'
 
+def test_profile_image_ops(db_app):
+  conn = DummyConn({'image_b64': 'img'})
+
+  class Pool(DummyPool):
+    def __init__(self, c):
+      self.c = c
+    def acquire(self):
+      return DummyAcquire(self.c)
+
+  dbm = DatabaseModule(db_app, dsn="postgres://user@host/db")
+  dbm.pool = Pool(conn)
+  img = asyncio.run(dbm.get_user_profile_image('uid'))
+  assert img == 'img'
+  asyncio.run(dbm.set_user_profile_image('uid', 'new'))
+  assert conn.executed[0][0].startswith('INSERT INTO users_profileimg')
+
 
 #def test_secure_fetch_one(monkeypatch, db_app):
 #  dbm = DatabaseModule(db_app)

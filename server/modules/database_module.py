@@ -81,11 +81,13 @@ class DatabaseModule(BaseModule):
         u.display_name,
         u.email,
         COALESCE(uc.credits, 0) AS credits,
-        ap.name AS provider_name
+        ap.name AS provider_name,
+        upi.image_b64 AS profile_image
       FROM users u
       JOIN users_auth ua ON ua.user_guid = u.guid
       JOIN auth_provider ap ON ap.id = ua.provider_id
       LEFT JOIN users_credits uc ON uc.user_guid = u.guid
+      LEFT JOIN users_profileimg upi ON upi.user_guid = u.guid
       WHERE ap.name = $1 AND ua.provider_user_id = $2;
     """
     result = await self._fetch_one(query, provider, provider_user_id)
@@ -148,11 +150,13 @@ class DatabaseModule(BaseModule):
         u.rotation_token,
         u.rotation_expires,
         COALESCE(uc.credits, 0) AS credits,
-        ap.name AS provider_name
+        ap.name AS provider_name,
+        upi.image_b64 AS profile_image
       FROM users u
       LEFT JOIN users_credits uc ON uc.user_guid = u.guid
       LEFT JOIN users_auth ua ON ua.user_guid = u.guid
       LEFT JOIN auth_provider ap ON ap.id = ua.provider_id
+      LEFT JOIN users_profileimg upi ON upi.user_guid = u.guid
       WHERE u.guid = $1
       LIMIT 1;
     """
@@ -264,3 +268,17 @@ class DatabaseModule(BaseModule):
 
   async def delete_session(self, session_id: str):
     await self._run("DELETE FROM user_sessions WHERE session_id=$1", session_id)
+
+  async def get_user_profile_image(self, guid: str) -> str | None:
+    query = "SELECT image_b64 FROM users_profileimg WHERE user_guid=$1;"
+    row = await self._fetch_one(query, guid)
+    if row:
+      return row.get('image_b64')
+    return None
+
+  async def set_user_profile_image(self, guid: str, image_b64: str):
+    query = (
+      "INSERT INTO users_profileimg(user_guid, image_b64) VALUES($1, $2) "
+      "ON CONFLICT(user_guid) DO UPDATE SET image_b64=excluded.image_b64;"
+    )
+    await self._run(query, guid, image_b64)
