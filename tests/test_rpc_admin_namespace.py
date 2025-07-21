@@ -45,11 +45,14 @@ class DummyDB:
             "display_name": "User",
             "email": "u@example.com",
             "display_email": False,
-            "credits": 0,
+            "credits": getattr(self, "credits", 0),
             "provider_name": "microsoft",
             "rotation_token": None,
             "rotation_expires": None,
         }
+
+    async def set_user_credits(self, guid, credits):
+        self.credits = credits
 
 class DummyPermCap:
     def filter_routes(self, data, role_mask):
@@ -148,4 +151,12 @@ def test_get_user_profile(app):
 
     assert resp.op == "urn:admin:users:get_profile:1:view:default:1"
     assert resp.payload.email == "u@example.com"
+
+def test_set_user_credits(app):
+    request = Request({"type": "http", "app": app})
+    rpc_request = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "uid", "credits": 100})
+    resp = asyncio.run(handle_rpc_request(rpc_request, request))
+
+    assert resp.op == "urn:admin:users:set_credits:1:view:default:1"
+    assert resp.payload.credits == 100
 

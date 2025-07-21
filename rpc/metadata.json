@@ -25,6 +25,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:admin:users:set_credits:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:admin:users:set_roles:1",
       "capabilities": 0
     },

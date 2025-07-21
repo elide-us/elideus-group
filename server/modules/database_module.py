@@ -228,3 +228,10 @@ class DatabaseModule(BaseModule):
       "ON CONFLICT(user_guid) DO UPDATE SET roles=excluded.roles;"
     )
     await self._run(query, guid, roles)
+
+  async def set_user_credits(self, guid: str, credits: int):
+    query = (
+      "INSERT INTO users_credits(user_guid, credits) VALUES($1, $2) "
+      "ON CONFLICT(user_guid) DO UPDATE SET credits=excluded.credits;"
+    )
+    await self._run(query, guid, credits)
