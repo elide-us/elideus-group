@@ -4,6 +4,7 @@ import { Login as LoginIcon } from '@mui/icons-material';
 import { Typography, Box, Tooltip, IconButton, ListItemText } from '@mui/material';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { msalConfig } from '../config/msal';
+import { fetchInvalidate } from '../rpc/auth/session';
 import Notification from './Notification';
 import UserContext from './UserContext';
 
@@ -30,16 +31,23 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 		navigate('/login');
 	};
 
-	const handleLogout = async (): Promise<void> => {
-		try {
-			await pca.initialize();
-			await pca.logoutPopup();
-			clearUserData();
-			setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
-		} catch (error: any) {
-			setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
-		}
-	};
+        const handleLogout = async (): Promise<void> => {
+                try {
+                        await pca.initialize();
+                        await pca.logoutPopup();
+                        if (userData?.rotationToken) {
+                                try {
+                                        await fetchInvalidate({ rotationToken: userData.rotationToken });
+                                } catch (err) {
+                                        console.error('Failed to invalidate session', err);
+                                }
+                        }
+                        clearUserData();
+                        setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
+                } catch (error: any) {
+                        setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
+                }
+        };
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>

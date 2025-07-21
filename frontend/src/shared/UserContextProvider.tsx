@@ -47,7 +47,8 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
         }, []);
 
         const clearUserData = () => {
-        setUserData(null);
+                localStorage.removeItem('authTokens');
+                setUserData(null);
         };
 
   	return (
