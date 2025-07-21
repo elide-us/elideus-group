@@ -40,6 +40,8 @@ def discord_app(monkeypatch):
         return "1"
       if key == "Hostname":
         return "host"
+      if key == "Version":
+        return "v1.2.3"
   app.state.database = DB()
   return app
 
@@ -119,4 +121,27 @@ def test_rpc_command(monkeypatch, discord_app):
   asyncio.run(mod.bot.cmd(ctx, op="urn:admin:vars:get_hostname:1"))
 
   assert messages == ['Hostname: host']
+
+
+def test_on_ready_reports_version(monkeypatch, discord_app):
+  chan = Chan()
+
+  def _make_bot(self, p):
+    bot = DummyBot()
+    bot.get_channel = lambda c: chan
+    def event(fn):
+      setattr(bot, fn.__name__, fn)
+      return fn
+    bot.event = event
+    return bot
+
+  monkeypatch.setattr(discord_mod, 'configure_discord_logging', lambda m: None)
+  monkeypatch.setattr(discord_mod.asyncio, 'create_task', lambda coro: None)
+  monkeypatch.setattr(DiscordModule, '_init_discord_bot', _make_bot)
+
+  mod = DiscordModule(discord_app)
+  asyncio.run(mod.startup())
+  asyncio.run(mod.bot.on_ready())
+
+  assert chan.messages == ['TheOracleRPC Online. Version: v1.2.3']
 

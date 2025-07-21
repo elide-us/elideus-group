@@ -49,7 +49,11 @@ class DiscordModule():
     async def on_ready():
       channel = self.bot.get_channel(self.syschan)
       if channel:
-        await channel.send("TheOracleRPC Online.")
+        version = await self.db.get_config_value("Version")
+        if version:
+          await channel.send(f"TheOracleRPC Online. Version: {version}")
+        else:
+          await channel.send("TheOracleRPC Online.")
         logging.info("Discord bot ready")
       else:
         print("[DiscordProvider] System channel not found on ready.")
