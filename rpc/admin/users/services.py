@@ -7,13 +7,13 @@ from rpc.admin.users.models import (
   AdminUserRolesUpdate1,
   AdminUserProfile1,
 )
-from server.modules.database_module import DatabaseModule
+from server.modules.database_module import DatabaseModule, _utos
 from server.helpers.roles import mask_to_names, names_to_mask, ROLE_NAMES
 
 async def get_users_v1(request: Request) -> RPCResponse:
   db: DatabaseModule = request.app.state.database
   rows = await db.select_users()
-  users = [UserListItem(guid=r['guid'], displayName=r['display_name']) for r in rows]
+  users = [UserListItem(guid=_utos(r['guid']), displayName=r['display_name']) for r in rows]
   payload = AdminUsersList1(users=users)
   return RPCResponse(op='urn:admin:users:list:1', payload=payload, version=1)
 
