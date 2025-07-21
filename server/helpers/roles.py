@@ -1,10 +1,11 @@
 # The role bitmasks must fit in a signed 64-bit integer as they are stored using
-# the Postgres ``BIGINT`` type. 0x8000000000000000 exceeds the maximum positive
-# value for ``BIGINT`` so the role bits start one position lower.
+# the Postgres ``BIGINT`` type. Using ``0x8000000000000000`` would flip the sign
+# bit, so the highest role begins at ``0x4000000000000000`` and the remaining
+# roles shift down from there.
 ROLE_SERVICE_ADMIN = 0x4000000000000000
 ROLE_SYSTEM_ADMIN = 0x2000000000000000
-ROLE_MODERATOR = 0x1000000000000000
-ROLE_SUPPORT = 0x0800000000000000
+ROLE_MODERATOR = 0x0800000000000000
+ROLE_SUPPORT = 0x0400000000000000
 
 ROLES = {
   'ROLE_SERVICE_ADMIN': ROLE_SERVICE_ADMIN,
