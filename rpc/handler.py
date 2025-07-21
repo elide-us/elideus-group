@@ -7,6 +7,7 @@ from rpc.models import RPCRequest, RPCResponse
 from rpc.suffix import split_suffix, apply_suffixes
 from server.modules.auth_module import AuthModule
 from server.modules.database_module import DatabaseModule
+from server.helpers.roles import ROLE_REGISTERED
 
 
 async def _populate_request_roles(request: Request) -> None:
@@ -28,7 +29,7 @@ async def _populate_request_roles(request: Request) -> None:
   if not guid:
     return
   request.state.user_guid = guid
-  request.state.role_mask = (await db.get_user_roles(guid)) | 1
+  request.state.role_mask = (await db.get_user_roles(guid)) | ROLE_REGISTERED
 
 
 async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCResponse:
