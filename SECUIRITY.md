@@ -1,9 +1,9 @@
 
 
-64 0x8000 0000 0000 0000  ROLE_SERVICE_ADMIN        Access to urn:service:(config | vars) namespace
-63 0x4000 0000 0000 0000  ROLE_SYSTEM_ADMIN         Access to urn:system namespace
-62 0x2000 0000 0000 0000  ROLE_MODERATOR            Access to urn:moderator namespace
-61 0x1000 0000 0000 0000  ROLE_SUPPORT              Access to urn:support namespace
+63 0x4000 0000 0000 0000  ROLE_SERVICE_ADMIN        Access to urn:service:(config | vars) namespace
+62 0x2000 0000 0000 0000  ROLE_SYSTEM_ADMIN         Access to urn:system namespace
+61 0x1000 0000 0000 0000  ROLE_MODERATOR            Access to urn:moderator namespace
+60 0x0800 0000 0000 0000  ROLE_SUPPORT              Access to urn:support namespace
 
 ## Combined User Role Examples
 ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT
@@ -51,10 +51,10 @@ This document outlines the 64-bit bitmask strategy used to enforce security, int
 These bits define system-level trust and access within internal namespaces.
 
 Bit	Hex Mask	Role Name	Description
-64	0x8000000000000000	ROLE_SERVICE_ADMIN	Grants access to urn:service:* namespace including secrets/config
-63	0x4000000000000000	ROLE_SYSTEM_ADMIN	Grants access to urn:system:* (admin panels, orchestration, audits)
-62	0x2000000000000000	ROLE_MODERATOR	    Grants access to urn:moderator:* (content and abuse queues)
-61	0x1000000000000000	ROLE_SUPPORT	    Grants access to urn:support:* (user impersonation, account adjustments)
+63      0x4000000000000000      ROLE_SERVICE_ADMIN	Grants access to urn:service:* namespace including secrets/config
+62      0x2000000000000000      ROLE_SYSTEM_ADMIN	Grants access to urn:system:* (admin panels, orchestration, audits)
+61      0x1000000000000000      ROLE_MODERATOR	    Grants access to urn:moderator:* (content and abuse queues)
+60      0x0800000000000000      ROLE_SUPPORT	    Grants access to urn:support:* (user impersonation, account adjustments)
 
 👥 Role Combinations
 ROLE_GLOBAL_ADMIN   = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT
