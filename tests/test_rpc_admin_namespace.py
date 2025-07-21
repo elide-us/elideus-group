@@ -7,9 +7,15 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 
+from server.helpers.roles import ROLE_SYSTEM_ADMIN
+
+
 class DummyDB:
+    def __init__(self):
+        self.role_map = {}
+
     async def select_routes(self, role_mask=0):
-        return [
+        routes = [
             {
                 "id": 1,
                 "path": "/",
@@ -17,8 +23,41 @@ class DummyDB:
                 "icon": "home",
                 "required_roles": 0,
                 "sequence": 10,
-            }
+            },
+            {
+                "id": 2,
+                "path": "/gallery",
+                "name": "Gallery",
+                "icon": "gallery",
+                "required_roles": 0,
+                "sequence": 20,
+            },
+            {
+                "id": 3,
+                "path": "/file-manager",
+                "name": "File Manager",
+                "icon": "files",
+                "required_roles": 1,
+                "sequence": 30,
+            },
+            {
+                "id": 4,
+                "path": "/user-admin",
+                "name": "User Admin",
+                "icon": "admin",
+                "required_roles": ROLE_SYSTEM_ADMIN | 1,
+                "sequence": 40,
+            },
         ]
+        return [
+            r
+            for r in routes
+            if r["required_roles"] == 0
+            or (r["required_roles"] & role_mask) == r["required_roles"]
+        ]
+
+    async def get_user_roles(self, guid):
+        return self.role_map.get(guid, 0)
     async def select_links(self, role_mask=0):
         return [
             {
@@ -59,6 +98,11 @@ class DummyPermCap:
     def filter_routes(self, data, role_mask):
         return data
 
+
+class DummyAuth:
+    async def decode_bearer_token(self, token):
+        return {"guid": token}
+
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
     monkeypatch.setenv("VERSION", "v1.2.3")
@@ -73,12 +117,15 @@ def app():
     env_module = EnvironmentModule(app)
     # services do `request.app.state.env`, so set it here
     app.state.env = env_module
-    app.state.database = DummyDB()
+    db = DummyDB()
+    db.role_map = {"admin": ROLE_SYSTEM_ADMIN, "uid": 0}
+    app.state.database = db
     app.state.permcap = DummyPermCap()
+    app.state.auth = DummyAuth()
     return app
 
 def test_get_version(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:vars:get_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -86,7 +133,7 @@ def test_get_version(app):
     assert resp.payload.version == "v1.2.3"
 
 def test_get_hostname(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:vars:get_hostname:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -94,7 +141,7 @@ def test_get_hostname(app):
     assert resp.payload.hostname == "unit-host"
 
 def test_get_repo(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:vars:get_repo:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -111,7 +158,7 @@ def test_get_ffmpeg_version(app, monkeypatch):
     import rpc.admin.vars.services as services
     monkeypatch.setattr(services.asyncio, "create_subprocess_exec", fake_exec)
 
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:vars:get_ffmpeg_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -119,7 +166,7 @@ def test_get_ffmpeg_version(app, monkeypatch):
     assert resp.payload.ffmpeg_version == "ffmpeg version 6.0"
 
 def test_get_links(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:links:get_home:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -127,17 +174,36 @@ def test_get_links(app):
     assert len(resp.payload.links) == 1
     assert resp.payload.links[0].title == "Discord"
 
-def test_get_routes(app):
-    request = Request({"type": "http", "app": app})
+def test_get_routes_not_logged_in(app):
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:links:get_routes:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
     assert resp.op == "urn:admin:links:routes:1:view:default:1"
-    assert len(resp.payload.routes) == 1
-    assert resp.payload.routes[0].path == "/"
+    assert [r.path for r in resp.payload.routes] == ["/", "/gallery"]
+
+
+def test_get_routes_logged_in(app):
+    scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer uid")]} 
+    request = Request(scope)
+    rpc_request = RPCRequest(op="urn:admin:links:get_routes:1")
+    resp = asyncio.run(handle_rpc_request(rpc_request, request))
+
+    assert resp.op == "urn:admin:links:routes:1:view:default:1"
+    assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager"]
+
+
+def test_get_routes_admin(app):
+    scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer admin")]} 
+    request = Request(scope)
+    rpc_request = RPCRequest(op="urn:admin:links:get_routes:1")
+    resp = asyncio.run(handle_rpc_request(rpc_request, request))
+
+    assert resp.op == "urn:admin:links:routes:1:view:default:1"
+    assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager", "/user-admin"]
 
 def test_get_users(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:users:list:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -146,7 +212,7 @@ def test_get_users(app):
     assert resp.payload.users[0].displayName == "User"
 
 def test_get_user_profile(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:users:get_profile:1", payload={"userGuid": "uid"})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
@@ -154,7 +220,7 @@ def test_get_user_profile(app):
     assert resp.payload.email == "u@example.com"
 
 def test_set_user_credits(app):
-    request = Request({"type": "http", "app": app})
+    request = Request({"type": "http", "app": app, 'headers': []})
     rpc_request = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "uid", "credits": 100})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
