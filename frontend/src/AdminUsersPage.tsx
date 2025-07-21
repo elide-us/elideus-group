@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, Button } from '@mui/material';
+import { Table, TableHead, TableRow, TableCell, TableBody, Button, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import type { UserListItem, AdminUsersList1 } from './shared/RpcModels';
 import { fetchList } from './rpc/admin/users';
@@ -19,24 +19,27 @@ const AdminUsersPage = (): JSX.Element => {
     }, []);
 
     return (
-        <Table>
-            <TableHead>
-                <TableRow>
-                    <TableCell>Display Name</TableCell>
-                    <TableCell>Actions</TableCell>
-                </TableRow>
-            </TableHead>
-            <TableBody>
-                {users.map((u) => (
-                    <TableRow key={u.guid}>
-                        <TableCell>{u.displayName}</TableCell>
-                        <TableCell>
-                            <Button component={RouterLink} to={`/admin_userpanel/${u.guid}`} variant='contained'>Edit</Button>
-                        </TableCell>
+        <>
+            <Typography variant='h5' sx={{ mb: 2 }}>User Administration</Typography>
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Display Name</TableCell>
+                        <TableCell>Actions</TableCell>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                </TableHead>
+                <TableBody>
+                    {users.map((u) => (
+                        <TableRow key={u.guid}>
+                            <TableCell>{u.displayName}</TableCell>
+                            <TableCell>
+                                <Button component={RouterLink} to={`/admin_userpanel/${u.guid}`} variant='contained'>Edit</Button>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </>
     );
 };
 

@@ -36,6 +36,21 @@ class DummyDB:
             "Repo": "https://repo",
         }.get(key)
 
+    async def select_users(self):
+        return [{"guid": "uid", "display_name": "User"}]
+
+    async def get_user_profile(self, guid):
+        return {
+            "guid": guid,
+            "display_name": "User",
+            "email": "u@example.com",
+            "display_email": False,
+            "credits": 0,
+            "provider_name": "microsoft",
+            "rotation_token": None,
+            "rotation_expires": None,
+        }
+
 class DummyPermCap:
     def filter_routes(self, data, role_mask):
         return data
@@ -116,4 +131,21 @@ def test_get_routes(app):
     assert resp.op == "urn:admin:links:routes:1:view:default:1"
     assert len(resp.payload.routes) == 1
     assert resp.payload.routes[0].path == "/"
+
+def test_get_users(app):
+    request = Request({"type": "http", "app": app})
+    rpc_request = RPCRequest(op="urn:admin:users:list:1")
+    resp = asyncio.run(handle_rpc_request(rpc_request, request))
+
+    assert resp.op == "urn:admin:users:list:1:view:default:1"
+    assert len(resp.payload.users) == 1
+    assert resp.payload.users[0].displayName == "User"
+
+def test_get_user_profile(app):
+    request = Request({"type": "http", "app": app})
+    rpc_request = RPCRequest(op="urn:admin:users:get_profile:1", payload={"userGuid": "uid"})
+    resp = asyncio.run(handle_rpc_request(rpc_request, request))
+
+    assert resp.op == "urn:admin:users:get_profile:1:view:default:1"
+    assert resp.payload.email == "u@example.com"
 

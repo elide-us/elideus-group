@@ -1,6 +1,12 @@
 from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
-from rpc.admin.users.models import AdminUsersList1, UserListItem, AdminUserRoles1, AdminUserRolesUpdate1
+from rpc.admin.users.models import (
+  AdminUsersList1,
+  UserListItem,
+  AdminUserRoles1,
+  AdminUserRolesUpdate1,
+  AdminUserProfile1,
+)
 from server.modules.database_module import DatabaseModule
 from server.helpers.roles import mask_to_names, names_to_mask, ROLE_NAMES
 
@@ -34,3 +40,27 @@ async def set_user_roles_v1(rpc_request: RPCRequest, request: Request) -> RPCRes
 async def list_available_roles_v1(request: Request) -> RPCResponse:
   payload = AdminUserRoles1(roles=ROLE_NAMES)
   return RPCResponse(op='urn:admin:users:list_roles:1', payload=payload, version=1)
+
+async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+  payload = rpc_request.payload or {}
+  guid = payload.get('userGuid')
+  if not guid:
+    raise HTTPException(status_code=400, detail='Missing userGuid')
+  db: DatabaseModule = request.app.state.database
+  user = await db.get_user_profile(guid)
+  if not user:
+    raise HTTPException(status_code=404, detail='User not found')
+  payload = AdminUserProfile1(
+    guid=user.get('guid'),
+    defaultProvider=user.get('provider_name', 'microsoft'),
+    username=user.get('display_name', ''),
+    email=user.get('email', ''),
+    backupEmail=None,
+    profilePicture=None,
+    credits=user.get('credits', 0),
+    storageUsed=user.get('storage_used', 0),
+    displayEmail=user.get('display_email', False),
+    rotationToken=user.get('rotation_token'),
+    rotationExpires=user.get('rotation_expires'),
+  )
+  return RPCResponse(op='urn:admin:users:get_profile:1', payload=payload, version=1)
