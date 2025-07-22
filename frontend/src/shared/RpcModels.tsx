@@ -78,6 +78,14 @@ export interface UserListItem {
 export interface AdminRoleDelete1 {
   name: string;
 }
+export interface AdminRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AdminRoleMembers1 {
+  members: UserListItem[];
+  nonMembers: UserListItem[];
+}
 export interface AdminRoleUpdate1 {
   name: string;
   bit: number;
