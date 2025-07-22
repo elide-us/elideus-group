@@ -28,6 +28,22 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
 export interface FrontendUserProfileData1 {
   bearerToken: string;
   defaultProvider: string;
@@ -45,48 +61,27 @@ export interface FrontendUserSetDisplayName1 {
   bearerToken: string;
   displayName: string;
 }
-export interface AuthMicrosoftLoginData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  rotationToken: string | null;
-  rotationExpires: any | null;
+export interface AdminRoleDelete1 {
+  name: string;
 }
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-  rotationToken: string;
-  rotationExpires: any;
-}
-export interface AdminUserCreditsUpdate1 {
+export interface AdminRoleMemberUpdate1 {
+  role: string;
   userGuid: string;
-  credits: number;
 }
-export interface AdminUserProfile1 {
-  guid: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: any;
-  profilePicture: any;
-  credits: any;
-  storageUsed: any;
-  displayEmail: boolean;
-  rotationToken: any;
-  rotationExpires: any;
+export interface AdminRoleMembers1 {
+  members: any[];
+  nonMembers: any[];
 }
-export interface AdminUserRoles1 {
-  roles: string[];
+export interface AdminRoleUpdate1 {
+  name: string;
+  bit: number;
 }
-export interface AdminUserRolesUpdate1 {
-  userGuid: string;
-  roles: string[];
+export interface AdminRolesList1 {
+  roles: RoleItem[];
 }
-export interface AdminUsersList1 {
-  users: UserListItem[];
+export interface RoleItem {
+  name: string;
+  bit: number;
 }
 export interface UserListItem {
   guid: string;
@@ -122,27 +117,52 @@ export interface RouteItem {
   name: string;
   icon: string;
 }
-export interface AdminRoleDelete1 {
-  name: string;
-}
-export interface AdminRoleMemberUpdate1 {
-  role: string;
+export interface AdminUserCreditsUpdate1 {
   userGuid: string;
+  credits: number;
 }
-export interface AdminRoleMembers1 {
-  members: any[];
-  nonMembers: any[];
+export interface AdminUserProfile1 {
+  guid: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: any;
+  profilePicture: any;
+  credits: any;
+  storageUsed: any;
+  displayEmail: boolean;
+  rotationToken: any;
+  rotationExpires: any;
 }
-export interface AdminRoleUpdate1 {
+export interface AdminUserRoles1 {
+  roles: string[];
+}
+export interface AdminUserRolesUpdate1 {
+  userGuid: string;
+  roles: string[];
+}
+export interface AdminUsersList1 {
+  users: UserListItem[];
+}
+export interface AdminRouteDelete1 {
+  path: string;
+}
+export interface AdminRouteItem {
+  path: string;
   name: string;
-  bit: number;
+  icon: string;
+  sequence: number;
+  requiredRoles: string[];
 }
-export interface AdminRolesList1 {
-  roles: RoleItem[];
-}
-export interface RoleItem {
+export interface AdminRouteUpdate1 {
+  path: string;
   name: string;
-  bit: number;
+  icon: string;
+  sequence: number;
+  requiredRoles: string[];
+}
+export interface AdminRoutesList1 {
+  routes: AdminRouteItem[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
