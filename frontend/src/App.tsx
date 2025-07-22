@@ -9,6 +9,7 @@ import LoginPage from './LoginPage'
 import UserPage from './UserPage'
 import AdminUsersPage from './AdminUsersPage'
 import AdminUserPanel from './AdminUserPanel'
+import AdminRolesPage from './AdminRolesPage'
 import Icons from './Icons'
 
 function App(): JSX.Element {
@@ -33,6 +34,7 @@ function App(): JSX.Element {
                                                         <Route path='/userpanel' element={<UserPage />} />
                                                         <Route path='/admin_userpanel' element={<AdminUsersPage />} />
                                                         <Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
+                                                        <Route path='/admin_roles' element={<AdminRolesPage />} />
                                                         <Route path='/icons' element={<Icons />} />
                                                 </Routes>
                                         </Container>
