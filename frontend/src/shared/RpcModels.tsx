@@ -92,21 +92,6 @@ export interface UserListItem {
   guid: string;
   displayName: string;
 }
-export interface AdminLinksHome1 {
-  links: LinkItem[];
-}
-export interface AdminLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
-  name: string;
-  icon: string;
-}
 export interface AdminVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }
@@ -121,6 +106,21 @@ export interface AdminVarsVersion1 {
 }
 export interface ViewDiscord1 {
   content: string;
+}
+export interface AdminLinksHome1 {
+  links: LinkItem[];
+}
+export interface AdminLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
@@ -139,7 +139,9 @@ export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
                 const { bearerToken } = JSON.parse(raw);
                 if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
             }
-        } catch {}
+        } catch {
+            /* ignore token parsing errors */
+        }
     }
     const response = await axios.post<RPCResponse>('/rpc', request, { headers });
     return response.data.payload as T;
