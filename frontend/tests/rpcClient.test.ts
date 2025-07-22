@@ -11,56 +11,56 @@ describe('rpcClient', () => {
     it('fetchVersion posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { version: 'v9.9.9' } } });
         const res = await fetchVersion();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_version:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_version:1' }), expect.anything());
         expect(res.version).toBe('v9.9.9');
     });
 
     it('fetchHostname posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { hostname: 'unit-host' } } });
         const res = await fetchHostname();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_hostname:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_hostname:1' }), expect.anything());
         expect(res.hostname).toBe('unit-host');
     });
 
     it('fetchRepo posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { repo: 'https://repo' } } });
         const res = await fetchRepo();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_repo:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_repo:1' }), expect.anything());
         expect(res.repo).toBe('https://repo');
     });
 
     it('fetchFfmpegVersion posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { ffmpeg_version: 'ffmpeg version 6.0' } } });
         const res = await fetchFfmpegVersion();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_ffmpeg_version:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:vars:get_ffmpeg_version:1' }), expect.anything());
         expect(res.ffmpeg_version).toBe('ffmpeg version 6.0');
     });
 
     it('fetchHome posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { links: [] } } });
         const res = await fetchHome();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_home:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_home:1' }), expect.anything());
         expect(Array.isArray(res.links)).toBe(true);
     });
 
     it('fetchRoutes posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { routes: [] } } });
         const res = await fetchRoutes();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_routes:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:links:get_routes:1' }), expect.anything());
         expect(Array.isArray(res.routes)).toBe(true);
     });
 
     it('fetchUsers posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { users: [] } } });
         const res = await fetchUsers();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:list:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:list:1' }), expect.anything());
         expect(Array.isArray(res.users)).toBe(true);
     });
 
     it('fetchProfile posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { email: 'e' } } });
         const res = await fetchProfile({ userGuid: 'uid' });
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:get_profile:1' }));
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:get_profile:1' }), expect.anything());
         expect(res.email).toBe('e');
     });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
 	Drawer,
@@ -15,24 +15,26 @@ import type { RouteItem, AdminLinksRoutes1 } from './shared/RpcModels';
 import { fetchRoutes } from './rpc/admin/links';
 import { iconMap, defaultIcon } from './icons';
 import Login from './shared/Login';
+import UserContext from './shared/UserContext';
 
 const DRAWER_OPEN = 240;
 const DRAWER_CLOSED = 60;
 
 const NavBar = (): JSX.Element => {
-	const [open, setOpen] = useState(false);
-	const [routes, setRoutes] = useState<RouteItem[]>([]);
+        const [open, setOpen] = useState(false);
+        const [routes, setRoutes] = useState<RouteItem[]>([]);
+        const { userData } = useContext(UserContext);
 
-	useEffect(() => {
-		void (async () => {
-			try {
-				const res: AdminLinksRoutes1 = await fetchRoutes();
-				setRoutes(res.routes);
-			} catch {
-				setRoutes([]);
-			}
-		})();
-	}, []);
+        useEffect(() => {
+                void (async () => {
+                        try {
+                                const res: AdminLinksRoutes1 = await fetchRoutes();
+                                setRoutes(res.routes);
+                        } catch {
+                                setRoutes([]);
+                        }
+                })();
+        }, [userData]);
 
 	return (
 		<Drawer
