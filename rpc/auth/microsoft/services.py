@@ -4,6 +4,7 @@ from rpc.models import RPCResponse, RPCRequest
 from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
 from server.modules.auth_module import AuthModule
 from server.modules.database_module import DatabaseModule, _utos
+from server.helpers.roles import mask_to_names
 
 async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   req_payload = rpc_request.payload or {}
@@ -35,6 +36,17 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   rotation_token, rotation_exp = auth.make_rotation_token(_utos(user["guid"]))
   await db.set_user_rotation_token(_utos(user["guid"]), rotation_token, rotation_exp)
   await db.create_user_session(_utos(user["guid"]), token, rotation_token, rotation_exp)
+
+  discord = getattr(request.app.state, 'discord', None)
+  if discord:
+    mask = await db.get_user_roles(_utos(user["guid"]))
+    names = mask_to_names(mask)
+    roles = ", ".join(names) if names else "None"
+    msg = (
+      f"User login {_utos(user['guid'])}: {user.get('display_name')} "
+      f"Credits: {user.get('credits', 0)} Roles: {roles}"
+    )
+    await discord.send_sys_message(msg)
 
   payload = AuthMicrosoftLoginData1(
     bearerToken=token,

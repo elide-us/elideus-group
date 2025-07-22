@@ -37,6 +37,9 @@ class DummyDB:
     self.session = (guid, bearer, rotation, exp)
     return 'sid'
 
+  async def get_user_roles(self, guid):
+    return 0
+
 
 def test_user_login_v1():
   app = FastAPI()
@@ -55,6 +58,14 @@ class DummyAuthImage(DummyAuth):
     return {'email': 'e', 'username': 'u', 'profilePicture': 'img'}
 
 
+class DummyDiscord:
+  def __init__(self):
+    self.messages = []
+
+  async def send_sys_message(self, msg):
+    self.messages.append(msg)
+
+
 def test_user_login_profile_update():
   app = FastAPI()
   auth = DummyAuthImage()
@@ -65,4 +76,20 @@ def test_user_login_profile_update():
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   asyncio.run(services.user_login_v1(rpc_req, req))
   assert db.image == ('uid', 'img')
+
+
+def test_user_login_reports_discord():
+  app = FastAPI()
+  app.state.auth = DummyAuth()
+  db = DummyDB()
+  async def roles(guid):
+    return 0
+  db.get_user_roles = roles
+  discord = DummyDiscord()
+  app.state.database = db
+  app.state.discord = discord
+  req = Request({'type': 'http', 'app': app, 'headers': []})
+  rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
+  asyncio.run(services.user_login_v1(rpc_req, req))
+  assert discord.messages == ["User login uid: u Credits: 0 Roles: None"]
 
