@@ -21,33 +21,30 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 		severity: 'info' as 'info' | 'success' | 'warning' | 'error',
 		message: ''
 	});
-	const navigate = useNavigate();
-
 	const handleNotificationClose = (): void => {
 		setNotification(prev => ({ ...prev, open: false }));
 	};
-
+	const navigate = useNavigate();
 	const handleLoginNavigation = (): void => {
 		navigate('/login');
 	};
-
-        const handleLogout = async (): Promise<void> => {
-                try {
-                        await pca.initialize();
-                        await pca.logoutPopup();
-                        if (userData?.rotationToken) {
-                                try {
-                                        await fetchInvalidate({ rotationToken: userData.rotationToken });
-                                } catch (err) {
-                                        console.error('Failed to invalidate session', err);
-                                }
-                        }
-                        clearUserData();
-                        setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
-                } catch (error: any) {
-                        setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
-                }
-        };
+	const handleLogout = async (): Promise<void> => {
+		try {
+			await pca.initialize();
+			await pca.logoutPopup();
+			if (userData?.rotationToken) {
+				try {
+						await fetchInvalidate({ rotationToken: userData.rotationToken });
+				} catch (err) {
+						console.error('Failed to invalidate session', err);
+				}
+			}
+			clearUserData();
+			setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
+		} catch (error: any) {
+			setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
+		}
+	};
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -67,20 +64,18 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 
 			{open && (
 				<ListItemText
-					primary={
-						userData ? (
-							<Box>
-								<Typography component={RouterLink} to='/userpanel' variant='body1' sx={{ fontWeight: 'bold', color: 'gray', textDecoration: 'none' }}>
-									{userData.username}
-								</Typography>
-								<Typography component='span' variant='body2' sx={{ display: 'block', fontSize: '0.9em', color: 'gray' }}>
-									{new Intl.NumberFormat(navigator.language).format(Number(userData.credits ?? 0))}
-								</Typography>
-							</Box>
-							) : (
-								'Login'
-							)
-					}
+					primary={ userData ? (
+						<Box>
+							<Typography component={RouterLink} to='/userpanel' variant='body1' sx={{ fontWeight: 'bold', color: 'gray', textDecoration: 'none' }}>
+								{userData.username}
+							</Typography>
+							<Typography component='span' variant='body2' sx={{ display: 'block', fontSize: '0.9em', color: 'gray' }}>
+								{new Intl.NumberFormat(navigator.language).format(Number(userData.credits ?? 0))}
+							</Typography>
+						</Box>
+					) : (
+						'Login'
+					)}
 					sx={{ marginLeft: '8px' }}
 				/>
 			)}
