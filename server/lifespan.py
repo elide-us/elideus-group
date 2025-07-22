@@ -7,6 +7,7 @@ from server.modules.discord_module import DiscordModule
 from server.modules.database_module import DatabaseModule
 from server.modules.auth_module import AuthModule
 from server.modules.permcap_module import PermCapModule
+from server.modules.storage_module import StorageModule
 from server.helpers.logging import configure_root_logging
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
   configure_root_logging(debug=str(debug).lower() in ["1", "true"])
 
   app.state.env = EnvironmentModule(app)
+  app.state.storage = StorageModule(app)
+  await app.state.storage.startup()
   app.state.discord = DiscordModule(app)
   await app.state.discord.startup()
   app.state.auth = AuthModule(app)

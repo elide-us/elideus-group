@@ -3,6 +3,7 @@ from fastapi import FastAPI
 import server.modules.discord_module as discord_mod
 import server.modules.database_module as db_mod
 import server.modules.auth_module as auth_mod
+import server.modules.storage_module as storage_mod
 from server.modules.discord_module import DiscordModule
 from server.lifespan import lifespan
 
@@ -21,11 +22,24 @@ def test_lifespan_initializes_modules(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("JWT_SECRET", "jwt")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
+  monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
 
   monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)
   monkeypatch.setattr(discord_mod.asyncio, "create_task", lambda coro: None)
   monkeypatch.setattr(DiscordModule, "_init_bot_routes", lambda self: None)
   monkeypatch.setattr(DiscordModule, "_init_discord_bot", lambda self, p: DummyBot())
+
+  class DummyContainer:
+    async def create_container(self):
+      return None
+    async def upload_blob(self, *a, **k):
+      return None
+
+  monkeypatch.setattr(
+    storage_mod.BlobServiceClient,
+    "from_connection_string",
+    lambda cs: type("BSC", (), {"get_container_client": lambda self, n: DummyContainer()})(),
+  )
 
   async def fake_pool(**kwargs):
     return "pool"
