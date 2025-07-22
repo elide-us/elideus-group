@@ -12,6 +12,7 @@ import AdminUserPanel from './AdminUserPanel'
 import AdminRolesPage from './AdminRolesPage'
 import AdminRoleMembersPage from './AdminRoleMembersPage'
 import AdminRoutesPage from './AdminRoutesPage'
+import AdminConfigPage from './AdminConfigPage'
 import Icons from './Icons'
 
 function App(): JSX.Element {
@@ -39,6 +40,7 @@ function App(): JSX.Element {
                                                         <Route path='/admin_roles' element={<AdminRolesPage />} />
                                                         <Route path='/admin_role_members' element={<AdminRoleMembersPage />} />
                                                         <Route path='/admin_routes' element={<AdminRoutesPage />} />
+                                                        <Route path='/admin_config' element={<AdminConfigPage />} />
                                                         <Route path='/icons' element={<Icons />} />
                                                 </Routes>
                                         </Container>

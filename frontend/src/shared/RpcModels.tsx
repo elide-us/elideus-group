@@ -28,65 +28,6 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-  rotationToken: string;
-  rotationExpires: any;
-}
-export interface AuthMicrosoftLoginData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  displayEmail: boolean;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
-}
-export interface AdminRoleDelete1 {
-  name: string;
-}
-export interface AdminRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface AdminRoleMembers1 {
-  members: any[];
-  nonMembers: any[];
-}
-export interface AdminRoleUpdate1 {
-  name: string;
-  bit: number;
-}
-export interface AdminRolesList1 {
-  roles: RoleItem[];
-}
-export interface RoleItem {
-  name: string;
-  bit: number;
-}
-export interface UserListItem {
-  guid: string;
-  displayName: string;
-}
 export interface AdminVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }
@@ -101,21 +42,6 @@ export interface AdminVarsVersion1 {
 }
 export interface ViewDiscord1 {
   content: string;
-}
-export interface AdminLinksHome1 {
-  links: LinkItem[];
-}
-export interface AdminLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
-  name: string;
-  icon: string;
 }
 export interface AdminUserCreditsUpdate1 {
   userGuid: string;
@@ -144,6 +70,61 @@ export interface AdminUserRolesUpdate1 {
 export interface AdminUsersList1 {
   users: UserListItem[];
 }
+export interface UserListItem {
+  guid: string;
+  displayName: string;
+}
+export interface AdminLinksHome1 {
+  links: LinkItem[];
+}
+export interface AdminLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
+}
+export interface AdminConfigDelete1 {
+  key: string;
+}
+export interface AdminConfigList1 {
+  items: ConfigItem[];
+}
+export interface AdminConfigUpdate1 {
+  key: string;
+  value: string;
+}
+export interface ConfigItem {
+  key: string;
+  value: string;
+}
+export interface AdminRoleDelete1 {
+  name: string;
+}
+export interface AdminRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AdminRoleMembers1 {
+  members: any[];
+  nonMembers: any[];
+}
+export interface AdminRoleUpdate1 {
+  name: string;
+  bit: number;
+}
+export interface AdminRolesList1 {
+  roles: RoleItem[];
+}
+export interface RoleItem {
+  name: string;
+  bit: number;
+}
 export interface AdminRouteDelete1 {
   path: string;
 }
@@ -163,6 +144,39 @@ export interface AdminRouteUpdate1 {
 }
 export interface AdminRoutesList1 {
   routes: AdminRouteItem[];
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
+}
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  displayEmail: boolean;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

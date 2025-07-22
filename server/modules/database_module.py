@@ -243,10 +243,17 @@ class DatabaseModule(BaseModule):
   async def set_config_value(self, key: str, value: str):
     logging.debug("set_config_value key=%s", key)
     query = (
-      "INSERT INTO configuration(key, value) VALUES($1, $2) "
+      "INSERT INTO config(key, value) VALUES($1, $2) "
       "ON CONFLICT(key) DO UPDATE SET value=excluded.value;"
     )
     await self._run(query, key, value)
+
+  async def list_config(self) -> list[dict]:
+    query = "SELECT key, value FROM config ORDER BY key;"
+    return await self._fetch_many(query)
+
+  async def delete_config_value(self, key: str):
+    await self._run("DELETE FROM config WHERE key=$1", key)
 
   async def update_display_name(self, guid: str, display_name: str):
     logging.debug("update_display_name guid=%s display_name=%s", guid, display_name)
