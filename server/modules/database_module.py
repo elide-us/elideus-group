@@ -242,11 +242,21 @@ class DatabaseModule(BaseModule):
 
   async def set_config_value(self, key: str, value: str):
     logging.debug("set_config_value key=%s", key)
-    query = (
-      "INSERT INTO config(key, value) VALUES($1, $2) "
-      "ON CONFLICT(key) DO UPDATE SET value=excluded.value;"
-    )
-    await self._run(query, key, value)
+    if not self.pool:
+      raise RuntimeError("Database pool not initialized")
+    async with self.pool.acquire() as conn:
+      async with conn.transaction():
+        updated = await conn.fetchval(
+          "UPDATE config SET value=$2 WHERE key=$1 RETURNING key",
+          key,
+          value,
+        )
+        if not updated:
+          await conn.execute(
+            "INSERT INTO config(key, value) VALUES($1, $2)",
+            key,
+            value,
+          )
 
   async def list_config(self) -> list[dict]:
     query = "SELECT key, value FROM config ORDER BY key;"
