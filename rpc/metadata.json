@@ -1,6 +1,18 @@
 {
   "rpc": [
     {
+      "op": "urn:admin:config:delete:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:admin:config:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:admin:config:set:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:admin:links:get_home:1",
       "capabilities": 0
     },

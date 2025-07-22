@@ -3,6 +3,7 @@ import axios from 'axios';
 import { fetchVersion, fetchHostname, fetchRepo, fetchFfmpegVersion } from '../src/rpc/admin/vars';
 import { fetchHome, fetchRoutes } from '../src/rpc/admin/links';
 import { fetchList as fetchUsers, fetchProfile } from '../src/rpc/admin/users';
+import { fetchList as fetchConfigList, fetchSet as fetchConfigSet, fetchDelete as fetchConfigDelete } from '../src/rpc/admin/config';
 
 vi.mock('axios');
 const mockedPost = axios.post as unknown as ReturnType<typeof vi.fn>;
@@ -62,5 +63,26 @@ describe('rpcClient', () => {
         const res = await fetchProfile({ userGuid: 'uid' });
         expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:users:get_profile:1' }), expect.anything());
         expect(res.email).toBe('e');
+    });
+
+    it('fetchConfigList posts correct request', async () => {
+        mockedPost.mockResolvedValueOnce({ data: { payload: { items: [] } } });
+        const res = await fetchConfigList();
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:config:list:1' }), expect.anything());
+        expect(Array.isArray(res.items)).toBe(true);
+    });
+
+    it('fetchConfigSet posts correct request', async () => {
+        mockedPost.mockResolvedValueOnce({ data: { payload: { items: [] } } });
+        const res = await fetchConfigSet({ key: 'K', value: 'V' });
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:config:set:1' }), expect.anything());
+        expect(Array.isArray(res.items)).toBe(true);
+    });
+
+    it('fetchConfigDelete posts correct request', async () => {
+        mockedPost.mockResolvedValueOnce({ data: { payload: { items: [] } } });
+        const res = await fetchConfigDelete({ key: 'K' });
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:admin:config:delete:1' }), expect.anything());
+        expect(Array.isArray(res.items)).toBe(true);
     });
 });
