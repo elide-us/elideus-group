@@ -11,6 +11,7 @@ import {
     Menu as MenuIcon,
     PeopleOutline as PeopleOutlineIcon,
     AssignmentInd as AssignmentIndIcon,
+    PermDataSetting as PermDataSettingIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -24,6 +25,7 @@ export const iconMap: Record<string, ElementType> = {
     menu: MenuIcon,
     users: PeopleOutlineIcon,
     roles: AssignmentIndIcon,
+    config: PermDataSettingIcon,
 };
 
 export const defaultIcon = AdjustIcon;
