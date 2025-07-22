@@ -10,6 +10,7 @@ import {
     Adjust as AdjustIcon,
     Menu as MenuIcon,
     PeopleOutline as PeopleOutlineIcon,
+    AssignmentInd as AssignmentIndIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -22,6 +23,7 @@ export const iconMap: Record<string, ElementType> = {
     key: KeyIcon,
     menu: MenuIcon,
     users: PeopleOutlineIcon,
+    roles: AssignmentIndIcon,
 };
 
 export const defaultIcon = AdjustIcon;
