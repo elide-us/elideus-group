@@ -241,6 +241,23 @@ class DatabaseModule(BaseModule):
     query = "SELECT guid, display_name FROM users ORDER BY display_name;"
     return await self._fetch_many(query)
 
+  async def select_users_with_role(self, mask: int):
+    query = (
+      "SELECT u.guid, u.display_name FROM users u "
+      "JOIN users_roles ur ON u.guid = ur.user_guid "
+      "WHERE (ur.roles & $1) = $1 ORDER BY u.display_name;"
+    )
+    return await self._fetch_many(query, mask)
+
+  async def select_users_without_role(self, mask: int):
+    query = (
+      "SELECT u.guid, u.display_name FROM users u "
+      "LEFT JOIN users_roles ur ON u.guid = ur.user_guid "
+      "WHERE ur.roles IS NULL OR (ur.roles & $1) = 0 "
+      "ORDER BY u.display_name;"
+    )
+    return await self._fetch_many(query, mask)
+
   async def set_user_roles(self, guid: str, roles: int):
     query = (
       "INSERT INTO users_roles(user_guid, roles) VALUES($1, $2) "

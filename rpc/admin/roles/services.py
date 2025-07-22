@@ -1,7 +1,15 @@
 from fastapi import Request, HTTPException
-from rpc.admin.roles.models import RoleItem, AdminRolesList1, AdminRoleUpdate1, AdminRoleDelete1
-from rpc.models import RPCResponse
-from server.modules.database_module import DatabaseModule
+from rpc.admin.roles.models import (
+  RoleItem,
+  AdminRolesList1,
+  AdminRoleUpdate1,
+  AdminRoleDelete1,
+  AdminRoleMembers1,
+  AdminRoleMemberUpdate1,
+)
+from rpc.admin.users.models import UserListItem
+from rpc.models import RPCRequest, RPCResponse
+from server.modules.database_module import DatabaseModule, _utos
 from server.helpers import roles as role_helper
 
 
@@ -37,3 +45,51 @@ async def delete_role_v1(rpc_request, request: Request) -> RPCResponse:
   await db.delete_role(data.name)
   await role_helper.load_roles(db)
   return await list_roles_v1(request)
+
+async def get_role_members_v1(rpc_request, request: Request) -> RPCResponse:
+  payload = rpc_request.payload or {}
+  role = payload.get('role')
+  if not role:
+    raise HTTPException(status_code=400, detail='Missing role')
+  db: DatabaseModule = request.app.state.database
+  rows = await db.list_roles()
+  role_map = {r['name']: int(r['mask']) for r in rows}
+  mask = role_map.get(role)
+  if mask is None:
+    raise HTTPException(status_code=404, detail='Role not found')
+  members = [
+    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
+    for r in await db.select_users_with_role(mask)
+  ]
+  non_members = [
+    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
+    for r in await db.select_users_without_role(mask)
+  ]
+  payload = AdminRoleMembers1(members=members, nonMembers=non_members)
+  return RPCResponse(op='urn:admin:roles:get_members:1', payload=payload, version=1)
+
+async def add_role_member_v1(rpc_request, request: Request) -> RPCResponse:
+  data = AdminRoleMemberUpdate1(**(rpc_request.payload or {}))
+  db: DatabaseModule = request.app.state.database
+  rows = await db.list_roles()
+  role_map = {r['name']: int(r['mask']) for r in rows}
+  mask = role_map.get(data.role)
+  if mask is None:
+    raise HTTPException(status_code=404, detail='Role not found')
+  current = await db.get_user_roles(data.userGuid)
+  await db.set_user_roles(data.userGuid, current | mask | role_helper.ROLE_REGISTERED)
+  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
+  return await get_role_members_v1(new_req, request)
+
+async def remove_role_member_v1(rpc_request, request: Request) -> RPCResponse:
+  data = AdminRoleMemberUpdate1(**(rpc_request.payload or {}))
+  db: DatabaseModule = request.app.state.database
+  rows = await db.list_roles()
+  role_map = {r['name']: int(r['mask']) for r in rows}
+  mask = role_map.get(data.role)
+  if mask is None:
+    raise HTTPException(status_code=404, detail='Role not found')
+  current = await db.get_user_roles(data.userGuid)
+  await db.set_user_roles(data.userGuid, current & ~mask | role_helper.ROLE_REGISTERED)
+  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
+  return await get_role_members_v1(new_req, request)
