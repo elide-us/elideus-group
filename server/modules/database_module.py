@@ -168,6 +168,10 @@ class DatabaseModule(BaseModule):
     row = await self._fetch_one(query, guid)
     return row.get('roles', 0) if row else 0
 
+  async def list_roles(self) -> list[dict]:
+    query = "SELECT name, mask FROM roles;"
+    return await self._fetch_many(query)
+
   async def get_user_enablements(self, guid: str) -> int:
     query = "SELECT enablements FROM users_enablements WHERE user_guid=$1;"
     row = await self._fetch_one(query, guid)

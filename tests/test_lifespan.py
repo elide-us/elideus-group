@@ -31,6 +31,10 @@ def test_lifespan_initializes_modules(monkeypatch):
     return "pool"
   monkeypatch.setattr(db_mod.asyncpg, "create_pool", fake_pool)
 
+  async def fake_list_roles(self):
+    return []
+  monkeypatch.setattr(db_mod.DatabaseModule, "list_roles", fake_list_roles)
+
   async def fake_get_config(self, key):
     if key == "DiscordSyschan":
       return "1"
