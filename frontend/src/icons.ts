@@ -12,6 +12,7 @@ import {
     PeopleOutline as PeopleOutlineIcon,
     AssignmentInd as AssignmentIndIcon,
     PermDataSetting as PermDataSettingIcon,
+    Groups as GroupsIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -26,6 +27,7 @@ export const iconMap: Record<string, ElementType> = {
     users: PeopleOutlineIcon,
     roles: AssignmentIndIcon,
     config: PermDataSettingIcon,
+    groups: GroupsIcon,
 };
 
 export const defaultIcon = AdjustIcon;
