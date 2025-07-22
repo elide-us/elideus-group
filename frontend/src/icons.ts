@@ -13,6 +13,7 @@ import {
     AssignmentInd as AssignmentIndIcon,
     PermDataSetting as PermDataSettingIcon,
     Groups as GroupsIcon,
+    Person as PersonIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -28,6 +29,7 @@ export const iconMap: Record<string, ElementType> = {
     roles: AssignmentIndIcon,
     config: PermDataSettingIcon,
     groups: GroupsIcon,
+    person: PersonIcon,
 };
 
 export const defaultIcon = AdjustIcon;
