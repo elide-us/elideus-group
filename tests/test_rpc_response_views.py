@@ -10,6 +10,10 @@ from rpc.models import RPCRequest
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
+  monkeypatch.setenv("DISCORD_SECRET", "token")
+  monkeypatch.setenv("JWT_SECRET", "jwt")
+  monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
+  monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
 
 
 @pytest.fixture

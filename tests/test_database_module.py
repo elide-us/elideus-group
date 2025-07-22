@@ -11,6 +11,7 @@ def db_app(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("JWT_SECRET", "jwt")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
+  monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
   app = FastAPI()
   env = EnvironmentModule(app)
   app.state.env = env

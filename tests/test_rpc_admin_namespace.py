@@ -109,6 +109,7 @@ def set_env(monkeypatch):
     monkeypatch.setenv("HOSTNAME", "unit-host")
     monkeypatch.setenv("REPO", "https://repo")
     monkeypatch.setenv("DISCORD_SECRET", "token")
+    monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
 
 @pytest.fixture
 def app():
