@@ -131,6 +131,16 @@ export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
         timestamp: Date.now(),
         metadata: null,
     };
-    const response = await axios.post<RPCResponse>('/rpc', request);
+    const headers: Record<string, string> = {};
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const raw = localStorage.getItem('authTokens');
+            if (raw) {
+                const { bearerToken } = JSON.parse(raw);
+                if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
+            }
+        } catch {}
+    }
+    const response = await axios.post<RPCResponse>('/rpc', request, { headers });
     return response.data.payload as T;
 }
