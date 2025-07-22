@@ -202,6 +202,22 @@ class DatabaseModule(BaseModule):
       )
     return result
 
+  async def list_routes(self) -> list[dict]:
+    query = "SELECT * FROM routes ORDER BY sequence;"
+    return await self._fetch_many(query)
+
+  async def set_route(self, path: str, name: str, icon: str, required_roles: int, sequence: int):
+    query = (
+      "INSERT INTO routes(path, name, icon, required_roles, sequence) "
+      "VALUES($1, $2, $3, $4, $5) "
+      "ON CONFLICT(path) DO UPDATE SET name=excluded.name, icon=excluded.icon, "
+      "required_roles=excluded.required_roles, sequence=excluded.sequence;"
+    )
+    await self._run(query, path, name, icon, required_roles, sequence)
+
+  async def delete_route(self, path: str):
+    await self._run("DELETE FROM routes WHERE path=$1", path)
+
   async def select_links(self, role_mask: int = 0):
     logging.debug("select_links role_mask=%s", role_mask)
     query = (
