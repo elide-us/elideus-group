@@ -9,15 +9,11 @@
       "capabilities": 0
     },
     {
+      "op": "urn:admin:roles:add_member:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:admin:roles:delete:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:roles:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:roles:set:1",
       "capabilities": 0
     },
     {
@@ -25,11 +21,15 @@
       "capabilities": 0
     },
     {
-      "op": "urn:admin:roles:add_member:1",
+      "op": "urn:admin:roles:list:1",
       "capabilities": 0
     },
     {
       "op": "urn:admin:roles:remove_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:admin:roles:set:1",
       "capabilities": 0
     },
     {

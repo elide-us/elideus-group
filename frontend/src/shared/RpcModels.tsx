@@ -28,6 +28,23 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  displayEmail: boolean;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
+}
 export interface AuthMicrosoftLoginData1 {
   bearerToken: string;
   defaultProvider: string;
@@ -75,28 +92,6 @@ export interface UserListItem {
   guid: string;
   displayName: string;
 }
-export interface AdminRoleDelete1 {
-  name: string;
-}
-export interface AdminRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface AdminRoleMembers1 {
-  members: UserListItem[];
-  nonMembers: UserListItem[];
-}
-export interface AdminRoleUpdate1 {
-  name: string;
-  bit: number;
-}
-export interface AdminRolesList1 {
-  roles: RoleItem[];
-}
-export interface RoleItem {
-  name: string;
-  bit: number;
-}
 export interface AdminVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }
@@ -127,22 +122,27 @@ export interface RouteItem {
   name: string;
   icon: string;
 }
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  displayEmail: boolean;
-  rotationToken: string | null;
-  rotationExpires: any | null;
+export interface AdminRoleDelete1 {
+  name: string;
 }
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
+export interface AdminRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AdminRoleMembers1 {
+  members: any[];
+  nonMembers: any[];
+}
+export interface AdminRoleUpdate1 {
+  name: string;
+  bit: number;
+}
+export interface AdminRolesList1 {
+  roles: RoleItem[];
+}
+export interface RoleItem {
+  name: string;
+  bit: number;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

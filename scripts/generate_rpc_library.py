@@ -1,10 +1,14 @@
 
 from __future__ import annotations
 import os
+import sys
 import inspect
 from typing import List
 from pydantic import BaseModel
 from genlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
+
+# Ensure repo root is on sys.path so RPC modules can be imported with package names
+sys.path.insert(0, REPO_ROOT)
 
 RPC_CALL_FUNC = [
   "export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {",
@@ -36,21 +40,25 @@ ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
 
 
-def extract_interfaces_from_models_py(path: str) -> List[str]:
+def extract_interfaces_from_models_py(path: str, seen: set[str]) -> List[str]:
   interfaces = []
   module = load_module(path)
   for _, obj in inspect.getmembers(module):
     if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
+      if obj.__name__ in seen:
+        continue
       print(f"🧩 Found model: {obj.__name__}")
+      seen.add(obj.__name__)
       interfaces.append(model_to_ts(obj))
   return interfaces
 
 def find_all_interfaces() -> List[str]:
   interfaces = []
+  seen: set[str] = set()
   for root, _, files in os.walk(ROOT):
     if 'models.py' in files:
       models_path = os.path.join(root, 'models.py')
-      interfaces.extend(extract_interfaces_from_models_py(models_path))
+      interfaces.extend(extract_interfaces_from_models_py(models_path, seen))
   return interfaces
 
 def write_interfaces_to_file(interfaces: List[str], output_dir: str) -> None:

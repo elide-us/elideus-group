@@ -4,11 +4,11 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, AdminRolesList1, AdminRoleMembers1 } from '../../../shared/RpcModels';
+import { rpcCall, AdminRolesList1 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<AdminRolesList1> => rpcCall('urn:admin:roles:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:admin:roles:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:admin:roles:delete:1', payload);
-export const fetchMembers = (payload: any = null): Promise<AdminRoleMembers1> => rpcCall('urn:admin:roles:get_members:1', payload);
-export const fetchAddMember = (payload: any = null): Promise<AdminRoleMembers1> => rpcCall('urn:admin:roles:add_member:1', payload);
-export const fetchRemoveMember = (payload: any = null): Promise<AdminRoleMembers1> => rpcCall('urn:admin:roles:remove_member:1', payload);
+export const fetchMembers = (payload: any = null): Promise<any> => rpcCall('urn:admin:roles:get_members:1', payload);
+export const fetchAddMember = (payload: any = null): Promise<any> => rpcCall('urn:admin:roles:add_member:1', payload);
+export const fetchRemoveMember = (payload: any = null): Promise<any> => rpcCall('urn:admin:roles:remove_member:1', payload);
