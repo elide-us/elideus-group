@@ -16,6 +16,9 @@ RUN python3 -m venv $VIRTUAL_ENV \
  && $VIRTUAL_ENV/bin/pip install --upgrade pip \
  && $VIRTUAL_ENV/bin/pip install pydantic
 
+COPY requirements.txt ./
+RUN $VIRTUAL_ENV/bin/pip install -r requirements.txt
+
 COPY . .
 
 RUN python3 scripts/generate_rpc_library.py && python3 scripts/generate_rpc_client.py
