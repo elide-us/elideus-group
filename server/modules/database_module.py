@@ -41,6 +41,12 @@ class DatabaseModule(BaseModule):
     dsn = self._db_connection_string()
     if dsn:
       self.pool = await asyncpg.create_pool(dsn=dsn)
+      from server.helpers import roles as role_helper
+      if hasattr(self.pool, 'acquire'):
+        try:
+          await role_helper.load_from_db(self)
+        except Exception:
+          logging.exception('Failed loading roles from database')
       logging.info("Database module loaded")
 
   async def shutdown(self):
