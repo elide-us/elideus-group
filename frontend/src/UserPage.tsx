@@ -71,6 +71,7 @@ const UserPage = (): JSX.Element => {
                     />
 
                     <Typography>Credits: {userData.credits ?? 0}</Typography>
+                    <Typography>Storage Enabled: {userData.storageEnabled ? 'Yes' : 'No'}</Typography>
                     <Typography>Storage Used: {userData.storageUsed ?? 0} MB</Typography>
                     <Typography>Email: {userData.email}</Typography>
 

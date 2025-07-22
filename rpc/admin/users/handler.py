@@ -16,5 +16,7 @@ async def handle_users_request(parts: list[str], rpc_request: RPCRequest | None,
       return await services.get_user_profile_v1(rpc_request, request)
     case ["set_credits", "1"]:
       return await services.set_user_credits_v1(rpc_request, request)
+    case ["enable_storage", "1"]:
+      return await services.enable_user_storage_v1(rpc_request, request)
     case _:
       raise HTTPException(status_code=404, detail='Unknown RPC operation')

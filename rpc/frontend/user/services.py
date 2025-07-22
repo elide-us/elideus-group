@@ -3,6 +3,7 @@ from rpc.models import RPCRequest, RPCResponse
 from rpc.frontend.user.models import FrontendUserProfileData1, FrontendUserSetDisplayName1
 from server.modules.auth_module import AuthModule
 from server.modules.database_module import DatabaseModule, _utos
+from server.modules.storage_module import StorageModule
 
 async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
@@ -11,6 +12,7 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     raise HTTPException(status_code=401, detail='Missing bearer token')
   auth: AuthModule = request.app.state.auth
   db: DatabaseModule = request.app.state.database
+  storage: StorageModule = request.app.state.storage
   token_data = await auth.decode_bearer_token(token)
   guid = token_data['guid']
   user = await db.get_user_profile(guid)
@@ -24,7 +26,8 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     backupEmail=None,
     profilePicture=user.get('profile_image'),
     credits=user.get('credits', 0),
-    storageUsed=user.get('storage_used', 0),
+    storageUsed=await storage.get_user_folder_size(guid),
+    storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
@@ -39,6 +42,7 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     raise HTTPException(status_code=400, detail='Missing parameters')
   auth: AuthModule = request.app.state.auth
   db: DatabaseModule = request.app.state.database
+  storage: StorageModule = request.app.state.storage
   token_data = await auth.decode_bearer_token(token)
   guid = token_data['guid']
   await db.update_display_name(guid, display_name)
@@ -51,7 +55,8 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     backupEmail=None,
     profilePicture=user.get('profile_image'),
     credits=user.get('credits', 0),
-    storageUsed=user.get('storage_used', 0),
+    storageUsed=await storage.get_user_folder_size(guid),
+    storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),

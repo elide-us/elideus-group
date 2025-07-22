@@ -103,6 +103,14 @@ class DummyAuth:
     async def decode_bearer_token(self, token):
         return {"guid": token}
 
+class DummyStorage:
+    async def get_user_folder_size(self, guid):
+        return 0
+    async def user_folder_exists(self, guid):
+        return False
+    async def ensure_user_folder(self, guid):
+        return None
+
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
     monkeypatch.setenv("VERSION", "v1.2.3")
@@ -123,6 +131,7 @@ def app():
     app.state.database = db
     app.state.permcap = DummyPermCap()
     app.state.auth = DummyAuth()
+    app.state.storage = DummyStorage()
     return app
 
 def test_get_version(app):

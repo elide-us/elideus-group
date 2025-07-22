@@ -23,10 +23,11 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                                 username: '',
                                 email: '',
                                 backupEmail: null,
-                                profilePicture: null,
-                                credits: 0,
-                                storageUsed: 0,
-                                displayEmail: false,
+                               profilePicture: null,
+                               credits: 0,
+                               storageUsed: 0,
+                                storageEnabled: false,
+                               displayEmail: false,
                                 rotationToken: stored.rotationToken ?? null,
                                 rotationExpires: stored.rotationExpires ?? null,
                         };
@@ -35,8 +36,8 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                         void (async () => {
                                 try {
                                         const profile = await fetchProfileData({ bearerToken: stored.bearerToken });
-                                        const profilePictureBase64 = profile.profilePicture ? `data:image/png;base64,${profile.profilePicture}` : null;
-                                        setUserData({ ...profile, profilePicture: profilePictureBase64 });
+                                const profilePictureBase64 = profile.profilePicture ? `data:image/png;base64,${profile.profilePicture}` : null;
+                                setUserData({ ...profile, profilePicture: profilePictureBase64 });
                                 } catch (err) {
                                         console.error('Failed to refresh user profile', err);
                                 }

@@ -11,6 +11,7 @@ class FrontendUserProfileData1(BaseModel):
   profilePicture: Optional[str] = None
   credits: Optional[int] = None
   storageUsed: Optional[int] = None
+  storageEnabled: Optional[bool] = None
   displayEmail: bool = False
   rotationToken: Optional[str] = None
   rotationExpires: Optional[datetime] = None
