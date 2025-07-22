@@ -14,6 +14,8 @@ async def lifespan(app: FastAPI):
   dsn = os.getenv("POSTGRES_CONNECTION_STRING")
   app.state.database = DatabaseModule(app, dsn=dsn)
   await app.state.database.startup()
+  from server.helpers import roles as role_helper
+  await role_helper.load_roles(app.state.database)
 
   debug = await app.state.database.get_config_value("DebugLogging")
   configure_root_logging(debug=str(debug).lower() in ["1", "true"])
