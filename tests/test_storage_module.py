@@ -13,6 +13,15 @@ class DummyContainerClient:
     self.created = True
   async def upload_blob(self, data, name, overwrite=False):
     self.uploaded.append((name, data.read()))
+  def list_blobs(self, name_starts_with=""):
+    async def gen():
+      for name, data in self.uploaded:
+        if name.startswith(name_starts_with):
+          class Blob:
+            def __init__(self, size):
+              self.size = size
+          yield Blob(len(data))
+    return gen()
 
 class DummyBSC:
   def __init__(self, client):
@@ -54,4 +63,37 @@ def test_storage_startup_and_write(monkeypatch):
   buf = io.BytesIO(b"data")
   asyncio.run(sm.write_buffer(buf, "uid", "file.txt"))
   assert container.uploaded == [("uid/file.txt", b"data")]
+
+
+def test_folder_exists_and_size(monkeypatch):
+  app = _make_app(monkeypatch)
+  container = DummyContainerClient()
+  container.uploaded.append(("uid/file.txt", b"data"))
+  monkeypatch.setattr(
+    storage_mod.BlobServiceClient,
+    "from_connection_string",
+    lambda cs: DummyBSC(container),
+  )
+  sm = StorageModule(app)
+  asyncio.run(sm.startup())
+  exists = asyncio.run(sm.user_folder_exists("uid"))
+  size = asyncio.run(sm.get_user_folder_size("uid"))
+  assert exists
+  assert size == 4
+
+
+def test_ensure_user_folder(monkeypatch):
+  app = _make_app(monkeypatch)
+  container = DummyContainerClient()
+  monkeypatch.setattr(
+    storage_mod.BlobServiceClient,
+    "from_connection_string",
+    lambda cs: DummyBSC(container),
+  )
+  sm = StorageModule(app)
+  asyncio.run(sm.startup())
+  exists = asyncio.run(sm.user_folder_exists("uid"))
+  assert not exists
+  asyncio.run(sm.ensure_user_folder("uid"))
+  assert container.uploaded == [("uid/.init", b"")]
 

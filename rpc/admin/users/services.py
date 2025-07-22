@@ -9,6 +9,7 @@ from rpc.admin.users.models import (
   AdminUserProfile1,
 )
 from server.modules.database_module import DatabaseModule, _utos
+from server.modules.storage_module import StorageModule
 from server.helpers.roles import (
   mask_to_names,
   names_to_mask,
@@ -56,6 +57,7 @@ async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   if not guid:
     raise HTTPException(status_code=400, detail='Missing userGuid')
   db: DatabaseModule = request.app.state.database
+  storage: StorageModule = request.app.state.storage
   user = await db.get_user_profile(guid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
@@ -67,7 +69,8 @@ async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     backupEmail=None,
     profilePicture=user.get('profile_image'),
     credits=user.get('credits', 0),
-    storageUsed=user.get('storage_used', 0),
+    storageUsed=await storage.get_user_folder_size(guid),
+    storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
@@ -78,6 +81,7 @@ async def set_user_credits_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   payload = rpc_request.payload or {}
   data = AdminUserCreditsUpdate1(**payload)
   db: DatabaseModule = request.app.state.database
+  storage: StorageModule = request.app.state.storage
   await db.set_user_credits(data.userGuid, data.credits)
   user = await db.get_user_profile(data.userGuid)
   if not user:
@@ -90,9 +94,37 @@ async def set_user_credits_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     backupEmail=None,
     profilePicture=user.get('profile_image'),
     credits=user.get('credits', data.credits),
-    storageUsed=user.get('storage_used', 0),
+    storageUsed=await storage.get_user_folder_size(data.userGuid),
+    storageEnabled=await storage.user_folder_exists(data.userGuid),
     displayEmail=user.get('display_email', False),
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:admin:users:set_credits:1', payload=payload, version=1)
+
+async def enable_user_storage_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+  payload = rpc_request.payload or {}
+  guid = payload.get('userGuid')
+  if not guid:
+    raise HTTPException(status_code=400, detail='Missing userGuid')
+  storage: StorageModule = request.app.state.storage
+  db: DatabaseModule = request.app.state.database
+  await storage.ensure_user_folder(guid)
+  user = await db.get_user_profile(guid)
+  if not user:
+    raise HTTPException(status_code=404, detail='User not found')
+  payload = AdminUserProfile1(
+    guid=_utos(user.get('guid')),
+    defaultProvider=user.get('provider_name', 'microsoft'),
+    username=user.get('display_name', ''),
+    email=user.get('email', ''),
+    backupEmail=None,
+    profilePicture=user.get('profile_image'),
+    credits=user.get('credits', 0),
+    storageUsed=await storage.get_user_folder_size(guid),
+    storageEnabled=await storage.user_folder_exists(guid),
+    displayEmail=user.get('display_email', False),
+    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
+    rotationExpires=user.get('rotation_expires'),
+  )
+  return RPCResponse(op='urn:admin:users:enable_storage:1', payload=payload, version=1)

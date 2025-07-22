@@ -44,6 +44,7 @@ const LoginPage = (): JSX.Element => {
                                 profilePicture: profilePictureBase64,
                                 credits: data.credits ?? 0,
                                 storageUsed: 0,
+                                storageEnabled: false,
                                 displayEmail: false,
                                 rotationToken: data.rotationToken ?? null,
                                 rotationExpires: data.rotationExpires ?? null

@@ -28,6 +28,7 @@ class AdminUserProfile1(BaseModel):
   profilePicture: str | None = None
   credits: int | None = None
   storageUsed: int | None = None
+  storageEnabled: bool | None = None
   displayEmail: bool = False
   rotationToken: str | None = None
   rotationExpires: datetime | None = None

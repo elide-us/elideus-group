@@ -25,10 +25,19 @@ class DummyDB:
     self.updated = (guid, name)
     self.name = name
 
+class DummyStorage:
+  async def get_user_folder_size(self, guid):
+    return 0
+  async def user_folder_exists(self, guid):
+    return False
+  async def ensure_user_folder(self, guid):
+    return None
+
 def test_get_profile_data_v1():
   app = FastAPI()
   app.state.auth = DummyAuth()
   app.state.database = DummyDB()
+  app.state.storage = DummyStorage()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token'})
   resp = asyncio.run(services.get_profile_data_v1(rpc_req, req))
@@ -44,6 +53,7 @@ def test_set_display_name_v1():
   db = DummyDB()
   app.state.auth = auth
   app.state.database = db
+  app.state.storage = DummyStorage()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token', 'displayName': 'n'})
   resp = asyncio.run(services.set_display_name_v1(rpc_req, req))

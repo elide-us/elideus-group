@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
-import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
+import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
 import type { AdminUserRoles1, AdminUserProfile1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits } from './rpc/admin/users';
+import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/admin/users';
 
 const AdminUserPanel = (): JSX.Element => {
     const { guid } = useParams();
@@ -11,6 +11,8 @@ const AdminUserPanel = (): JSX.Element => {
     const [available, setAvailable] = useState<string[]>([]);
     const [profile, setProfile] = useState<AdminUserProfile1 | null>(null);
     const [credits, setCredits] = useState<number>(0);
+    const [storageEnabled, setStorageEnabled] = useState<boolean>(false);
+    const [storageUsed, setStorageUsed] = useState<number>(0);
     const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
     const [selectedRight, setSelectedRight] = useState<string | null>(null);
 
@@ -25,6 +27,8 @@ const AdminUserPanel = (): JSX.Element => {
                 setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
                 setProfile(prof);
                 setCredits(prof.credits ?? 0);
+                setStorageEnabled(prof.storageEnabled ?? false);
+                setStorageUsed(prof.storageUsed ?? 0);
             } catch {
                 setAssigned([]);
                 setAvailable([]);
@@ -47,6 +51,14 @@ const AdminUserPanel = (): JSX.Element => {
         setSelectedRight(null);
     };
 
+    const handleEnableStorage = async (): Promise<void> => {
+        if (!guid) return;
+        const prof = await fetchEnableStorage({ userGuid: guid });
+        setProfile(prof);
+        setStorageEnabled(prof.storageEnabled ?? false);
+        setStorageUsed(prof.storageUsed ?? 0);
+    };
+
     const handleSave = async (): Promise<void> => {
         if (!guid) return;
         await fetchSetRoles({ userGuid: guid, roles: assigned });
@@ -62,6 +74,11 @@ const AdminUserPanel = (): JSX.Element => {
                     <TextField label='Display Name' value={profile.username} InputProps={{ readOnly: true }} />
                     <Typography>Email: {profile.email}</Typography>
                     <TextField label='Credits' type='number' value={credits} onChange={e => setCredits(Number(e.target.value))} />
+                    <Stack direction='row' spacing={1} alignItems='center'>
+                        <Typography>Storage Enabled:</Typography>
+                        {storageEnabled ? <CheckCircle color='success' /> : <IconButton onClick={handleEnableStorage}><Cancel color='error' /></IconButton>}
+                    </Stack>
+                    <Typography>Storage Used: {storageUsed} B</Typography>
                 </Stack>
             )}
             <Stack direction='row' spacing={2}>

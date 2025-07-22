@@ -41,3 +41,36 @@ class StorageModule(BaseModule):
     blob_name = f"{user_guid}/{safe}"
     await self.client.upload_blob(data=buffer, name=blob_name, overwrite=True)
 
+  async def user_folder_exists(self, user_guid: str) -> bool:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    prefix = f"{user_guid}/"
+    async for _ in self.client.list_blobs(name_starts_with=prefix):
+      return True
+    return False
+
+  async def get_user_folder_size(self, user_guid: str) -> int:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    prefix = f"{user_guid}/"
+    size = 0
+    async for blob in self.client.list_blobs(name_starts_with=prefix):
+      try:
+        size += blob.size
+      except AttributeError:
+        sz = getattr(blob, "get", lambda k: None)("size")
+        size += sz if sz else 0
+    return size
+
+  async def ensure_user_folder(self, user_guid: str) -> None:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    if await self.user_folder_exists(user_guid):
+      return
+    data = io.BytesIO(b"")
+    await self.client.upload_blob(
+      data=data,
+      name=f"{user_guid}/.init",
+      overwrite=True,
+    )
+
