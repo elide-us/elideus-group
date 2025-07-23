@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Stack, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Stack, List, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
 import { fetchList as fetchRoutes, fetchSet, fetchDelete } from './rpc/system/routes';
@@ -84,9 +84,10 @@ const SystemRoutesPage = (): JSX.Element => {
     };
 
     return (
-        <>
-            <Typography variant='h5' sx={{ mb: 2 }}>Route Management</Typography>
-            <Table>
+        <Box sx={{ p: 2 }}>
+            <Typography variant='h5'>System Routes</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
                         <TableCell>Path</TableCell>
@@ -183,7 +184,7 @@ const SystemRoutesPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
-        </>
+        </Box>
     );
 };
 

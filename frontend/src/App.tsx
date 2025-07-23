@@ -21,7 +21,7 @@ function App(): JSX.Element {
 			<UserContextProvider>
 				<Router>
 					<NavBar />
-					<Container sx={{ width: '100%', display: 'block', bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh' }}>
+                                        <Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
 						<Routes>
 							<Route path='/' element={<Home />} />
 							<Route path='/userpage' element={<UserPage />} />

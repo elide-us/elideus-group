@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stack, List, ListItemButton, ListItemText, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Stack, List, ListItemButton, ListItemText, IconButton, Typography } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { RoleItem, AccountRoleMembers1, UserListItem, AccountRolesList1 } from './shared/RpcModels';
 import { fetchList, fetchMembers, fetchAddMember, fetchRemoveMember } from './rpc/account/roles';
@@ -59,7 +59,10 @@ const AccountRoleMembersPage = (): JSX.Element => {
     };
 
     return (
-        <Stack spacing={4} sx={{ mt: 4 }}>
+        <Box sx={{ p: 2 }}>
+            <Typography variant='h5'>Role Memberships</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Stack spacing={2}>
             {roles.map((role) => (
                 <Stack key={role.name} spacing={2} direction='column' alignItems='center'>
                     <Typography variant='h6'>{role.name}</Typography>
@@ -85,7 +88,8 @@ const AccountRoleMembersPage = (): JSX.Element => {
                     </Stack>
                 </Stack>
             ))}
-        </Stack>
+            </Stack>
+        </Box>
     );
 };
 

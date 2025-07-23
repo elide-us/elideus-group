@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, Button, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Button, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import type { UserListItem, SystemUsersList1 } from './shared/RpcModels';
 import { fetchList } from './rpc/system/users';
@@ -19,9 +19,10 @@ const AccountUsersPage = (): JSX.Element => {
     }, []);
 
     return (
-        <>
-            <Typography variant='h5' sx={{ mb: 2 }}>User Administration</Typography>
-            <Table>
+        <Box sx={{ p: 2 }}>
+            <Typography variant='h5'>User Accounts</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
                         <TableCell>Display Name</TableCell>
@@ -39,7 +40,7 @@ const AccountUsersPage = (): JSX.Element => {
                     ))}
                 </TableBody>
             </Table>
-        </>
+        </Box>
     );
 };
 
