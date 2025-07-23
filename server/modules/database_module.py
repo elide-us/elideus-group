@@ -169,15 +169,15 @@ class DatabaseModule(BaseModule):
     return row.get('roles', 0) if row else 0
 
   async def list_roles(self) -> list[dict]:
-    query = "SELECT name, mask FROM roles ORDER BY mask;"
+    query = "SELECT name, display, mask FROM roles ORDER BY mask;"
     return await self._fetch_many(query)
 
-  async def set_role(self, name: str, mask: int):
+  async def set_role(self, name: str, mask: int, display: str):
     query = (
-      "INSERT INTO roles(name, mask) VALUES($1, $2) "
-      "ON CONFLICT(name) DO UPDATE SET mask=excluded.mask;"
+      "INSERT INTO roles(name, display, mask) VALUES($1, $2, $3) "
+      "ON CONFLICT(name) DO UPDATE SET display=excluded.display, mask=excluded.mask;"
     )
-    await self._run(query, name, mask)
+    await self._run(query, name, display, mask)
 
   async def delete_role(self, name: str):
     await self._run("DELETE FROM roles WHERE name=$1", name)

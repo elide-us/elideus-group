@@ -3,6 +3,7 @@ from rpc.account.users.models import UserListItem
 
 class RoleItem(BaseModel):
   name: str
+  display: str
   bit: int
 
 class AccountRolesList1(BaseModel):
@@ -10,6 +11,7 @@ class AccountRolesList1(BaseModel):
 
 class AccountRoleUpdate1(BaseModel):
   name: str
+  display: str
   bit: int
 
 class AccountRoleDelete1(BaseModel):

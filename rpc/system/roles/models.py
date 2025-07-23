@@ -3,6 +3,7 @@ from rpc.system.users.models import UserListItem
 
 class RoleItem(BaseModel):
   name: str
+  display: str
   bit: int
 
 class SystemRolesList1(BaseModel):
@@ -10,6 +11,7 @@ class SystemRolesList1(BaseModel):
 
 class SystemRoleUpdate1(BaseModel):
   name: str
+  display: str
   bit: int
 
 class SystemRoleDelete1(BaseModel):
