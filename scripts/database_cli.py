@@ -96,7 +96,7 @@ async def interactive_console(conn):
         await db.dump_data(conn)
       case ['dump', 'data', name]:
         await db.dump_data(conn, name)
-      case ['update', 'version', part] if part in {'major', 'minor'}:
+      case ['update', 'version', part] if part in {'major', 'minor', 'patch'}:
         cur = await conn.fetchval("SELECT value FROM config WHERE key='Version'")
         if not cur:
           print('Version entry not found in config table')
@@ -110,22 +110,14 @@ async def interactive_console(conn):
           case 'minor':
             mi += 1
             pa = 0
+          case 'patch':
+            pa += 1
         bu = 0
         new_ver = f"v{ma}.{mi}.{pa}.{bu}"
         await _update_config(conn, 'Version', new_ver)
         print(f'Updated Version: {cur} -> {new_ver}')
         schema_file = await db.dump_schema(conn, new_ver)
         _commit_and_tag(new_ver, schema_file)
-      case ['update]', 'version', 'patch']:
-        cur = await conn.fetchval("SELECT value FROM config WHERE key='Version'")
-        if not cur:
-          print('Version entry not found in config table')
-          continue
-        ma, mi, pa, bu = _parse_version(cur)
-        pa += 1
-        new_ver = f"v{ma}.{mi}.{pa}.{bu}"
-        await _update_config(conn, 'Version', new_ver)
-        print(f'Updated Version: {cur} -> {new_ver}')
       case _:
         try:
           rows = await conn.fetch(raw)
