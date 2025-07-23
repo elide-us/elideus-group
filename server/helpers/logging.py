@@ -67,6 +67,9 @@ def configure_root_logging(debug: bool = False):
   logger.addHandler(handler)
   logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
+  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
+  azure_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+
 
 def remove_discord_logging(discord_module):
   logger = logging.getLogger()

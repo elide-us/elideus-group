@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
 from .database_module import DatabaseModule
-import io
+import io, logging
 
 class StorageModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -29,9 +29,11 @@ class StorageModule(BaseModule):
     client.container_name = container
     self.client = client
     self.container = container
+    logging.info("Storage module loaded container %s", container)
 
   async def shutdown(self):
     self.client = None
+    logging.info("Storage module shutdown")
 
   async def write_buffer(self, buffer: io.BytesIO, user_guid: str, filename: str):
     if not self.client:
@@ -40,11 +42,13 @@ class StorageModule(BaseModule):
     buffer.seek(0)
     blob_name = f"{user_guid}/{safe}"
     await self.client.upload_blob(data=buffer, name=blob_name, overwrite=True)
+    logging.info("Uploaded blob %s", blob_name)
 
   async def user_folder_exists(self, user_guid: str) -> bool:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     prefix = f"{user_guid}/"
+    logging.debug("Checking folder existence for %s", user_guid)
     async for _ in self.client.list_blobs(name_starts_with=prefix):
       return True
     return False
@@ -53,6 +57,7 @@ class StorageModule(BaseModule):
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     prefix = f"{user_guid}/"
+    logging.debug("Calculating folder size for %s", user_guid)
     size = 0
     async for blob in self.client.list_blobs(name_starts_with=prefix):
       try:
@@ -73,4 +78,5 @@ class StorageModule(BaseModule):
       name=f"{user_guid}/.init",
       overwrite=True,
     )
+    logging.info("Initialized storage folder for %s", user_guid)
 

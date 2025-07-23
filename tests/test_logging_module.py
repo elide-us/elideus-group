@@ -116,3 +116,15 @@ def test_split_long_message(monkeypatch):
   assert channel.messages == [msg[:MAX_DISCORD_MESSAGE_LEN], msg[MAX_DISCORD_MESSAGE_LEN:]]
   remove_discord_logging(discord)
 
+
+def test_configure_root_logging_levels():
+  from server.helpers.logging import configure_root_logging
+
+  configure_root_logging(debug=False)
+  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
+  assert azure_logger.level == logging.WARNING
+
+  configure_root_logging(debug=True)
+  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
+  assert azure_logger.level == logging.DEBUG
+
