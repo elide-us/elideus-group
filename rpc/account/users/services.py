@@ -13,7 +13,6 @@ from server.modules.storage_module import StorageModule
 from server.helpers.roles import (
   mask_to_names,
   names_to_mask,
-  ROLE_NAMES,
   ROLE_REGISTERED,
 )
 
