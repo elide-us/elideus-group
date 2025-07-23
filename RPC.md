@@ -10,12 +10,6 @@ Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`
 
 These calls expose system administration functionality.
 
-### `links`
-
-| Operation | Description |
-|-----------|-------------|
-| `urn:system:links:get_home:1` | Returns a list of external links for the home page. |
-| `urn:system:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
 
 ### `roles`
 
@@ -39,14 +33,6 @@ These calls expose system administration functionality.
 | `urn:system:users:get_profile:1` | Retrieve profile information for a user. |
 | `urn:system:users:set_credits:1` | Update a user's credit balance. |
 
-### `vars`
-
-| Operation | Description |
-|-----------|-------------|
-| `urn:system:vars:get_version:1` | Read the configured application version. |
-| `urn:system:vars:get_hostname:1` | Read the configured hostname. |
-| `urn:system:vars:get_repo:1` | Read the GitHub repository URL. |
-| `urn:system:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
 
 ## Auth Domain
 
@@ -76,6 +62,22 @@ User focused calls used by the React application.
 | `urn:frontend:user:get_profile_data:1` | Fetch the profile associated with a bearer token. |
 | `urn:frontend:user:set_display_name:1` | Update the user's display name and return the updated profile. |
 
+### `links`
+
+| Operation | Description |
+|-----------|-------------|
+| `urn:frontend:links:get_home:1` | Returns a list of external links for the home page. |
+| `urn:frontend:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
+
+### `vars`
+
+| Operation | Description |
+|-----------|-------------|
+| `urn:frontend:vars:get_version:1` | Read the configured application version. |
+| `urn:frontend:vars:get_hostname:1` | Read the configured hostname. |
+| `urn:frontend:vars:get_repo:1` | Read the GitHub repository URL. |
+| `urn:frontend:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
+
 ## Functional Areas
 
 ### Login System
@@ -94,7 +96,7 @@ The React application provides several administration pages:
 - `SystemRolesPage` manages role definitions using the `system:roles` endpoints.
  - `AccountRoleMembersPage` manages membership for each role through `account:roles` membership operations.
 
-Navigation links and routes for these pages are loaded from the server using the `system:links` RPCs so that access can be filtered by user roles.
+Navigation links and routes for these pages are loaded from the server using the `frontend:links` RPCs so that access can be filtered by user roles.
 
 ## Security Roles
 

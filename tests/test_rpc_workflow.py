@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, HTTPException
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest, RPCResponse
 import rpc.handler as rpc_handler
+import rpc.frontend.handler as frontend_handler
 import rpc.system.handler as admin_handler
 import rpc.auth.handler as auth_handler
 import rpc.auth.microsoft.handler as ms_handler
@@ -21,12 +22,12 @@ def test_rpc_unknown_domain():
   with pytest.raises(HTTPException):
     asyncio.run(handle_rpc_request(RPCRequest(op="urn:bad:op:1"), req))
 
-def test_admin_handler_links(monkeypatch):
+def test_frontend_handler_links(monkeypatch):
   async def fake_links(parts, req):
     return RPCResponse(op="links", payload=None)
-  monkeypatch.setattr(admin_handler, "handle_links_request", fake_links)
+  monkeypatch.setattr(frontend_handler, "handle_links_request", fake_links)
   req = Request({"type": "http", "app": FastAPI(), 'headers': []})
-  resp = asyncio.run(admin_handler.handle_system_request(["links", "list"], RPCRequest(op='x'), req))
+  resp = asyncio.run(frontend_handler.handle_frontend_request(["links", "list"], RPCRequest(op='x'), req))
   assert resp.op == "links"
 
 def test_admin_handler_unknown():

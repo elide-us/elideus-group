@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-from rpc.system.vars import services
+from rpc.frontend.vars import services
 from rpc.models import RPCResponse
 
 async def handle_vars_request(parts: list[str], request: Request) -> RPCResponse:

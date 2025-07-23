@@ -9,6 +9,3 @@ import { rpcCall, SystemRolesList1 } from '../../../shared/RpcModels';
 export const fetchList = (payload: any = null): Promise<SystemRolesList1> => rpcCall('urn:system:roles:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:delete:1', payload);
-export const fetchMembers = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:get_members:1', payload);
-export const fetchAddMember = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:add_member:1', payload);
-export const fetchRemoveMember = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:remove_member:1', payload);

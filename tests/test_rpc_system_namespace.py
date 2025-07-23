@@ -136,26 +136,26 @@ def app():
 
 def test_get_version(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:vars:get_version:1")
+    rpc_request = RPCRequest(op="urn:frontend:vars:get_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:vars:version:1:view:default:1"
+    assert resp.op == "urn:frontend:vars:version:1:view:default:1"
     assert resp.payload.version == "v1.2.3"
 
 def test_get_hostname(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:vars:get_hostname:1")
+    rpc_request = RPCRequest(op="urn:frontend:vars:get_hostname:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:vars:hostname:1:view:default:1"
+    assert resp.op == "urn:frontend:vars:hostname:1:view:default:1"
     assert resp.payload.hostname == "unit-host"
 
 def test_get_repo(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:vars:get_repo:1")
+    rpc_request = RPCRequest(op="urn:frontend:vars:get_repo:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:vars:repo:1:view:default:1"
+    assert resp.op == "urn:frontend:vars:repo:1:view:default:1"
     assert resp.payload.repo == "https://repo"
 
 def test_get_ffmpeg_version(app, monkeypatch):
@@ -165,51 +165,51 @@ def test_get_ffmpeg_version(app, monkeypatch):
                 return (b"ffmpeg version 6.0", b"")
         return Proc()
 
-    import rpc.system.vars.services as services
+    import rpc.frontend.vars.services as services
     monkeypatch.setattr(services.asyncio, "create_subprocess_exec", fake_exec)
 
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:vars:get_ffmpeg_version:1")
+    rpc_request = RPCRequest(op="urn:frontend:vars:get_ffmpeg_version:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:vars:ffmpeg_version:1:view:default:1"
+    assert resp.op == "urn:frontend:vars:ffmpeg_version:1:view:default:1"
     assert resp.payload.ffmpeg_version == "ffmpeg version 6.0"
 
 def test_get_links(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:links:get_home:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_home:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:links:home:1:view:default:1"
+    assert resp.op == "urn:frontend:links:home:1:view:default:1"
     assert len(resp.payload.links) == 1
     assert resp.payload.links[0].title == "Discord"
 
 def test_get_routes_not_logged_in(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery"]
 
 
 def test_get_routes_logged_in(app):
     scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer uid")]} 
     request = Request(scope)
-    rpc_request = RPCRequest(op="urn:system:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager"]
 
 
 def test_get_routes_admin(app):
     scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer admin")]} 
     request = Request(scope)
-    rpc_request = RPCRequest(op="urn:system:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager", "/user-admin"]
 
 def test_get_users(app):

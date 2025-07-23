@@ -1,6 +1,58 @@
 {
   "rpc": [
     {
+      "op": "urn:account:roles:add_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:delete:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:get_members:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:remove_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:set:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:enable_storage:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:get_profile:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:get_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:list_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:set_credits:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:set_roles:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:auth:microsoft:user_login:1",
       "capabilities": 0
     },
@@ -13,11 +65,35 @@
       "capabilities": 0
     },
     {
+      "op": "urn:frontend:links:get_home:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:frontend:links:get_routes:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:frontend:user:get_profile_data:1",
       "capabilities": 0
     },
     {
       "op": "urn:frontend:user:set_display_name:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:frontend:vars:get_ffmpeg_version:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:frontend:vars:get_hostname:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:frontend:vars:get_repo:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:frontend:vars:get_version:1",
       "capabilities": 0
     },
     {
@@ -33,31 +109,11 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:links:get_home:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:links:get_routes:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:add_member:1",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:roles:delete:1",
       "capabilities": 0
     },
     {
-      "op": "urn:system:roles:get_members:1",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:roles:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:remove_member:1",
       "capabilities": 0
     },
     {
@@ -102,22 +158,6 @@
     },
     {
       "op": "urn:system:users:set_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:vars:get_ffmpeg_version:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:vars:get_hostname:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:vars:get_repo:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:vars:get_version:1",
       "capabilities": 0
     }
   ]

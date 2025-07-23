@@ -7,8 +7,8 @@ import {
 	fetchVersion,
 	fetchRepo,
 	fetchFfmpegVersion,
-} from './rpc/system/vars';
-import { fetchHome } from './rpc/system/links';
+} from './rpc/frontend/vars';
+import { fetchHome } from './rpc/frontend/links';
 
 const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');
