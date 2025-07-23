@@ -26,7 +26,10 @@ def bit_to_mask(bit: int) -> int:
 async def list_roles_v1(request: Request) -> RPCResponse:
   db: DatabaseModule = request.app.state.database
   rows = await db.list_roles()
-  roles = [RoleItem(name=r['name'], bit=mask_to_bit(int(r['mask']))) for r in rows]
+  roles = [
+    RoleItem(name=r['name'], display=r['display'], bit=mask_to_bit(int(r['mask'])))
+    for r in rows
+  ]
   roles.sort(key=lambda r: r.bit)
   payload = AccountRolesList1(roles=roles)
   return RPCResponse(op='urn:account:roles:list:1', payload=payload, version=1)
@@ -35,7 +38,7 @@ async def set_role_v1(rpc_request, request: Request) -> RPCResponse:
   data = AccountRoleUpdate1(**(rpc_request.payload or {}))
   db: DatabaseModule = request.app.state.database
   mask = bit_to_mask(data.bit)
-  await db.set_role(data.name, mask)
+  await db.set_role(data.name, mask, data.display)
   await role_helper.load_roles(db)
   return await list_roles_v1(request)
 

@@ -16,7 +16,7 @@ class DummyDB:
         self.roles = {"ROLE_REGISTERED": 1, "ROLE_SYSTEM_ADMIN": 2}
 
     async def list_roles(self):
-        return [{"name": n, "mask": m} for n, m in self.roles.items()]
+        return [{"name": n, "display": n, "mask": m} for n, m in self.roles.items()]
 
     async def select_routes(self, role_mask=0):
         routes = [

@@ -6,7 +6,7 @@ import { fetchList, fetchSet, fetchDelete } from './rpc/system/roles';
 
 const SystemRolesPage = (): JSX.Element => {
     const [roles, setRoles] = useState<RoleItem[]>([]);
-    const [newRole, setNewRole] = useState<RoleItem>({ name: '', bit: 0 });
+    const [newRole, setNewRole] = useState<RoleItem>({ name: '', display: '', bit: 0 });
 
     const load = async (): Promise<void> => {
         try {
@@ -37,7 +37,7 @@ const SystemRolesPage = (): JSX.Element => {
     const handleAdd = async (): Promise<void> => {
         if (!newRole.name) return;
         await fetchSet(newRole);
-        setNewRole({ name: '', bit: 0 });
+        setNewRole({ name: '', display: '', bit: 0 });
         void load();
     };
 
@@ -49,6 +49,7 @@ const SystemRolesPage = (): JSX.Element => {
                 <TableHead>
                     <TableRow>
                         <TableCell>Role</TableCell>
+                        <TableCell>Display</TableCell>
                         <TableCell>Bit</TableCell>
                         <TableCell />
                     </TableRow>
@@ -58,6 +59,9 @@ const SystemRolesPage = (): JSX.Element => {
                         <TableRow key={r.name}>
                             <TableCell>
                                 <TextField value={r.name} onChange={e => updateRole(idx, 'name', e.target.value)} />
+                            </TableCell>
+                            <TableCell>
+                                <TextField value={r.display} onChange={e => updateRole(idx, 'display', e.target.value)} />
                             </TableCell>
                             <TableCell>
                                 <TextField type='number' inputProps={{ min: 0, max: 62 }} value={r.bit} onChange={e => updateRole(idx, 'bit', e.target.value)} />
@@ -70,6 +74,9 @@ const SystemRolesPage = (): JSX.Element => {
                     <TableRow>
                         <TableCell>
                             <TextField value={newRole.name} onChange={e => setNewRole({ ...newRole, name: e.target.value })} />
+                        </TableCell>
+                        <TableCell>
+                            <TextField value={newRole.display} onChange={e => setNewRole({ ...newRole, display: e.target.value })} />
                         </TableCell>
                         <TableCell>
                             <TextField type='number' inputProps={{ min: 0, max: 62 }} value={newRole.bit} onChange={e => setNewRole({ ...newRole, bit: Number(e.target.value) })} />

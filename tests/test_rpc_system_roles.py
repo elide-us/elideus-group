@@ -10,7 +10,7 @@ class DummyDB:
     self.users = {'u1': 2, 'u2': 0}
 
   async def list_roles(self):
-    return [{'name': n, 'mask': m} for n, m in self.roles.items()]
+    return [{'name': n, 'display': n, 'mask': m} for n, m in self.roles.items()]
 
   async def select_users_with_role(self, mask):
     return [{'guid': k, 'display_name': k} for k, v in self.users.items() if v & mask]
