@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-from rpc.system.links import services
+from rpc.frontend.links import services
 from rpc.models import RPCResponse
 
 async def handle_links_request(parts: list[str], request: Request) -> RPCResponse:

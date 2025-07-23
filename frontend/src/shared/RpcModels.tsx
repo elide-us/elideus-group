@@ -28,33 +28,26 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
-export interface RoleItem {
-  name: string;
-  bit: number;
+export interface FrontendVarsFfmpegVersion1 {
+  ffmpeg_version: string;
 }
-export interface SystemRoleDelete1 {
-  name: string;
+export interface FrontendVarsHostname1 {
+  hostname: string;
 }
-export interface SystemRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
+export interface FrontendVarsRepo1 {
+  repo: string;
 }
-export interface SystemRoleMembers1 {
-  members: any[];
-  nonMembers: any[];
+export interface FrontendVarsVersion1 {
+  version: string;
 }
-export type AccountRoleMembers1 = SystemRoleMembers1;
-export interface SystemRoleUpdate1 {
-  name: string;
-  bit: number;
+export interface ViewDiscord1 {
+  content: string;
 }
-export interface SystemRolesList1 {
-  roles: RoleItem[];
+export interface FrontendLinksHome1 {
+  links: LinkItem[];
 }
-export type AccountRolesList1 = SystemRolesList1;
-export interface UserListItem {
-  guid: string;
-  displayName: string;
+export interface FrontendLinksRoutes1 {
+  routes: RouteItem[];
 }
 export interface LinkItem {
   title: string;
@@ -65,25 +58,23 @@ export interface RouteItem {
   name: string;
   icon: string;
 }
-export interface SystemLinksHome1 {
-  links: LinkItem[];
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  storageEnabled: boolean | null;
+  displayEmail: boolean;
+  rotationToken: string | null;
+  rotationExpires: any | null;
 }
-export interface SystemLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface ConfigItem {
-  key: string;
-  value: string;
-}
-export interface SystemConfigDelete1 {
-  key: string;
-}
-export interface SystemConfigList1 {
-  items: ConfigItem[];
-}
-export interface SystemConfigUpdate1 {
-  key: string;
-  value: string;
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
 }
 export interface SystemRouteDelete1 {
   path: string;
@@ -105,20 +96,19 @@ export interface SystemRouteUpdate1 {
 export interface SystemRoutesList1 {
   routes: SystemRouteItem[];
 }
-export interface SystemVarsFfmpegVersion1 {
-  ffmpeg_version: string;
+export interface ConfigItem {
+  key: string;
+  value: string;
 }
-export interface SystemVarsHostname1 {
-  hostname: string;
+export interface SystemConfigDelete1 {
+  key: string;
 }
-export interface SystemVarsRepo1 {
-  repo: string;
+export interface SystemConfigList1 {
+  items: ConfigItem[];
 }
-export interface SystemVarsVersion1 {
-  version: string;
-}
-export interface ViewDiscord1 {
-  content: string;
+export interface SystemConfigUpdate1 {
+  key: string;
+  value: string;
 }
 export interface SystemUserCreditsUpdate1 {
   userGuid: string;
@@ -138,11 +128,9 @@ export interface SystemUserProfile1 {
   rotationToken: any;
   rotationExpires: any;
 }
-export type AccountUserProfile1 = SystemUserProfile1;
 export interface SystemUserRoles1 {
   roles: string[];
 }
-export type AccountUserRoles1 = SystemUserRoles1;
 export interface SystemUserRolesUpdate1 {
   userGuid: string;
   roles: string[];
@@ -150,29 +138,77 @@ export interface SystemUserRolesUpdate1 {
 export interface SystemUsersList1 {
   users: UserListItem[];
 }
-export type AccountUsersList1 = SystemUsersList1;
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
+export interface UserListItem {
+  guid: string;
+  displayName: string;
+}
+export interface RoleItem {
+  name: string;
+  bit: number;
+}
+export interface SystemRoleDelete1 {
+  name: string;
+}
+export interface SystemRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SystemRoleMembers1 {
+  members: any[];
+  nonMembers: any[];
+}
+export interface SystemRoleUpdate1 {
+  name: string;
+  bit: number;
+}
+export interface SystemRolesList1 {
+  roles: RoleItem[];
+}
+export interface AccountUserCreditsUpdate1 {
+  userGuid: string;
+  credits: number;
+}
+export interface AccountUserProfile1 {
+  guid: string;
   defaultProvider: string;
   username: string;
   email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  storageEnabled: boolean | null;
+  backupEmail: any;
+  profilePicture: any;
+  credits: any;
+  storageUsed: any;
+  storageEnabled: any;
   displayEmail: boolean;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
-}
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-  rotationToken: string;
+  rotationToken: any;
   rotationExpires: any;
+}
+export interface AccountUserRoles1 {
+  roles: string[];
+}
+export interface AccountUserRolesUpdate1 {
+  userGuid: string;
+  roles: string[];
+}
+export interface AccountUsersList1 {
+  users: UserListItem[];
+}
+export interface AccountRoleDelete1 {
+  name: string;
+}
+export interface AccountRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AccountRoleMembers1 {
+  members: UserListItem[];
+  nonMembers: UserListItem[];
+}
+export interface AccountRoleUpdate1 {
+  name: string;
+  bit: number;
+}
+export interface AccountRolesList1 {
+  roles: RoleItem[];
 }
 export interface AuthMicrosoftLoginData1 {
   bearerToken: string;
@@ -184,6 +220,11 @@ export interface AuthMicrosoftLoginData1 {
   credits: number | null;
   rotationToken: string | null;
   rotationExpires: any | null;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

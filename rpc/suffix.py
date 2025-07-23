@@ -83,19 +83,19 @@ def apply_suffixes(response: RPCResponse, suffixes: List[Tuple[str, List[str]]],
 
 @register_suffix("view", 2)
 def _view_handler(resp: RPCResponse, args: List[str]) -> RPCResponse:
-  from rpc.system.vars.models import ViewDiscord1
+  from rpc.frontend.vars.models import ViewDiscord1
   context, version = args
-  if resp.op == "urn:system:vars:hostname:1" and context == "discord" and version == "1":
-    from rpc.system.vars.models import SystemVarsHostname1
-    assert isinstance(resp.payload, SystemVarsHostname1)
+  if resp.op == "urn:frontend:vars:hostname:1" and context == "discord" and version == "1":
+    from rpc.frontend.vars.models import FrontendVarsHostname1
+    assert isinstance(resp.payload, FrontendVarsHostname1)
     resp.payload = ViewDiscord1(content=f"Hostname: {resp.payload.hostname}")
-  if resp.op == "urn:system:vars:version:1" and context == "discord" and version == "1":
-    from rpc.system.vars.models import SystemVarsVersion1
-    assert isinstance(resp.payload, SystemVarsVersion1)
+  if resp.op == "urn:frontend:vars:version:1" and context == "discord" and version == "1":
+    from rpc.frontend.vars.models import FrontendVarsVersion1
+    assert isinstance(resp.payload, FrontendVarsVersion1)
     resp.payload = ViewDiscord1(content=f"Version: {resp.payload.version}")
-  if resp.op == "urn:system:vars:repo:1" and context == "discord" and version == "1":
-    from rpc.system.vars.models import SystemVarsRepo1
-    assert isinstance(resp.payload, SystemVarsRepo1)
+  if resp.op == "urn:frontend:vars:repo:1" and context == "discord" and version == "1":
+    from rpc.frontend.vars.models import FrontendVarsRepo1
+    assert isinstance(resp.payload, FrontendVarsRepo1)
     resp.payload = ViewDiscord1(content=f"GitHub: {resp.payload.repo}")
   return resp
 

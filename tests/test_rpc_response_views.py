@@ -31,7 +31,7 @@ def app():
 
 def test_hostname_discord_view(app):
   request = Request({"type": "http", "app": app, 'headers': []})
-  urn = "urn:system:vars:get_hostname:1:view:discord:1"
+  urn = "urn:frontend:vars:get_hostname:1:view:discord:1"
   rpc_request = RPCRequest(op=urn)
   resp = asyncio.run(handle_rpc_request(rpc_request, request))
   assert resp.op == urn

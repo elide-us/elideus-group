@@ -119,7 +119,7 @@ def test_rpc_command(monkeypatch, discord_app):
       messages.append(m)
 
   ctx = Ctx()
-  asyncio.run(mod.bot.cmd(ctx, op="urn:system:vars:get_hostname:1"))
+  asyncio.run(mod.bot.cmd(ctx, op="urn:frontend:vars:get_hostname:1"))
 
   assert messages == ['Hostname: host']
 

@@ -4,7 +4,7 @@ class LinkItem(BaseModel):
   title: str
   url: str
 
-class SystemLinksHome1(BaseModel):
+class FrontendLinksHome1(BaseModel):
   links: list[LinkItem]
 
 class RouteItem(BaseModel):
@@ -12,5 +12,5 @@ class RouteItem(BaseModel):
   name: str
   icon: str
 
-class SystemLinksRoutes1(BaseModel):
+class FrontendLinksRoutes1(BaseModel):
   routes: list[RouteItem]
