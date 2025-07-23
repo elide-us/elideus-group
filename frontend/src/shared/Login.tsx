@@ -26,7 +26,7 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 	};
 	const navigate = useNavigate();
 	const handleLoginNavigation = (): void => {
-		navigate('/login');
+		navigate('/loginpage');
 	};
 	const handleLogout = async (): Promise<void> => {
 		try {
@@ -66,7 +66,7 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 				<ListItemText
 					primary={ userData ? (
 						<Box>
-							<Typography component={RouterLink} to='/userpanel' variant='body1' sx={{ fontWeight: 'bold', color: 'gray', textDecoration: 'none' }}>
+							<Typography component={RouterLink} to='/userpage' variant='body1' sx={{ fontWeight: 'bold', color: 'gray', textDecoration: 'none' }}>
 								{userData.username}
 							</Typography>
 							<Typography component='span' variant='body2' sx={{ display: 'block', fontSize: '0.9em', color: 'gray' }}>

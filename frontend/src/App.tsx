@@ -24,14 +24,14 @@ function App(): JSX.Element {
 					<Container sx={{ width: '100%', display: 'block', bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh' }}>
 						<Routes>
 							<Route path='/' element={<Home />} />
-							<Route path='/login' element={<LoginPage />} />
-							<Route path='/userpanel' element={<UserPage />} />
+							<Route path='/loginpage' element={<LoginPage />} />
+							<Route path='/userpage' element={<UserPage />} />
+							<Route path='/system_routes' element={<SystemRoutesPage />} />
+							<Route path='/system_config' element={<SystemConfigPage />} />
 							<Route path='/admin_userpanel' element={<AdminUsersPage />} />
 							<Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
 							<Route path='/system_roles' element={<SystemRolesPage />} />
 							<Route path='/system_role_members' element={<SystemRoleMembersPage />} />
-							<Route path='/system_routes' element={<SystemRoutesPage />} />
-							<Route path='/system_config' element={<SystemConfigPage />} />
 						</Routes>
 					</Container>
 				</Router>
