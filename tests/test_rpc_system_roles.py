@@ -39,12 +39,12 @@ async def make_app():
 def test_role_member_flow():
   app = asyncio.run(make_app())
   req = Request({'type': 'http', 'app': app, 'headers': []})
-  rpc = RPCRequest(op='urn:system:roles:get_members:1', payload={'role': 'ROLE_TEST'})
+  rpc = RPCRequest(op='urn:account:roles:get_members:1', payload={'role': 'ROLE_TEST'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert len(resp.payload.members) == 1
-  rpc = RPCRequest(op='urn:system:roles:add_member:1', payload={'role': 'ROLE_TEST', 'userGuid': 'u2'})
+  rpc = RPCRequest(op='urn:account:roles:add_member:1', payload={'role': 'ROLE_TEST', 'userGuid': 'u2'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert any(u.guid == 'u2' for u in resp.payload.members)
-  rpc = RPCRequest(op='urn:system:roles:remove_member:1', payload={'role': 'ROLE_TEST', 'userGuid': 'u1'})
+  rpc = RPCRequest(op='urn:account:roles:remove_member:1', payload={'role': 'ROLE_TEST', 'userGuid': 'u1'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert all(u.guid != 'u1' for u in resp.payload.members)

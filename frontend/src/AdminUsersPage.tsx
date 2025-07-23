@@ -33,7 +33,7 @@ const AdminUsersPage = (): JSX.Element => {
                         <TableRow key={u.guid}>
                             <TableCell>{u.displayName}</TableCell>
                             <TableCell>
-                                <Button component={RouterLink} to={`/admin_userpanel/${u.guid}`} variant='contained'>Edit</Button>
+                                <Button component={RouterLink} to={`/account_userpanel/${u.guid}`} variant='contained'>Edit</Button>
                             </TableCell>
                         </TableRow>
                     ))}

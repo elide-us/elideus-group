@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-from rpc.system.roles import services
+from rpc.account.roles import services
 from rpc.models import RPCRequest, RPCResponse
 
 async def handle_roles_request(parts: list[str], rpc_request: RPCRequest | None, request: Request) -> RPCResponse:
@@ -14,5 +14,17 @@ async def handle_roles_request(parts: list[str], rpc_request: RPCRequest | None,
       if rpc_request is None:
         raise HTTPException(status_code=400, detail='Missing payload')
       return await services.delete_role_v1(rpc_request, request)
+    case ["get_members", "1"]:
+      if rpc_request is None:
+        raise HTTPException(status_code=400, detail='Missing payload')
+      return await services.get_role_members_v1(rpc_request, request)
+    case ["add_member", "1"]:
+      if rpc_request is None:
+        raise HTTPException(status_code=400, detail='Missing payload')
+      return await services.add_role_member_v1(rpc_request, request)
+    case ["remove_member", "1"]:
+      if rpc_request is None:
+        raise HTTPException(status_code=400, detail='Missing payload')
+      return await services.remove_role_member_v1(rpc_request, request)
     case _:
       raise HTTPException(status_code=404, detail='Unknown RPC operation')

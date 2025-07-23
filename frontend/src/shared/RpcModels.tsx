@@ -43,6 +43,7 @@ export interface SystemRoleMembers1 {
   members: any[];
   nonMembers: any[];
 }
+export type AccountRoleMembers1 = SystemRoleMembers1;
 export interface SystemRoleUpdate1 {
   name: string;
   bit: number;
@@ -50,6 +51,7 @@ export interface SystemRoleUpdate1 {
 export interface SystemRolesList1 {
   roles: RoleItem[];
 }
+export type AccountRolesList1 = SystemRolesList1;
 export interface UserListItem {
   guid: string;
   displayName: string;
@@ -136,9 +138,11 @@ export interface SystemUserProfile1 {
   rotationToken: any;
   rotationExpires: any;
 }
+export type AccountUserProfile1 = SystemUserProfile1;
 export interface SystemUserRoles1 {
   roles: string[];
 }
+export type AccountUserRoles1 = SystemUserRoles1;
 export interface SystemUserRolesUpdate1 {
   userGuid: string;
   roles: string[];
@@ -146,6 +150,7 @@ export interface SystemUserRolesUpdate1 {
 export interface SystemUsersList1 {
   users: UserListItem[];
 }
+export type AccountUsersList1 = SystemUsersList1;
 export interface FrontendUserProfileData1 {
   bearerToken: string;
   defaultProvider: string;
