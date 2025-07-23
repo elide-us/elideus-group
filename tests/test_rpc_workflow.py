@@ -4,16 +4,16 @@ from fastapi import FastAPI, Request, HTTPException
 from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest, RPCResponse
 import rpc.handler as rpc_handler
-import rpc.admin.handler as admin_handler
+import rpc.system.handler as admin_handler
 import rpc.auth.handler as auth_handler
 import rpc.auth.microsoft.handler as ms_handler
 
 def test_rpc_dispatch_admin(monkeypatch):
   async def fake_admin(parts, rpc_request, request):
     return RPCResponse(op="admin", payload=None)
-  monkeypatch.setattr(rpc_handler, "handle_admin_request", fake_admin)
+  monkeypatch.setattr(rpc_handler, "handle_system_request", fake_admin)
   req = Request({"type": "http", "app": FastAPI(), 'headers': []})
-  resp = asyncio.run(handle_rpc_request(RPCRequest(op="urn:admin:test:1"), req))
+  resp = asyncio.run(handle_rpc_request(RPCRequest(op="urn:system:test:1"), req))
   assert resp.op == "admin:view:default:1"
 
 def test_rpc_unknown_domain():
@@ -26,13 +26,13 @@ def test_admin_handler_links(monkeypatch):
     return RPCResponse(op="links", payload=None)
   monkeypatch.setattr(admin_handler, "handle_links_request", fake_links)
   req = Request({"type": "http", "app": FastAPI(), 'headers': []})
-  resp = asyncio.run(admin_handler.handle_admin_request(["links", "list"], RPCRequest(op='x'), req))
+  resp = asyncio.run(admin_handler.handle_system_request(["links", "list"], RPCRequest(op='x'), req))
   assert resp.op == "links"
 
 def test_admin_handler_unknown():
   req = Request({"type": "http", "app": FastAPI(), 'headers': []})
   with pytest.raises(HTTPException):
-    asyncio.run(admin_handler.handle_admin_request(["nope"], RPCRequest(op='x'), req))
+    asyncio.run(admin_handler.handle_system_request(["nope"], RPCRequest(op='x'), req))
 
 def test_auth_handler_ms(monkeypatch):
   async def fake_ms(rest, rpc_request, req):

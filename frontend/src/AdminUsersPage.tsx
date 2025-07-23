@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Table, TableHead, TableRow, TableCell, TableBody, Button, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import type { UserListItem, AdminUsersList1 } from './shared/RpcModels';
-import { fetchList } from './rpc/admin/users';
+import type { UserListItem, SystemUsersList1 } from './shared/RpcModels';
+import { fetchList } from './rpc/system/users';
 
 const AdminUsersPage = (): JSX.Element => {
     const [users, setUsers] = useState<UserListItem[]>([]);
@@ -10,7 +10,7 @@ const AdminUsersPage = (): JSX.Element => {
     useEffect(() => {
         void (async () => {
             try {
-                const res: AdminUsersList1 = await fetchList();
+                const res: SystemUsersList1 = await fetchList();
                 setUsers(res.users);
             } catch {
                 setUsers([]);
