@@ -36,7 +36,7 @@ const AccountRoleMembersPage = (): JSX.Element => {
                 }
             })();
         });
-    }, [roles]);
+    }, [roles, members]);
 
     const moveRight = async (role: string): Promise<void> => {
         const id = selectedLeft[role];

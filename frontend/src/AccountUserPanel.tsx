@@ -20,9 +20,9 @@ const AccountUserPanel = (): JSX.Element => {
         void (async () => {
             if (!guid) return;
             try {
-                const roles: SystemUserRoles1 = await fetchRoles({ userGuid: guid });
-                const all: SystemUserRoles1 = await fetchListRoles();
-                const prof: SystemUserProfile1 = await fetchProfile({ userGuid: guid });
+                const roles: AccountUserRoles1 = await fetchRoles({ userGuid: guid });
+                const all: AccountUserRoles1 = await fetchListRoles();
+                const prof: AccountUserProfile1 = await fetchProfile({ userGuid: guid });
                 setAssigned(roles.roles);
                 setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
                 setProfile(prof);
