@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
-import type { AdminUserRoles1, AdminUserProfile1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/admin/users';
+import type { SystemUserRoles1, SystemUserProfile1 } from './shared/RpcModels';
+import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/system/users';
 
 const AdminUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
-    const [profile, setProfile] = useState<AdminUserProfile1 | null>(null);
+    const [profile, setProfile] = useState<SystemUserProfile1 | null>(null);
     const [credits, setCredits] = useState<number>(0);
     const [storageEnabled, setStorageEnabled] = useState<boolean>(false);
     const [storageUsed, setStorageUsed] = useState<number>(0);
@@ -20,9 +20,9 @@ const AdminUserPanel = (): JSX.Element => {
         void (async () => {
             if (!guid) return;
             try {
-                const roles: AdminUserRoles1 = await fetchRoles({ userGuid: guid });
-                const all: AdminUserRoles1 = await fetchListRoles();
-                const prof: AdminUserProfile1 = await fetchProfile({ userGuid: guid });
+                const roles: SystemUserRoles1 = await fetchRoles({ userGuid: guid });
+                const all: SystemUserRoles1 = await fetchListRoles();
+                const prof: SystemUserProfile1 = await fetchProfile({ userGuid: guid });
                 setAssigned(roles.roles);
                 setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
                 setProfile(prof);

@@ -9,10 +9,10 @@ import LoginPage from './LoginPage'
 import UserPage from './UserPage'
 import AdminUsersPage from './AdminUsersPage'
 import AdminUserPanel from './AdminUserPanel'
-import AdminRolesPage from './AdminRolesPage'
-import AdminRoleMembersPage from './AdminRoleMembersPage'
-import AdminRoutesPage from './AdminRoutesPage'
-import AdminConfigPage from './AdminConfigPage'
+import AdminRolesPage from './SystemRolesPage'
+import AdminRoleMembersPage from './SystemRoleMembersPage'
+import AdminRoutesPage from './SystemRoutesPage'
+import AdminConfigPage from './SystemConfigPage'
 import Icons from './Icons'
 
 function App(): JSX.Element {
@@ -37,10 +37,10 @@ function App(): JSX.Element {
                                                         <Route path='/userpanel' element={<UserPage />} />
                                                         <Route path='/admin_userpanel' element={<AdminUsersPage />} />
                                                         <Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
-                                                        <Route path='/admin_roles' element={<AdminRolesPage />} />
-                                                        <Route path='/admin_role_members' element={<AdminRoleMembersPage />} />
-                                                        <Route path='/admin_routes' element={<AdminRoutesPage />} />
-                                                        <Route path='/admin_config' element={<AdminConfigPage />} />
+                                                        <Route path='/system_roles' element={<AdminRolesPage />} />
+                                                        <Route path='/system_role_members' element={<AdminRoleMembersPage />} />
+                                                        <Route path='/system_routes' element={<AdminRoutesPage />} />
+                                                        <Route path='/system_config' element={<AdminConfigPage />} />
                                                         <Route path='/icons' element={<Icons />} />
                                                 </Routes>
                                         </Container>

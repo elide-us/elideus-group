@@ -6,47 +6,47 @@ This document describes each RPC operation in the project and groups them by dom
 
 Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`. Handlers automatically append a `:view:default:1` suffix when no `view` is specified. Custom views may transform the payload for different clients (e.g. Discord).
 
-## Admin Domain
+## System Domain
 
-These calls expose server administration functionality.
+These calls expose system administration functionality.
 
 ### `links`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:admin:links:get_home:1` | Returns a list of external links for the home page. |
-| `urn:admin:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
+| `urn:system:links:get_home:1` | Returns a list of external links for the home page. |
+| `urn:system:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
 
 ### `roles`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:admin:roles:list:1` | List all role names and their bit positions. |
-| `urn:admin:roles:set:1` | Create or update a role definition. |
-| `urn:admin:roles:delete:1` | Delete a role. |
-| `urn:admin:roles:get_members:1` | Get members and non-members for a role. |
-| `urn:admin:roles:add_member:1` | Add a user to a role. |
-| `urn:admin:roles:remove_member:1` | Remove a user from a role. |
+| `urn:system:roles:list:1` | List all role names and their bit positions. |
+| `urn:system:roles:set:1` | Create or update a role definition. |
+| `urn:system:roles:delete:1` | Delete a role. |
+| `urn:system:roles:get_members:1` | Get members and non-members for a role. |
+| `urn:system:roles:add_member:1` | Add a user to a role. |
+| `urn:system:roles:remove_member:1` | Remove a user from a role. |
 
 ### `users`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:admin:users:list:1` | List all users. |
-| `urn:admin:users:get_roles:1` | Get the roles assigned to a user. |
-| `urn:admin:users:set_roles:1` | Replace the roles assigned to a user. |
-| `urn:admin:users:list_roles:1` | List available role names. |
-| `urn:admin:users:get_profile:1` | Retrieve profile information for a user. |
-| `urn:admin:users:set_credits:1` | Update a user's credit balance. |
+| `urn:system:users:list:1` | List all users. |
+| `urn:system:users:get_roles:1` | Get the roles assigned to a user. |
+| `urn:system:users:set_roles:1` | Replace the roles assigned to a user. |
+| `urn:system:users:list_roles:1` | List available role names. |
+| `urn:system:users:get_profile:1` | Retrieve profile information for a user. |
+| `urn:system:users:set_credits:1` | Update a user's credit balance. |
 
 ### `vars`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:admin:vars:get_version:1` | Read the configured application version. |
-| `urn:admin:vars:get_hostname:1` | Read the configured hostname. |
-| `urn:admin:vars:get_repo:1` | Read the GitHub repository URL. |
-| `urn:admin:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
+| `urn:system:vars:get_version:1` | Read the configured application version. |
+| `urn:system:vars:get_hostname:1` | Read the configured hostname. |
+| `urn:system:vars:get_repo:1` | Read the GitHub repository URL. |
+| `urn:system:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
 
 ## Auth Domain
 
@@ -86,15 +86,15 @@ The front-end uses Microsoft OAuth via MSAL. `LoginPage.tsx` prompts the user to
 
 `UserPage.tsx` displays the current user's profile and allows updating the display name. It calls `frontend:user:get_profile_data` on load and `frontend:user:set_display_name` when saving changes.
 
-### Admin Pages
+### System Pages
 
 The React application provides several administration pages:
 
-- `AdminUsersPage` lists users. Selecting a user opens `AdminUserPanel` where roles and credits can be modified via the `admin:users` RPCs.
-- `AdminRolesPage` manages role definitions using the `admin:roles` endpoints.
-- `AdminRoleMembersPage` manages membership for each role through `admin:roles` membership operations.
+- `AdminUsersPage` lists users. Selecting a user opens `AdminUserPanel` where roles and credits can be modified via the `system:users` RPCs.
+- `SystemRolesPage` manages role definitions using the `system:roles` endpoints.
+- `SystemRoleMembersPage` manages membership for each role through `system:roles` membership operations.
 
-Navigation links and routes for these pages are loaded from the server using the `admin:links` RPCs so that access can be filtered by user roles.
+Navigation links and routes for these pages are loaded from the server using the `system:links` RPCs so that access can be filtered by user roles.
 
 ## Security Roles
 

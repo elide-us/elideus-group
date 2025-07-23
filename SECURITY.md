@@ -11,7 +11,7 @@ for user level flags.
 |----:|----------------------:|-------------------|------|
 | 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN` | Access to service configuration and secrets |
 | 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`  | Access to system administration features |
-| 60  | `0x1000000000000000`  | *(reserved)*        | |
+| 60  | `0x1000000000000000`  | `ROLE_ACCOUNT_ADMIN` | Manage user accounts |
 | 59  | `0x0800000000000000`  | `ROLE_MODERATOR`     | Access to moderation tools |
 | 58  | `0x0400000000000000`  | `ROLE_SUPPORT`       | Access to support utilities |
 | 57  | `0x0200000000000000`  | *(reserved)*        | |
