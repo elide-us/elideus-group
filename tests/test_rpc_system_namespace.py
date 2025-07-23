@@ -7,12 +7,16 @@ from rpc.handler import handle_rpc_request
 from rpc.models import RPCRequest
 
 
-from server.helpers.roles import ROLE_SYSTEM_ADMIN, ROLE_REGISTERED
+from server.helpers import roles as role_helper
 
 
 class DummyDB:
     def __init__(self):
         self.role_map = {}
+        self.roles = {"ROLE_REGISTERED": 1, "ROLE_SYSTEM_ADMIN": 2}
+
+    async def list_roles(self):
+        return [{"name": n, "mask": m} for n, m in self.roles.items()]
 
     async def select_routes(self, role_mask=0):
         routes = [
@@ -37,7 +41,7 @@ class DummyDB:
                 "path": "/file-manager",
                 "name": "File Manager",
                 "icon": "files",
-                "required_roles": ROLE_REGISTERED,
+                "required_roles": self.roles["ROLE_REGISTERED"],
                 "sequence": 30,
             },
             {
@@ -45,7 +49,7 @@ class DummyDB:
                 "path": "/user-admin",
                 "name": "User Admin",
                 "icon": "admin",
-                "required_roles": ROLE_SYSTEM_ADMIN | ROLE_REGISTERED,
+                "required_roles": self.roles["ROLE_SYSTEM_ADMIN"] | self.roles["ROLE_REGISTERED"],
                 "sequence": 40,
             },
         ]
@@ -127,7 +131,8 @@ def app():
     # services do `request.app.state.env`, so set it here
     app.state.env = env_module
     db = DummyDB()
-    db.role_map = {"admin": ROLE_SYSTEM_ADMIN, "uid": 0}
+    asyncio.run(role_helper.load_roles(db))
+    db.role_map = {"admin": role_helper.ROLES["ROLE_SYSTEM_ADMIN"], "uid": 0}
     app.state.database = db
     app.state.permcap = DummyPermCap()
     app.state.auth = DummyAuth()
