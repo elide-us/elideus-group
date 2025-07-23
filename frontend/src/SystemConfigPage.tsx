@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/config';
@@ -39,9 +39,10 @@ const SystemConfigPage = (): JSX.Element => {
     };
 
     return (
-        <>
-            <Typography variant='h5' sx={{ mb: 2 }}>Config Management</Typography>
-            <Table>
+        <Box sx={{ p: 2 }}>
+            <Typography variant='h5'>System Configuration</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
                         <TableCell>Key</TableCell>
@@ -76,7 +77,7 @@ const SystemConfigPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
-        </>
+        </Box>
     );
 };
 

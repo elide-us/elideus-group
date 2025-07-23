@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { RoleItem, SystemRolesList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/roles';
@@ -42,9 +42,10 @@ const SystemRolesPage = (): JSX.Element => {
     };
 
     return (
-        <>
-            <Typography variant='h5' sx={{ mb: 2 }}>Role Management</Typography>
-            <Table>
+        <Box sx={{ p: 2 }}>
+            <Typography variant='h5'>System Roles</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
                         <TableCell>Role</TableCell>
@@ -79,7 +80,7 @@ const SystemRolesPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
-        </>
+        </Box>
     );
 };
 
