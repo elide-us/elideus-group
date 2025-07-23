@@ -5,14 +5,14 @@ import ElideusTheme from './shared/ElideusTheme'
 import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
 import NavBar from './NavBar'
-import LoginPage from './LoginPage'
 import UserPage from './UserPage'
-import AdminUsersPage from './AdminUsersPage'
-import AccountUserPanel from './AccountUserPanel'
-import SystemRolesPage from './SystemRolesPage'
-import AccountRoleMembersPage from './AccountRoleMembersPage'
+import LoginPage from './LoginPage'
 import SystemRoutesPage from './SystemRoutesPage'
 import SystemConfigPage from './SystemConfigPage'
+import SystemRolesPage from './SystemRolesPage'
+import AccountUsersPage from './AccountUsersPage'
+import AccountUserPanel from './AccountUserPanel'
+import AccountRoleMembersPage from './AccountRoleMembersPage'
 
 function App(): JSX.Element {
 	return (
@@ -24,14 +24,14 @@ function App(): JSX.Element {
 					<Container sx={{ width: '100%', display: 'block', bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh' }}>
 						<Routes>
 							<Route path='/' element={<Home />} />
-							<Route path='/loginpage' element={<LoginPage />} />
 							<Route path='/userpage' element={<UserPage />} />
+							<Route path='/loginpage' element={<LoginPage />} />
 							<Route path='/system_routes' element={<SystemRoutesPage />} />
 							<Route path='/system_config' element={<SystemConfigPage />} />
-                                                        <Route path='/admin_userpanel' element={<AdminUsersPage />} />
-                                                        <Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
-                                                        <Route path='/system_roles' element={<SystemRolesPage />} />
-                                                        <Route path='/account_role_members' element={<AccountRoleMembersPage />} />
+							<Route path='/system_roles' element={<SystemRolesPage />} />
+							<Route path='/account_userspage' element={<AccountUsersPage />} />
+							<Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
+							<Route path='/account_role_members' element={<AccountRoleMembersPage />} />
 						</Routes>
 					</Container>
 				</Router>
