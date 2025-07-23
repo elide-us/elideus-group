@@ -9,11 +9,10 @@ import LoginPage from './LoginPage'
 import UserPage from './UserPage'
 import AdminUsersPage from './AdminUsersPage'
 import AdminUserPanel from './AdminUserPanel'
-import AdminRolesPage from './SystemRolesPage'
-import AdminRoleMembersPage from './SystemRoleMembersPage'
-import AdminRoutesPage from './SystemRoutesPage'
-import AdminConfigPage from './SystemConfigPage'
-import Icons from './Icons'
+import SystemRolesPage from './SystemRolesPage'
+import SystemRoleMembersPage from './SystemRoleMembersPage'
+import SystemRoutesPage from './SystemRoutesPage'
+import SystemConfigPage from './SystemConfigPage'
 
 function App(): JSX.Element {
 	return (
@@ -22,28 +21,19 @@ function App(): JSX.Element {
 			<UserContextProvider>
 				<Router>
 					<NavBar />
-					<Container
-						sx={{
-							width: '100%',
-							display: 'block',
-							bgcolor: 'background.paper',
-							color: 'text.primary',
-							minHeight: '100vh'
-						}}
-					>
-                                                <Routes>
-                                                        <Route path='/' element={<Home />} />
-                                                        <Route path='/login' element={<LoginPage />} />
-                                                        <Route path='/userpanel' element={<UserPage />} />
-                                                        <Route path='/admin_userpanel' element={<AdminUsersPage />} />
-                                                        <Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
-                                                        <Route path='/system_roles' element={<AdminRolesPage />} />
-                                                        <Route path='/system_role_members' element={<AdminRoleMembersPage />} />
-                                                        <Route path='/system_routes' element={<AdminRoutesPage />} />
-                                                        <Route path='/system_config' element={<AdminConfigPage />} />
-                                                        <Route path='/icons' element={<Icons />} />
-                                                </Routes>
-                                        </Container>
+					<Container sx={{ width: '100%', display: 'block', bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh' }}>
+						<Routes>
+							<Route path='/' element={<Home />} />
+							<Route path='/login' element={<LoginPage />} />
+							<Route path='/userpanel' element={<UserPage />} />
+							<Route path='/admin_userpanel' element={<AdminUsersPage />} />
+							<Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
+							<Route path='/system_roles' element={<SystemRolesPage />} />
+							<Route path='/system_role_members' element={<SystemRoleMembersPage />} />
+							<Route path='/system_routes' element={<SystemRoutesPage />} />
+							<Route path='/system_config' element={<SystemConfigPage />} />
+						</Routes>
+					</Container>
 				</Router>
 			</UserContextProvider>
 		</ThemeProvider>
