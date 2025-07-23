@@ -223,17 +223,17 @@ def test_get_users(app):
 
 def test_get_user_profile(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:users:get_profile:1", payload={"userGuid": "uid"})
+    rpc_request = RPCRequest(op="urn:account:users:get_profile:1", payload={"userGuid": "uid"})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:users:get_profile:1:view:default:1"
+    assert resp.op == "urn:account:users:get_profile:1:view:default:1"
     assert resp.payload.email == "u@example.com"
 
 def test_set_user_credits(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:users:set_credits:1", payload={"userGuid": "uid", "credits": 100})
+    rpc_request = RPCRequest(op="urn:account:users:set_credits:1", payload={"userGuid": "uid", "credits": 100})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:users:set_credits:1:view:default:1"
+    assert resp.op == "urn:account:users:set_credits:1:view:default:1"
     assert resp.payload.credits == 100
 

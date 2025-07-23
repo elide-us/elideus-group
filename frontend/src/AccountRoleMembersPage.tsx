@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Stack, List, ListItemButton, ListItemText, IconButton, Typography } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
-import type { RoleItem, SystemRoleMembers1, UserListItem, SystemRolesList1 } from './shared/RpcModels';
-import { fetchList, fetchMembers, fetchAddMember, fetchRemoveMember } from './rpc/system/roles';
+import type { RoleItem, AccountRoleMembers1, UserListItem, AccountRolesList1 } from './shared/RpcModels';
+import { fetchList, fetchMembers, fetchAddMember, fetchRemoveMember } from './rpc/account/roles';
 
-const SystemRoleMembersPage = (): JSX.Element => {
+const AccountRoleMembersPage = (): JSX.Element => {
     const [roles, setRoles] = useState<RoleItem[]>([]);
     const [members, setMembers] = useState<Record<string, UserListItem[]>>({});
     const [nonMembers, setNonMembers] = useState<Record<string, UserListItem[]>>({});
@@ -14,7 +14,7 @@ const SystemRoleMembersPage = (): JSX.Element => {
     useEffect(() => {
         void (async () => {
             try {
-                const res: SystemRolesList1 = await fetchList();
+                const res: AccountRolesList1 = await fetchList();
                 setRoles(res.roles.sort((a, b) => a.bit - b.bit));
             } catch {
                 setRoles([]);
@@ -27,7 +27,7 @@ const SystemRoleMembersPage = (): JSX.Element => {
             if (members[r.name]) return;
             void (async () => {
                 try {
-                    const res: SystemRoleMembers1 = await fetchMembers({ role: r.name });
+                    const res: AccountRoleMembers1 = await fetchMembers({ role: r.name });
                     setMembers(m => ({ ...m, [r.name]: res.members }));
                     setNonMembers(n => ({ ...n, [r.name]: res.nonMembers }));
                 } catch {
@@ -42,7 +42,7 @@ const SystemRoleMembersPage = (): JSX.Element => {
         const id = selectedLeft[role];
         if (!id) return;
         await fetchAddMember({ role, userGuid: id });
-        const res: SystemRoleMembers1 = await fetchMembers({ role });
+        const res: AccountRoleMembers1 = await fetchMembers({ role });
         setMembers(m => ({ ...m, [role]: res.members }));
         setNonMembers(n => ({ ...n, [role]: res.nonMembers }));
         setSelectedLeft(s => ({ ...s, [role]: '' }));
@@ -52,7 +52,7 @@ const SystemRoleMembersPage = (): JSX.Element => {
         const id = selectedRight[role];
         if (!id) return;
         await fetchRemoveMember({ role, userGuid: id });
-        const res: SystemRoleMembers1 = await fetchMembers({ role });
+        const res: AccountRoleMembers1 = await fetchMembers({ role });
         setMembers(m => ({ ...m, [role]: res.members }));
         setNonMembers(n => ({ ...n, [role]: res.nonMembers }));
         setSelectedRight(s => ({ ...s, [role]: '' }));
@@ -89,4 +89,4 @@ const SystemRoleMembersPage = (): JSX.Element => {
     );
 };
 
-export default SystemRoleMembersPage;
+export default AccountRoleMembersPage;

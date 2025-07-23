@@ -90,9 +90,9 @@ The front-end uses Microsoft OAuth via MSAL. `LoginPage.tsx` prompts the user to
 
 The React application provides several administration pages:
 
-- `AdminUsersPage` lists users. Selecting a user opens `AdminUserPanel` where roles and credits can be modified via the `system:users` RPCs.
+ - `AdminUsersPage` lists users. Selecting a user opens `AccountUserPanel` where roles and credits can be modified via the `account:users` RPCs.
 - `SystemRolesPage` manages role definitions using the `system:roles` endpoints.
-- `SystemRoleMembersPage` manages membership for each role through `system:roles` membership operations.
+ - `AccountRoleMembersPage` manages membership for each role through `account:roles` membership operations.
 
 Navigation links and routes for these pages are loaded from the server using the `system:links` RPCs so that access can be filtered by user roles.
 

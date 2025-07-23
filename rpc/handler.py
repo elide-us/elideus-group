@@ -1,6 +1,7 @@
 from fastapi import Request, HTTPException
 import logging
 from rpc.system.handler import handle_system_request
+from rpc.account.handler import handle_account_request
 from rpc.auth.handler import handle_auth_request
 from rpc.frontend.handler import handle_frontend_request
 from rpc.models import RPCRequest, RPCResponse
@@ -52,6 +53,8 @@ async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCRe
     match domain:
       case "system":
         response = await handle_system_request(base_parts, rpc_request, request)
+      case "account":
+        response = await handle_account_request(base_parts, rpc_request, request)
       case "auth":
         response = await handle_auth_request(base_parts, rpc_request, request)
       case "frontend":

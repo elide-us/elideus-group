@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
-import type { SystemUserRoles1, SystemUserProfile1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/system/users';
+import type { AccountUserRoles1, AccountUserProfile1 } from './shared/RpcModels';
+import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/account/users';
 
-const AdminUserPanel = (): JSX.Element => {
+const AccountUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
-    const [profile, setProfile] = useState<SystemUserProfile1 | null>(null);
+    const [profile, setProfile] = useState<AccountUserProfile1 | null>(null);
     const [credits, setCredits] = useState<number>(0);
     const [storageEnabled, setStorageEnabled] = useState<boolean>(false);
     const [storageUsed, setStorageUsed] = useState<number>(0);
@@ -108,4 +108,4 @@ const AdminUserPanel = (): JSX.Element => {
     );
 };
 
-export default AdminUserPanel;
+export default AccountUserPanel;

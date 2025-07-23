@@ -8,9 +8,9 @@ import NavBar from './NavBar'
 import LoginPage from './LoginPage'
 import UserPage from './UserPage'
 import AdminUsersPage from './AdminUsersPage'
-import AdminUserPanel from './AdminUserPanel'
+import AccountUserPanel from './AccountUserPanel'
 import SystemRolesPage from './SystemRolesPage'
-import SystemRoleMembersPage from './SystemRoleMembersPage'
+import AccountRoleMembersPage from './AccountRoleMembersPage'
 import SystemRoutesPage from './SystemRoutesPage'
 import SystemConfigPage from './SystemConfigPage'
 
@@ -28,10 +28,10 @@ function App(): JSX.Element {
 							<Route path='/userpage' element={<UserPage />} />
 							<Route path='/system_routes' element={<SystemRoutesPage />} />
 							<Route path='/system_config' element={<SystemConfigPage />} />
-							<Route path='/admin_userpanel' element={<AdminUsersPage />} />
-							<Route path='/admin_userpanel/:guid' element={<AdminUserPanel />} />
-							<Route path='/system_roles' element={<SystemRolesPage />} />
-							<Route path='/system_role_members' element={<SystemRoleMembersPage />} />
+                                                        <Route path='/admin_userpanel' element={<AdminUsersPage />} />
+                                                        <Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
+                                                        <Route path='/system_roles' element={<SystemRolesPage />} />
+                                                        <Route path='/account_role_members' element={<AccountRoleMembersPage />} />
 						</Routes>
 					</Container>
 				</Router>
