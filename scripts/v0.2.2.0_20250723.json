@@ -67,33 +67,6 @@
       "foreign_keys": []
     },
     {
-      "name": "roles",
-      "columns": [
-        {
-          "name": "name",
-          "type": "text",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "display",
-          "type": "text",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "mask",
-          "type": "bigint",
-          "nullable": false,
-          "default": "0"
-        }
-      ],
-      "primary_key": [
-        "name"
-      ],
-      "foreign_keys": []
-    },
-    {
       "name": "users",
       "columns": [
         {
@@ -236,6 +209,39 @@
           "type": "bigint",
           "nullable": true,
           "default": "0"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": []
+    },
+    {
+      "name": "roles",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "mask",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "display",
+          "type": "text",
+          "nullable": true,
+          "default": "''::text"
+        },
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false,
+          "default": "nextval('roles_id_seq'::regclass)"
         }
       ],
       "primary_key": [
