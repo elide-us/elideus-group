@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Stack, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText, Typography, TextField } from '@mui/material';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
 import { fetchList as fetchRoutes, fetchSet, fetchDelete } from './rpc/system/routes';
+import EditBox from './shared/EditBox';
+import Notification from './shared/Notification';
 import { fetchListRoles } from './rpc/system/users';
 
 const MAX_HEIGHT = 120;
@@ -15,6 +17,8 @@ const SystemRoutesPage = (): JSX.Element => {
     const [newRoute, setNewRoute] = useState<SystemRouteItem>({ path: '', name: '', icon: '', sequence: 0, requiredRoles: [] });
     const [newLeft, setNewLeft] = useState<string | null>(null);
     const [newRight, setNewRight] = useState<string | null>(null);
+    const [notification, setNotification] = useState(false);
+    const handleNotificationClose = (): void => { setNotification(false); };
 
     const load = async (): Promise<void> => {
         try {
@@ -39,6 +43,7 @@ const SystemRoutesPage = (): JSX.Element => {
         setRoutes(updated);
         await fetchSet(updated[index]);
         void load();
+        setNotification(true);
     };
 
     const moveRight = async (idx: number): Promise<void> => {
@@ -60,6 +65,7 @@ const SystemRoutesPage = (): JSX.Element => {
     const handleDelete = async (path: string): Promise<void> => {
         await fetchDelete({ path });
         void load();
+        setNotification(true);
     };
 
     const addMoveRight = (role: string | null): void => {
@@ -81,6 +87,7 @@ const SystemRoutesPage = (): JSX.Element => {
         setNewLeft(null);
         setNewRight(null);
         void load();
+        setNotification(true);
     };
 
     return (
@@ -104,16 +111,16 @@ const SystemRoutesPage = (): JSX.Element => {
                         return (
                             <TableRow key={r.path}>
                                 <TableCell>
-                                    <TextField value={r.path} onChange={e => updateRoute(idx, 'path', e.target.value)} />
+                                    <EditBox value={r.path} onCommit={(val: string | number) => updateRoute(idx, 'path', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <TextField value={r.name} onChange={e => updateRoute(idx, 'name', e.target.value)} />
+                                    <EditBox value={r.name} onCommit={(val: string | number) => updateRoute(idx, 'name', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <TextField value={r.icon} onChange={e => updateRoute(idx, 'icon', e.target.value)} />
+                                    <EditBox value={r.icon} onCommit={(val: string | number) => updateRoute(idx, 'icon', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <TextField type='number' value={r.sequence} onChange={e => updateRoute(idx, 'sequence', Number(e.target.value))} />
+                                    <EditBox type='number' value={r.sequence} onCommit={(val: string | number) => updateRoute(idx, 'sequence', Number(val))} />
                                 </TableCell>
                                 <TableCell>
                                     <Stack direction='row' spacing={1}>
@@ -184,6 +191,12 @@ const SystemRoutesPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
+            <Notification
+                open={notification}
+                handleClose={handleNotificationClose}
+                severity='success'
+                message='Saved'
+            />
         </Box>
     );
 };

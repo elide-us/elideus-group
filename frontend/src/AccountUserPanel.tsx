@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Divider, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
+import { Box, Divider, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
 import type { AccountUserRoles1, AccountUserProfile1, RoleItem } from './shared/RpcModels';
 import { fetchRoles, fetchSetRoles, fetchProfile, fetchSetCredits, fetchEnableStorage, fetchSetDisplayName } from './rpc/account/users';
+import EditBox from './shared/EditBox';
+import Notification from './shared/Notification';
 import { fetchList as fetchRoleList } from './rpc/account/roles';
 
 const AccountUserPanel = (): JSX.Element => {
@@ -11,6 +13,7 @@ const AccountUserPanel = (): JSX.Element => {
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
     const [profile, setProfile] = useState<AccountUserProfile1 | null>(null);
+    const [notification, setNotification] = useState(false);
     const [username, setUsername] = useState<string>('');
     const [roles, setRoles] = useState<RoleItem[]>([]);
     const [credits, setCredits] = useState<number>(0);
@@ -64,17 +67,20 @@ const AccountUserPanel = (): JSX.Element => {
         setStorageUsed(prof.storageUsed ?? 0);
     };
 
-    const handleNameCommit = async (): Promise<void> => {
-        if (!guid || !profile) return;
-        if (username === profile.username) return;
-        const updated = await fetchSetDisplayName({ userGuid: guid, displayName: username });
+    const commitName = async (val: string | number): Promise<void> => {
+        if (!guid) return;
+        const updated = await fetchSetDisplayName({ userGuid: guid, displayName: String(val) });
         setProfile(updated);
+        setUsername(updated.username);
     };
+
+    const handleNotificationClose = (): void => { setNotification(false); };
 
     const handleSave = async (): Promise<void> => {
         if (!guid) return;
         await fetchSetRoles({ userGuid: guid, roles: assigned });
         await fetchSetCredits({ userGuid: guid, credits });
+        setNotification(true);
     };
 
     return (
@@ -88,15 +94,9 @@ const AccountUserPanel = (): JSX.Element => {
                         src={profile.profilePicture ? `data:image/png;base64,${profile.profilePicture}` : undefined}
                         sx={{ width: 80, height: 80 }}
                     />
-                    <TextField
-                        label='Display Name'
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        onBlur={() => void handleNameCommit()}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void handleNameCommit(); } }}
-                    />
+                    <EditBox label='Display Name' value={username} onCommit={commitName} />
                     <Typography>Email: {profile.email}</Typography>
-                    <TextField label='Credits' type='number' value={credits} onChange={e => setCredits(Number(e.target.value))} />
+                    <EditBox label='Credits' type='number' value={credits} onCommit={(val: string | number) => setCredits(Number(val))} />
                     <Stack direction='row' spacing={1} alignItems='center'>
                         <Typography>Storage Enabled:</Typography>
                         {storageEnabled ? <CheckCircle color='success' /> : <IconButton onClick={handleEnableStorage}><Cancel color='error' /></IconButton>}
@@ -127,6 +127,12 @@ const AccountUserPanel = (): JSX.Element => {
             <Box sx={{ ml: 2 }}>
                 <Button variant='contained' onClick={handleSave}>Save</Button>
             </Box>
+            <Notification
+                open={notification}
+                handleClose={handleNotificationClose}
+                severity='success'
+                message='Saved'
+            />
         </Box>
     );
 };

@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, TextField } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { RoleItem, SystemRolesList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/roles';
+import EditBox from './shared/EditBox';
+import Notification from './shared/Notification';
 
 const SystemRolesPage = (): JSX.Element => {
     const [roles, setRoles] = useState<RoleItem[]>([]);
     const [newRole, setNewRole] = useState<RoleItem>({ name: '', display: '', bit: 0 });
+    const [notification, setNotification] = useState(false);
+    const handleNotificationClose = (): void => { setNotification(false); };
 
     const load = async (): Promise<void> => {
         try {
@@ -27,11 +31,13 @@ const SystemRolesPage = (): JSX.Element => {
         setRoles(updated);
         await fetchSet(updated[index]);
         void load();
+        setNotification(true);
     };
 
     const handleDelete = async (name: string): Promise<void> => {
         await fetchDelete({ name });
         void load();
+        setNotification(true);
     };
 
     const handleAdd = async (): Promise<void> => {
@@ -39,6 +45,7 @@ const SystemRolesPage = (): JSX.Element => {
         await fetchSet(newRole);
         setNewRole({ name: '', display: '', bit: 0 });
         void load();
+        setNotification(true);
     };
 
     return (
@@ -58,13 +65,13 @@ const SystemRolesPage = (): JSX.Element => {
                     {roles.map((r, idx) => (
                         <TableRow key={r.name}>
                             <TableCell>
-                                <TextField value={r.name} onChange={e => updateRole(idx, 'name', e.target.value)} />
+                                <EditBox value={r.name} onCommit={(val: string | number) => updateRole(idx, 'name', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <TextField value={r.display} onChange={e => updateRole(idx, 'display', e.target.value)} />
+                                <EditBox value={r.display} onCommit={(val: string | number) => updateRole(idx, 'display', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <TextField type='number' inputProps={{ min: 0, max: 62 }} value={r.bit} onChange={e => updateRole(idx, 'bit', e.target.value)} />
+                                <EditBox type='number' inputProps={{ min: 0, max: 62 }} value={r.bit} onCommit={(val: string | number) => updateRole(idx, 'bit', Number(val))} />
                             </TableCell>
                             <TableCell>
                                 <IconButton onClick={() => handleDelete(r.name)}><Delete /></IconButton>
@@ -87,6 +94,12 @@ const SystemRolesPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
+            <Notification
+                open={notification}
+                handleClose={handleNotificationClose}
+                severity='success'
+                message='Saved'
+            />
         </Box>
     );
 };
