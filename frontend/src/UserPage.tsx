@@ -17,6 +17,8 @@ const UserPage = (): JSX.Element => {
     const [notification, setNotification] = useState(false);
     const nameRef = useRef<EditBoxHandle>(null);
 
+    const storageUsedMb = ((userData?.storageUsed ?? 0) / (1024 * 1024)).toFixed(2);
+
     const handleNotificationClose = (): void => { setNotification(false); };
 
     useEffect(() => {
@@ -31,6 +33,13 @@ const UserPage = (): JSX.Element => {
             }
         })();
     }, []);
+
+    useEffect(() => {
+        if (!userData) return;
+        setDisplayName(userData.username);
+        setDisplayEmail(userData.displayEmail);
+        setProvider(userData.defaultProvider);
+    }, [userData]);
 
     const handleToggle = (): void => {
         const val = !displayEmail;
@@ -89,7 +98,7 @@ const UserPage = (): JSX.Element => {
 
                     <Typography>Credits: {userData.credits ?? 0}</Typography>
                     <Typography>Storage Enabled: {userData.storageEnabled ? 'Yes' : 'No'}</Typography>
-                    <Typography>Storage Used: {userData.storageUsed ?? 0} MB</Typography>
+                    <Typography>Storage Used: {storageUsedMb} MB</Typography>
                     <Typography>Email: {userData.email}</Typography>
                     <Typography>
                         Roles: {userData.roles.map(r => roleMap[r] ?? r).join(', ')}
