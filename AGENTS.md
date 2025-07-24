@@ -31,7 +31,8 @@ This project uses the following technologies currently:
 - generate_rpc_* - Generates portions of the Pydantic model in Python out to TypeScript libraries
 
 ### Database Management Procedures
-- Human will import schema files using CLI when changes are requeired
+- Human will import schema files using CLI when changes are required
+- When database changes are needed, generate a new schema dump, do not change existing schema files.
 - If data loads are required .sql scripts are preferred
 
 ### Actions Build Process:
