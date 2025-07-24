@@ -6,12 +6,12 @@ Please read the following before diving in:
 * RPC.md — Full specification for RPC namespace structure and usage
 
 ## 💻 Coding Standards
-General Goals
+#### General
 * Test Coverage Target: 85% (measured via Pytest + coverage tools)
-Python
+#### Python
 * Indentation: 2 spaces
 * Type annotations are encouraged for all functions and RPC models
-TypeScript
+#### TypeScript
 * Indentation: 4-space tabs
 * Follow strict type safety patterns (strict: true in tsconfig)
 
