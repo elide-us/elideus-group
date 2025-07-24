@@ -25,6 +25,9 @@ class DummyDB:
     self.updated = (guid, name)
     self.name = name
 
+  async def get_user_roles(self, guid):
+    return 0
+
 class DummyStorage:
   async def get_user_folder_size(self, guid):
     return 0
@@ -45,6 +48,7 @@ def test_get_profile_data_v1():
   assert resp.payload.email == 'e'
   assert resp.payload.displayEmail is True
   assert resp.payload.profilePicture == 'img'
+  assert resp.payload.roles == []
 
 
 def test_set_display_name_v1():
@@ -61,4 +65,5 @@ def test_set_display_name_v1():
   assert resp.payload.username == 'n'
   assert db.updated == ('uid', 'n')
   assert resp.payload.profilePicture == 'img'
+  assert resp.payload.roles == []
 

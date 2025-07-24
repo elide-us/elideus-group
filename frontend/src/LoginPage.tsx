@@ -47,7 +47,8 @@ const LoginPage = (): JSX.Element => {
                                 storageEnabled: false,
                                 displayEmail: false,
                                 rotationToken: data.rotationToken ?? null,
-                                rotationExpires: data.rotationExpires ?? null
+                                rotationExpires: data.rotationExpires ?? null,
+                                roles: []
                         });
                         localStorage.setItem('authTokens', JSON.stringify({
                                 bearerToken: data.bearerToken,

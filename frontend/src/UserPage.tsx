@@ -1,7 +1,9 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Box, Typography, FormControlLabel, Switch, Avatar, TextField, Button, Stack, RadioGroup, Radio } from '@mui/material';
 import UserContext from './shared/UserContext';
 import { fetchSetDisplayName } from './rpc/frontend/user';
+import { fetchList as fetchRoleList } from './rpc/system/roles';
+import type { SystemRolesList1 } from './shared/RpcModels';
 
 const UserPage = (): JSX.Element => {
     const { userData, setUserData } = useContext(UserContext);
@@ -9,6 +11,20 @@ const UserPage = (): JSX.Element => {
     const [displayName, setDisplayName] = useState<string>(userData?.username ?? '');
     const [dirty, setDirty] = useState<boolean>(false);
     const [provider, setProvider] = useState<string>(userData?.defaultProvider ?? 'microsoft');
+    const [roleMap, setRoleMap] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        void (async () => {
+            try {
+                const res: SystemRolesList1 = await fetchRoleList();
+                const map: Record<string, string> = {};
+                res.roles.forEach(r => { map[r.name] = r.display; });
+                setRoleMap(map);
+            } catch {
+                setRoleMap({});
+            }
+        })();
+    }, []);
 
     const handleToggle = (): void => {
         const val = !displayEmail;
@@ -74,6 +90,9 @@ const UserPage = (): JSX.Element => {
                     <Typography>Storage Enabled: {userData.storageEnabled ? 'Yes' : 'No'}</Typography>
                     <Typography>Storage Used: {userData.storageUsed ?? 0} MB</Typography>
                     <Typography>Email: {userData.email}</Typography>
+                    <Typography>
+                        Roles: {userData.roles.map(r => roleMap[r] ?? r).join(', ')}
+                    </Typography>
 
                     <RadioGroup
                         value={provider}
