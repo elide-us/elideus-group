@@ -49,6 +49,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:set_display_name:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:set_roles:1",
       "capabilities": 0
     },

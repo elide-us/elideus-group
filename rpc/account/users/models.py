@@ -19,6 +19,10 @@ class AccountUserCreditsUpdate1(BaseModel):
   userGuid: str
   credits: int
 
+class AccountUserDisplayNameUpdate1(BaseModel):
+  userGuid: str
+  displayName: str
+
 class AccountUserProfile1(BaseModel):
   guid: str
   defaultProvider: str
