@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import TextField from '@mui/material/TextField';
 import Notification from './Notification';
 
@@ -60,5 +60,6 @@ const EditBox = forwardRef<EditBoxHandle, EditBoxProps>(({ label, value, type = 
         </>
     );
 });
+EditBox.displayName = 'EditBox';
 
 export default EditBox;

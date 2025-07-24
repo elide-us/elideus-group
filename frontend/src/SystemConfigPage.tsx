@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, TextField } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/config';
@@ -61,10 +61,10 @@ const SystemConfigPage = (): JSX.Element => {
                     {items.map((i, idx) => (
                         <TableRow key={i.key}>
                             <TableCell>
-                                <EditBox value={i.key} onCommit={val => updateItem(idx, 'key', String(val))} />
+                                <EditBox value={i.key} onCommit={(val: string | number) => updateItem(idx, 'key', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <EditBox value={i.value} onCommit={val => updateItem(idx, 'value', String(val))} />
+                                <EditBox value={i.value} onCommit={(val: string | number) => updateItem(idx, 'value', String(val))} />
                             </TableCell>
                             <TableCell>
                                 <IconButton onClick={() => handleDelete(i.key)}><Delete /></IconButton>

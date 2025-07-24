@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText, Typography, TextField } from '@mui/material';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
 import { fetchList as fetchRoutes, fetchSet, fetchDelete } from './rpc/system/routes';
@@ -111,16 +111,16 @@ const SystemRoutesPage = (): JSX.Element => {
                         return (
                             <TableRow key={r.path}>
                                 <TableCell>
-                                    <EditBox value={r.path} onCommit={val => updateRoute(idx, 'path', String(val))} />
+                                    <EditBox value={r.path} onCommit={(val: string | number) => updateRoute(idx, 'path', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <EditBox value={r.name} onCommit={val => updateRoute(idx, 'name', String(val))} />
+                                    <EditBox value={r.name} onCommit={(val: string | number) => updateRoute(idx, 'name', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <EditBox value={r.icon} onCommit={val => updateRoute(idx, 'icon', String(val))} />
+                                    <EditBox value={r.icon} onCommit={(val: string | number) => updateRoute(idx, 'icon', String(val))} />
                                 </TableCell>
                                 <TableCell>
-                                    <EditBox type='number' value={r.sequence} onCommit={val => updateRoute(idx, 'sequence', Number(val))} />
+                                    <EditBox type='number' value={r.sequence} onCommit={(val: string | number) => updateRoute(idx, 'sequence', Number(val))} />
                                 </TableCell>
                                 <TableCell>
                                     <Stack direction='row' spacing={1}>

@@ -38,11 +38,6 @@ const UserPage = (): JSX.Element => {
         setDirty(true);
     };
 
-    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        setDisplayName(e.target.value);
-        setDirty(true);
-    };
-
     const handleProviderChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         setProvider(e.target.value);
         setDirty(true);
@@ -86,7 +81,7 @@ const UserPage = (): JSX.Element => {
                         ref={nameRef}
                         label='Display Name'
                         value={displayName}
-                        onCommit={val => { setDisplayName(String(val)); setDirty(true); }}
+                        onCommit={(val: string | number) => { setDisplayName(String(val)); setDirty(true); }}
                         manual
                         fullWidth
                         slotProps={{ input: { style: { textAlign: 'right' } } }}

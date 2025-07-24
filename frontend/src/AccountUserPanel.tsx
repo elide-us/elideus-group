@@ -96,7 +96,7 @@ const AccountUserPanel = (): JSX.Element => {
                     />
                     <EditBox label='Display Name' value={username} onCommit={commitName} />
                     <Typography>Email: {profile.email}</Typography>
-                    <EditBox label='Credits' type='number' value={credits} onCommit={val => setCredits(Number(val))} />
+                    <EditBox label='Credits' type='number' value={credits} onCommit={(val: string | number) => setCredits(Number(val))} />
                     <Stack direction='row' spacing={1} alignItems='center'>
                         <Typography>Storage Enabled:</Typography>
                         {storageEnabled ? <CheckCircle color='success' /> : <IconButton onClick={handleEnableStorage}><Cancel color='error' /></IconButton>}

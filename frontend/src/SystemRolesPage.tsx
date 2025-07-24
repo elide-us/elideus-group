@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, TextField } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { RoleItem, SystemRolesList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/roles';
@@ -65,13 +65,13 @@ const SystemRolesPage = (): JSX.Element => {
                     {roles.map((r, idx) => (
                         <TableRow key={r.name}>
                             <TableCell>
-                                <EditBox value={r.name} onCommit={val => updateRole(idx, 'name', String(val))} />
+                                <EditBox value={r.name} onCommit={(val: string | number) => updateRole(idx, 'name', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <EditBox value={r.display} onCommit={val => updateRole(idx, 'display', String(val))} />
+                                <EditBox value={r.display} onCommit={(val: string | number) => updateRole(idx, 'display', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <EditBox type='number' inputProps={{ min: 0, max: 62 }} value={r.bit} onCommit={val => updateRole(idx, 'bit', Number(val))} />
+                                <EditBox type='number' inputProps={{ min: 0, max: 62 }} value={r.bit} onCommit={(val: string | number) => updateRole(idx, 'bit', Number(val))} />
                             </TableCell>
                             <TableCell>
                                 <IconButton onClick={() => handleDelete(r.name)}><Delete /></IconButton>
