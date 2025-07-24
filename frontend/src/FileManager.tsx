@@ -1,20 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { Box, List, ListItem, Typography, IconButton, Link as MuiLink } from '@mui/material';
 import { Delete, ContentCopy, Link as LinkIcon } from '@mui/icons-material';
 import EditBox from './shared/EditBox';
 import PaginationControls from './shared/PaginationControls';
 import { PageTitle } from './shared/PageTitle';
 import { fetchList, fetchDelete } from './rpc/frontend/files';
+import UserContext from './shared/UserContext';
 import type { FileItem, FrontendFilesList1 } from './shared/RpcModels';
 
 const FileManager = (): JSX.Element => {
+    const { userData } = useContext(UserContext);
+
     const [page, setPage] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [files, setFiles] = useState<FileItem[]>([]);
 
     const load = async (): Promise<void> => {
         try {
-            const res: FrontendFilesList1 = await fetchList();
+            const res: FrontendFilesList1 = await fetchList({ bearerToken: userData?.bearerToken });
             setFiles(res.files);
         } catch {
             setFiles([]);
@@ -27,7 +30,7 @@ const FileManager = (): JSX.Element => {
     const paginated = files.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
 
     const handleDelete = async (name: string): Promise<void> => {
-        await fetchDelete({ filename: name });
+        await fetchDelete({ bearerToken: userData?.bearerToken, filename: name });
         void load();
     };
 
