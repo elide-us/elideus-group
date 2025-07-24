@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
-import { Box, List, ListItem, Typography, IconButton, Link as MuiLink } from '@mui/material';
+import { Box, List, ListItem, Typography, IconButton, Link as MuiLink, Tooltip } from '@mui/material';
 import { Delete, ContentCopy, Link as LinkIcon } from '@mui/icons-material';
 import EditBox from './shared/EditBox';
 import PaginationControls from './shared/PaginationControls';
@@ -44,10 +44,18 @@ const FileManager = (): JSX.Element => {
             <List>
                 {paginated.map(f => (
                     <ListItem key={f.name} sx={{ gap: 1 }}>
-                        <EditBox value={f.name} onCommit={() => {}} manual size='small' />
-                        <IconButton onClick={() => void handleDelete(f.name)}><Delete /></IconButton>
-                        <IconButton onClick={() => handleCopy(f.url)}><ContentCopy /></IconButton>
-                        <MuiLink href={f.url} target='_blank' rel='noopener noreferrer'><LinkIcon /></MuiLink>
+                        <EditBox value={f.name} onCommit={() => {}} manual size='small' sx={{ width: '40ch' }} />
+                        <Tooltip title='Delete'>
+                            <IconButton onClick={() => void handleDelete(f.name)}><Delete /></IconButton>
+                        </Tooltip>
+                        <Tooltip title='Copy URL'>
+                            <IconButton onClick={() => handleCopy(f.url)}><ContentCopy /></IconButton>
+                        </Tooltip>
+                        <Tooltip title='Open Link'>
+                            <IconButton component={MuiLink} href={f.url} target='_blank' rel='noopener noreferrer'>
+                                <LinkIcon />
+                            </IconButton>
+                        </Tooltip>
                         <Typography sx={{ ml: 'auto' }}>{f.contentType}</Typography>
                     </ListItem>
                 ))}
