@@ -13,6 +13,7 @@ import SystemRolesPage from './SystemRolesPage'
 import AccountUsersPage from './AccountUsersPage'
 import AccountUserPanel from './AccountUserPanel'
 import AccountRoleMembersPage from './AccountRoleMembersPage'
+import FileManager from './FileManager'
 
 function App(): JSX.Element {
 	return (
@@ -26,15 +27,16 @@ function App(): JSX.Element {
 							<Route path='/' element={<Home />} />
 							<Route path='/userpage' element={<UserPage />} />
 							<Route path='/loginpage' element={<LoginPage />} />
-							<Route path='/system_routes' element={<SystemRoutesPage />} />
-							<Route path='/system_config' element={<SystemConfigPage />} />
-							<Route path='/system_roles' element={<SystemRolesPage />} />
-							<Route path='/account_userspage' element={<AccountUsersPage />} />
-							<Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
-							<Route path='/account_role_members' element={<AccountRoleMembersPage />} />
-						</Routes>
-					</Container>
-				</Router>
+                                                        <Route path='/system_routes' element={<SystemRoutesPage />} />
+                                                        <Route path='/system_config' element={<SystemConfigPage />} />
+                                                        <Route path='/system_roles' element={<SystemRolesPage />} />
+                                                        <Route path='/account_userspage' element={<AccountUsersPage />} />
+                                                        <Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
+                                                        <Route path='/account_role_members' element={<AccountRoleMembersPage />} />
+                                                        <Route path='/file-manager' element={<FileManager />} />
+                                                </Routes>
+                                        </Container>
+                                </Router>
 			</UserContextProvider>
 		</ThemeProvider>
 	);
