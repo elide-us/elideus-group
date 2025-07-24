@@ -84,7 +84,10 @@ const AccountUserPanel = (): JSX.Element => {
             {profile && (
                 <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
                     <Typography variant='h5'>User Profile</Typography>
-                    <Avatar src={profile.profilePicture ?? undefined} sx={{ width: 80, height: 80 }} />
+                    <Avatar
+                        src={profile.profilePicture ? `data:image/png;base64,${profile.profilePicture}` : undefined}
+                        sx={{ width: 80, height: 80 }}
+                    />
                     <TextField
                         label='Display Name'
                         value={username}
