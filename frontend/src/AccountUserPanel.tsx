@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Divider, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar, TextField } from '@mui/material';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
-import type { AccountUserRoles1, AccountUserProfile1 } from './shared/RpcModels';
-import { fetchRoles, fetchSetRoles, fetchListRoles, fetchProfile, fetchSetCredits, fetchEnableStorage } from './rpc/account/users';
+import type { AccountUserRoles1, AccountUserProfile1, RoleItem } from './shared/RpcModels';
+import { fetchRoles, fetchSetRoles, fetchProfile, fetchSetCredits, fetchEnableStorage, fetchSetDisplayName } from './rpc/account/users';
+import { fetchList as fetchRoleList } from './rpc/account/roles';
 
 const AccountUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
     const [profile, setProfile] = useState<AccountUserProfile1 | null>(null);
+    const [username, setUsername] = useState<string>('');
+    const [roles, setRoles] = useState<RoleItem[]>([]);
     const [credits, setCredits] = useState<number>(0);
     const [storageEnabled, setStorageEnabled] = useState<boolean>(false);
     const [storageUsed, setStorageUsed] = useState<number>(0);
@@ -20,12 +23,14 @@ const AccountUserPanel = (): JSX.Element => {
         void (async () => {
             if (!guid) return;
             try {
-                const roles: AccountUserRoles1 = await fetchRoles({ userGuid: guid });
-                const all: AccountUserRoles1 = await fetchListRoles();
+                const userRoles: AccountUserRoles1 = await fetchRoles({ userGuid: guid });
+                const roleList = await fetchRoleList();
                 const prof: AccountUserProfile1 = await fetchProfile({ userGuid: guid });
-                setAssigned(roles.roles);
-                setAvailable(all.roles.filter(r => !roles.roles.includes(r)));
+                setRoles(roleList.roles);
+                setAssigned(userRoles.roles);
+                setAvailable(roleList.roles.map(r => r.name).filter(r => !userRoles.roles.includes(r)));
                 setProfile(prof);
+                setUsername(prof.username);
                 setCredits(prof.credits ?? 0);
                 setStorageEnabled(prof.storageEnabled ?? false);
                 setStorageUsed(prof.storageUsed ?? 0);
@@ -59,6 +64,13 @@ const AccountUserPanel = (): JSX.Element => {
         setStorageUsed(prof.storageUsed ?? 0);
     };
 
+    const handleNameCommit = async (): Promise<void> => {
+        if (!guid || !profile) return;
+        if (username === profile.username) return;
+        const updated = await fetchSetDisplayName({ userGuid: guid, displayName: username });
+        setProfile(updated);
+    };
+
     const handleSave = async (): Promise<void> => {
         if (!guid) return;
         await fetchSetRoles({ userGuid: guid, roles: assigned });
@@ -73,7 +85,13 @@ const AccountUserPanel = (): JSX.Element => {
                 <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
                     <Typography variant='h5'>User Profile</Typography>
                     <Avatar src={profile.profilePicture ?? undefined} sx={{ width: 80, height: 80 }} />
-                    <TextField label='Display Name' value={profile.username} InputProps={{ readOnly: true }} />
+                    <TextField
+                        label='Display Name'
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        onBlur={() => void handleNameCommit()}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void handleNameCommit(); } }}
+                    />
                     <Typography>Email: {profile.email}</Typography>
                     <TextField label='Credits' type='number' value={credits} onChange={e => setCredits(Number(e.target.value))} />
                     <Stack direction='row' spacing={1} alignItems='center'>
@@ -87,7 +105,7 @@ const AccountUserPanel = (): JSX.Element => {
                 <List sx={{ width: 200, border: 1 }}>
                     {available.map((r) => (
                         <ListItemButton key={r} selected={selectedLeft === r} onClick={() => setSelectedLeft(r)}>
-                            <ListItemText primary={r} />
+                            <ListItemText primary={roles.find(ro => ro.name === r)?.display ?? r} />
                         </ListItemButton>
                     ))}
                 </List>
@@ -98,7 +116,7 @@ const AccountUserPanel = (): JSX.Element => {
                 <List sx={{ width: 200, border: 1 }}>
                     {assigned.map((r) => (
                         <ListItemButton key={r} selected={selectedRight === r} onClick={() => setSelectedRight(r)}>
-                            <ListItemText primary={r} />
+                            <ListItemText primary={roles.find(ro => ro.name === r)?.display ?? r} />
                         </ListItemButton>
                     ))}
                 </List>

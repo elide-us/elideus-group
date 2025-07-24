@@ -29,8 +29,12 @@ export interface UserData {
   bearerToken: string;
 }
 export interface AccountUserCreditsUpdate1 {
-  userGuid: string;
-  credits: number;
+    userGuid: string;
+    credits: number;
+}
+export interface AccountUserDisplayNameUpdate1 {
+    userGuid: string;
+    displayName: string;
 }
 export interface AccountUserProfile1 {
   guid: string;

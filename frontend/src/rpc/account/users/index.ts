@@ -13,3 +13,4 @@ export const fetchListRoles = (payload: any = null): Promise<AccountUserRoles1> 
 export const fetchProfile = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:get_profile:1', payload);
 export const fetchSetCredits = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:set_credits:1', payload);
 export const fetchEnableStorage = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:enable_storage:1', payload);
+export const fetchSetDisplayName = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:set_display_name:1', payload);
