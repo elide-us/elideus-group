@@ -28,6 +28,7 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
+
 export interface ConfigItem {
   key: string;
   value: string;
@@ -93,6 +94,7 @@ export interface SystemRoutesList1 {
 export interface SystemUserCreditsUpdate1 {
   userGuid: string;
   credits: number;
+
 }
 export interface SystemUserProfile1 {
   guid: string;
