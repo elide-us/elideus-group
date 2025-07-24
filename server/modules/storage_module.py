@@ -80,3 +80,29 @@ class StorageModule(BaseModule):
     )
     logging.info("Initialized storage folder for %s", user_guid)
 
+  async def list_user_files(self, user_guid: str) -> list[dict[str, str | None]]:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    prefix = f"{user_guid}/"
+    files: list[dict[str, str | None]] = []
+    async for blob in self.client.list_blobs(name_starts_with=prefix):
+      name = getattr(blob, "name", getattr(blob, "get", lambda k: None)("name"))
+      if not name or name == f"{user_guid}/.init":
+        continue
+      short = name[len(prefix):]
+      ct = None
+      if hasattr(blob, "content_type"):
+        ct = blob.content_type
+      elif hasattr(blob, "content_settings"):
+        ct = getattr(blob.content_settings, "content_type", None)
+      url = f"{self.client.url}/{name}"
+      files.append({"name": short, "url": url, "content_type": ct})
+    return files
+
+  async def delete_user_file(self, user_guid: str, filename: str) -> None:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    name = f"{user_guid}/{filename}"
+    await self.client.delete_blob(name)
+    logging.info("Deleted blob %s", name)
+

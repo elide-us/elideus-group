@@ -22,13 +22,16 @@ export const iconMap: Record<string, ElementType> = {
     smartToy: SmartToyIcon,
     diamond: DiamondIcon,
     photoLibrary: PhotoLibraryIcon,
+    gallery: PhotoLibraryIcon,
     pets: PetsIcon,
     key: KeyIcon,
+    files: FolderIcon,
     menu: MenuIcon,
     users: PeopleOutlineIcon,
     roles: AssignmentIndIcon,
     config: PermDataSettingIcon,
     groups: GroupsIcon,
+    admin: PersonIcon,
     person: PersonIcon,
 };
 
