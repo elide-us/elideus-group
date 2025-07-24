@@ -3,6 +3,7 @@ from rpc.models import RPCRequest, RPCResponse
 from rpc.frontend.user.models import FrontendUserProfileData1, FrontendUserSetDisplayName1
 from server.modules.auth_module import AuthModule
 from server.modules.database_module import DatabaseModule, _utos
+from server.helpers.roles import mask_to_names
 from server.modules.storage_module import StorageModule
 
 async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
@@ -18,6 +19,8 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   user = await db.get_user_profile(guid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
+  mask = await db.get_user_roles(guid)
+  roles = mask_to_names(mask)
   payload = FrontendUserProfileData1(
     bearerToken=token,
     defaultProvider=user.get('provider_name', 'microsoft'),
@@ -29,6 +32,7 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     storageUsed=await storage.get_user_folder_size(guid),
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
+    roles=roles,
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )
@@ -47,6 +51,8 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   guid = token_data['guid']
   await db.update_display_name(guid, display_name)
   user = await db.get_user_profile(guid)
+  mask = await db.get_user_roles(guid)
+  roles = mask_to_names(mask)
   payload = FrontendUserProfileData1(
     bearerToken=token,
     defaultProvider=user.get('provider_name', 'microsoft'),
@@ -58,6 +64,7 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
     storageUsed=await storage.get_user_folder_size(guid),
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
+    roles=roles,
     rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
     rotationExpires=user.get('rotation_expires'),
   )

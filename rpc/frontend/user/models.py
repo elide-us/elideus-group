@@ -13,6 +13,7 @@ class FrontendUserProfileData1(BaseModel):
   storageUsed: Optional[int] = None
   storageEnabled: Optional[bool] = None
   displayEmail: bool = False
+  roles: list[str] = []
   rotationToken: Optional[str] = None
   rotationExpires: Optional[datetime] = None
 
