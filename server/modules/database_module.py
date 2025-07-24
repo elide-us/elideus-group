@@ -173,11 +173,22 @@ class DatabaseModule(BaseModule):
     return await self._fetch_many(query)
 
   async def set_role(self, name: str, mask: int, display: str):
-    query = (
-      "INSERT INTO roles(name, display, mask) VALUES($1, $2, $3) "
-      "ON CONFLICT(name) DO UPDATE SET display=excluded.display, mask=excluded.mask;"
-    )
-    await self._run(query, name, display, mask)
+    if not self.pool:
+      raise RuntimeError("Database pool not initialized")
+    async with self.pool.acquire() as conn:
+      result = await conn.execute(
+        "UPDATE roles SET display=$2, mask=$3 WHERE name=$1",
+        name,
+        display,
+        mask,
+      )
+      if result.startswith("UPDATE 0"):
+        await conn.execute(
+          "INSERT INTO roles(name, display, mask) VALUES($1, $2, $3)",
+          name,
+          display,
+          mask,
+        )
 
   async def delete_role(self, name: str):
     await self._run("DELETE FROM roles WHERE name=$1", name)
