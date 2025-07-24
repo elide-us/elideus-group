@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, TextField, IconButton, Typography } from '@mui/material';
+import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography } from '@mui/material';
 import { Delete, Add } from '@mui/icons-material';
 import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/config';
+import EditBox from './shared/EditBox';
+import Notification from './shared/Notification';
 
 const SystemConfigPage = (): JSX.Element => {
     const [items, setItems] = useState<ConfigItem[]>([]);
     const [newItem, setNewItem] = useState<ConfigItem>({ key: '', value: '' });
+    const [notification, setNotification] = useState(false);
+    const handleNotificationClose = (): void => { setNotification(false); };
 
     const load = async (): Promise<void> => {
         try {
@@ -24,11 +28,13 @@ const SystemConfigPage = (): JSX.Element => {
         (updated[index] as any)[field] = value;
         setItems(updated);
         await fetchSet(updated[index]);
+        setNotification(true);
     };
 
     const handleDelete = async (key: string): Promise<void> => {
         await fetchDelete({ key });
         void load();
+        setNotification(true);
     };
 
     const handleAdd = async (): Promise<void> => {
@@ -36,6 +42,7 @@ const SystemConfigPage = (): JSX.Element => {
         await fetchSet(newItem);
         setNewItem({ key: '', value: '' });
         void load();
+        setNotification(true);
     };
 
     return (
@@ -54,10 +61,10 @@ const SystemConfigPage = (): JSX.Element => {
                     {items.map((i, idx) => (
                         <TableRow key={i.key}>
                             <TableCell>
-                                <TextField value={i.key} onChange={e => updateItem(idx, 'key', e.target.value)} />
+                                <EditBox value={i.key} onCommit={val => updateItem(idx, 'key', String(val))} />
                             </TableCell>
                             <TableCell>
-                                <TextField value={i.value} onChange={e => updateItem(idx, 'value', e.target.value)} />
+                                <EditBox value={i.value} onCommit={val => updateItem(idx, 'value', String(val))} />
                             </TableCell>
                             <TableCell>
                                 <IconButton onClick={() => handleDelete(i.key)}><Delete /></IconButton>
@@ -77,6 +84,12 @@ const SystemConfigPage = (): JSX.Element => {
                     </TableRow>
                 </TableBody>
             </Table>
+            <Notification
+                open={notification}
+                handleClose={handleNotificationClose}
+                severity='success'
+                message='Saved'
+            />
         </Box>
     );
 };

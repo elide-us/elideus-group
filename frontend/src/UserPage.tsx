@@ -1,7 +1,9 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { Box, Typography, FormControlLabel, Switch, Avatar, TextField, Button, Stack, RadioGroup, Radio } from '@mui/material';
+import React, { useContext, useState, useEffect, useRef } from 'react';
+import { Box, Typography, FormControlLabel, Switch, Avatar, Button, Stack, RadioGroup, Radio } from '@mui/material';
 import UserContext from './shared/UserContext';
 import { fetchSetDisplayName } from './rpc/frontend/user';
+import EditBox, { EditBoxHandle } from './shared/EditBox';
+import Notification from './shared/Notification';
 import { fetchList as fetchRoleList } from './rpc/system/roles';
 import type { SystemRolesList1 } from './shared/RpcModels';
 
@@ -12,6 +14,10 @@ const UserPage = (): JSX.Element => {
     const [dirty, setDirty] = useState<boolean>(false);
     const [provider, setProvider] = useState<string>(userData?.defaultProvider ?? 'microsoft');
     const [roleMap, setRoleMap] = useState<Record<string, string>>({});
+    const [notification, setNotification] = useState(false);
+    const nameRef = useRef<EditBoxHandle>(null);
+
+    const handleNotificationClose = (): void => { setNotification(false); };
 
     useEffect(() => {
         void (async () => {
@@ -53,9 +59,11 @@ const UserPage = (): JSX.Element => {
 
     const handleApply = async (): Promise<void> => {
         if (!userData) return;
+        await nameRef.current?.commit();
         const updated = await fetchSetDisplayName({ bearerToken: userData.bearerToken, displayName });
         setUserData({ ...userData, username: updated.username, displayEmail });
         setDirty(false);
+        setNotification(true);
     };
 
     return (
@@ -74,16 +82,14 @@ const UserPage = (): JSX.Element => {
                         sx={{ width: 80, height: 80 }}
                     />
 
-                    <TextField
+                    <EditBox
+                        ref={nameRef}
                         label='Display Name'
                         value={displayName}
-                        onChange={handleNameChange}
+                        onCommit={val => { setDisplayName(String(val)); setDirty(true); }}
+                        manual
                         fullWidth
-                        slotProps={{
-                            input: {
-                                style: { textAlign: 'right' }
-                            }
-                        }}
+                        slotProps={{ input: { style: { textAlign: 'right' } } }}
                     />
 
                     <Typography>Credits: {userData.credits ?? 0}</Typography>
@@ -131,6 +137,12 @@ const UserPage = (): JSX.Element => {
                 )}
                 </Stack>
             </Box>
+            <Notification
+                open={notification}
+                handleClose={handleNotificationClose}
+                severity='success'
+                message='Saved'
+            />
         </Box>
     );
 };
