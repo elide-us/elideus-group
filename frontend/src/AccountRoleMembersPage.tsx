@@ -65,7 +65,7 @@ const AccountRoleMembersPage = (): JSX.Element => {
             <Stack spacing={2}>
             {roles.map((role) => (
                 <Stack key={role.name} spacing={2} direction='column' alignItems='center'>
-                    <Typography variant='h6'>{role.name}</Typography>
+                    <Typography variant='h6'>{role.display}</Typography>
                     <Stack direction='row' spacing={2}>
                         <List sx={{ width: 200, border: 1 }}>
                             {(nonMembers[role.name] || []).map(u => (
