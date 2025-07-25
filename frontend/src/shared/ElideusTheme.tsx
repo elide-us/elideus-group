@@ -54,7 +54,7 @@ const ElideusTheme: Theme = createTheme({
                                 {
                                         props: { variant: 'columnHeader' },
                                         style: {
-                                                fontSize: '0.75rem',
+                                                fontSize: '0.90rem',
                                                 fontWeight: 700,
                                                 fontFamily: 'Georgia, Times, "Times New Roman", serif',
                                                 fontVariant: 'small-caps'

@@ -21,6 +21,10 @@
 - Run npm lint, npm type-check, npm test for frontend tests
 - Run pytest for Python/FastAPI server tests (/tests folder)
 
+## React Styling
+- Use ElideusTheme to apply component styling with variants
+- Update theme.d.ts when appropriate
+
 ## Tech Stack
 This project uses the following technologies currently:
 - Node 18/React/TypeScript::Front end web app
