@@ -1,5 +1,6 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Box, Typography, FormControlLabel, Switch, Avatar, Button, Stack, RadioGroup, Radio } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import UserContext from './shared/UserContext';
 import { fetchSetDisplayName } from './rpc/frontend/user';
 import EditBox, { EditBoxHandle } from './shared/EditBox';
@@ -77,7 +78,7 @@ const UserPage = (): JSX.Element => {
                 spacing={2}
                 sx={{ mt: 2, display: 'flex', alignItems: 'flex-end', textAlign: 'right' }}
                 >
-                <Typography variant='h5' gutterBottom>User Profile</Typography>
+                <PageTitle title='User Profile' />
 
                 {userData && (
                     <Stack spacing={2} sx={{ mt: 2, alignItems: 'flex-end', width: '100%' }}>

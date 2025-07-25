@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, TextField } from '@mui/material';
+import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, TextField } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import { Delete, Add } from '@mui/icons-material';
 import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
 import { fetchList, fetchSet, fetchDelete } from './rpc/system/config';
@@ -47,8 +48,7 @@ const SystemConfigPage = (): JSX.Element => {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Typography variant='h5'>System Configuration</Typography>
-            <Divider sx={{ mb: 2 }} />
+            <PageTitle title='System Configuration' />
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>

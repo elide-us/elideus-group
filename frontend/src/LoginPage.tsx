@@ -1,5 +1,6 @@
 import { useContext, useState } from 'react';
 import { Container, Paper, Typography, Button, Stack } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import { useNavigate } from 'react-router-dom';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { msalConfig, loginRequest } from './config/msal';
@@ -65,11 +66,9 @@ const LoginPage = (): JSX.Element => {
 
 	return (
 		<Container component='main' maxWidth='xs'>
-			<Paper elevation={3} sx={{ marginTop: 8, padding: 4 }}>
-				<Typography component='h1' variant='h5' align='center'>
-					Sign in
-				</Typography>
-				<Typography variant='body2' align='center' sx={{ mt: 2 }}>
+                        <Paper elevation={3} sx={{ marginTop: 8, padding: 4 }}>
+                                <PageTitle title='Sign in' />
+                                <Typography variant='body2' align='center' sx={{ mt: 2 }}>
 					Only OAuth providers are supported. Please sign in using one of the following services:
 					<br />
 					Microsoft, Discord, Google, or Apple.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
 import { fetchList as fetchRoutes, fetchSet, fetchDelete } from './rpc/system/routes';
@@ -92,8 +93,7 @@ const SystemRoutesPage = (): JSX.Element => {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Typography variant='h5'>System Routes</Typography>
-            <Divider sx={{ mb: 2 }} />
+            <PageTitle title='System Routes' />
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
