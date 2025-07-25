@@ -5,14 +5,17 @@ import '@mui/material/Typography';
 declare module '@mui/material/styles' {
     interface TypographyVariants {
         pageTitle: CSSProperties;
+        columnHeader: CSSProperties;
     }
     interface TypographyVariantsOptions {
         pageTitle?: CSSProperties;
+        columnHeader?: CSSProperties;
     }
 }
 
 declare module '@mui/material/Typography' {
     interface TypographyPropsVariantOverrides {
         pageTitle: true;
+        columnHeader: true;
     }
 }

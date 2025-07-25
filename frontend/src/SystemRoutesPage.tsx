@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stack, List, ListItemButton, ListItemText } from '@mui/material';
+import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
@@ -97,11 +98,11 @@ const SystemRoutesPage = (): JSX.Element => {
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
-                        <TableCell>Path</TableCell>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Icon</TableCell>
-                        <TableCell>Sequence</TableCell>
-                        <TableCell>Roles</TableCell>
+                        <ColumnHeader title='Path' />
+                        <ColumnHeader title='Name' />
+                        <ColumnHeader title='Icon' />
+                        <ColumnHeader title='Sequence' />
+                        <ColumnHeader title='Roles' />
                         <TableCell />
                     </TableRow>
                 </TableHead>
