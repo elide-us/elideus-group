@@ -8,3 +8,4 @@ import { rpcCall, FrontendFilesList1 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:frontend:files:list:1', payload);
 export const fetchDelete = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:frontend:files:delete:1', payload);
+export const fetchUpload = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:frontend:files:upload:1', payload);

@@ -77,6 +77,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:frontend:files:upload:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:frontend:links:get_home:1",
       "capabilities": 0
     },

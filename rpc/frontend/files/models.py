@@ -12,3 +12,9 @@ class FrontendFilesList1(BaseModel):
 class FrontendFileDelete1(BaseModel):
   bearerToken: str
   filename: str
+
+class FrontendFileUpload1(BaseModel):
+  bearerToken: str
+  filename: str
+  dataUrl: str
+  contentType: str
