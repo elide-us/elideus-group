@@ -61,7 +61,7 @@ const FileManager = (): JSX.Element => {
     return (
         <Box sx={{ p: 2 }}>
             <PageTitle title='File Manager' />
-            <IconButton onClick={() => fileInput.current?.click()} sx={{ mb: 1 }}>
+            <IconButton onClick={() => fileInput.current?.click()} sx={{ mb: 1, borderRadius: '15px' }}>
                 <Add /> Upload
             </IconButton>
             <input
