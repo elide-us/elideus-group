@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@mui/material';
+import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Link as RouterLink } from 'react-router-dom';
 import type { UserListItem, SystemUsersList1 } from './shared/RpcModels';
@@ -25,8 +26,8 @@ const AccountUsersPage = (): JSX.Element => {
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
-                        <TableCell>Display Name</TableCell>
-                        <TableCell>Actions</TableCell>
+                        <ColumnHeader title='Display Name' />
+                        <ColumnHeader title='Actions' />
                     </TableRow>
                 </TableHead>
                 <TableBody>

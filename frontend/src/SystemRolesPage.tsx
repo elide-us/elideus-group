@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, TextField } from '@mui/material';
+import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add } from '@mui/icons-material';
 import type { RoleItem, SystemRolesList1 } from './shared/RpcModels';
@@ -55,9 +56,9 @@ const SystemRolesPage = (): JSX.Element => {
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
-                        <TableCell>Role</TableCell>
-                        <TableCell>Display</TableCell>
-                        <TableCell>Bit</TableCell>
+                        <ColumnHeader title='Role' />
+                        <ColumnHeader title='Display' />
+                        <ColumnHeader title='Bit' />
                         <TableCell />
                     </TableRow>
                 </TableHead>
