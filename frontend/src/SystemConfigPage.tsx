@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, TextField } from '@mui/material';
+import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add } from '@mui/icons-material';
 import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
@@ -52,8 +53,8 @@ const SystemConfigPage = (): JSX.Element => {
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
-                        <TableCell>Key</TableCell>
-                        <TableCell>Value</TableCell>
+                        <ColumnHeader title='Key' />
+                        <ColumnHeader title='Value' />
                         <TableCell />
                     </TableRow>
                 </TableHead>
