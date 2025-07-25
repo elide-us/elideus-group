@@ -2,7 +2,7 @@ import { Typography, Divider } from '@mui/material';
 
 export const PageTitle = ({ title }: { title: string }): JSX.Element => (
     <>
-        <Typography variant='h4'>{title}</Typography>
-        <Divider sx={{ mb: 2 }} />
+        <Typography variant='pageTitle'>{title}</Typography>
+        <Divider />
     </>
 );

@@ -24,24 +24,36 @@ const ElideusTheme: Theme = createTheme({
 				}
 			}
 		},
-		MuiLink: {
-			styleOverrides: {
-				root: {
-					display: 'block',
-					padding: '12px',
-					margin: '10px 0',
-					borderRadius: '5px',
-					transition: 'background 0.3s',
-					color: '#ffffff',
-					backgroundColor: '#111',
-					textDecoration: 'none',
-					'&:hover': {
-						backgroundColor: '#222'
-					}
-				}
-			}
-		}
-	}
+                MuiLink: {
+                        styleOverrides: {
+                                root: {
+                                        display: 'block',
+                                        padding: '12px',
+                                        margin: '10px 0',
+                                        borderRadius: '5px',
+                                        transition: 'background 0.3s',
+                                        color: '#ffffff',
+                                        backgroundColor: '#111',
+                                        textDecoration: 'none',
+                                        '&:hover': {
+                                                backgroundColor: '#222'
+                                        }
+                                }
+                        }
+                },
+                MuiTypography: {
+                        variants: [
+                                {
+                                        props: { variant: 'pageTitle' },
+                                        style: {
+                                                fontSize: '1.5rem',
+                                                fontWeight: 700,
+                                                marginBottom: '16px'
+                                        }
+                                }
+                        ]
+                }
+        }
 });
 
 export default ElideusTheme;
