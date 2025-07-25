@@ -31,6 +31,10 @@ async def _use_buffer():
   async with AsyncBufferWriter('url') as buf:
     return buf.read()
 
+async def _use_bytes():
+  async with AsyncBufferWriter(b'data') as buf:
+    return buf.read()
+
 
 def test_buffer_success(monkeypatch):
   monkeypatch.setattr(buffers.aiohttp, 'ClientSession', lambda: DummySession(DummyResp()))
@@ -42,4 +46,9 @@ def test_buffer_error(monkeypatch):
   monkeypatch.setattr(buffers.aiohttp, 'ClientSession', lambda: DummySession(DummyResp(status=500)))
   with pytest.raises(ValueError):
     asyncio.run(_use_buffer())
+
+
+def test_buffer_from_bytes():
+  data = asyncio.run(_use_bytes())
+  assert data == b'data'
 

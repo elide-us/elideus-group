@@ -35,13 +35,17 @@ class StorageModule(BaseModule):
     self.client = None
     logging.info("Storage module shutdown")
 
-  async def write_buffer(self, buffer: io.BytesIO, user_guid: str, filename: str):
+  async def write_buffer(self, buffer: io.BytesIO, user_guid: str, filename: str, content_type: str | None = None):
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     safe = filename.replace(" ", "_")
     buffer.seek(0)
     blob_name = f"{user_guid}/{safe}"
-    await self.client.upload_blob(data=buffer, name=blob_name, overwrite=True)
+    kwargs = {"data": buffer, "name": blob_name, "overwrite": True}
+    if content_type:
+      from azure.storage.blob import ContentSettings
+      kwargs["content_settings"] = ContentSettings(content_type=content_type)
+    await self.client.upload_blob(**kwargs)
     logging.info("Uploaded blob %s", blob_name)
 
   async def user_folder_exists(self, user_guid: str) -> bool:
