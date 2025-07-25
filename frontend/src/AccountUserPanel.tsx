@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Divider, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar } from '@mui/material';
+import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
 import type { AccountUserRoles1, AccountUserProfile1, RoleItem } from './shared/RpcModels';
 import { fetchRoles, fetchSetRoles, fetchProfile, fetchSetCredits, fetchEnableStorage, fetchSetDisplayName } from './rpc/account/users';
@@ -85,11 +86,10 @@ const AccountUserPanel = (): JSX.Element => {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 2, p: 2 }}>
-            <Typography variant='h5'>User Management</Typography>
-            <Divider sx={{ mb: 2 }} />
+            <PageTitle title='User Management' />
             {profile && (
                 <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
-                    <Typography variant='h5'>User Profile</Typography>
+                    <PageTitle title='User Profile' />
                     <Avatar
                         src={profile.profilePicture ? `data:image/png;base64,${profile.profilePicture}` : undefined}
                         sx={{ width: 80, height: 80 }}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Button, Typography } from '@mui/material';
+import { Box, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@mui/material';
+import { PageTitle } from './shared/PageTitle';
 import { Link as RouterLink } from 'react-router-dom';
 import type { UserListItem, SystemUsersList1 } from './shared/RpcModels';
 import { fetchList } from './rpc/system/users';
@@ -20,8 +21,7 @@ const AccountUsersPage = (): JSX.Element => {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Typography variant='h5'>User Accounts</Typography>
-            <Divider sx={{ mb: 2 }} />
+            <PageTitle title='User Accounts' />
             <Table size='small' sx={{ '& td, & th': { py: 0.5 } }}>
                 <TableHead>
                     <TableRow>
