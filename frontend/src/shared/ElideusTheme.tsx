@@ -41,6 +41,16 @@ const ElideusTheme: Theme = createTheme({
                                 }
                         }
                 },
+                MuiTextField: {
+                        styleOverrides: {
+                                root: {
+                                        margin: '8px',
+                                        '& .MuiInputBase-input': {
+                                                padding: '8px'
+                                        }
+                                }
+                        }
+                },
                 MuiTypography: {
                         variants: [
                                 {
