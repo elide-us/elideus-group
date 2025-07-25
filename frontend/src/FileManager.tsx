@@ -5,7 +5,7 @@ import { Delete, ContentCopy, Link as LinkIcon, Add } from '@mui/icons-material'
 import EditBox from './shared/EditBox';
 import PaginationControls from './shared/PaginationControls';
 import { PageTitle } from './shared/PageTitle';
-import { fetchList, fetchDelete, fetchUpload } from './rpc/frontend/files';
+import { fetchList, fetchDelete, fetchUpload } from './rpc/storage/files';
 import UserContext from './shared/UserContext';
 import type { FileItem, FrontendFilesList1 } from './shared/RpcModels';
 

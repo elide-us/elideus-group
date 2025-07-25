@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import axios from 'axios';
 import { fetchVersion, fetchHostname, fetchRepo, fetchFfmpegVersion } from '../src/rpc/frontend/vars';
 import { fetchHome, fetchRoutes } from '../src/rpc/frontend/links';
-import { fetchList as fetchFileList, fetchDelete as fetchFileDelete, fetchUpload as fetchFileUpload } from '../src/rpc/frontend/files';
+import { fetchList as fetchFileList, fetchDelete as fetchFileDelete, fetchUpload as fetchFileUpload } from '../src/rpc/storage/files';
 import { fetchList as fetchUsers, fetchProfile } from '../src/rpc/system/users';
 import { fetchList as fetchConfigList, fetchSet as fetchConfigSet, fetchDelete as fetchConfigDelete } from '../src/rpc/system/config';
 
@@ -90,18 +90,18 @@ describe('rpcClient', () => {
     it('fetchFileList posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { files: [] } } });
         await fetchFileList();
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:frontend:files:list:1' }), expect.anything());
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:storage:files:list:1' }), expect.anything());
     });
 
     it('fetchFileDelete posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { files: [] } } });
         await fetchFileDelete({ filename: 'a' });
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:frontend:files:delete:1' }), expect.anything());
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:storage:files:delete:1' }), expect.anything());
     });
 
     it('fetchFileUpload posts correct request', async () => {
         mockedPost.mockResolvedValueOnce({ data: { payload: { files: [] } } });
         await fetchFileUpload({ filename: 'f', dataUrl: 'd', contentType: 'image/png' });
-        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:frontend:files:upload:1' }), expect.anything());
+        expect(mockedPost).toHaveBeenCalledWith('/rpc', expect.objectContaining({ op: 'urn:storage:files:upload:1' }), expect.anything());
     });
 });

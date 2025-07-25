@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
-from rpc.frontend.files import services
+from rpc.storage.files import services
 
 async def handle_files_request(parts: list[str], rpc_request: RPCRequest, request: Request) -> RPCResponse:
   match parts:

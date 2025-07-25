@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
-from rpc.frontend.files.models import FrontendFilesList1, FileItem, FrontendFileDelete1, FrontendFileUpload1
+from rpc.storage.files.models import FrontendFilesList1, FileItem, FrontendFileDelete1, FrontendFileUpload1
 from server.helpers.buffers import AsyncBufferWriter
 import base64, re
 from server.modules.auth_module import AuthModule
@@ -18,7 +18,7 @@ async def list_files_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   files = await storage.list_user_files(guid)
   items = [FileItem(name=f['name'], url=f['url'], contentType=f.get('content_type')) for f in files]
   payload = FrontendFilesList1(files=items)
-  return RPCResponse(op='urn:frontend:files:list:1', payload=payload, version=1)
+  return RPCResponse(op='urn:storage:files:list:1', payload=payload, version=1)
 
 async def delete_file_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
@@ -34,7 +34,7 @@ async def delete_file_v1(rpc_request: RPCRequest, request: Request) -> RPCRespon
   files = await storage.list_user_files(guid)
   items = [FileItem(name=f['name'], url=f['url'], contentType=f.get('content_type')) for f in files]
   payload = FrontendFilesList1(files=items)
-  return RPCResponse(op='urn:frontend:files:delete:1', payload=payload, version=1)
+  return RPCResponse(op='urn:storage:files:delete:1', payload=payload, version=1)
 
 async def upload_file_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   data = FrontendFileUpload1(**(rpc_request.payload or {}))
@@ -53,4 +53,4 @@ async def upload_file_v1(rpc_request: RPCRequest, request: Request) -> RPCRespon
   files = await storage.list_user_files(guid)
   items = [FileItem(name=f['name'], url=f['url'], contentType=f.get('content_type')) for f in files]
   payload = FrontendFilesList1(files=items)
-  return RPCResponse(op='urn:frontend:files:upload:1', payload=payload, version=1)
+  return RPCResponse(op='urn:storage:files:upload:1', payload=payload, version=1)
