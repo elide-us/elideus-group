@@ -322,27 +322,27 @@ class DatabaseModule(BaseModule):
 
   async def create_user_session(self, user_guid: str, bearer: str, rotation: str, expires: datetime) -> str:
     session_id = _utos(uuid4())
-    await self._run("DELETE FROM user_sessions WHERE user_guid=$1", user_guid)
+    await self._run("DELETE FROM users_sessions WHERE user_guid=$1", user_guid)
     query = (
-      "INSERT INTO user_sessions(session_id, user_guid, bearer_token, rotation_token, created_at, expires_at) "
+      "INSERT INTO users_sessions(session_id, user_guid, bearer_token, rotation_token, created_at, expires_at) "
       "VALUES($1, $2, $3, $4, NOW(), $5);"
     )
     await self._run(query, session_id, user_guid, bearer, rotation, expires)
     return session_id
 
   async def get_session_by_rotation(self, rotation_token: str):
-    query = "SELECT * FROM user_sessions WHERE rotation_token=$1;"
+    query = "SELECT * FROM users_sessions WHERE rotation_token=$1;"
     return await self._fetch_one(query, rotation_token)
 
   async def update_session_tokens(self, session_id: str, bearer: str, rotation: str, expires: datetime):
     query = (
-      "UPDATE user_sessions SET bearer_token=$2, rotation_token=$3, expires_at=$4 "
+      "UPDATE users_sessions SET bearer_token=$2, rotation_token=$3, expires_at=$4 "
       "WHERE session_id=$1;"
     )
     await self._run(query, session_id, bearer, rotation, expires)
 
   async def delete_session(self, session_id: str):
-    await self._run("DELETE FROM user_sessions WHERE session_id=$1", session_id)
+    await self._run("DELETE FROM users_sessions WHERE session_id=$1", session_id)
 
   async def get_user_profile_image(self, guid: str) -> str | None:
     query = "SELECT image_b64 FROM users_profileimg WHERE user_guid=$1;"
