@@ -1,7 +1,7 @@
 import asyncio
 from fastapi import FastAPI, Request
 from rpc.models import RPCRequest
-from rpc.frontend.files import services
+from rpc.storage.files import services
 
 class DummyAuth:
   async def decode_bearer_token(self, token):
@@ -27,7 +27,7 @@ def test_list_files_v1():
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc = RPCRequest(op='op', payload={'bearerToken': 'uid'})
   resp = asyncio.run(services.list_files_v1(rpc, req))
-  assert resp.op == 'urn:frontend:files:list:1'
+  assert resp.op == 'urn:storage:files:list:1'
   assert len(resp.payload.files) == 1
   assert resp.payload.files[0].name == 'f.txt'
 
@@ -39,7 +39,7 @@ def test_delete_file_v1():
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc = RPCRequest(op='op', payload={'bearerToken': 'uid', 'filename': 'f.txt'})
   resp = asyncio.run(services.delete_file_v1(rpc, req))
-  assert resp.op == 'urn:frontend:files:delete:1'
+  assert resp.op == 'urn:storage:files:delete:1'
   assert len(resp.payload.files) == 0
 
 
@@ -56,6 +56,6 @@ def test_upload_file_v1():
   }
   rpc = RPCRequest(op='op', payload=payload)
   resp = asyncio.run(services.upload_file_v1(rpc, req))
-  assert resp.op == 'urn:frontend:files:upload:1'
+  assert resp.op == 'urn:storage:files:upload:1'
   assert any(f.name == 'img.png' for f in resp.payload.files)
   assert app.state.storage.written[2] == 'image/png'

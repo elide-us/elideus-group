@@ -4,6 +4,7 @@ from rpc.system.handler import handle_system_request
 from rpc.account.handler import handle_account_request
 from rpc.auth.handler import handle_auth_request
 from rpc.frontend.handler import handle_frontend_request
+from rpc.storage.handler import handle_storage_request
 from rpc.models import RPCRequest, RPCResponse
 from rpc.suffix import split_suffix, apply_suffixes
 from server.modules.auth_module import AuthModule
@@ -59,6 +60,8 @@ async def handle_rpc_request(rpc_request: RPCRequest, request: Request) -> RPCRe
         response = await handle_auth_request(base_parts, rpc_request, request)
       case "frontend":
         response = await handle_frontend_request(base_parts, rpc_request, request)
+      case "storage":
+        response = await handle_storage_request(base_parts, rpc_request, request)
       case _:
         raise HTTPException(status_code=404, detail="Unknown RPC domain")
     response = apply_suffixes(response, suffixes, rpc_request.op)
