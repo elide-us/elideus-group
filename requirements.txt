@@ -8,6 +8,7 @@ lumaai
 azure-storage-blob
 aiofiles
 aiohttp
+aioodbc
 python-dotenv
 asyncpg
 python-jose
