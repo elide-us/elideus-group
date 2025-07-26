@@ -18,7 +18,6 @@ async def refresh_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   guid = data['guid']
   bearer = auth.make_bearer_token(guid)
   new_rotation, exp = auth.make_rotation_token(guid)
-  await db.set_user_rotation_token(guid, new_rotation, exp)
   await db.update_session_tokens(session['session_id'], bearer, new_rotation, exp)
   payload = AuthSessionTokens1(bearerToken=bearer, rotationToken=new_rotation, rotationExpires=exp)
   return RPCResponse(op='urn:auth:session:refresh:1', payload=payload, version=1)

@@ -147,8 +147,8 @@ class DatabaseModule(BaseModule):
         u.display_name,
         u.email,
         u.display_email,
-        u.rotation_token,
-        u.rotation_expires,
+        us.rotation_token,
+        us.expires_at AS rotation_expires,
         COALESCE(uc.credits, 0) AS credits,
         ap.name AS provider_name,
         upi.image_b64 AS profile_image
@@ -157,6 +157,7 @@ class DatabaseModule(BaseModule):
       LEFT JOIN users_auth ua ON ua.user_guid = u.guid
       LEFT JOIN auth_provider ap ON ap.id = ua.provider_id
       LEFT JOIN users_profileimg upi ON upi.user_guid = u.guid
+      LEFT JOIN users_sessions us ON us.user_guid = u.guid
       WHERE u.guid = $1
       LIMIT 1;
     """
@@ -317,8 +318,11 @@ class DatabaseModule(BaseModule):
     await self._run(query, guid, credits)
 
   async def set_user_rotation_token(self, guid: str, token: str, expires: datetime):
-    query = "UPDATE users SET rotation_token=$1, rotation_expires=$2 WHERE guid=$3;"
-    await self._run(query, token, expires, guid)
+    query = (
+      "UPDATE users_sessions SET rotation_token=$2, expires_at=$3 "
+      "WHERE user_guid=$1;"
+    )
+    await self._run(query, guid, token, expires)
 
   async def create_user_session(self, user_guid: str, bearer: str, rotation: str, expires: datetime) -> str:
     session_id = _utos(uuid4())

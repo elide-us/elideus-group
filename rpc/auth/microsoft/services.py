@@ -34,7 +34,6 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
 
   token = auth.make_bearer_token(_utos(user["guid"]))
   rotation_token, rotation_exp = auth.make_rotation_token(_utos(user["guid"]))
-  await db.set_user_rotation_token(_utos(user["guid"]), rotation_token, rotation_exp)
   await db.create_user_session(_utos(user["guid"]), token, rotation_token, rotation_exp)
 
   discord = getattr(request.app.state, 'discord', None)
