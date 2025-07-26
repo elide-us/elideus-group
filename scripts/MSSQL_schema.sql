@@ -10,11 +10,11 @@ CREATE TABLE frontend_links (
 CREATE TABLE frontend_routes (
     recid INT IDENTITY(1,1) PRIMARY KEY,
     element_enablement NVARCHAR(1) NOT NULL DEFAULT '0',
-    required_roles BIGINT NOT NULL DEFAULT 0,
+    element_roles BIGINT NOT NULL DEFAULT 0,
     element_sequence INT NOT NULL DEFAULT 0,
-    element_path NVARCHAR(MAX) NOT NULL,
-    element_name NVARCHAR(MAX) NOT NULL,
-    element_icon NVARCHAR(MAX) NULL
+    element_path NVARCHAR(512) NOT NULL,
+    element_name NVARCHAR(256) NOT NULL,
+    element_icon NVARCHAR(256) NULL
 );
 
 -- System configuration table
@@ -40,18 +40,28 @@ CREATE TABLE account_users (
     element_rotkey_exp DATETIMEOFFSET NOT NULL,
     element_email NVARCHAR(1024) NOT NULL,
     element_display NVARCHAR(1024) NOT NULL,
-    element_auth_provider INT NULL,
+    providers_recid INT NULL,
     element_optin BIT NULL DEFAULT 0,
-    FOREIGN KEY (element_auth_provider) REFERENCES auth_providers(recid)
+    FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid)
 );
 
 -- Contains the profile image in base64 supplied by the OAuth provider
 CREATE TABLE users_profileimg (
     users_guid UNIQUEIDENTIFIER PRIMARY KEY,
     element_base64 NVARCHAR(MAX) NOT NULL,
-    element_provider INT NOT NULL,
+    providers_recid INT NOT NULL,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
-    FOREIGN KEY (element_provider) REFERENCES auth_providers(recid)
+    FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid)
+);
+
+-- Contains the unique identifiers supplied by the OAuth provider
+CREATE TABLE users_auth (
+    recid INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    users_guid UNIQUEIDENTIFIER NOT NULL,
+    providers_recid INT NOT NULL,
+    element_identifier NVARCHAR(MAX) NOT NULL,
+    FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid),
+    FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
 
 -- This is the roles table, it has both the deprecated bit mask style and the new enablement mask style security
@@ -85,15 +95,6 @@ CREATE TABLE users_enablements (
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
 
--- Contains the unique identifiers supplied by the OAuth provider
-CREATE TABLE users_auth (
-    recid INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    users_guid UNIQUEIDENTIFIER NOT NULL,
-    element_provider INT NOT NULL,
-    element_identifier NVARCHAR(MAX) NOT NULL,
-    FOREIGN KEY (element_provider) REFERENCES auth_providers(recid)
-);
-
 -- Tracks active sessions and devices and manages the access tokens for users
 CREATE TABLE users_sessions (
     element_guid UNIQUEIDENTIFIER PRIMARY KEY,
@@ -112,5 +113,6 @@ CREATE TABLE users_apitokens (
     element_token NVARCHAR(MAX) NOT NULL,
     element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     element_token_exp DATETIMEOFFSET NOT NULL,
-    FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
+    FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
+    UNIQUE (users_guid, element_guid)
 );
