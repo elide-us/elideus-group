@@ -45,6 +45,7 @@ Available commands:
   schema dump [name]                 Dump DB schema to <name>_YYYYMMDD.json
   schema apply <file>                Apply schema JSON to the database
   dump data [name]                   Dump DB schema and rows to <name>_YYYYMMDD.json
+  dump mssql [name]                  Dump data formatted for MSSQL import
   update version major               Increment the major version
   update version minor               Increment the minor version
   update version patch               Increment the patch version
@@ -96,6 +97,10 @@ async def interactive_console(conn):
         await db.dump_data(conn)
       case ['dump', 'data', name]:
         await db.dump_data(conn, name)
+      case ['dump', 'mssql']:
+        await db.dump_mssql(conn)
+      case ['dump', 'mssql', name]:
+        await db.dump_mssql(conn, name)
       case ['update', 'version', part] if part in {'major', 'minor', 'patch'}:
         cur = await conn.fetchval("SELECT value FROM config WHERE key='Version'")
         if not cur:

@@ -149,6 +149,53 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
   print(f'Data dumped to {filename}')
   return filename
 
+_PG_TO_MSSQL = {
+  'integer': 'INT',
+  'bigint': 'BIGINT',
+  'boolean': 'BIT',
+  'text': 'NVARCHAR(MAX)',
+  'uuid': 'UNIQUEIDENTIFIER',
+  'timestamp with time zone': 'DATETIMEOFFSET',
+  'timestamp without time zone': 'DATETIME',
+}
+
+def _convert_column(col: dict) -> dict:
+  typ = col['type'].lower()
+  default = col['default']
+  mapped = _PG_TO_MSSQL.get(typ, typ.upper())
+  if default and isinstance(default, str) and default.startswith('nextval('):
+    mapped += ' IDENTITY(1,1)'
+    default = None
+  return {
+    'name': col['name'],
+    'type': mapped,
+    'nullable': col['nullable'],
+    'default': default,
+  }
+
+async def dump_mssql(conn, prefix: str = 'dump_mssql') -> str:
+  schema_pg = await get_schema(conn)
+  schema: dict[str, list[dict]] = {'tables': []}
+  for tbl in schema_pg['tables']:
+    converted_cols = [_convert_column(c) for c in tbl['columns']]
+    schema['tables'].append({
+      'name': tbl['name'],
+      'columns': converted_cols,
+      'primary_key': tbl['primary_key'],
+      'foreign_keys': tbl['foreign_keys'],
+    })
+  data: dict[str, list[dict]] = {}
+  for tbl in schema_pg['tables']:
+    name = tbl['name']
+    rows = await conn.fetch(f"SELECT * FROM {name}")
+    data[name] = [dict(r) for r in rows]
+  ts = datetime.now(timezone.utc).strftime('%Y%m%d_BACKUP')
+  filename = f"{prefix}_{ts}.json"
+  with open(filename, 'w') as f:
+    json.dump({'schema': schema, 'data': data}, f, indent=2, default=str)
+  print(f'Data dumped to {filename}')
+  return filename
+
 async def apply_schema(conn, path: str):
   with open(path, 'r') as f:
     schema = json.load(f)
