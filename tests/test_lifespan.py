@@ -2,6 +2,7 @@ import asyncio
 from fastapi import FastAPI
 import server.modules.discord_module as discord_mod
 import server.modules.database_module as db_mod
+import server.modules.mssql_module as mssql_mod
 import server.modules.auth_module as auth_mod
 import server.modules.storage_module as storage_mod
 from server.modules.discord_module import DiscordModule
@@ -22,6 +23,7 @@ def test_lifespan_initializes_modules(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("JWT_SECRET", "jwt")
   monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
+  monkeypatch.setenv("AZURE_SQL_CONNECTION_STRING", "sql://cs")
   monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
 
   monkeypatch.setattr(discord_mod, "configure_discord_logging", lambda m: None)
@@ -44,6 +46,10 @@ def test_lifespan_initializes_modules(monkeypatch):
   async def fake_pool(**kwargs):
     return "pool"
   monkeypatch.setattr(db_mod.asyncpg, "create_pool", fake_pool)
+
+  async def fake_mssql_pool(**kwargs):
+    return "mssql_pool"
+  monkeypatch.setattr(mssql_mod.aioodbc, "create_pool", fake_mssql_pool)
 
   async def fake_list_roles(self):
     return []
@@ -72,6 +78,7 @@ def test_lifespan_initializes_modules(monkeypatch):
       assert app.state.env is not None
       assert app.state.discord is not None
       assert app.state.database is not None
+      assert app.state.mssql is not None
       assert app.state.auth is not None
 
   asyncio.run(run())
