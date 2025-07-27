@@ -54,7 +54,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
         rows = await cur.fetchall()
         cols = [d[0] for d in cur.description]
         result = [
@@ -68,7 +71,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
         row = await cur.fetchone()
         if not row:
           return None
@@ -81,7 +87,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
 
   async def select_user(self, provider: str, provider_user_id: str):
     logging.debug(
