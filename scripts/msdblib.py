@@ -31,6 +31,43 @@ async def list_indexes(conn, table):
     rows = await cur.fetchall()
   return [{'indexname': r[0], 'indexdef': r[1]} for r in rows]
 
+async def list_keys(conn, table):
+  async with conn.cursor() as cur:
+    await cur.execute(
+      """SELECT k.CONSTRAINT_NAME, k.COLUMN_NAME, tc.CONSTRAINT_TYPE
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+         JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+           ON k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+         WHERE k.TABLE_NAME=?""",
+      (table,),
+    )
+    rows = await cur.fetchall()
+  return [
+    {
+      'constraint_name': r[0],
+      'column_name': r[1],
+      'constraint_type': r[2],
+    }
+    for r in rows
+  ]
+
+async def list_constraints(conn, table):
+  async with conn.cursor() as cur:
+    await cur.execute(
+      """SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE
+         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+         WHERE TABLE_NAME=?""",
+      (table,),
+    )
+    rows = await cur.fetchall()
+  return [
+    {
+      'constraint_name': r[0],
+      'constraint_type': r[1],
+    }
+    for r in rows
+  ]
+
 async def _table_schema(conn, table: str):
   async with conn.cursor() as cur:
     await cur.execute(

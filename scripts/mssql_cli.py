@@ -42,6 +42,8 @@ Available commands:
   list tables                        List all tables
   list columns <table>               List columns of a table
   list indexes <table>               List indexes on a table
+  list keys <table>                  List key columns and constraint types
+  list constraints <table>           List constraints on a table
   index all                          Reindex the current database
   schema dump [name]                 Dump DB schema to <name>_YYYYMMDD.json
   schema apply <file>                Apply schema JSON to the database
@@ -81,6 +83,14 @@ async def interactive_console(conn):
         rows = await db.list_indexes(conn, table)
         for r in rows:
           print(f"{r['indexname']} ({r['indexdef']})")
+      case ['list', 'keys', table]:
+        rows = await db.list_keys(conn, table)
+        for r in rows:
+          print(f"{r['column_name']} -> {r['constraint_name']} ({r['constraint_type']})")
+      case ['list', 'constraints', table]:
+        rows = await db.list_constraints(conn, table)
+        for r in rows:
+          print(f"{r['constraint_name']} ({r['constraint_type']})")
       case ['index', 'all']:
         try:
           async with conn.cursor() as cur:
