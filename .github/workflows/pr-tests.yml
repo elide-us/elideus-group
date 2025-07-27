@@ -10,6 +10,7 @@ jobs:
 
     env:
       POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
+      AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
 
     steps:
     - uses: actions/checkout@v2
