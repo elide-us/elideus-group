@@ -36,7 +36,15 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 FROM python:3.12
 
-RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
+# RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
+
+# Add Microsoft SQL Server ODBC repo and install minimal runtime deps
+RUN apt-get update && apt-get install -y curl gnupg apt-transport-https \
+ && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
+ && curl https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+ && apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc libodbc2 ffmpeg \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy only what we need from builder & runtime deps from tester
