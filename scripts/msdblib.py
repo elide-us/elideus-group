@@ -17,8 +17,8 @@ async def list_columns(conn, table):
     await cur.execute(
       """SELECT COLUMN_NAME AS column_name, DATA_TYPE AS data_type,
                 CHARACTER_MAXIMUM_LENGTH AS max_length
-         FROM INFORMATION_SCHEMA.COLUMNS
-         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH""",
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
       (table,),
     )
     row = await cur.fetchone()
@@ -69,8 +69,8 @@ async def _table_schema(conn, table: str):
                 CHARACTER_MAXIMUM_LENGTH AS length,
                 IS_NULLABLE AS nullable,
                 COLUMN_DEFAULT AS [default]
-         FROM INFORMATION_SCHEMA.COLUMNS
-         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH""",
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
       (table,),
     )
     row = await cur.fetchone()
