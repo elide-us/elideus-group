@@ -39,6 +39,15 @@ jobs:
       run: |
         cd frontend
         npm ci
+    
+    - name: Install MSSQL ODBC Driver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl gnupg2 apt-transport-https ca-certificates unixodbc libodbc2
+        curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft-prod.gpg > /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+        sudo apt-get update
+        sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
     - name: Run tests
       run: python scripts/run_tests.py
