@@ -252,11 +252,8 @@ class MSSQLModule(BaseModule):
 
   async def select_links(self, role_mask: int = 0):
     logging.debug("select_links role_mask=%s", role_mask)
-    query = (
-      "SELECT * FROM frontend_links "
-      "WHERE element_roles = 0 OR (element_roles & ?) = element_roles;"
-    )
-    result = await self._fetch_many(query, role_mask)
+    query = "SELECT * FROM frontend_links ORDER BY element_sequence;"
+    result = await self._fetch_many(query)
     if result:
       titles = ", ".join(link.get("element_title", "Untitled") for link in result)
       logging.info(
