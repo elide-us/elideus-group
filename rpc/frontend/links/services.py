@@ -42,7 +42,9 @@ async def get_home_v2(request: Request) -> RPCResponse:
   role_mask = getattr(request.state, 'role_mask', 0)
   data = await db.select_links(role_mask)
   data = permcap.filter_routes(data, role_mask)
-  links = [LinkItem(title=row["title"], url=row["url"]) for row in data]
+  links = [
+    LinkItem(title=row["element_title"], url=row["element_url"]) for row in data
+  ]
 
   payload = FrontendLinksHome2(links=links)
   return RPCResponse(op="urn:frontend:links:home:2", payload=payload, version=2)
@@ -53,7 +55,14 @@ async def get_routes_v2(request: Request) -> RPCResponse:
   role_mask = getattr(request.state, 'role_mask', 0)
   data = await db.select_routes(role_mask)
   data = permcap.filter_routes(data, role_mask)
-  routes = [RouteItem(path=row['path'], name=row['name'], icon=row['icon']) for row in data]
+  routes = [
+    RouteItem(
+      path=row['element_path'],
+      name=row['element_name'],
+      icon=row['element_icon']
+    )
+    for row in data
+  ]
 
   payload = FrontendLinksRoutes2(routes=routes)
   return RPCResponse(op="urn:frontend:links:routes:2", payload=payload, version=2)

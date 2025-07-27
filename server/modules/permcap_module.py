@@ -30,7 +30,7 @@ class PermCapModule(BaseModule):
   def filter_routes(self, routes: list[dict], role_mask: int) -> list[dict]:
     allowed: list[dict] = []
     for r in routes:
-      req_mask = r.get('required_roles') or 0
+      req_mask = r.get('required_roles') or r.get('element_roles') or 0
       if req_mask == 0 or req_mask & role_mask == req_mask:
         allowed.append(r)
     return allowed
