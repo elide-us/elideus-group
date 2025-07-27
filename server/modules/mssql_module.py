@@ -54,7 +54,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
         rows = await cur.fetchall()
         cols = [d[0] for d in cur.description]
         result = [
@@ -68,7 +71,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
         row = await cur.fetchone()
         if not row:
           return None
@@ -81,7 +87,10 @@ class MSSQLModule(BaseModule):
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
       async with conn.cursor() as cur:
-        await cur.execute(query, args or None)
+        if args:
+          await cur.execute(query, args)
+        else:
+          await cur.execute(query)
 
   async def select_user(self, provider: str, provider_user_id: str):
     logging.debug(
@@ -252,11 +261,8 @@ class MSSQLModule(BaseModule):
 
   async def select_links(self, role_mask: int = 0):
     logging.debug("select_links role_mask=%s", role_mask)
-    query = (
-      "SELECT * FROM frontend_links "
-      "WHERE element_roles = 0 OR (element_roles & ?) = element_roles;"
-    )
-    result = await self._fetch_many(query, role_mask)
+    query = "SELECT * FROM frontend_links ORDER BY element_sequence;"
+    result = await self._fetch_many(query)
     if result:
       titles = ", ".join(link.get("element_title", "Untitled") for link in result)
       logging.info(

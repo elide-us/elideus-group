@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react';
 import type { LinkItem } from './shared/RpcModels';
 import Logo from './assets/elideus_group_green.png';
 import {
-	fetchHostname,
-	fetchVersion,
-	fetchRepo,
-	fetchFfmpegVersion,
+        fetchHostname2 as fetchHostname,
+        fetchVersion2 as fetchVersion,
+        fetchRepo2 as fetchRepo,
+        fetchFfmpegVersion,
 } from './rpc/frontend/vars';
-import { fetchHome } from './rpc/frontend/links';
+import { fetchHome2 as fetchHome } from './rpc/frontend/links';
 
 const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');
