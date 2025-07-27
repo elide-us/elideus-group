@@ -38,13 +38,19 @@ FROM python:3.12
 
 # RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
 
-# Add Microsoft SQL Server ODBC repo and install minimal runtime deps
-RUN apt-get update && apt-get install -y curl gnupg2 apt-transport-https ca-certificates \
- && curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg \
- && curl -sSL https://packages.microsoft.com/config/debian/12/prod.list -o /etc/apt/sources.list.d/mssql-release.list \
- && apt-get update \
+# Install FOSS prereqs
+RUN apt-get update && apt-get install -y curl gnupg2 ca-certificates apt-transport-https
+
+# Register Microsoft repo the 2025-safe way:
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+      > /etc/apt/sources.list.d/mssql-release.list
+
+# Now install
+RUN apt-get update \
  && ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc libodbc2 ffmpeg \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy only what we need from builder & runtime deps from tester
