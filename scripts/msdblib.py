@@ -99,6 +99,9 @@ async def _table_schema(conn, table: str):
     )
     row = await cur.fetchone()
     fks = json.loads(row[0]) if row else []
+  indexes = await list_indexes(conn, table)
+  keys = await list_keys(conn, table)
+  constraints = await list_constraints(conn, table)
   return {
     'name': table,
     'columns': [
@@ -120,6 +123,9 @@ async def _table_schema(conn, table: str):
       }
       for fk in fks
     ],
+    'indexes': indexes,
+    'keys': keys,
+    'constraints': constraints,
   }
 
 async def get_schema(conn):
