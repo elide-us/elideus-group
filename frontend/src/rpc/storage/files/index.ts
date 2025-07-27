@@ -4,8 +4,8 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, FrontendFilesList1 } from '../../../shared/RpcModels';
+import { rpcCall, StorageFilesList1 } from '../../../shared/RpcModels';
 
-export const fetchList = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:storage:files:list:1', payload);
-export const fetchDelete = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:storage:files:delete:1', payload);
-export const fetchUpload = (payload: any = null): Promise<FrontendFilesList1> => rpcCall('urn:storage:files:upload:1', payload);
+export const fetchList = (payload: any = null): Promise<StorageFilesList1> => rpcCall('urn:storage:files:list:1', payload);
+export const fetchDelete = (payload: any = null): Promise<StorageFilesList1> => rpcCall('urn:storage:files:delete:1', payload);
+export const fetchUpload = (payload: any = null): Promise<StorageFilesList1> => rpcCall('urn:storage:files:upload:1', payload);
