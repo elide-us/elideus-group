@@ -28,87 +28,6 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
-export interface AccountRoleDelete1 {
-  name: string;
-}
-export interface AccountRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface AccountRoleMembers1 {
-  members: UserListItem[];
-  nonMembers: UserListItem[];
-}
-export interface AccountRoleUpdate1 {
-  name: string;
-  display: string;
-  bit: number;
-}
-export interface AccountRolesList1 {
-  roles: RoleItem[];
-}
-export interface RoleItem {
-  name: string;
-  display: string;
-  bit: number;
-}
-export interface UserListItem {
-  guid: string;
-  displayName: string;
-}
-export interface AccountUserCreditsUpdate1 {
-  userGuid: string;
-  credits: number;
-}
-export interface AccountUserDisplayNameUpdate1 {
-  userGuid: string;
-  displayName: string;
-}
-export interface AccountUserProfile1 {
-  guid: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: any;
-  profilePicture: any;
-  credits: any;
-  storageUsed: any;
-  storageEnabled: any;
-  displayEmail: boolean;
-  rotationToken: any;
-  rotationExpires: any;
-}
-export interface AccountUserRoles1 {
-  roles: string[];
-}
-export interface AccountUserRolesUpdate1 {
-  userGuid: string;
-  roles: string[];
-}
-export interface AccountUsersList1 {
-  users: UserListItem[];
-}
-export interface FrontendLinksHome1 {
-  links: LinkItem[];
-}
-export interface FrontendLinksHome2 {
-  links: LinkItem[];
-}
-export interface FrontendLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface FrontendLinksRoutes2 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
-  name: string;
-  icon: string;
-}
 export interface FrontendUserProfileData1 {
   bearerToken: string;
   defaultProvider: string;
@@ -155,6 +74,27 @@ export interface ViewDiscord1 {
 export interface ViewDiscord2 {
   content: string;
 }
+export interface FrontendLinksHome1 {
+  links: LinkItem[];
+}
+export interface FrontendLinksHome2 {
+  links: LinkItem[];
+}
+export interface FrontendLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface FrontendLinksRoutes2 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
+}
 export interface FileItem {
   name: string;
   url: string;
@@ -172,41 +112,6 @@ export interface StorageFileUpload1 {
 }
 export interface StorageFilesList1 {
   files: FileItem[];
-}
-export interface AuthMicrosoftLoginData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-  rotationToken: string;
-  rotationExpires: any;
-}
-export interface SystemRoleDelete1 {
-  name: string;
-}
-export interface SystemRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface SystemRoleMembers1 {
-  members: any[];
-  nonMembers: any[];
-}
-export interface SystemRoleUpdate1 {
-  name: string;
-  display: string;
-  bit: number;
-}
-export interface SystemRolesList1 {
-  roles: RoleItem[];
 }
 export interface SystemRouteDelete1 {
   path: string;
@@ -228,19 +133,33 @@ export interface SystemRouteUpdate1 {
 export interface SystemRoutesList1 {
   routes: SystemRouteItem[];
 }
-export interface ConfigItem {
-  key: string;
-  value: string;
+export interface RoleItem {
+  name: string;
+  display: string;
+  bit: number;
 }
-export interface SystemConfigDelete1 {
-  key: string;
+export interface SystemRoleDelete1 {
+  name: string;
 }
-export interface SystemConfigList1 {
-  items: ConfigItem[];
+export interface SystemRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
 }
-export interface SystemConfigUpdate1 {
-  key: string;
-  value: string;
+export interface SystemRoleMembers1 {
+  members: any[];
+  nonMembers: any[];
+}
+export interface SystemRoleUpdate1 {
+  name: string;
+  display: string;
+  bit: number;
+}
+export interface SystemRolesList1 {
+  roles: RoleItem[];
+}
+export interface UserListItem {
+  guid: string;
+  displayName: string;
 }
 export interface SystemUserCreditsUpdate1 {
   userGuid: string;
@@ -268,6 +187,87 @@ export interface SystemUserRolesUpdate1 {
   roles: string[];
 }
 export interface SystemUsersList1 {
+  users: UserListItem[];
+}
+export interface ConfigItem {
+  key: string;
+  value: string;
+}
+export interface SystemConfigDelete1 {
+  key: string;
+}
+export interface SystemConfigList1 {
+  items: ConfigItem[];
+}
+export interface SystemConfigUpdate1 {
+  key: string;
+  value: string;
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
+}
+export interface AccountRoleDelete1 {
+  name: string;
+}
+export interface AccountRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AccountRoleMembers1 {
+  members: UserListItem[];
+  nonMembers: UserListItem[];
+}
+export interface AccountRoleUpdate1 {
+  name: string;
+  display: string;
+  bit: number;
+}
+export interface AccountRolesList1 {
+  roles: RoleItem[];
+}
+export interface AccountUserCreditsUpdate1 {
+  userGuid: string;
+  credits: number;
+}
+export interface AccountUserDisplayNameUpdate1 {
+  userGuid: string;
+  displayName: string;
+}
+export interface AccountUserProfile1 {
+  guid: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: any;
+  profilePicture: any;
+  credits: any;
+  storageUsed: any;
+  storageEnabled: any;
+  displayEmail: boolean;
+  rotationToken: any;
+  rotationExpires: any;
+}
+export interface AccountUserRoles1 {
+  roles: string[];
+}
+export interface AccountUserRolesUpdate1 {
+  userGuid: string;
+  roles: string[];
+}
+export interface AccountUsersList1 {
   users: UserListItem[];
 }
 

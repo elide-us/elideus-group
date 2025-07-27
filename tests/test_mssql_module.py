@@ -87,12 +87,12 @@ class DummyPool:
 
 def test_mssql_get_config_value(mssql_app):
   dbm = MSSQLModule(mssql_app, dsn="sql://cs")
-  dbm.pool = DummyPool(('v',), column="value")
+  dbm.pool = DummyPool(('v',), column="element_value")
   result = asyncio.run(dbm.get_config_value('Version'))
   assert result == 'v'
 
 def test_mssql_profile_image_ops(mssql_app):
-  conn = DummyConn(('img',), column="image_b64")
+  conn = DummyConn(('img',), column="element_base64")
   class Pool(DummyPool):
     def __init__(self, c):
       self.c = c

@@ -22,35 +22,59 @@ class DummyDB:
         routes = [
             {
                 "id": 1,
+                "recid": 1,
                 "path": "/",
+                "element_path": "/",
                 "name": "Home",
+                "element_name": "Home",
                 "icon": "home",
+                "element_icon": "home",
                 "required_roles": 0,
+                "element_roles": 0,
                 "sequence": 10,
+                "element_sequence": 10,
             },
             {
                 "id": 2,
+                "recid": 2,
                 "path": "/gallery",
+                "element_path": "/gallery",
                 "name": "Gallery",
+                "element_name": "Gallery",
                 "icon": "gallery",
+                "element_icon": "gallery",
                 "required_roles": 0,
+                "element_roles": 0,
                 "sequence": 20,
+                "element_sequence": 20,
             },
             {
                 "id": 3,
+                "recid": 3,
                 "path": "/file-manager",
+                "element_path": "/file-manager",
                 "name": "File Manager",
+                "element_name": "File Manager",
                 "icon": "files",
+                "element_icon": "files",
                 "required_roles": self.roles["ROLE_REGISTERED"],
+                "element_roles": self.roles["ROLE_REGISTERED"],
                 "sequence": 30,
+                "element_sequence": 30,
             },
             {
                 "id": 4,
+                "recid": 4,
                 "path": "/user-admin",
+                "element_path": "/user-admin",
                 "name": "User Admin",
+                "element_name": "User Admin",
                 "icon": "admin",
+                "element_icon": "admin",
                 "required_roles": self.roles["ROLE_SYSTEM_ADMIN"] | self.roles["ROLE_REGISTERED"],
+                "element_roles": self.roles["ROLE_SYSTEM_ADMIN"] | self.roles["ROLE_REGISTERED"],
                 "sequence": 40,
+                "element_sequence": 40,
             },
         ]
         return [
@@ -66,9 +90,13 @@ class DummyDB:
         return [
             {
                 "id": 1,
+                "recid": 1,
                 "title": "Discord",
+                "element_title": "Discord",
                 "url": "https://link",
+                "element_url": "https://link",
                 "required_roles": 0,
+                "element_roles": 0,
             }
         ]
 
