@@ -14,9 +14,9 @@ ARG PYTHON_ENV=/app/venv
 ENV VIRTUAL_ENV=$PYTHON_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN python -m venv $VIRTUAL_ENV \
- && pip install --upgrade pip \
- && pip install -r requirements.txt
+RUN python3 -m venv $VIRTUAL_ENV \
+ && $VIRTUAL_ENV/bin/pip install --upgrade pip \
+ && $VIRTUAL_ENV/bin/pip install -r requirements.txt
 
 COPY . .
 
