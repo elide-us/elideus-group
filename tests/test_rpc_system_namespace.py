@@ -95,8 +95,6 @@ class DummyDB:
                 "element_title": "Discord",
                 "url": "https://link",
                 "element_url": "https://link",
-                "required_roles": 0,
-                "element_roles": 0,
             }
         ]
 
