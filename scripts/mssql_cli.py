@@ -78,7 +78,17 @@ async def interactive_console(conn):
       case ['list', 'columns', table]:
         rows = await db.list_columns(conn, table)
         for r in rows:
-          print(f"{r['column_name']} ({r['data_type']})")
+          length = r.get('max_length')
+          if length is not None and r['data_type'].lower() in {
+            'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
+          }:
+            if length == -1:
+              t = f"{r['data_type']}(MAX)"
+            else:
+              t = f"{r['data_type']}({length})"
+          else:
+            t = r['data_type']
+          print(f"{r['column_name']} ({t})")
       case ['list', 'indexes', table]:
         rows = await db.list_indexes(conn, table)
         for r in rows:

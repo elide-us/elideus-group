@@ -15,7 +15,8 @@ async def list_tables(conn):
 async def list_columns(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT COLUMN_NAME AS column_name, DATA_TYPE AS data_type
+      """SELECT COLUMN_NAME AS column_name, DATA_TYPE AS data_type,
+                CHARACTER_MAXIMUM_LENGTH AS max_length
          FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH""",
       (table,),
@@ -65,6 +66,7 @@ async def _table_schema(conn, table: str):
     await cur.execute(
       """SELECT COLUMN_NAME AS name,
                 DATA_TYPE AS type,
+                CHARACTER_MAXIMUM_LENGTH AS length,
                 IS_NULLABLE AS nullable,
                 COLUMN_DEFAULT AS [default]
          FROM INFORMATION_SCHEMA.COLUMNS
@@ -103,6 +105,7 @@ async def _table_schema(conn, table: str):
       {
         'name': c['name'],
         'type': c['type'],
+        'length': c['length'],
         'nullable': c['nullable'] == 'YES',
         'default': c['default'],
       }
@@ -145,7 +148,15 @@ async def get_schema(conn):
 def _build_create_sql(table: dict) -> str:
   parts: list[str] = []
   for col in table['columns']:
-    line = f"{col['name']} {col['type']}"
+    ctype = col['type']
+    if col.get('length') is not None and ctype.lower() in {
+      'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
+    }:
+      if col['length'] == -1:
+        ctype += '(MAX)'
+      else:
+        ctype += f"({col['length']})"
+    line = f"{col['name']} {ctype}"
     if col['default'] is not None:
       line += f" DEFAULT {col['default']}"
     if not col['nullable']:
@@ -202,7 +213,15 @@ async def apply_schema(conn, path: str):
       existing = {c['column_name'] for c in cols}
       for col in table['columns']:
         if col['name'] not in existing:
-          line = f"ALTER TABLE {table['name']} ADD {col['name']} {col['type']}"
+          ctype = col['type']
+          if col.get('length') is not None and ctype.lower() in {
+            'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
+          }:
+            if col['length'] == -1:
+              ctype += '(MAX)'
+            else:
+              ctype += f"({col['length']})"
+          line = f"ALTER TABLE {table['name']} ADD {col['name']} {ctype}"
           if col['default'] is not None:
             line += f" DEFAULT {col['default']}"
           if not col['nullable']:
