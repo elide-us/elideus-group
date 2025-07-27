@@ -8,16 +8,15 @@ RUN apt-get update && apt-get install -y curl python3 python3-pip python3-venv
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
 WORKDIR /app
 
+COPY requirements.txt ./
+
 ARG PYTHON_ENV=/app/venv
 ENV VIRTUAL_ENV=$PYTHON_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN python3 -m venv $VIRTUAL_ENV \
- && $VIRTUAL_ENV/bin/pip install --upgrade pip \
- && $VIRTUAL_ENV/bin/pip install pydantic
-
-COPY requirements.txt ./
-RUN $VIRTUAL_ENV/bin/pip install -r requirements.txt
+RUN python -m venv $VIRTUAL_ENV \
+ && pip install --upgrade pip \
+ && pip install -r requirements.txt
 
 COPY . .
 
@@ -37,7 +36,7 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 FROM python:3.12
 
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg libodbc2
 WORKDIR /app
 
 # Copy only what we need from builder & runtime deps from tester
