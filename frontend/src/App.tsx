@@ -22,21 +22,21 @@ function App(): JSX.Element {
 			<UserContextProvider>
 				<Router>
 					<NavBar />
-                                        <Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
+                    <Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
 						<Routes>
 							<Route path='/' element={<Home />} />
 							<Route path='/userpage' element={<UserPage />} />
 							<Route path='/loginpage' element={<LoginPage />} />
-                                                        <Route path='/system_routes' element={<SystemRoutesPage />} />
-                                                        <Route path='/system_config' element={<SystemConfigPage />} />
-                                                        <Route path='/system_roles' element={<SystemRolesPage />} />
-                                                        <Route path='/account_userspage' element={<AccountUsersPage />} />
-                                                        <Route path='/account_userpanel/:guid' element={<AccountUserPanel />} />
-                                                        <Route path='/account_role_members' element={<AccountRoleMembersPage />} />
-                                                        <Route path='/file-manager' element={<FileManager />} />
-                                                </Routes>
-                                        </Container>
-                                </Router>
+							<Route path='/system-routes' element={<SystemRoutesPage />} />
+							<Route path='/system-config' element={<SystemConfigPage />} />
+							<Route path='/system-roles' element={<SystemRolesPage />} />
+							<Route path='/account-userspage' element={<AccountUsersPage />} />
+							<Route path='/account-userpanel/:guid' element={<AccountUserPanel />} />
+							<Route path='/account-role-members' element={<AccountRoleMembersPage />} />
+							<Route path='/file-manager' element={<FileManager />} />
+						</Routes>
+					</Container>
+				</Router>
 			</UserContextProvider>
 		</ThemeProvider>
 	);
