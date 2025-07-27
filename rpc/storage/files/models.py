@@ -6,14 +6,14 @@ class FileItem(BaseModel):
   url: str
   contentType: Optional[str] = None
 
-class FrontendFilesList1(BaseModel):
+class StorageFilesList1(BaseModel):
   files: list[FileItem]
 
-class FrontendFileDelete1(BaseModel):
+class StorageFileDelete1(BaseModel):
   bearerToken: str
   filename: str
 
-class FrontendFileUpload1(BaseModel):
+class StorageFileUpload1(BaseModel):
   bearerToken: str
   filename: str
   dataUrl: str

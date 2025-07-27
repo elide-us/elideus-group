@@ -28,6 +28,73 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
+export interface FileItem {
+  name: string;
+  url: string;
+  contentType: string | null;
+}
+export interface StorageFileDelete1 {
+  bearerToken: string;
+  filename: string;
+}
+export interface StorageFileUpload1 {
+  bearerToken: string;
+  filename: string;
+  dataUrl: string;
+  contentType: string;
+}
+export interface StorageFilesList1 {
+  files: FileItem[];
+}
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  storageEnabled: boolean | null;
+  displayEmail: boolean;
+  roles: string[];
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
+}
+export interface FrontendVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface FrontendVarsHostname1 {
+  hostname: string;
+}
+export interface FrontendVarsRepo1 {
+  repo: string;
+}
+export interface FrontendVarsVersion1 {
+  version: string;
+}
+export interface ViewDiscord1 {
+  content: string;
+}
+export interface FrontendLinksHome1 {
+  links: LinkItem[];
+}
+export interface FrontendLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
+}
 export interface AccountUserCreditsUpdate1 {
   userGuid: string;
   credits: number;
@@ -88,73 +155,6 @@ export interface RoleItem {
   display: string;
   bit: number;
 }
-export interface FileItem {
-  name: string;
-  url: string;
-  contentType: string | null;
-}
-export interface FrontendFileDelete1 {
-  bearerToken: string;
-  filename: string;
-}
-export interface FrontendFileUpload1 {
-  bearerToken: string;
-  filename: string;
-  dataUrl: string;
-  contentType: string;
-}
-export interface FrontendFilesList1 {
-  files: FileItem[];
-}
-export interface FrontendLinksHome1 {
-  links: LinkItem[];
-}
-export interface FrontendLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
-  name: string;
-  icon: string;
-}
-export interface FrontendVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface FrontendVarsHostname1 {
-  hostname: string;
-}
-export interface FrontendVarsRepo1 {
-  repo: string;
-}
-export interface FrontendVarsVersion1 {
-  version: string;
-}
-export interface ViewDiscord1 {
-  content: string;
-}
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  storageEnabled: boolean | null;
-  displayEmail: boolean;
-  roles: string[];
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
-}
 export interface AuthSessionTokens1 {
   bearerToken: string;
   rotationToken: string;
@@ -170,26 +170,6 @@ export interface AuthMicrosoftLoginData1 {
   credits: number | null;
   rotationToken: string | null;
   rotationExpires: any | null;
-}
-export interface SystemRouteDelete1 {
-  path: string;
-}
-export interface SystemRouteItem {
-  path: string;
-  name: string;
-  icon: string;
-  sequence: number;
-  requiredRoles: string[];
-}
-export interface SystemRouteUpdate1 {
-  path: string;
-  name: string;
-  icon: string;
-  sequence: number;
-  requiredRoles: string[];
-}
-export interface SystemRoutesList1 {
-  routes: SystemRouteItem[];
 }
 export interface SystemUserCreditsUpdate1 {
   userGuid: string;
@@ -218,6 +198,26 @@ export interface SystemUserRolesUpdate1 {
 }
 export interface SystemUsersList1 {
   users: UserListItem[];
+}
+export interface SystemRouteDelete1 {
+  path: string;
+}
+export interface SystemRouteItem {
+  path: string;
+  name: string;
+  icon: string;
+  sequence: number;
+  requiredRoles: string[];
+}
+export interface SystemRouteUpdate1 {
+  path: string;
+  name: string;
+  icon: string;
+  sequence: number;
+  requiredRoles: string[];
+}
+export interface SystemRoutesList1 {
+  routes: SystemRouteItem[];
 }
 export interface SystemRoleDelete1 {
   name: string;

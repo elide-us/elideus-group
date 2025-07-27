@@ -7,7 +7,7 @@ import PaginationControls from './shared/PaginationControls';
 import { PageTitle } from './shared/PageTitle';
 import { fetchList, fetchDelete, fetchUpload } from './rpc/storage/files';
 import UserContext from './shared/UserContext';
-import type { FileItem, FrontendFilesList1 } from './shared/RpcModels';
+import type { FileItem, StorageFilesList1 } from './shared/RpcModels';
 
 const FileManager = (): JSX.Element => {
     const { userData } = useContext(UserContext);
@@ -18,7 +18,7 @@ const FileManager = (): JSX.Element => {
 
     const load = async (): Promise<void> => {
         try {
-            const res: FrontendFilesList1 = await fetchList({ bearerToken: userData?.bearerToken });
+            const res: StorageFilesList1 = await fetchList({ bearerToken: userData?.bearerToken });
             setFiles(res.files);
         } catch {
             setFiles([]);
