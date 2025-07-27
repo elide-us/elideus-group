@@ -14,3 +14,15 @@ class FrontendVarsFfmpegVersion1(BaseModel):
 
 class ViewDiscord1(BaseModel):
   content: str
+
+class FrontendVarsVersion2(BaseModel):
+  version: str
+
+class FrontendVarsHostname2(BaseModel):
+  hostname: str
+
+class FrontendVarsRepo2(BaseModel):
+  repo: str
+
+class ViewDiscord2(BaseModel):
+  content: str
