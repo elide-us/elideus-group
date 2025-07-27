@@ -8,6 +8,10 @@ async def handle_links_request(parts: list[str], request: Request) -> RPCRespons
       return await services.get_home_v1(request)
     case ["get_routes", "1"]:
       return await services.get_routes_v1(request)
+    case ["get_home", "2"]:
+      return await services.get_home_v2(request)
+    case ["get_routes", "2"]:
+      return await services.get_routes_v2(request)
     case _:
       raise HTTPException(status_code=404, detail="Unknown RPC operation")
 

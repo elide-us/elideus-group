@@ -10,10 +10,13 @@ CASE_RE = re.compile(r'case \["([^\"]+)",\s*"([^\"]+)"\]:')
 FUNC_RE = re.compile(r'services\.([A-Za-z0-9_]+)')
 PAYLOAD_RE = re.compile(r'payload\s*=\s*([A-Za-z0-9_]+)\(')
 
-def urn_to_func(op: str) -> str:
+def urn_to_func(op: str, version: str) -> str:
   if op.startswith('get_'):
     op = op[4:]
-  return 'fetch' + camel_case(op)
+  name = 'fetch' + camel_case(op)
+  if version != '1':
+    name += version
+  return name
 
 def parse_service_models(path: str) -> dict[str, str]:
   models: dict[str, str] = {}
@@ -68,7 +71,7 @@ def generate_ts(base: list[str], ops: list[dict[str, str]], service_models: dict
 
   base_urn = ':'.join(['urn'] + base)
   for o in ops:
-    func_name = urn_to_func(o['op'])
+    func_name = urn_to_func(o['op'], o['version'])
     model = service_models.get(o['func'], 'any')
     urn = f"{base_urn}:{o['op']}:{o['version']}"
     lines.append(f"export const {func_name} = (payload: any = null): Promise<{model}> => rpcCall('{urn}', payload);")

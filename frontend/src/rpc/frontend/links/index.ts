@@ -4,7 +4,9 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, FrontendLinksHome1, FrontendLinksRoutes1 } from '../../../shared/RpcModels';
+import { rpcCall, FrontendLinksHome1, FrontendLinksHome2, FrontendLinksRoutes1, FrontendLinksRoutes2 } from '../../../shared/RpcModels';
 
 export const fetchHome = (payload: any = null): Promise<FrontendLinksHome1> => rpcCall('urn:frontend:links:get_home:1', payload);
 export const fetchRoutes = (payload: any = null): Promise<FrontendLinksRoutes1> => rpcCall('urn:frontend:links:get_routes:1', payload);
+export const fetchHome2 = (payload: any = null): Promise<FrontendLinksHome2> => rpcCall('urn:frontend:links:get_home:2', payload);
+export const fetchRoutes2 = (payload: any = null): Promise<FrontendLinksRoutes2> => rpcCall('urn:frontend:links:get_routes:2', payload);
