@@ -107,12 +107,13 @@ async def interactive_console(conn):
             ma += 1
             mi = 0
             pa = 0
+            bu = 0
           case 'minor':
             mi += 1
             pa = 0
+            bu = 0
           case 'patch':
             pa += 1
-        bu = 0
         new_ver = f"v{ma}.{mi}.{pa}.{bu}"
         await _update_config(conn, 'Version', new_ver)
         print(f'Updated Version: {cur} -> {new_ver}')
