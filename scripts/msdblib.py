@@ -6,114 +6,114 @@ dotenv.load_dotenv()
 
 async def list_tables(conn):
   async with conn.cursor() as cur:
-    await cur.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'")
-    rows = await cur.fetchall()
-  return [{'table_name': r[0]} for r in rows]
+    await cur.execute(
+      "SELECT TABLE_NAME AS table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
+    )
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
 
 async def list_columns(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT COLUMN_NAME, DATA_TYPE
+      """SELECT COLUMN_NAME AS column_name, DATA_TYPE AS data_type
          FROM INFORMATION_SCHEMA.COLUMNS
-         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION""",
-      (table,)
+         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH""",
+      (table,),
     )
-    rows = await cur.fetchall()
-  return [{'column_name': r[0], 'data_type': r[1]} for r in rows]
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
 
 async def list_indexes(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT name, type_desc FROM sys.indexes
-         WHERE object_id = OBJECT_ID(?)""",
-      (table,)
+      """SELECT name AS indexname, type_desc AS indexdef
+         FROM sys.indexes WHERE object_id = OBJECT_ID(?) FOR JSON PATH""",
+      (table,),
     )
-    rows = await cur.fetchall()
-  return [{'indexname': r[0], 'indexdef': r[1]} for r in rows]
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
 
 async def list_keys(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT k.CONSTRAINT_NAME, k.COLUMN_NAME, tc.CONSTRAINT_TYPE
+      """SELECT k.CONSTRAINT_NAME AS constraint_name,
+                k.COLUMN_NAME AS column_name,
+                tc.CONSTRAINT_TYPE AS constraint_type
          FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
          JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
            ON k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-         WHERE k.TABLE_NAME=?""",
+         WHERE k.TABLE_NAME=? FOR JSON PATH""",
       (table,),
     )
-    rows = await cur.fetchall()
-  return [
-    {
-      'constraint_name': r[0],
-      'column_name': r[1],
-      'constraint_type': r[2],
-    }
-    for r in rows
-  ]
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
 
 async def list_constraints(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE
+      """SELECT CONSTRAINT_NAME AS constraint_name,
+                CONSTRAINT_TYPE AS constraint_type
          FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-         WHERE TABLE_NAME=?""",
+         WHERE TABLE_NAME=? FOR JSON PATH""",
       (table,),
     )
-    rows = await cur.fetchall()
-  return [
-    {
-      'constraint_name': r[0],
-      'constraint_type': r[1],
-    }
-    for r in rows
-  ]
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
 
 async def _table_schema(conn, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+      """SELECT COLUMN_NAME AS name,
+                DATA_TYPE AS type,
+                IS_NULLABLE AS nullable,
+                COLUMN_DEFAULT AS [default]
          FROM INFORMATION_SCHEMA.COLUMNS
-         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION""",
-      (table,)
+         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH""",
+      (table,),
     )
-    cols = await cur.fetchall()
+    row = await cur.fetchone()
+    cols = json.loads(row[0]) if row else []
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT k.COLUMN_NAME
+      """SELECT k.COLUMN_NAME AS column_name
          FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
          JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
            ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME
-         WHERE t.TABLE_NAME=? AND t.CONSTRAINT_TYPE='PRIMARY KEY'""",
-      (table,)
+         WHERE t.TABLE_NAME=? AND t.CONSTRAINT_TYPE='PRIMARY KEY' FOR JSON PATH""",
+      (table,),
     )
-    pk = await cur.fetchall()
+    row = await cur.fetchone()
+    pk = json.loads(row[0]) if row else []
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT k.COLUMN_NAME, c.TABLE_NAME, c.COLUMN_NAME
+      """SELECT k.COLUMN_NAME AS column_name,
+                c.TABLE_NAME AS ref_table,
+                c.COLUMN_NAME AS ref_column
          FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS r
          JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k ON r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
          JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE c ON r.UNIQUE_CONSTRAINT_NAME = c.CONSTRAINT_NAME
-         WHERE k.TABLE_NAME=?""",
-      (table,)
+         WHERE k.TABLE_NAME=? FOR JSON PATH""",
+      (table,),
     )
-    fks = await cur.fetchall()
+    row = await cur.fetchone()
+    fks = json.loads(row[0]) if row else []
   return {
     'name': table,
     'columns': [
       {
-        'name': c[0],
-        'type': c[1],
-        'nullable': c[2] == 'YES',
-        'default': c[3],
+        'name': c['name'],
+        'type': c['type'],
+        'nullable': c['nullable'] == 'YES',
+        'default': c['default'],
       }
       for c in cols
     ],
-    'primary_key': [r[0] for r in pk],
+    'primary_key': [r['column_name'] for r in pk],
     'foreign_keys': [
       {
-        'column': fk[0],
-        'ref_table': fk[1],
-        'ref_column': fk[2],
+        'column': fk['column_name'],
+        'ref_table': fk['ref_table'],
+        'ref_column': fk['ref_column'],
       }
       for fk in fks
     ],
@@ -174,10 +174,9 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
   for tbl in schema['tables']:
     name = tbl['name']
     async with conn.cursor() as cur:
-      await cur.execute(f"SELECT * FROM {name}")
-      rows = await cur.fetchall()
-    cols = [d[0] for d in cur.description]
-    data[name] = [dict(zip(cols, r)) for r in rows]
+      await cur.execute(f"SELECT * FROM {name} FOR JSON PATH")
+      row = await cur.fetchone()
+    data[name] = json.loads(row[0]) if row else []
   ts = datetime.now(timezone.utc).strftime('%Y%m%d_BACKUP')
   filename = f"{prefix}_{ts}.json"
   with open(filename, 'w') as f:
