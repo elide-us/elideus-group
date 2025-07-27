@@ -48,6 +48,8 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `genlib.py` handles common RPC namespace generation functions.
 - `dblib.py` handles most of the database querying operations.
 - `msdblib.py` handles most of the database querying operations.
+  Schema dumps now record NVARCHAR field lengths for accurate
+  recreation across environments.
 
 ### RPC Response Views
 Responses support a simple view suffix in the URN:
