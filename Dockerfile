@@ -36,7 +36,7 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 FROM python:3.12
 
-RUN apt-get update && apt-get install -y ffmpeg libodbc2
+RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
 WORKDIR /app
 
 # Copy only what we need from builder & runtime deps from tester
