@@ -14,5 +14,15 @@ async def handle_routes_request(parts: list[str], rpc_request: RPCRequest | None
       if rpc_request is None:
         raise HTTPException(status_code=400, detail='Missing payload')
       return await services.delete_route_v1(rpc_request, request)
+    case ["list", "2"]:
+      return await services.list_routes_v2(request)
+    case ["set", "2"]:
+      if rpc_request is None:
+        raise HTTPException(status_code=400, detail='Missing payload')
+      return await services.set_route_v2(rpc_request, request)
+    case ["delete", "2"]:
+      if rpc_request is None:
+        raise HTTPException(status_code=400, detail='Missing payload')
+      return await services.delete_route_v2(rpc_request, request)
     case _:
       raise HTTPException(status_code=404, detail='Unknown RPC operation')
