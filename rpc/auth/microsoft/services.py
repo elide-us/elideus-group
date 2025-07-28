@@ -27,7 +27,11 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   if not user:
     user = await db.insert_user(provider, guid, profile["email"], profile["username"])
   if profile_picture:
-    await db.set_user_profile_image(_utos(user["guid"]), profile_picture)
+    await db.set_user_profile_image(
+      _utos(user["guid"]),
+      profile_picture,
+      user.get("provider_name", provider),
+    )
   else:
     profile_picture = user.get("profile_image")
   logging.debug("user_login_v1 user=%s", user)

@@ -401,7 +401,7 @@ class MSSQLModule(BaseModule):
       return row.get('element_base64')
     return None
 
-  async def set_user_profile_image(self, guid: str, image_b64: str):
+  async def set_user_profile_image(self, guid: str, image_b64: str, provider: str | None = None):
     if not self.pool:
       raise RuntimeError("Database pool not initialized")
     async with self.pool.acquire() as conn:
@@ -414,7 +414,24 @@ class MSSQLModule(BaseModule):
             (image_b64, guid),
           )
         else:
+          provider_id = None
+          if provider:
+            await cur.execute(
+              "SELECT recid FROM auth_providers WHERE element_name=?",
+              (provider,)
+            )
+            prow = await cur.fetchone()
+            provider_id = prow[0] if prow else None
+          if not provider_id:
+            await cur.execute(
+              "SELECT providers_recid FROM account_users WHERE element_guid=?",
+              (guid,)
+            )
+            prow = await cur.fetchone()
+            provider_id = prow[0] if prow else None
+          if provider_id is None:
+            raise ValueError("Unknown auth provider for user")
           await cur.execute(
-            "INSERT INTO users_profileimg(users_guid, element_base64) VALUES(?, ?)",
-            (guid, image_b64),
+            "INSERT INTO users_profileimg(users_guid, element_base64, providers_recid) VALUES(?, ?, ?)",
+            (guid, image_b64, provider_id),
           )

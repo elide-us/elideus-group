@@ -27,8 +27,8 @@ class DummyDB:
   async def insert_user(self, provider, mid, email, username):
     return await self.select_user(provider, mid)
 
-  async def set_user_profile_image(self, guid, image):
-    self.image = (guid, image)
+  async def set_user_profile_image(self, guid, image, provider):
+    self.image = (guid, image, provider)
 
   async def set_user_rotation_token(self, guid, token, exp):
     self.rtoken = (guid, token, exp)
@@ -75,7 +75,7 @@ def test_user_login_profile_update():
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   asyncio.run(services.user_login_v1(rpc_req, req))
-  assert db.image == ('uid', 'img')
+  assert db.image == ('uid', 'img', 'microsoft')
 
 
 def test_user_login_reports_discord():
