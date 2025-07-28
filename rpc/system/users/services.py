@@ -9,6 +9,7 @@ from rpc.system.users.models import (
   SystemUserProfile1,
 )
 from server.modules.database_module import DatabaseModule, _utos
+from server.modules.mssql_module import MSSQLModule
 from server.modules.storage_module import StorageModule
 from server.helpers.roles import (
   mask_to_names,
@@ -49,6 +50,13 @@ async def list_available_roles_v1(request: Request) -> RPCResponse:
   names = [r['name'] for r in rows]
   payload = SystemUserRoles1(roles=names)
   return RPCResponse(op='urn:system:users:list_roles:1', payload=payload, version=1)
+
+async def list_available_roles_v2(request: Request) -> RPCResponse:
+  db: MSSQLModule = request.app.state.mssql
+  rows = await db.list_roles()
+  names = [r['name'] for r in rows]
+  payload = SystemUserRoles1(roles=names)
+  return RPCResponse(op='urn:system:users:list_roles:2', payload=payload, version=2)
 
 async def get_user_profile_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
