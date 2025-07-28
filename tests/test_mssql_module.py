@@ -102,5 +102,5 @@ def test_mssql_profile_image_ops(mssql_app):
   dbm.pool = Pool(conn)
   img = asyncio.run(dbm.get_user_profile_image('uid'))
   assert img == 'img'
-  asyncio.run(dbm.set_user_profile_image('uid', 'new'))
+  asyncio.run(dbm.set_user_profile_image('uid', 'new', 'microsoft'))
   assert any(e[0].startswith('SELECT 1 FROM users_profileimg') for e in conn.cur.executed)
