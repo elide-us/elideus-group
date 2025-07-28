@@ -19,15 +19,14 @@ async def lifespan(app: FastAPI):
   dsn = os.getenv("POSTGRES_CONNECTION_STRING")
   app.state.database = DatabaseModule(app, dsn=dsn)
   await app.state.database.startup()
-
-  await role_helper.load_roles(app.state.database)
-
-  debug = await app.state.database.get_config_value("DebugLogging")
-  configure_root_logging(debug=str(debug).lower() in ["1", "true"])
-
   mssql_dsn = os.getenv("AZURE_SQL_CONNECTION_STRING")
   app.state.mssql = MSSQLModule(app, dsn=mssql_dsn)
   await app.state.mssql.startup()
+
+  await role_helper.load_roles(app.state.mssql)
+
+  debug = await app.state.database.get_config_value("DebugLogging")
+  configure_root_logging(debug=str(debug).lower() in ["1", "true"])
 
   app.state.env = EnvironmentModule(app)
 
