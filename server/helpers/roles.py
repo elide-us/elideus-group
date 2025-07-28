@@ -9,8 +9,13 @@ ROLE_NAMES: list[str] = []
 # constant before roles are loaded behaves as expected.
 ROLE_REGISTERED: int = 1
 
+import pyodbc
+
 async def load_roles(db) -> None:
-  rows = await db.list_roles()
+  try:
+    rows = await db.list_roles()
+  except pyodbc.Error:
+    return
   if not rows:
     return
   ROLES.clear()

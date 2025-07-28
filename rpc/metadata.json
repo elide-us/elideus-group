@@ -5,7 +5,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:roles:add_member:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:roles:delete:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:delete:2",
       "capabilities": 0
     },
     {
@@ -13,7 +21,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:roles:get_members:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:roles:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:list:2",
       "capabilities": 0
     },
     {
@@ -21,7 +37,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:roles:remove_member:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:roles:set:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:roles:set:2",
       "capabilities": 0
     },
     {
