@@ -161,11 +161,23 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:routes:delete:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:routes:list:1",
       "capabilities": 0
     },
     {
+      "op": "urn:system:routes:list:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:routes:set:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:routes:set:2",
       "capabilities": 0
     },
     {

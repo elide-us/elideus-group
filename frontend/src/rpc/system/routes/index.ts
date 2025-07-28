@@ -4,8 +4,11 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, SystemRoutesList1 } from '../../../shared/RpcModels';
+import { rpcCall, SystemRoutesList1, SystemRoutesList2 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<SystemRoutesList1> => rpcCall('urn:system:routes:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:system:routes:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:system:routes:delete:1', payload);
+export const fetchList2 = (payload: any = null): Promise<SystemRoutesList2> => rpcCall('urn:system:routes:list:2', payload);
+export const fetchSet2 = (payload: any = null): Promise<any> => rpcCall('urn:system:routes:set:2', payload);
+export const fetchDelete2 = (payload: any = null): Promise<any> => rpcCall('urn:system:routes:delete:2', payload);
