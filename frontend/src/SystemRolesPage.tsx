@@ -3,8 +3,8 @@ import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Text
 import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add } from '@mui/icons-material';
-import type { RoleItem, SystemRolesList1 } from './shared/RpcModels';
-import { fetchList, fetchSet, fetchDelete } from './rpc/system/roles';
+import type { RoleItem, SystemRolesList2 } from './shared/RpcModels';
+import { fetchList2 as fetchList, fetchSet2 as fetchSet, fetchDelete2 as fetchDelete } from './rpc/system/roles';
 import EditBox from './shared/EditBox';
 import Notification from './shared/Notification';
 
@@ -16,7 +16,7 @@ const SystemRolesPage = (): JSX.Element => {
 
     const load = async (): Promise<void> => {
         try {
-            const res: SystemRolesList1 = await fetchList();
+            const res: SystemRolesList2 = await fetchList();
             setRoles(res.roles.sort((a, b) => a.bit - b.bit));
         } catch {
             setRoles([]);
