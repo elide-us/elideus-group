@@ -3,8 +3,8 @@ import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Text
 import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add } from '@mui/icons-material';
-import type { ConfigItem, SystemConfigList1 } from './shared/RpcModels';
-import { fetchList, fetchSet, fetchDelete } from './rpc/system/config';
+import type { ConfigItem, SystemConfigList2 } from './shared/RpcModels';
+import { fetchList2 as fetchList, fetchSet2 as fetchSet, fetchDelete2 as fetchDelete } from './rpc/system/config';
 import EditBox from './shared/EditBox';
 import Notification from './shared/Notification';
 
@@ -16,7 +16,7 @@ const SystemConfigPage = (): JSX.Element => {
 
     const load = async (): Promise<void> => {
         try {
-            const res: SystemConfigList1 = await fetchList();
+            const res: SystemConfigList2 = await fetchList();
             setItems(res.items);
         } catch {
             setItems([]);

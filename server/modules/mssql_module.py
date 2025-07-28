@@ -228,7 +228,7 @@ class MSSQLModule(BaseModule):
     )
     result = await self._fetch_many(query, role_mask)
     if result:
-      names = ", ".join(route.get("name", "Unnamed") for route in result)
+      names = ", ".join(route.get("element_name", "Unnamed") for route in result)
       logging.info(
         "Returning %d routes: %s", len(result), names
       )
