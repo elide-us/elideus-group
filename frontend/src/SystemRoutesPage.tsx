@@ -7,7 +7,7 @@ import type { SystemRouteItem, SystemRoutesList2, SystemUserRoles1 } from './sha
 import { fetchList2 as fetchRoutes, fetchSet2 as fetchSet, fetchDelete2 as fetchDelete } from './rpc/system/routes';
 import EditBox from './shared/EditBox';
 import Notification from './shared/Notification';
-import { fetchListRoles } from './rpc/system/users';
+import { fetchListRoles2 as fetchListRoles } from './rpc/system/users';
 
 const MAX_HEIGHT = 120;
 
