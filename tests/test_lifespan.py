@@ -59,7 +59,7 @@ def test_lifespan_initializes_modules(monkeypatch):
     if key == "DiscordSyschan":
       return "1"
     return "0"
-  monkeypatch.setattr(db_mod.DatabaseModule, "get_config_value", fake_get_config)
+  monkeypatch.setattr(mssql_mod.MSSQLModule, "get_config_value", fake_get_config)
 
   async def fake_uri():
     return "url"
