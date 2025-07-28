@@ -16,24 +16,58 @@ These calls expose system administration functionality.
 | Operation | Description |
 |-----------|-------------|
 | `urn:system:roles:list:1` | List all role names and their bit positions. |
+| `urn:system:roles:list:2` | List all role names and their bit positions. |
 | `urn:system:roles:set:1` | Create or update a role definition. |
+| `urn:system:roles:set:2` | Create or update a role definition. |
 | `urn:system:roles:delete:1` | Delete a role. |
+| `urn:system:roles:delete:2` | Delete a role. |
 | `urn:system:roles:get_members:1` | Get members and non-members for a role. |
+| `urn:system:roles:get_members:2` | Get members and non-members for a role. |
 | `urn:system:roles:add_member:1` | Add a user to a role. |
+| `urn:system:roles:add_member:2` | Add a user to a role. |
 | `urn:system:roles:remove_member:1` | Remove a user from a role. |
+| `urn:system:roles:remove_member:2` | Remove a user from a role. |
 
 ### `users`
 
 | Operation | Description |
 |-----------|-------------|
 | `urn:system:users:list:1` | List all users. |
+| `urn:system:users:list:2` | List all users. |
 | `urn:system:users:get_roles:1` | Get the roles assigned to a user. |
+| `urn:system:users:get_roles:2` | Get the roles assigned to a user. |
 | `urn:system:users:set_roles:1` | Replace the roles assigned to a user. |
+| `urn:system:users:set_roles:2` | Replace the roles assigned to a user. |
 | `urn:system:users:list_roles:1` | List available role names. |
 | `urn:system:users:list_roles:2` | List available role names. |
 | `urn:system:users:get_profile:1` | Retrieve profile information for a user. |
+| `urn:system:users:get_profile:2` | Retrieve profile information for a user. |
 | `urn:system:users:set_credits:1` | Update a user's credit balance. |
+| `urn:system:users:set_credits:2` | Update a user's credit balance. |
+| `urn:system:users:enable_storage:1` | Enable storage for a user. |
+| `urn:system:users:enable_storage:2` | Enable storage for a user. |
 
+### `config`
+
+| Operation | Description |
+|-----------|-------------|
+| `urn:system:config:list:1` | List configuration entries. |
+| `urn:system:config:list:2` | List configuration entries. |
+| `urn:system:config:set:1` | Create or update a configuration entry. |
+| `urn:system:config:set:2` | Create or update a configuration entry. |
+| `urn:system:config:delete:1` | Delete a configuration entry. |
+| `urn:system:config:delete:2` | Delete a configuration entry. |
+
+### `routes`
+
+| Operation | Description |
+|-----------|-------------|
+| `urn:system:routes:list:1` | List application routes. |
+| `urn:system:routes:list:2` | List application routes. |
+| `urn:system:routes:set:1` | Create or update a route definition. |
+| `urn:system:routes:set:2` | Create or update a route definition. |
+| `urn:system:routes:delete:1` | Delete a route definition. |
+| `urn:system:routes:delete:2` | Delete a route definition. |
 
 ## Auth Domain
 
