@@ -74,7 +74,6 @@ async def update_build_version() -> None:
         return
       # await _update_config_database(conn, 'Version', new_version)
       # await _update_config_database(conn, 'LastVersion', current_version)
-
   await pool.close()
 
 def main() -> None:
