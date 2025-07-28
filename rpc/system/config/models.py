@@ -12,3 +12,12 @@ class SystemConfigUpdate1(ConfigItem):
 
 class SystemConfigDelete1(BaseModel):
   key: str
+
+class SystemConfigList2(BaseModel):
+  items: list[ConfigItem]
+
+class SystemConfigUpdate2(ConfigItem):
+  pass
+
+class SystemConfigDelete2(BaseModel):
+  key: str
