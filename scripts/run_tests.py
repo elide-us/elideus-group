@@ -1,5 +1,5 @@
 from __future__ import annotations
-import subprocess, os, sys, importlib.util, asyncio, asyncpg, argparse
+import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
 from pathlib import Path
 
 def _unpack_version(ver: str) -> tuple[int, int, int, int]:
@@ -19,43 +19,67 @@ async def update_build_version() -> None:
   from dotenv import load_dotenv
   load_dotenv()
 
+  pool = None
   try:
-    dsn = os.environ["POSTGRES_CONNECTION_STRING"]
-    pool = await asyncpg.create_pool(dsn=dsn)
+    dsn = os.environ["AZURE_SQL_CONNECTION_STRING"]
+    pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
   except Exception as e:
     print(f'Unable to connect to database: {e}')
     return
-  async with pool.acquire() as conn:
-    current_version = await conn.fetchval("SELECT value FROM config WHERE key='Version'")
-    last_version = await conn.fetchval("SELECT value FROM config WHERE key='LastVersion'")
-    if not current_version:
-      print('Version entry not found in config table')
-      await pool.close()
-      return
-    if not last_version:
-      last_version = current_version
-    current_major, current_minor, current_patch, current_build = _unpack_version(current_version)
-    last_major, last_minor, last_patch, _ = _unpack_version(last_version)
-    if (current_major, current_minor, current_patch) != (last_major, last_minor, last_patch):
-      build = 1
-    else:
-      build = current_build + 1
-    
-    new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
-    print(f'Updating build version: {current_version} -> {new_version}')
 
-    res = await conn.execute("UPDATE config SET value=$1 WHERE key='Version'", new_version)
-    if res.startswith("UPDATE 0"):
-      print("Failed to update config record Version")
-      return
+  try:
+    async with pool.acquire() as conn:
+      async with conn.cursor() as cur:
+        await cur.execute(
+          "SELECT element_value FROM system_config WHERE element_key='Version'"
+        )
+        row = await cur.fetchone()
+        current_version = row[0] if row else None
 
-    res = await conn.execute("UPDATE config SET value=$1 WHERE key='LastVersion'", current_version)
-    if res.startswith("UPDATE 0"):
-      print("Failed to update config record LastVersion")
-      return
-    # await _update_config_database(conn, 'Version', new_version)
-    # await _update_config_database(conn, 'LastVersion', current_version)
-  await pool.close()
+        await cur.execute(
+          "SELECT element_value FROM system_config WHERE element_key='LastVersion'"
+        )
+        row = await cur.fetchone()
+        last_version = row[0] if row else None
+
+        if not current_version:
+          print('Version entry not found in config table')
+          return
+        if not last_version:
+          last_version = current_version
+
+        current_major, current_minor, current_patch, current_build = _unpack_version(current_version)
+        last_major, last_minor, last_patch, _ = _unpack_version(last_version)
+
+        if (current_major, current_minor, current_patch) != (last_major, last_minor, last_patch):
+          build = 1
+        else:
+          build = current_build + 1
+
+        new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
+        print(f'Updating build version: {current_version} -> {new_version}')
+
+        await cur.execute(
+          "UPDATE system_config SET element_value=? WHERE element_key='Version'",
+          (new_version,),
+        )
+        if cur.rowcount == 0:
+          print('Failed to update config record Version')
+          return
+
+        await cur.execute(
+          "UPDATE system_config SET element_value=? WHERE element_key='LastVersion'",
+          (current_version,),
+        )
+        if cur.rowcount == 0:
+          print('Failed to update config record LastVersion')
+          return
+        # await _update_config_database(conn, 'Version', new_version)
+        # await _update_config_database(conn, 'LastVersion', current_version)
+  finally:
+    if pool:
+      pool.close()
+      await pool.wait_closed()
 
 def main() -> None:
   ROOT = Path(__file__).resolve().parent.parent

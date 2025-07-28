@@ -14,7 +14,7 @@ We'll update this section as we move through the rebuild.
 - GitHub Actions CI/CD Integration
 - Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
 - OAuth2 Microsoft Identity
-- PostgresSQL Database
+- PostgreSQL and Azure SQL Databases
 - Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.
@@ -41,8 +41,8 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 Several helper scripts in the `scripts` directory manage the project database and data entities:
 - `database_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details.
 - `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
-- `run_tests.py` executes various test, generate, and update operations for build automation.
-    - Requires `POSTGRES_CONNECTION_STRING` environment variable to function properly.
+- `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
+    - Requires `AZURE_SQL_CONNECTION_STRING` environment variable to function properly.
 - `generate_rpc_client.py` generates function accessors for the RPC namespace defining required interface types.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
 - `genlib.py` handles common RPC namespace generation functions.
