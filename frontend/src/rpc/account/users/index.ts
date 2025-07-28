@@ -4,21 +4,21 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, AccountUserProfile1, AccountUserProfile2, AccountUserRoles1, AccountUserRoles2, AccountUsersList1, AccountUsersList2 } from '../../../shared/RpcModels';
+import { rpcCall, AccountUserProfile2, AccountUserRoles2, AccountUsersList2 } from '../../../shared/RpcModels';
 
-export const fetchList = (payload: any = null): Promise<AccountUsersList1> => rpcCall('urn:account:users:list:1', payload);
+export const fetchList = (payload: any = null): Promise<any> => rpcCall('urn:account:users:list:1', payload);
 export const fetchList2 = (payload: any = null): Promise<AccountUsersList2> => rpcCall('urn:account:users:list:2', payload);
-export const fetchRoles = (payload: any = null): Promise<AccountUserRoles1> => rpcCall('urn:account:users:get_roles:1', payload);
+export const fetchRoles = (payload: any = null): Promise<any> => rpcCall('urn:account:users:get_roles:1', payload);
 export const fetchRoles2 = (payload: any = null): Promise<AccountUserRoles2> => rpcCall('urn:account:users:get_roles:2', payload);
-export const fetchSetRoles = (payload: any = null): Promise<AccountUserRoles1> => rpcCall('urn:account:users:set_roles:1', payload);
+export const fetchSetRoles = (payload: any = null): Promise<any> => rpcCall('urn:account:users:set_roles:1', payload);
 export const fetchSetRoles2 = (payload: any = null): Promise<AccountUserRoles2> => rpcCall('urn:account:users:set_roles:2', payload);
-export const fetchListRoles = (payload: any = null): Promise<AccountUserRoles1> => rpcCall('urn:account:users:list_roles:1', payload);
+export const fetchListRoles = (payload: any = null): Promise<any> => rpcCall('urn:account:users:list_roles:1', payload);
 export const fetchListRoles2 = (payload: any = null): Promise<AccountUserRoles2> => rpcCall('urn:account:users:list_roles:2', payload);
-export const fetchProfile = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:get_profile:1', payload);
+export const fetchProfile = (payload: any = null): Promise<any> => rpcCall('urn:account:users:get_profile:1', payload);
 export const fetchProfile2 = (payload: any = null): Promise<AccountUserProfile2> => rpcCall('urn:account:users:get_profile:2', payload);
-export const fetchSetCredits = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:set_credits:1', payload);
+export const fetchSetCredits = (payload: any = null): Promise<any> => rpcCall('urn:account:users:set_credits:1', payload);
 export const fetchSetCredits2 = (payload: any = null): Promise<AccountUserProfile2> => rpcCall('urn:account:users:set_credits:2', payload);
-export const fetchSetDisplayName = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:set_display_name:1', payload);
+export const fetchSetDisplayName = (payload: any = null): Promise<any> => rpcCall('urn:account:users:set_display_name:1', payload);
 export const fetchSetDisplayName2 = (payload: any = null): Promise<AccountUserProfile2> => rpcCall('urn:account:users:set_display_name:2', payload);
-export const fetchEnableStorage = (payload: any = null): Promise<AccountUserProfile1> => rpcCall('urn:account:users:enable_storage:1', payload);
+export const fetchEnableStorage = (payload: any = null): Promise<any> => rpcCall('urn:account:users:enable_storage:1', payload);
 export const fetchEnableStorage2 = (payload: any = null): Promise<AccountUserProfile2> => rpcCall('urn:account:users:enable_storage:2', payload);

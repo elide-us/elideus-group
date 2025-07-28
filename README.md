@@ -14,7 +14,7 @@ We'll update this section as we move through the rebuild.
 - GitHub Actions CI/CD Integration
 - Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
 - OAuth2 Microsoft Identity
-- PostgreSQL and Azure SQL Databases
+- Azure SQL Database
 - Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.
@@ -46,7 +46,6 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `generate_rpc_client.py` generates function accessors for the RPC namespace defining required interface types.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
 - `genlib.py` handles common RPC namespace generation functions.
-- `dblib.py` handles most of the database querying operations.
 - `msdblib.py` handles most of the database querying operations.
   Schema dumps now record NVARCHAR field lengths for accurate
   recreation across environments.

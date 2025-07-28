@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
 from rpc.auth.session.models import AuthSessionTokens1
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule
+from server.modules.mssql_module import MSSQLModule
 
 async def refresh_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   payload = rpc_request.payload or {}
@@ -10,7 +10,7 @@ async def refresh_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   if not rotation:
     raise HTTPException(status_code=400, detail='Missing rotationToken')
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   data = await auth.decode_rotation_token(rotation)
   session = await db.get_session_by_rotation(rotation)
   if not session:
@@ -27,7 +27,7 @@ async def invalidate_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   rotation = payload.get('rotationToken')
   if not rotation:
     raise HTTPException(status_code=400, detail='Missing rotationToken')
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   session = await db.get_session_by_rotation(rotation)
   if session:
     await db.delete_session(session['session_id'])

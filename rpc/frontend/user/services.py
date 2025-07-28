@@ -2,7 +2,7 @@ from fastapi import Request, HTTPException
 from rpc.models import RPCRequest, RPCResponse
 from rpc.frontend.user.models import FrontendUserProfileData1, FrontendUserSetDisplayName1
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule, _utos
+from server.modules.mssql_module import MSSQLModule, _utos
 from server.helpers.roles import mask_to_names
 from server.modules.storage_module import StorageModule
 
@@ -12,7 +12,7 @@ async def get_profile_data_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   if not token:
     raise HTTPException(status_code=401, detail='Missing bearer token')
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   storage: StorageModule = request.app.state.storage
   token_data = await auth.decode_bearer_token(token)
   guid = token_data['guid']
@@ -45,7 +45,7 @@ async def set_display_name_v1(rpc_request: RPCRequest, request: Request) -> RPCR
   if not token or display_name is None:
     raise HTTPException(status_code=400, detail='Missing parameters')
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   storage: StorageModule = request.app.state.storage
   token_data = await auth.decode_bearer_token(token)
   guid = token_data['guid']

@@ -44,7 +44,7 @@ class DummyDB:
 def test_user_login_v1():
   app = FastAPI()
   app.state.auth = DummyAuth()
-  app.state.database = DummyDB()
+  app.state.mssql = DummyDB()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   resp = asyncio.run(services.user_login_v1(rpc_req, req))
@@ -71,7 +71,7 @@ def test_user_login_profile_update():
   auth = DummyAuthImage()
   db = DummyDB()
   app.state.auth = auth
-  app.state.database = db
+  app.state.mssql = db
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
   asyncio.run(services.user_login_v1(rpc_req, req))
@@ -86,7 +86,7 @@ def test_user_login_reports_discord():
     return 0
   db.get_user_roles = roles
   discord = DummyDiscord()
-  app.state.database = db
+  app.state.mssql = db
   app.state.discord = discord
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'idToken': 'id', 'accessToken': 'ac', 'provider': 'microsoft'})
