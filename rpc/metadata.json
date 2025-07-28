@@ -53,7 +53,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:enable_storage:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:get_profile:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:get_profile:2",
       "capabilities": 0
     },
     {
@@ -61,7 +69,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:get_roles:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:list:2",
       "capabilities": 0
     },
     {
@@ -77,11 +93,23 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:set_credits:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:set_display_name:1",
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:set_display_name:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:set_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:account:users:set_roles:2",
       "capabilities": 0
     },
     {
@@ -165,11 +193,23 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:config:delete:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:config:list:1",
       "capabilities": 0
     },
     {
+      "op": "urn:system:config:list:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:config:set:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:config:set:2",
       "capabilities": 0
     },
     {
@@ -249,7 +289,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:users:enable_storage:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:users:get_profile:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:users:get_profile:2",
       "capabilities": 0
     },
     {
@@ -257,7 +305,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:users:get_roles:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:users:list:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:users:list:2",
       "capabilities": 0
     },
     {
@@ -273,7 +329,15 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:users:set_credits:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:users:set_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:users:set_roles:2",
       "capabilities": 0
     }
   ]
