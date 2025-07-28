@@ -30,6 +30,7 @@ These calls expose system administration functionality.
 | `urn:system:users:get_roles:1` | Get the roles assigned to a user. |
 | `urn:system:users:set_roles:1` | Replace the roles assigned to a user. |
 | `urn:system:users:list_roles:1` | List available role names. |
+| `urn:system:users:list_roles:2` | List available role names. |
 | `urn:system:users:get_profile:1` | Retrieve profile information for a user. |
 | `urn:system:users:set_credits:1` | Update a user's credit balance. |
 

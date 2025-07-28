@@ -69,6 +69,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:account:users:list_roles:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:account:users:set_credits:1",
       "capabilities": 0
     },
@@ -258,6 +262,10 @@
     },
     {
       "op": "urn:system:users:list_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:users:list_roles:2",
       "capabilities": 0
     },
     {
