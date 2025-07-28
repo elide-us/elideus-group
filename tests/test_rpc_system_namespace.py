@@ -159,7 +159,6 @@ def app():
     db = DummyDB()
     asyncio.run(role_helper.load_roles(db))
     db.role_map = {"admin": role_helper.ROLES["ROLE_SYSTEM_ADMIN"], "uid": 0}
-    app.state.database = db
     app.state.mssql = db
     app.state.permcap = DummyPermCap()
     app.state.auth = DummyAuth()
@@ -233,10 +232,10 @@ def test_get_ffmpeg_version(app, monkeypatch):
 
 def test_get_links(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:frontend:links:get_home:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_home:2")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:frontend:links:home:1:view:default:1"
+    assert resp.op == "urn:frontend:links:home:2:view:default:1"
     assert len(resp.payload.links) == 1
     assert resp.payload.links[0].title == "Discord"
 
@@ -251,10 +250,10 @@ def test_get_links_v2(app):
 
 def test_get_routes_not_logged_in(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:2")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:2:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery"]
 
 def test_get_routes_not_logged_in_v2(app):
@@ -269,10 +268,10 @@ def test_get_routes_not_logged_in_v2(app):
 def test_get_routes_logged_in(app):
     scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer uid")]} 
     request = Request(scope)
-    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:2")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:2:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager"]
 
 def test_get_routes_logged_in_v2(app):
@@ -288,10 +287,10 @@ def test_get_routes_logged_in_v2(app):
 def test_get_routes_admin(app):
     scope = {"type": "http", "app": app, "headers": [(b"authorization", b"Bearer admin")]} 
     request = Request(scope)
-    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:1")
+    rpc_request = RPCRequest(op="urn:frontend:links:get_routes:2")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:frontend:links:routes:1:view:default:1"
+    assert resp.op == "urn:frontend:links:routes:2:view:default:1"
     assert [r.path for r in resp.payload.routes] == ["/", "/gallery", "/file-manager", "/user-admin"]
 
 def test_get_routes_admin_v2(app):
@@ -305,26 +304,26 @@ def test_get_routes_admin_v2(app):
 
 def test_get_users(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:system:users:list:1")
+    rpc_request = RPCRequest(op="urn:system:users:list:2")
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:system:users:list:1:view:default:1"
+    assert resp.op == "urn:system:users:list:2:view:default:1"
     assert len(resp.payload.users) == 1
     assert resp.payload.users[0].displayName == "User"
 
 def test_get_user_profile(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:account:users:get_profile:1", payload={"userGuid": "uid"})
+    rpc_request = RPCRequest(op="urn:account:users:get_profile:2", payload={"userGuid": "uid"})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:account:users:get_profile:1:view:default:1"
+    assert resp.op == "urn:account:users:get_profile:2:view:default:1"
     assert resp.payload.email == "u@example.com"
 
 def test_set_user_credits(app):
     request = Request({"type": "http", "app": app, 'headers': []})
-    rpc_request = RPCRequest(op="urn:account:users:set_credits:1", payload={"userGuid": "uid", "credits": 100})
+    rpc_request = RPCRequest(op="urn:account:users:set_credits:2", payload={"userGuid": "uid", "credits": 100})
     resp = asyncio.run(handle_rpc_request(rpc_request, request))
 
-    assert resp.op == "urn:account:users:set_credits:1:view:default:1"
+    assert resp.op == "urn:account:users:set_credits:2:view:default:1"
     assert resp.payload.credits == 100
 

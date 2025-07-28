@@ -1,6 +1,6 @@
 import logging, discord, asyncio, json
 from .env_module import EnvironmentModule
-from server.modules.database_module import DatabaseModule
+from server.modules.mssql_module import MSSQLModule
 from fastapi import FastAPI, Request
 from discord.ext import commands
 from server.helpers.logging import configure_discord_logging #, remove_discord_logging
@@ -10,7 +10,7 @@ class DiscordModule():
     self.app: FastAPI = app
     try:
       self.env: EnvironmentModule = app.state.env
-      self.db: DatabaseModule = app.state.database
+      self.db: MSSQLModule = app.state.mssql
     except AttributeError:
       raise Exception("Env and Database modules must be loaded first")
     self.secret = self.env.get("DISCORD_SECRET")

@@ -30,7 +30,6 @@ def discord_app(monkeypatch):
   monkeypatch.setenv("DISCORD_SECRET", "secret")
   monkeypatch.setenv("DISCORD_SYSCHAN", "1")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
   monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
   app = FastAPI()
   env = EnvironmentModule(app)
@@ -43,7 +42,7 @@ def discord_app(monkeypatch):
         return "host"
       if key == "Version":
         return "v1.2.3"
-  app.state.database = DB()
+  app.state.mssql = DB()
   return app
 
 def test_discord_module_init(monkeypatch, discord_app):

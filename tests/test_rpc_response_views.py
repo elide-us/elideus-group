@@ -12,7 +12,6 @@ def set_env(monkeypatch):
   monkeypatch.setenv("HOSTNAME", "unit-host")
   monkeypatch.setenv("DISCORD_SECRET", "token")
   monkeypatch.setenv("JWT_SECRET", "jwt")
-  monkeypatch.setenv("POSTGRES_CONNECTION_STRING", "postgres://user@host/db")
   monkeypatch.setenv("AZURE_BLOB_CONNECTION_STRING", "cs")
 
 
@@ -25,7 +24,7 @@ def app():
     async def get_config_value(self, key):
       if key == "Hostname":
         return "unit-host"
-  app.state.database = DB()
+  app.state.mssql = DB()
   return app
 
 

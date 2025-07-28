@@ -39,7 +39,7 @@ class DummyStorage:
 def test_get_profile_data_v1():
   app = FastAPI()
   app.state.auth = DummyAuth()
-  app.state.database = DummyDB()
+  app.state.mssql = DummyDB()
   app.state.storage = DummyStorage()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token'})
@@ -56,7 +56,7 @@ def test_set_display_name_v1():
   auth = DummyAuth()
   db = DummyDB()
   app.state.auth = auth
-  app.state.database = db
+  app.state.mssql = db
   app.state.storage = DummyStorage()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc_req = RPCRequest(op='op', payload={'bearerToken': 'token', 'displayName': 'n'})
