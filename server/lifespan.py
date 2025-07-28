@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 
   await role_helper.load_roles(app.state.mssql)
 
-  debug = await app.state.database.get_config_value("DebugLogging")
+  debug = await app.state.mssql.get_config_value("DebugLogging")
   configure_root_logging(debug=str(debug).lower() in ["1", "true"])
 
   app.state.env = EnvironmentModule(app)
