@@ -67,11 +67,11 @@ class DummyMSSQL:
 
 async def make_app():
   app = FastAPI()
-  app.state.database = DummyDB()
+  app.state.mssql = DummyDB()
   app.state.auth = None
   app.state.permcap = None
   app.state.env = None
-  await role_helper.load_roles(app.state.database)
+  await role_helper.load_roles(app.state.mssql)
   return app
 
 
@@ -86,13 +86,13 @@ async def make_app2():
 
 
 def test_route_flow():
-  app = asyncio.run(make_app())
+  app = asyncio.run(make_app2())
   req = Request({'type': 'http', 'app': app, 'headers': []})
-  rpc = RPCRequest(op='urn:system:routes:list:1')
+  rpc = RPCRequest(op='urn:system:routes:list:2')
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert len(resp.payload.routes) == 1
 
-  rpc = RPCRequest(op='urn:system:routes:set:1', payload={
+  rpc = RPCRequest(op='urn:system:routes:set:2', payload={
     'path': '/b',
     'name': 'B',
     'icon': 'menu',
@@ -102,7 +102,7 @@ def test_route_flow():
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert any(r.path == '/b' for r in resp.payload.routes)
 
-  rpc = RPCRequest(op='urn:system:routes:delete:1', payload={'path': '/a'})
+  rpc = RPCRequest(op='urn:system:routes:delete:2', payload={'path': '/a'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert all(r.path != '/a' for r in resp.payload.routes)
 

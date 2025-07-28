@@ -31,7 +31,6 @@ class DummyAuth:
 async def make_app():
   app = FastAPI()
   db = DummyDB()
-  app.state.database = db
   app.state.mssql = db
   app.state.auth = DummyAuth()
   app.state.permcap = None

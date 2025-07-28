@@ -28,241 +28,70 @@ export interface RPCResponse {
 export interface UserData {
   bearerToken: string;
 }
-export interface AccountRoleDelete1 {
-  name: string;
-}
-export interface AccountRoleDelete2 {
-  name: string;
-}
-export interface AccountRoleMemberUpdate1 {
-  role: string;
+export interface SystemUserCreditsUpdate1 {
   userGuid: string;
+  credits: number;
 }
-export interface AccountRoleMemberUpdate2 {
-  role: string;
+export interface SystemUserCreditsUpdate2 {
   userGuid: string;
+  credits: number;
 }
-export interface AccountRoleMembers1 {
-  members: UserListItem[];
-  nonMembers: UserListItem[];
+export interface SystemUserProfile1 {
+  guid: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: any;
+  profilePicture: any;
+  credits: any;
+  storageUsed: any;
+  storageEnabled: any;
+  displayEmail: boolean;
+  rotationToken: any;
+  rotationExpires: any;
 }
-export interface AccountRoleMembers2 {
-  members: UserListItem[];
-  nonMembers: UserListItem[];
+export interface SystemUserProfile2 {
+  guid: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: any;
+  profilePicture: any;
+  credits: any;
+  storageUsed: any;
+  storageEnabled: any;
+  displayEmail: boolean;
+  rotationToken: any;
+  rotationExpires: any;
 }
-export interface AccountRoleUpdate1 {
-  name: string;
-  display: string;
-  bit: number;
+export interface SystemUserRoles1 {
+  roles: string[];
 }
-export interface AccountRoleUpdate2 {
-  name: string;
-  display: string;
-  bit: number;
+export interface SystemUserRoles2 {
+  roles: string[];
 }
-export interface AccountRolesList1 {
-  roles: RoleItem[];
+export interface SystemUserRolesUpdate1 {
+  userGuid: string;
+  roles: string[];
 }
-export interface AccountRolesList2 {
-  roles: RoleItem[];
+export interface SystemUserRolesUpdate2 {
+  userGuid: string;
+  roles: string[];
 }
-export interface RoleItem {
-  name: string;
-  display: string;
-  bit: number;
+export interface SystemUsersList1 {
+  users: UserListItem[];
+}
+export interface SystemUsersList2 {
+  users: UserListItem[];
 }
 export interface UserListItem {
   guid: string;
   displayName: string;
 }
-export interface AccountUserCreditsUpdate1 {
-  userGuid: string;
-  credits: number;
-}
-export interface AccountUserCreditsUpdate2 {
-  userGuid: string;
-  credits: number;
-}
-export interface AccountUserDisplayNameUpdate1 {
-  userGuid: string;
-  displayName: string;
-}
-export interface AccountUserDisplayNameUpdate2 {
-  userGuid: string;
-  displayName: string;
-}
-export interface AccountUserProfile1 {
-  guid: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: any;
-  profilePicture: any;
-  credits: any;
-  storageUsed: any;
-  storageEnabled: any;
-  displayEmail: boolean;
-  rotationToken: any;
-  rotationExpires: any;
-}
-export interface AccountUserProfile2 {
-  guid: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: any;
-  profilePicture: any;
-  credits: any;
-  storageUsed: any;
-  storageEnabled: any;
-  displayEmail: boolean;
-  rotationToken: any;
-  rotationExpires: any;
-}
-export interface AccountUserRoles1 {
-  roles: string[];
-}
-export interface AccountUserRoles2 {
-  roles: string[];
-}
-export interface AccountUserRolesUpdate1 {
-  userGuid: string;
-  roles: string[];
-}
-export interface AccountUserRolesUpdate2 {
-  userGuid: string;
-  roles: string[];
-}
-export interface AccountUsersList1 {
-  users: UserListItem[];
-}
-export interface AccountUsersList2 {
-  users: UserListItem[];
-}
-export interface AuthMicrosoftLoginData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-  rotationToken: string;
-  rotationExpires: any;
-}
-export interface FrontendLinksHome1 {
-  links: LinkItem[];
-}
-export interface FrontendLinksHome2 {
-  links: LinkItem[];
-}
-export interface FrontendLinksRoutes1 {
-  routes: RouteItem[];
-}
-export interface FrontendLinksRoutes2 {
-  routes: RouteItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface RouteItem {
-  path: string;
+export interface RoleItem {
   name: string;
-  icon: string;
-}
-export interface FrontendUserProfileData1 {
-  bearerToken: string;
-  defaultProvider: string;
-  username: string;
-  email: string;
-  backupEmail: string | null;
-  profilePicture: string | null;
-  credits: number | null;
-  storageUsed: number | null;
-  storageEnabled: boolean | null;
-  displayEmail: boolean;
-  roles: string[];
-  rotationToken: string | null;
-  rotationExpires: any | null;
-}
-export interface FrontendUserSetDisplayName1 {
-  bearerToken: string;
-  displayName: string;
-}
-export interface FrontendVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface FrontendVarsHostname1 {
-  hostname: string;
-}
-export interface FrontendVarsHostname2 {
-  hostname: string;
-}
-export interface FrontendVarsRepo1 {
-  repo: string;
-}
-export interface FrontendVarsRepo2 {
-  repo: string;
-}
-export interface FrontendVarsVersion1 {
-  version: string;
-}
-export interface FrontendVarsVersion2 {
-  version: string;
-}
-export interface ViewDiscord1 {
-  content: string;
-}
-export interface ViewDiscord2 {
-  content: string;
-}
-export interface FileItem {
-  name: string;
-  url: string;
-  contentType: string | null;
-}
-export interface StorageFileDelete1 {
-  bearerToken: string;
-  filename: string;
-}
-export interface StorageFileUpload1 {
-  bearerToken: string;
-  filename: string;
-  dataUrl: string;
-  contentType: string;
-}
-export interface StorageFilesList1 {
-  files: FileItem[];
-}
-export interface ConfigItem {
-  key: string;
-  value: string;
-}
-export interface SystemConfigDelete1 {
-  key: string;
-}
-export interface SystemConfigDelete2 {
-  key: string;
-}
-export interface SystemConfigList1 {
-  items: ConfigItem[];
-}
-export interface SystemConfigList2 {
-  items: ConfigItem[];
-}
-export interface SystemConfigUpdate1 {
-  key: string;
-  value: string;
-}
-export interface SystemConfigUpdate2 {
-  key: string;
-  value: string;
+  display: string;
+  bit: number;
 }
 export interface SystemRoleDelete1 {
   name: string;
@@ -335,15 +164,130 @@ export interface SystemRoutesList1 {
 export interface SystemRoutesList2 {
   routes: SystemRouteItem[];
 }
-export interface SystemUserCreditsUpdate1 {
+export interface ConfigItem {
+  key: string;
+  value: string;
+}
+export interface SystemConfigDelete1 {
+  key: string;
+}
+export interface SystemConfigDelete2 {
+  key: string;
+}
+export interface SystemConfigList1 {
+  items: ConfigItem[];
+}
+export interface SystemConfigList2 {
+  items: ConfigItem[];
+}
+export interface SystemConfigUpdate1 {
+  key: string;
+  value: string;
+}
+export interface SystemConfigUpdate2 {
+  key: string;
+  value: string;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
+  rotationToken: string;
+  rotationExpires: any;
+}
+export interface AuthMicrosoftLoginData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendLinksHome1 {
+  links: LinkItem[];
+}
+export interface FrontendLinksHome2 {
+  links: LinkItem[];
+}
+export interface FrontendLinksRoutes1 {
+  routes: RouteItem[];
+}
+export interface FrontendLinksRoutes2 {
+  routes: RouteItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface RouteItem {
+  path: string;
+  name: string;
+  icon: string;
+}
+export interface FrontendVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface FrontendVarsHostname1 {
+  hostname: string;
+}
+export interface FrontendVarsHostname2 {
+  hostname: string;
+}
+export interface FrontendVarsRepo1 {
+  repo: string;
+}
+export interface FrontendVarsRepo2 {
+  repo: string;
+}
+export interface FrontendVarsVersion1 {
+  version: string;
+}
+export interface FrontendVarsVersion2 {
+  version: string;
+}
+export interface ViewDiscord1 {
+  content: string;
+}
+export interface ViewDiscord2 {
+  content: string;
+}
+export interface FrontendUserProfileData1 {
+  bearerToken: string;
+  defaultProvider: string;
+  username: string;
+  email: string;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  storageEnabled: boolean | null;
+  displayEmail: boolean;
+  roles: string[];
+  rotationToken: string | null;
+  rotationExpires: any | null;
+}
+export interface FrontendUserSetDisplayName1 {
+  bearerToken: string;
+  displayName: string;
+}
+export interface AccountUserCreditsUpdate1 {
   userGuid: string;
   credits: number;
 }
-export interface SystemUserCreditsUpdate2 {
+export interface AccountUserCreditsUpdate2 {
   userGuid: string;
   credits: number;
 }
-export interface SystemUserProfile1 {
+export interface AccountUserDisplayNameUpdate1 {
+  userGuid: string;
+  displayName: string;
+}
+export interface AccountUserDisplayNameUpdate2 {
+  userGuid: string;
+  displayName: string;
+}
+export interface AccountUserProfile1 {
   guid: string;
   defaultProvider: string;
   username: string;
@@ -357,7 +301,7 @@ export interface SystemUserProfile1 {
   rotationToken: any;
   rotationExpires: any;
 }
-export interface SystemUserProfile2 {
+export interface AccountUserProfile2 {
   guid: string;
   defaultProvider: string;
   username: string;
@@ -371,25 +315,81 @@ export interface SystemUserProfile2 {
   rotationToken: any;
   rotationExpires: any;
 }
-export interface SystemUserRoles1 {
+export interface AccountUserRoles1 {
   roles: string[];
 }
-export interface SystemUserRoles2 {
+export interface AccountUserRoles2 {
   roles: string[];
 }
-export interface SystemUserRolesUpdate1 {
+export interface AccountUserRolesUpdate1 {
   userGuid: string;
   roles: string[];
 }
-export interface SystemUserRolesUpdate2 {
+export interface AccountUserRolesUpdate2 {
   userGuid: string;
   roles: string[];
 }
-export interface SystemUsersList1 {
+export interface AccountUsersList1 {
   users: UserListItem[];
 }
-export interface SystemUsersList2 {
+export interface AccountUsersList2 {
   users: UserListItem[];
+}
+export interface AccountRoleDelete1 {
+  name: string;
+}
+export interface AccountRoleDelete2 {
+  name: string;
+}
+export interface AccountRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AccountRoleMemberUpdate2 {
+  role: string;
+  userGuid: string;
+}
+export interface AccountRoleMembers1 {
+  members: UserListItem[];
+  nonMembers: UserListItem[];
+}
+export interface AccountRoleMembers2 {
+  members: UserListItem[];
+  nonMembers: UserListItem[];
+}
+export interface AccountRoleUpdate1 {
+  name: string;
+  display: string;
+  bit: number;
+}
+export interface AccountRoleUpdate2 {
+  name: string;
+  display: string;
+  bit: number;
+}
+export interface AccountRolesList1 {
+  roles: RoleItem[];
+}
+export interface AccountRolesList2 {
+  roles: RoleItem[];
+}
+export interface FileItem {
+  name: string;
+  url: string;
+  contentType: string | null;
+}
+export interface StorageFileDelete1 {
+  bearerToken: string;
+  filename: string;
+}
+export interface StorageFileUpload1 {
+  bearerToken: string;
+  filename: string;
+  dataUrl: string;
+  contentType: string;
+}
+export interface StorageFilesList1 {
+  files: FileItem[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

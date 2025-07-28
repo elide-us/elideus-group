@@ -28,14 +28,14 @@ class DummyStorage:
   async def ensure_user_folder(self, guid):
     return None
 
-def test_set_user_display_name_v1():
+def test_set_user_display_name_v2():
   app = FastAPI()
   db = DummyDB()
-  app.state.database = db
+  app.state.mssql = db
   app.state.storage = DummyStorage()
   req = Request({'type': 'http', 'app': app, 'headers': []})
   rpc = RPCRequest(op='op', payload={'userGuid': 'uid', 'displayName': 'n'})
-  resp = asyncio.run(services.set_user_display_name_v1(rpc, req))
-  assert resp.op == 'urn:account:users:set_display_name:1'
+  resp = asyncio.run(services.set_user_display_name_v2(rpc, req))
+  assert resp.op == 'urn:account:users:set_display_name:2'
   assert resp.payload.username == 'n'
   assert db.updated == ('uid', 'n')

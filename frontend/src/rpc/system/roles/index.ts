@@ -4,9 +4,9 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, SystemRolesList1, SystemRolesList2 } from '../../../shared/RpcModels';
+import { rpcCall, SystemRolesList2 } from '../../../shared/RpcModels';
 
-export const fetchList = (payload: any = null): Promise<SystemRolesList1> => rpcCall('urn:system:roles:list:1', payload);
+export const fetchList = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:delete:1', payload);
 export const fetchMembers = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:get_members:1', payload);

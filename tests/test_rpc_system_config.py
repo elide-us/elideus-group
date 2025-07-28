@@ -8,7 +8,7 @@ class DummyDB:
     self.data = {'A': '1'}
 
   async def list_config(self):
-    return [{'key': k, 'value': v} for k, v in self.data.items()]
+    return [{'element_key': k, 'element_value': v} for k, v in self.data.items()]
 
   async def set_config_value(self, key, value):
     self.data[key] = value
@@ -18,7 +18,7 @@ class DummyDB:
 
 async def make_app():
   app = FastAPI()
-  app.state.database = DummyDB()
+  app.state.mssql = DummyDB()
   app.state.auth = None
   app.state.permcap = None
   app.state.env = None
@@ -29,14 +29,14 @@ def test_config_flow():
   app = asyncio.run(make_app())
   req = Request({'type': 'http', 'app': app, 'headers': []})
 
-  rpc = RPCRequest(op='urn:system:config:list:1')
+  rpc = RPCRequest(op='urn:system:config:list:2')
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert len(resp.payload.items) == 1
 
-  rpc = RPCRequest(op='urn:system:config:set:1', payload={'key': 'B', 'value': '2'})
+  rpc = RPCRequest(op='urn:system:config:set:2', payload={'key': 'B', 'value': '2'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert any(i.key == 'B' for i in resp.payload.items)
 
-  rpc = RPCRequest(op='urn:system:config:delete:1', payload={'key': 'A'})
+  rpc = RPCRequest(op='urn:system:config:delete:2', payload={'key': 'A'})
   resp = asyncio.run(handle_rpc_request(rpc, req))
   assert all(i.key != 'A' for i in resp.payload.items)
