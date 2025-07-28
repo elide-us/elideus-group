@@ -145,7 +145,27 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:roles:add_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:add_member:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:roles:delete:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:delete:2",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:get_members:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:get_members:2",
       "capabilities": 0
     },
     {
@@ -153,7 +173,23 @@
       "capabilities": 0
     },
     {
+      "op": "urn:system:roles:list:2",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:remove_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:remove_member:2",
+      "capabilities": 0
+    },
+    {
       "op": "urn:system:roles:set:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:system:roles:set:2",
       "capabilities": 0
     },
     {

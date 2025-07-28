@@ -5,8 +5,8 @@ import UserContext from './shared/UserContext';
 import { fetchSetDisplayName } from './rpc/frontend/user';
 import EditBox, { EditBoxHandle } from './shared/EditBox';
 import Notification from './shared/Notification';
-import { fetchList as fetchRoleList } from './rpc/system/roles';
-import type { SystemRolesList1 } from './shared/RpcModels';
+import { fetchList2 as fetchRoleList } from './rpc/system/roles';
+import type { SystemRolesList2 } from './shared/RpcModels';
 
 const UserPage = (): JSX.Element => {
     const { userData, setUserData } = useContext(UserContext);
@@ -25,7 +25,7 @@ const UserPage = (): JSX.Element => {
     useEffect(() => {
         void (async () => {
             try {
-                const res: SystemRolesList1 = await fetchRoleList();
+                const res: SystemRolesList2 = await fetchRoleList();
                 const map: Record<string, string> = {};
                 res.roles.forEach(r => { map[r.name] = r.display; });
                 setRoleMap(map);
