@@ -5,5 +5,6 @@ This allows tests and application code to import the configured routers using
 
 from . import lifespan
 from .routers import rpc_router, web_router
+from .helpers.logging import configure_root_logging
 
-__all__ = ["rpc_router", "web_router", "lifespan"]
+__all__ = ["rpc_router", "web_router", "lifespan", "configure_root_logging"]

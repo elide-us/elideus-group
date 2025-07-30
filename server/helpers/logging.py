@@ -57,7 +57,6 @@ def configure_discord_logging(discord_module):
   handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
   logging.getLogger().addHandler(handler)
 
-
 def configure_root_logging(debug: bool = False):
   logger = logging.getLogger()
   if logger.handlers:
@@ -70,9 +69,9 @@ def configure_root_logging(debug: bool = False):
   azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
   azure_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
 
-
 def remove_discord_logging(discord_module):
   logger = logging.getLogger()
   for h in list(logger.handlers):
     if isinstance(h, DiscordHandler) and h.discord is discord_module:
       logger.removeHandler(h)
+
