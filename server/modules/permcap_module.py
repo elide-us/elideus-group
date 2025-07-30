@@ -1,4 +1,4 @@
-import json, os
+import json, os, logging
 from pathlib import Path
 from fastapi import FastAPI
 from . import BaseModule
@@ -12,16 +12,26 @@ class PermCapModule(BaseModule):
 
   async def startup(self):
     await self.load()
+    logging.info("PermCapModule loaded %d capability ops", len(self.capabilities))
+    self.mark_ready()
 
   async def shutdown(self):
-    return
+    logging.info("PermCapModule shutdown")
 
   async def load(self):
     try:
       with open(self.metadata_file, 'r') as f:
         data = json.load(f)
-      self.capabilities = {i['op']: i.get('capabilities', 0) for i in data.get('rpc', [])}
+      self.capabilities = {
+        i['op']: i.get('capabilities', 0)
+        for i in data.get('rpc', [])
+        if 'op' in i
+      }
     except FileNotFoundError:
+      logging.warning("PermCapModule metadata file not found: %s", self.metadata_file)
+      self.capabilities = {}
+    except Exception as e:
+      logging.error("PermCapModule failed to load capabilities: %s", e)
       self.capabilities = {}
 
   def get_capabilities(self, op: str) -> int:

@@ -25,6 +25,12 @@ async def load_roles(db) -> None:
   ROLE_NAMES = [n for n in ROLES.keys() if n != 'ROLE_REGISTERED']
   ROLE_REGISTERED = ROLES.get('ROLE_REGISTERED', 0)
 
+
+################################################################################
+## We probably only need to keep the two functions below here
+## and they can probably be moved to auth module...
+################################################################################
+
 def mask_to_names(mask: int) -> list[str]:
   return [name for name, bit in ROLES.items() if mask & bit]
 

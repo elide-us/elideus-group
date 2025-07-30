@@ -1,35 +1,35 @@
-from azure.storage.blob.aio import BlobServiceClient
+from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI
 from . import BaseModule
-from .env_module import EnvironmentModule
-from .database_module import DatabaseModule
+from .env_module import EnvModule
+from .mssql_module import MSSQLModule
 import io, logging
 
 class StorageModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    try:
-      self.env: EnvironmentModule = app.state.env
-      self.db: DatabaseModule = app.state.database
-    except AttributeError:
-      raise Exception("Env and Database modules must be loaded first")
-    self.client = None
+    self.client: ContainerClient = None
     self.container = ""
 
   async def startup(self):
-    conn = self.env.get("AZURE_BLOB_CONNECTION_STRING")
-    container = await self.db.get_config_value("AzureBlobContainerName")
-    bsc = BlobServiceClient.from_connection_string(conn)
-    client = bsc.get_container_client(container)
+    self.env: EnvModule = self.app.state.env
+    await self.env.on_ready()
+    self.mssql: MSSQLModule = self.app.state.mssql
+    await self.mssql.on_ready()
+
+    dsn = self.env.get("AZURE_BLOB_CONNECTION_STRING")
+    self.container = await self.mssql.get_config_value("AzureBlobContainerName")
+
+    bsc = BlobServiceClient.from_connection_string(dsn)
+    self.client = bsc.get_container_client(self.container)
     try:
-      await client.create_container()
+      await self.client.create_container()
     except ResourceExistsError:
       pass
-    client.container_name = container
-    self.client = client
-    self.container = container
-    logging.info("Storage module loaded container %s", container)
+    logging.info("Storage module loaded container %s", self.container)
+
+    self.mark_ready()
 
   async def shutdown(self):
     self.client = None

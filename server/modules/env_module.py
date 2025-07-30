@@ -1,13 +1,15 @@
 import os, dotenv, logging
 from fastapi import FastAPI
+from . import BaseModule
 
 dotenv.load_dotenv()
 
-class EnvironmentModule():
+class EnvModule(BaseModule):
   def __init__(self, app: FastAPI):
-    self.app = app
-
+    super().__init__(app)
     self._env: dict[str, str | None] = {}
+  
+  async def startup(self):
     self._getenv("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
     self._getenv("JWT_SECRET", "MISSING_ENV_JWT_SECRET")
     self._getenv("POSTGRES_CONNECTION_STRING", "MISSING_ENV_POSTGRES_CONNECTION_STRING")
@@ -15,6 +17,10 @@ class EnvironmentModule():
     self._getenv("AZURE_BLOB_CONNECTION_STRING", "MISSING_ENV_AZURE_BLOB_CONNECTION_STRING")
     
     logging.info("Environment module loaded")
+    self.mark_ready()
+
+  async def shutdown(self):
+    self._env.clear()
 
   def _getenv(self, var_name: str, default: str | None = None):
     value = os.getenv(var_name, default)

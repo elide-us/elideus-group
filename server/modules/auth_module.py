@@ -1,13 +1,16 @@
-import os, aiohttp, base64, logging
+import aiohttp, base64, logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
-from typing import Dict, Optional
-from . import BaseModule
-from .env_module import EnvironmentModule
-from .discord_module import DiscordModule
-from .database_module import DatabaseModule
+from typing import Dict
+
+from server.modules import BaseModule
+from server.modules.env_module import EnvModule
+from server.modules.mssql_module import MSSQLModule
+
+DEFAULT_BEARER_TOKEN_EXPIRY = 24 # hours
+DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 
 async def fetch_ms_jwks_uri() -> str:
   async with aiohttp.ClientSession() as session:
@@ -27,37 +30,34 @@ async def fetch_ms_jwks(jwks_uri: str) -> Dict:
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.ms_jwks: Optional[Dict] = None
-    try:
-      self.env: EnvironmentModule = app.state.env
-      self.discord: DiscordModule = app.state.discord
-      self.db: DatabaseModule = app.state.database
-    except AttributeError:
-      raise Exception("Env, Database and Discord modules must be loaded first")
-    self.ms_api_id: Optional[str] = None
-    self.jwt_secret: str = "secret"
+    self.ms_jwks: Dict | None = None
+    self.ms_jwks_fetched_at: datetime = datetime.now(timezone.utc)
+    self.ms_api_id: str | None = None
+    self.jwt_secret: str | None = None
     self.jwt_algo_ms: str = "RS256"
     self.jwt_algo_int: str = "HS256"
 
   async def startup(self):
-    if self.db:
-      self.ms_api_id = await self.db.get_config_value("MsApiId")
-    if self.env:
-      secret = self.env.get("JWT_SECRET")
-      if secret:
-        self.jwt_secret = secret
+    self.env: EnvModule = self.app.state.env
+    await self.env.on_ready()
+    self.mssql: MSSQLModule = self.app.state.mssql
+    await self.mssql.on_ready()
+    
+    self.ms_api_id = await self.mssql.get_config_value("MsApiId")
+    self.jwt_secret = self.env.get("JWT_SECRET")
+
     try:
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
       logging.info("Auth module loaded")
     except Exception as e:
-      print(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
+      logging.error(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
 
   async def shutdown(self):
     logging.info("Auth module shutdown")
 
   async def verify_ms_id_token(self, id_token: str) -> Dict:
-    logging.debug("verify_ms_id_token id_token=%s", id_token)
+    # Check timestamp and refresh JWKS if over 1h old
     if not self.ms_jwks:
       raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Microsoft keys unavailable")
     try:
@@ -84,7 +84,6 @@ class AuthModule(BaseModule):
         audience=self.ms_api_id,
         issuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0",
       )
-      logging.debug("verify_ms_id_token payload=%s", payload)
       return payload
     except jwt.ExpiredSignatureError:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired.")
@@ -94,7 +93,6 @@ class AuthModule(BaseModule):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token validation failed.")
 
   async def fetch_ms_user_profile(self, access_token: str) -> Dict:
-    logging.debug("fetch_ms_user_profile access_token=%s", access_token)
     async with aiohttp.ClientSession() as session:
       headers = {"Authorization": f"Bearer {access_token}"}
       async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
@@ -114,12 +112,6 @@ class AuthModule(BaseModule):
       }
 
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
-    logging.debug(
-      "handle_auth_login provider=%s id_token=%s access_token=%s",
-      provider,
-      id_token,
-      access_token,
-    )
     if provider == "microsoft":
       payload = await self.verify_ms_id_token(id_token)
       guid = payload.get("sub")
@@ -130,47 +122,50 @@ class AuthModule(BaseModule):
       return guid, profile
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
 
-  def make_bearer_token(self, guid: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(hours=24)
+  def make_bearer_token(self, guid: str, rotation_token: str) -> str:
+    exp = datetime.now(timezone.utc) + timedelta(hours=DEFAULT_BEARER_TOKEN_EXPIRY)
     token_data = {"sub": guid, "exp": exp.timestamp()}
-    token = jwt.encode(token_data, self.jwt_secret, algorithm=self.jwt_algo_int)
+    derived_secret = f"{self.jwt_secret}:{rotation_token}"
+    token = jwt.encode(token_data, derived_secret, algorithm=self.jwt_algo_int)
     return token
 
   def make_rotation_token(self, guid: str) -> tuple[str, datetime]:
-    exp = datetime.now(timezone.utc) + timedelta(days=15)
-    token_data = {"sub": guid, "exp": exp.timestamp(), "type": "rotation"}
-    token = jwt.encode(token_data, self.jwt_secret, algorithm=self.jwt_algo_int)
-    return token, exp
+    exp = datetime.now(timezone.utc) + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY)
+    parts = [uuid.uuid4().hex for _ in range(4)]
+    now = datetime.utcnow().isoformat()
+    raw = f"{guid}:{now}:{':'.join(parts)}"
+    encoded = base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8").rstrip("=")
+    return encoded, exp
 
-  async def decode_bearer_token(self, token: str) -> Dict:
+  async def decode_bearer_token(self, token: str, rotation_token: str) -> Dict:
+    derived_secret = f"{self.jwt_secret}:{rotation_token}"
     try:
-      payload = jwt.decode(token, self.jwt_secret, algorithms=[self.jwt_algo_int])
+      payload = jwt.decode(token, derived_secret, algorithms=[self.jwt_algo_int])
     except JWTError:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
+
     exp = payload.get("exp")
-    if not exp:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Expiry not found", headers={"WWW-Authenticate": "Bearer"})
-    if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+    if not exp or datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
+
     sub = payload.get("sub")
     if not sub:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
+
     return {"guid": sub}
 
-  async def decode_rotation_token(self, token: str) -> Dict:
+  def decode_rotation_token(self, token: str) -> Dict:
     try:
-      payload = jwt.decode(token, self.jwt_secret, algorithms=[self.jwt_algo_int])
-    except JWTError:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
-    exp = payload.get("exp")
-    if not exp:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Expiry not found", headers={"WWW-Authenticate": "Bearer"})
-    if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
-    sub = payload.get("sub")
-    if not sub:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
-    return {"guid": sub}
+      padded_token = token + '=' * (-len(token) % 4)  # restore stripped padding
+      raw = base64.urlsafe_b64decode(padded_token.encode("utf-8")).decode("utf-8")
+      parts = raw.split(":")
+      if len(parts) < 6:
+        raise ValueError("Malformed token")
+      guid, timestamp = parts[0], parts[1]
+      token_time = datetime.fromisoformat(timestamp)
+      if token_time + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Rotation token expired")
+      return {"guid": guid}
+    except Exception:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
 
-  async def get_bearer_token_payload(self, request: Request, token: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
-    return await self.decode_bearer_token(token.credentials)
