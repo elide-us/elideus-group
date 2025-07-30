@@ -30,8 +30,8 @@ class SystemUserProfile1(BaseModel):
   storageUsed: int | None = None
   storageEnabled: bool | None = None
   displayEmail: bool = False
-  rotationToken: str | None = None
-  rotationExpires: datetime | None = None
+  accessToken: str | None = None
+  accessExpires: datetime | None = None
 
 class SystemUsersList2(BaseModel):
   users: list[UserListItem]

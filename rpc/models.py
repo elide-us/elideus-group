@@ -4,16 +4,14 @@ from datetime import datetime, timezone
 
 class RPCRequest(BaseModel):
   op: str
-  payload: Optional[dict[str, Any]] = None
+  user_guid: str | None = None
+  user_role: int | None = None
+  payload: dict[str, Any] | None = None
   version: int = 1
 
   timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),
     description="Client-supplied or default UTC timestamp"
-  )
-  metadata: Optional[dict[str, Any]] = Field(
-    default=None,
-    description="Optional context (e.g. client app version, debug flags)"
   )
 
 class RPCResponse(BaseModel):
@@ -25,17 +23,18 @@ class RPCResponse(BaseModel):
     default_factory=lambda: datetime.now(timezone.utc),
     description="Server UTC timestamp of response generation"
   )
-  metadata: Optional[dict[str, Any]] = Field(
-    default=None,
-    description="Optional metadata like processing time or status notes"
-  )
 
 # ###REVIEW### Unused model, verify necessity
 class UserData(BaseModel):
   bearerToken: str
 
 class BrowserSessionData1(BaseModel):
-  bearerToken: Optional[str] = None
-  rotationToken: Optional[str] = None
-  rotationExpires: Optional[datetime] = None
+  bearerToken: str | None = None
+  rotationToken: str | None = None
+  rotationExpires: datetime | None = None
+
+class AccessToken1(BaseModel):
+  accessSubject: str | None = None
+  accessToken: str | None = None
+  accessExpires: datetime | None = None
 

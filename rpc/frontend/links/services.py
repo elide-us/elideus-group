@@ -53,7 +53,7 @@ async def get_routes_v2(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql
   permcap: PermCapModule = request.app.state.permcap
   role_mask = getattr(request.state, 'role_mask', 0)
-  data = await db.select_routes(role_mask)
+  data = await db.get_user_routes(role_mask)
   data = permcap.filter_routes(data, role_mask)
   routes = [
     RouteItem(

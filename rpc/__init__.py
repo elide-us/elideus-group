@@ -1,7 +1,14 @@
-"""RPC package initializer."""
+from .account.handler import handle_account_request
+from .auth.handler import handle_auth_request
+from .frontend.handler import handle_frontend_request
+from .storage.handler import handle_storage_request
+from .system.handler import handle_system_request
 
-from . import system  # noqa: F401
-from . import account  # noqa: F401
-from . import suffix  # noqa: F401
+HANDLERS: dict[str, callable] = {
+  "system": handle_system_request,
+  "account": handle_account_request,
+  "auth": handle_auth_request,
+  "frontend": handle_frontend_request,
+  "storage": handle_storage_request
+}
 
-__all__ = []

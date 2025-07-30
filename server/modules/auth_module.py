@@ -132,7 +132,7 @@ class AuthModule(BaseModule):
   def make_rotation_token(self, guid: str) -> tuple[str, datetime]:
     exp = datetime.now(timezone.utc) + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY)
     parts = [uuid.uuid4().hex for _ in range(4)]
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc)
     raw = f"{guid}:{now}:{':'.join(parts)}"
     encoded = base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8").rstrip("=")
     return encoded, exp
@@ -152,7 +152,7 @@ class AuthModule(BaseModule):
     if not sub:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    return {"guid": sub}
+    return {"guid": sub, "expires": exp}
 
   def decode_rotation_token(self, token: str) -> Dict:
     try:
