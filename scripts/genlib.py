@@ -2,6 +2,7 @@ from typing import Any, Union, get_origin, get_args
 from pydantic import BaseModel
 import os, importlib.util, types
 from pathlib import Path
+from datetime import datetime
 
 # Root of the repository relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -17,6 +18,7 @@ PY_TO_TS = {
   bool: 'boolean',
   type(None): 'null',
   dict: 'Record<string, any>',
+  datetime: 'string',
   list: 'any[]',  # fallback for untyped list
 }
 

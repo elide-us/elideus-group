@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 
 class RPCRequest(BaseModel):
   op: str
-  user_guid: str | None = None
-  user_role: int | None = None
-  payload: dict[str, Any] | None = None
+  user_guid: str
+  user_role: int
+  payload: Optional[dict[str, Any]] = None
   version: int = 1
 
   timestamp: Optional[datetime] = Field(
@@ -21,13 +21,7 @@ class RPCResponse(BaseModel):
   payload: Any
   version: int = 1
 
-  timestamp: datetime = Field(
+  timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),
     description="Server UTC timestamp of response generation"
   )
-
-class AccessToken1(BaseModel):
-  accessSubject: str | None = None
-  accessToken: str | None = None
-  accessExpires: datetime | None = None
-

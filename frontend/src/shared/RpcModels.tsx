@@ -6,27 +6,19 @@
 
 import axios from "axios";
 
-export interface AccessToken1 {
-  accessSubject: any;
-  accessToken: any;
-  accessExpires: any;
-}
 export interface RPCRequest {
   op: string;
-  user_guid: any;
-  user_role: any;
-  payload: any;
+  user_guid: string;
+  user_role: number;
+  payload: any | null;
   version: number;
-  timestamp: any | null;
+  timestamp: string | null;
 }
 export interface RPCResponse {
   op: string;
   payload: any;
   version: number;
-  timestamp: any;
-}
-export interface BrowserSessionData1 {
-  bearerToken: string;
+  timestamp: string | null;
 }
 export interface AccountRoleDelete1 {
   name: string;
@@ -99,8 +91,10 @@ export interface AuthMicrosoftLoginData1 {
   profilePicture: string | null;
   credits: number | null;
 }
-export interface AuthSessionTokens1 {
-  bearerToken: string;
+export interface AccessToken1 {
+  accessToken: string;
+  accessSubject: string;
+  accessExpires: string;
 }
 export interface FrontendLinksHome1 {
   links: LinkItem[];
@@ -126,7 +120,7 @@ export interface FrontendUserProfileData1 {
   profilePicture: string | null;
   credits: number | null;
   storageUsed: number | null;
-  storageEnabled: boolean | null;
+  storageEnabled: boolean;
   displayEmail: boolean;
   roles: string[];
 }
@@ -233,14 +227,12 @@ export interface SystemUserProfile1 {
   defaultProvider: string;
   username: string;
   email: string;
-  backupEmail: any;
-  profilePicture: any;
-  credits: any;
-  storageUsed: any;
-  storageEnabled: any;
+  backupEmail: string | null;
+  profilePicture: string | null;
+  credits: number | null;
+  storageUsed: number | null;
+  storageEnabled: boolean;
   displayEmail: boolean;
-  accessToken: any;
-  accessExpires: any;
 }
 export interface SystemUserRoles1 {
   roles: string[];
@@ -253,12 +245,14 @@ export interface SystemUsersList1 {
   users: UserListItem[];
 }
 
-export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
+export async function rpcCall<T>(op: string, payload: any = null, user_guid: string, user_role: number): Promise<T> {
     const request: RPCRequest = {
         op,
         payload,
+        user_guid,
+        user_role,
         version: 1,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString()
     };
     const headers: Record<string, string> = {};
     if (typeof localStorage !== 'undefined') {

@@ -9,7 +9,8 @@ class SystemConfigList1(BaseModel):
   items: list[ConfigItem]
 
 class SystemConfigUpdate1(ConfigItem):
-  pass
+  key: str
+  value: str
 
 class SystemConfigDelete1(BaseModel):
   key: str

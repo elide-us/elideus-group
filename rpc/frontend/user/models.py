@@ -11,9 +11,9 @@ class FrontendUserProfileData1(BaseModel):
   email: str
   backupEmail: Optional[str] = None
   profilePicture: Optional[str] = None
-  credits: Optional[int] = None
-  storageUsed: Optional[int] = None
-  storageEnabled: Optional[bool] = None
+  credits: Optional[int] = 0
+  storageUsed: Optional[int] = 0
+  storageEnabled: bool = False
   displayEmail: bool = False
   roles: list[str] = []
 

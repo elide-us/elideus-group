@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -26,11 +26,9 @@ class SystemUserProfile1(BaseModel):
   defaultProvider: str
   username: str
   email: str
-  backupEmail: str | None = None
-  profilePicture: str | None = None
-  credits: int | None = None
-  storageUsed: int | None = None
-  storageEnabled: bool | None = None
+  backupEmail: Optional[str] = None
+  profilePicture: Optional[str] = None
+  credits: Optional[int] = 0
+  storageUsed: Optional[int] = 0
+  storageEnabled: bool = False
   displayEmail: bool = False
-  accessToken: str | None = None
-  accessExpires: datetime | None = None
