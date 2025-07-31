@@ -3,17 +3,17 @@ import { useParams } from 'react-router-dom';
 import { Box, Stack, Button, List, ListItemButton, ListItemText, IconButton, Typography, Avatar } from '@mui/material';
 import { PageTitle } from './shared/PageTitle';
 import { ArrowForwardIos, ArrowBackIos, CheckCircle, Cancel } from '@mui/icons-material';
-import type { AccountUserRoles2, AccountUserProfile2, RoleItem } from './shared/RpcModels';
-import { fetchRoles2 as fetchRoles, fetchSetRoles2 as fetchSetRoles, fetchProfile2 as fetchProfile, fetchSetCredits2 as fetchSetCredits, fetchEnableStorage2 as fetchEnableStorage, fetchSetDisplayName2 as fetchSetDisplayName } from './rpc/account/users';
+import type { AccountUserRoles1, AccountUserProfile1, RoleItem } from './shared/RpcModels';
+import { fetchRoles, fetchSetRoles, fetchProfile, fetchSetCredits, fetchEnableStorage, fetchSetDisplayName } from './rpc/account/users';
 import EditBox from './shared/EditBox';
 import Notification from './shared/Notification';
-import { fetchList2 as fetchRoleList } from './rpc/account/roles';
+import { fetchList as fetchRoleList } from './rpc/account/roles';
 
 const AccountUserPanel = (): JSX.Element => {
     const { guid } = useParams();
     const [assigned, setAssigned] = useState<string[]>([]);
     const [available, setAvailable] = useState<string[]>([]);
-    const [profile, setProfile] = useState<AccountUserProfile2 | null>(null);
+    const [profile, setProfile] = useState<AccountUserProfile1 | null>(null);
     const [notification, setNotification] = useState(false);
     const [username, setUsername] = useState<string>('');
     const [roles, setRoles] = useState<RoleItem[]>([]);
@@ -27,9 +27,9 @@ const AccountUserPanel = (): JSX.Element => {
         void (async () => {
             if (!guid) return;
             try {
-            const userRoles: AccountUserRoles2 = await fetchRoles({ userGuid: guid });
+            const userRoles: AccountUserRoles1 = await fetchRoles({ userGuid: guid });
                 const roleList = await fetchRoleList();
-                const prof: AccountUserProfile2 = await fetchProfile({ userGuid: guid });
+                const prof: AccountUserProfile1 = await fetchProfile({ userGuid: guid });
                 setRoles(roleList.roles);
                 setAssigned(userRoles.roles);
                 setAvailable(roleList.roles.map(r => r.name).filter(r => !userRoles.roles.includes(r)));

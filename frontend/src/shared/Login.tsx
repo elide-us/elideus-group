@@ -32,13 +32,11 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 		try {
 			await pca.initialize();
 			await pca.logoutPopup();
-			if (userData?.rotationToken) {
-				try {
-						await fetchInvalidate({ rotationToken: userData.rotationToken });
-				} catch (err) {
-						console.error('Failed to invalidate session', err);
-				}
-			}
+                        try {
+                                await fetchInvalidate();
+                        } catch (err) {
+                                console.error('Failed to invalidate session', err);
+                        }
 			clearUserData();
 			setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
 		} catch (error: any) {

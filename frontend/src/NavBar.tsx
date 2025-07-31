@@ -11,8 +11,8 @@ import {
 	ListItemText,
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import type { RouteItem, FrontendLinksRoutes2 } from './shared/RpcModels';
-import { fetchRoutes2 as fetchRoutes } from './rpc/frontend/links';
+import type { RouteItem, FrontendLinksRoutes1 } from './shared/RpcModels';
+import { fetchRoutes } from './rpc/frontend/links';
 import { iconMap, defaultIcon } from './icons';
 import Login from './shared/Login';
 import UserContext from './shared/UserContext';
@@ -28,7 +28,7 @@ const NavBar = (): JSX.Element => {
         useEffect(() => {
                 void (async () => {
                         try {
-                                const res: FrontendLinksRoutes2 = await fetchRoutes();
+                                const res: FrontendLinksRoutes1 = await fetchRoutes();
                                 setRoutes(res.routes);
                         } catch {
                                 setRoutes([]);

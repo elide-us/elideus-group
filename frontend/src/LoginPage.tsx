@@ -47,14 +47,10 @@ const LoginPage = (): JSX.Element => {
                                 storageUsed: 0,
                                 storageEnabled: false,
                                 displayEmail: false,
-                                rotationToken: data.rotationToken ?? null,
-                                rotationExpires: data.rotationExpires ?? null,
                                 roles: []
                         });
                         localStorage.setItem('authTokens', JSON.stringify({
                                 bearerToken: data.bearerToken,
-                                rotationToken: data.rotationToken,
-                                rotationExpires: data.rotationExpires
                         }));
 
 			setNotification({ open: true, severity: 'success', message: 'Login successful!' });
