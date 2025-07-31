@@ -56,7 +56,6 @@ async def user_login_v1(request: Request) -> RPCResponse:
     backupEmail=None,
     profilePicture=profile_picture,
     credits=user.get("credits", 0),
-    rotationToken=rotation_token,
-    rotationExpires=rotation_exp,
   )
   return RPCResponse(op="urn:auth:microsoft:login_data:1", payload=payload, version=1)
+

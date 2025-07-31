@@ -25,6 +25,9 @@ export interface RPCResponse {
   version: number;
   timestamp: any;
 }
+export interface BrowserSessionData1 {
+  bearerToken: string;
+}
 export interface AccountRoleDelete1 {
   name: string;
 }
@@ -72,8 +75,6 @@ export interface AccountUserProfile1 {
   storageUsed: any;
   storageEnabled: any;
   displayEmail: boolean;
-  rotationToken: any;
-  rotationExpires: any;
 }
 export interface AccountUserRoles1 {
   roles: string[];
@@ -97,13 +98,9 @@ export interface AuthMicrosoftLoginData1 {
   backupEmail: string | null;
   profilePicture: string | null;
   credits: number | null;
-  rotationToken: string | null;
-  rotationExpires: any | null;
 }
 export interface AuthSessionTokens1 {
   bearerToken: string;
-  rotationToken: string;
-  rotationExpires: any;
 }
 export interface FrontendLinksHome1 {
   links: LinkItem[];
@@ -132,8 +129,6 @@ export interface FrontendUserProfileData1 {
   storageEnabled: boolean | null;
   displayEmail: boolean;
   roles: string[];
-  rotationToken: string | null;
-  rotationExpires: any | null;
 }
 export interface FrontendUserSetDisplayName1 {
   bearerToken: string;
@@ -264,7 +259,6 @@ export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
         payload,
         version: 1,
         timestamp: Date.now(),
-        metadata: null,
     };
     const headers: Record<string, string> = {};
     if (typeof localStorage !== 'undefined') {

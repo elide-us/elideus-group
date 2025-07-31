@@ -36,5 +36,4 @@ class AccountUserProfile1(BaseModel):
   storageUsed: int | None = None
   storageEnabled: bool | None = None
   displayEmail: bool = False
-  rotationToken: str | None = None
-  rotationExpires: datetime | None = None
+

@@ -17,7 +17,6 @@ RPC_CALL_FUNC = [
   "        payload,",
   "        version: 1,",
   "        timestamp: Date.now(),",
-  "        metadata: null,",
   "    };",
   "    const headers: Record<string, string> = {};",
   "    if (typeof localStorage !== 'undefined') {",
