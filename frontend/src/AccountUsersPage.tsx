@@ -3,8 +3,8 @@ import { Box, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@
 import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Link as RouterLink } from 'react-router-dom';
-import type { UserListItem, SystemUsersList2 } from './shared/RpcModels';
-import { fetchList2 as fetchList } from './rpc/system/users';
+import type { UserListItem, SystemUsersList1 } from './shared/RpcModels';
+import { fetchList } from './rpc/system/users';
 
 const AccountUsersPage = (): JSX.Element => {
     const [users, setUsers] = useState<UserListItem[]>([]);
@@ -12,7 +12,7 @@ const AccountUsersPage = (): JSX.Element => {
     useEffect(() => {
         void (async () => {
             try {
-                const res: SystemUsersList2 = await fetchList();
+                const res: SystemUsersList1 = await fetchList();
                 setUsers(res.users);
             } catch {
                 setUsers([]);

@@ -28,8 +28,6 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                                storageUsed: 0,
                                 storageEnabled: false,
                                displayEmail: false,
-                                rotationToken: stored.rotationToken ?? null,
-                                rotationExpires: stored.rotationExpires ?? null,
                                 roles: [],
                         };
                         setUserData(prev => prev ? { ...prev, ...base } : base);

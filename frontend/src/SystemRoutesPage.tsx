@@ -3,11 +3,11 @@ import { Box, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Stac
 import ColumnHeader from './shared/ColumnHeader';
 import { PageTitle } from './shared/PageTitle';
 import { Delete, Add, ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
-import type { SystemRouteItem, SystemRoutesList2, SystemUserRoles1 } from './shared/RpcModels';
-import { fetchList2 as fetchRoutes, fetchSet2 as fetchSet, fetchDelete2 as fetchDelete } from './rpc/system/routes';
+import type { SystemRouteItem, SystemRoutesList1, SystemUserRoles1 } from './shared/RpcModels';
+import { fetchList as fetchRoutes, fetchSet, fetchDelete } from './rpc/system/routes';
 import EditBox from './shared/EditBox';
 import Notification from './shared/Notification';
-import { fetchListRoles2 as fetchListRoles } from './rpc/system/users';
+import { fetchListRoles } from './rpc/system/users';
 
 const MAX_HEIGHT = 120;
 
@@ -24,7 +24,7 @@ const SystemRoutesPage = (): JSX.Element => {
 
     const load = async (): Promise<void> => {
         try {
-            const res: SystemRoutesList2 = await fetchRoutes();
+            const res: SystemRoutesList1 = await fetchRoutes();
             setRoutes(res.routes.sort((a, b) => a.sequence - b.sequence));
         } catch {
             setRoutes([]);
