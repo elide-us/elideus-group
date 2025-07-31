@@ -1,21 +1,15 @@
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+
+from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request,
+                         mask_to_names, names_to_mask)
 from rpc.models import RPCRequest, RPCResponse
-from rpc.helpers import get_rpcrequest_from_request
-from rpc.system.users.models import (
-  SystemUsersList1,
-  UserListItem,
-  SystemUserRoles1,
-  SystemUserRolesUpdate1,
-  SystemUserCreditsUpdate1,
-  SystemUserProfile1
-)
+from rpc.system.users.models import (SystemUserCreditsUpdate1,
+                                     SystemUserProfile1, SystemUserRoles1,
+                                     SystemUserRolesUpdate1, SystemUsersList1,
+                                     UserListItem)
 from server.modules.mssql_module import MSSQLModule, _utos
 from server.modules.storage_module import StorageModule
-from rpc.helpers import (
-  mask_to_names,
-  names_to_mask,
-  ROLE_REGISTERED,
-)
+
 
 async def get_users_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql

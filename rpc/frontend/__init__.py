@@ -1,5 +1,5 @@
-from .user.handler import handle_user_request
 from .links.handler import handle_links_request
+from .user.handler import handle_user_request
 from .vars.handler import handle_vars_request
 
 HANDLERS: dict[str, callable] = {

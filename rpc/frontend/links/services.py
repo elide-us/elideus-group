@@ -1,14 +1,13 @@
 
 from fastapi import Request
+
+from rpc.frontend.links.models import (FrontendLinksHome1,
+                                       FrontendLinksRoutes1, LinkItem,
+                                       RouteItem)
 from rpc.models import RPCResponse
-from rpc.frontend.links.models import (
-  FrontendLinksHome1,
-  LinkItem,
-  FrontendLinksRoutes1,
-  RouteItem
-)
 from server.modules.mssql_module import MSSQLModule
 from server.modules.permcap_module import PermCapModule
+
 
 async def get_home_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql

@@ -1,9 +1,12 @@
 import logging
-from fastapi import Request, HTTPException
-from rpc.models import RPCResponse
-from rpc.helpers import get_rpcrequest_from_request
-from rpc.suffix import apply_suffixes, split_suffix
+
+from fastapi import HTTPException, Request
+
 from rpc import HANDLERS
+from rpc.helpers import get_rpcrequest_from_request
+from rpc.models import RPCResponse
+from rpc.suffix import apply_suffixes, split_suffix
+
 
 async def handle_rpc_request(request: Request) -> RPCResponse:
   rpc_request, parts = get_rpcrequest_from_request(request)

@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class AuthSessionTokens1(BaseModel):
   bearerToken: str

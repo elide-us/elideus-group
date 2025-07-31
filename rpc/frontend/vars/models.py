@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class FrontendVarsVersion1(BaseModel):
   version: str
 

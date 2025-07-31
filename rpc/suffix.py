@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 from typing import Callable, Dict, List, Tuple
+
 from fastapi import HTTPException
+
 from rpc.models import RPCResponse
 
 SuffixHandler = Callable[[RPCResponse, List[str]], RPCResponse]

@@ -1,12 +1,12 @@
 import asyncio
-from fastapi import Request, HTTPException
-from rpc.frontend.vars.models import (
-  FrontendVarsVersion1,
-  FrontendVarsHostname1,
-  FrontendVarsRepo1,
-  FrontendVarsFfmpegVersion1
-)
+
+from fastapi import HTTPException, Request
+
+from rpc.frontend.vars.models import (FrontendVarsFfmpegVersion1,
+                                      FrontendVarsHostname1, FrontendVarsRepo1,
+                                      FrontendVarsVersion1)
 from rpc.models import RPCResponse
+
 
 async def get_version_v1(request: Request):
   db = request.app.state.mssql

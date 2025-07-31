@@ -1,7 +1,11 @@
-from fastapi import Request, HTTPException
 import logging
+
+from fastapi import HTTPException, Request
+
 from rpc.models import RPCResponse
+
 from . import DISPATCHERS
+
 
 async def handle_ms_request(parts: list[str], request: Request) -> RPCResponse:
   logging.debug("handle_ms_request parts=%s", parts)
