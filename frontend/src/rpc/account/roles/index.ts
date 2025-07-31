@@ -4,17 +4,11 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, AccountRolesList1, AccountRolesList2 } from '../../../shared/RpcModels';
+import { rpcCall, AccountRoleMembers1, AccountRolesList1 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<AccountRolesList1> => rpcCall('urn:account:roles:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:delete:1', payload);
-export const fetchList2 = (payload: any = null): Promise<AccountRolesList2> => rpcCall('urn:account:roles:list:2', payload);
-export const fetchSet2 = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:set:2', payload);
-export const fetchDelete2 = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:delete:2', payload);
-export const fetchMembers = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:get_members:1', payload);
+export const fetchMembers = (payload: any = null): Promise<AccountRoleMembers1> => rpcCall('urn:account:roles:get_members:1', payload);
 export const fetchAddMember = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:add_member:1', payload);
 export const fetchRemoveMember = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:remove_member:1', payload);
-export const fetchMembers2 = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:get_members:2', payload);
-export const fetchAddMember2 = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:add_member:2', payload);
-export const fetchRemoveMember2 = (payload: any = null): Promise<any> => rpcCall('urn:account:roles:remove_member:2', payload);

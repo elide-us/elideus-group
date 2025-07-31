@@ -4,12 +4,9 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, FrontendVarsFfmpegVersion1, FrontendVarsHostname1, FrontendVarsHostname2, FrontendVarsRepo1, FrontendVarsRepo2, FrontendVarsVersion1, FrontendVarsVersion2 } from '../../../shared/RpcModels';
+import { rpcCall, FrontendVarsFfmpegVersion1, FrontendVarsHostname1, FrontendVarsRepo1, FrontendVarsVersion1 } from '../../../shared/RpcModels';
 
 export const fetchVersion = (payload: any = null): Promise<FrontendVarsVersion1> => rpcCall('urn:frontend:vars:get_version:1', payload);
 export const fetchHostname = (payload: any = null): Promise<FrontendVarsHostname1> => rpcCall('urn:frontend:vars:get_hostname:1', payload);
 export const fetchRepo = (payload: any = null): Promise<FrontendVarsRepo1> => rpcCall('urn:frontend:vars:get_repo:1', payload);
-export const fetchVersion2 = (payload: any = null): Promise<FrontendVarsVersion2> => rpcCall('urn:frontend:vars:get_version:2', payload);
-export const fetchHostname2 = (payload: any = null): Promise<FrontendVarsHostname2> => rpcCall('urn:frontend:vars:get_hostname:2', payload);
-export const fetchRepo2 = (payload: any = null): Promise<FrontendVarsRepo2> => rpcCall('urn:frontend:vars:get_repo:2', payload);
 export const fetchFfmpegVersion = (payload: any = null): Promise<FrontendVarsFfmpegVersion1> => rpcCall('urn:frontend:vars:get_ffmpeg_version:1', payload);

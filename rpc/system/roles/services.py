@@ -1,13 +1,10 @@
 from fastapi import HTTPException, Request
 
-from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request,
-                         load_roles)
+from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request, load_roles)
 from rpc.models import RPCRequest, RPCResponse
-from rpc.system.roles.models import (RoleItem, SystemRoleDelete1,
-                                     SystemRoleMembers1,
+from rpc.system.roles.models import (RoleItem, SystemRoleDelete1, SystemRoleMembers1,
                                      SystemRoleMemberUpdate1, SystemRolesList1,
-                                     SystemRoleUpdate1)
-from rpc.system.users.models import UserListItem
+                                     SystemRoleUpdate1, RoleMemberListItem1)
 from server.modules.mssql_module import MSSQLModule, _utos
 
 
@@ -37,11 +34,11 @@ async def get_role_members_v1(request: Request) -> RPCResponse:
   if mask is None:
     raise HTTPException(status_code=404, detail='Role not found')
   members = [
-    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
+    RoleMemberListItem1(guid=_utos(r['guid']), displayName=r['display_name'])
     for r in await db.select_users_with_role(mask)
   ]
   non_members = [
-    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
+    RoleMemberListItem1(guid=_utos(r['guid']), displayName=r['display_name'])
     for r in await db.select_users_without_role(mask)
   ]
   payload = SystemRoleMembers1(members=members, nonMembers=non_members)

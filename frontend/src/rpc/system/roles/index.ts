@@ -4,17 +4,11 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, SystemRolesList1, SystemRolesList2 } from '../../../shared/RpcModels';
+import { rpcCall, SystemRoleMembers1, SystemRolesList1 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<SystemRolesList1> => rpcCall('urn:system:roles:list:1', payload);
 export const fetchSet = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:set:1', payload);
 export const fetchDelete = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:delete:1', payload);
-export const fetchMembers = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:get_members:1', payload);
+export const fetchMembers = (payload: any = null): Promise<SystemRoleMembers1> => rpcCall('urn:system:roles:get_members:1', payload);
 export const fetchAddMember = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:add_member:1', payload);
 export const fetchRemoveMember = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:remove_member:1', payload);
-export const fetchList2 = (payload: any = null): Promise<SystemRolesList2> => rpcCall('urn:system:roles:list:2', payload);
-export const fetchSet2 = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:set:2', payload);
-export const fetchDelete2 = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:delete:2', payload);
-export const fetchMembers2 = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:get_members:2', payload);
-export const fetchAddMember2 = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:add_member:2', payload);
-export const fetchRemoveMember2 = (payload: any = null): Promise<any> => rpcCall('urn:system:roles:remove_member:2', payload);

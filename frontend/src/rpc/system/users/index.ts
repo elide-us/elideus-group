@@ -4,19 +4,12 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall, SystemUserProfile1, SystemUserProfile2, SystemUserRoles1, SystemUserRoles2, SystemUsersList1, SystemUsersList2 } from '../../../shared/RpcModels';
+import { rpcCall, SystemUserProfile1, SystemUserRoles1, SystemUsersList1 } from '../../../shared/RpcModels';
 
 export const fetchList = (payload: any = null): Promise<SystemUsersList1> => rpcCall('urn:system:users:list:1', payload);
-export const fetchList2 = (payload: any = null): Promise<SystemUsersList2> => rpcCall('urn:system:users:list:2', payload);
 export const fetchRoles = (payload: any = null): Promise<SystemUserRoles1> => rpcCall('urn:system:users:get_roles:1', payload);
-export const fetchRoles2 = (payload: any = null): Promise<SystemUserRoles2> => rpcCall('urn:system:users:get_roles:2', payload);
 export const fetchSetRoles = (payload: any = null): Promise<SystemUserRoles1> => rpcCall('urn:system:users:set_roles:1', payload);
-export const fetchSetRoles2 = (payload: any = null): Promise<SystemUserRoles2> => rpcCall('urn:system:users:set_roles:2', payload);
 export const fetchListRoles = (payload: any = null): Promise<SystemUserRoles1> => rpcCall('urn:system:users:list_roles:1', payload);
-export const fetchListRoles2 = (payload: any = null): Promise<SystemUserRoles2> => rpcCall('urn:system:users:list_roles:2', payload);
 export const fetchProfile = (payload: any = null): Promise<SystemUserProfile1> => rpcCall('urn:system:users:get_profile:1', payload);
-export const fetchProfile2 = (payload: any = null): Promise<SystemUserProfile2> => rpcCall('urn:system:users:get_profile:2', payload);
 export const fetchSetCredits = (payload: any = null): Promise<SystemUserProfile1> => rpcCall('urn:system:users:set_credits:1', payload);
-export const fetchSetCredits2 = (payload: any = null): Promise<SystemUserProfile2> => rpcCall('urn:system:users:set_credits:2', payload);
 export const fetchEnableStorage = (payload: any = null): Promise<SystemUserProfile1> => rpcCall('urn:system:users:enable_storage:1', payload);
-export const fetchEnableStorage2 = (payload: any = null): Promise<SystemUserProfile2> => rpcCall('urn:system:users:enable_storage:2', payload);

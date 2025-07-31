@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 
-from rpc.system.users.models import UserListItem
-
+class RoleMemberListItem1(BaseModel):
+  guid: str
+  displayName: str
 
 class RoleItem(BaseModel):
   name: str
@@ -24,5 +25,5 @@ class SystemRoleMemberUpdate1(BaseModel):
   userGuid: str
 
 class SystemRoleMembers1(BaseModel):
-  members: list['UserListItem']
-  nonMembers: list['UserListItem']
+  members: list['RoleMemberListItem1']
+  nonMembers: list['RoleMemberListItem1']

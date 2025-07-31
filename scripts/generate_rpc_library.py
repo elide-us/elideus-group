@@ -42,7 +42,12 @@ FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
 
 def extract_interfaces_from_models_py(path: str, seen: set[str]) -> List[str]:
   interfaces = []
-  module = load_module(path)
+  try:
+    module = load_module(path)
+  except Exception as e:
+    print(f"⚠️ Skipping '{path}' due to import error: {e}")
+    return interfaces
+
   for _, obj in inspect.getmembers(module):
     if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
       if obj.__name__ in seen:
@@ -50,7 +55,9 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> List[str]:
       print(f"🧩 Found model: {obj.__name__}")
       seen.add(obj.__name__)
       interfaces.append(model_to_ts(obj))
+
   return interfaces
+
 
 def find_all_interfaces() -> List[str]:
   interfaces = []

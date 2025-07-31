@@ -1,6 +1,6 @@
 from typing import Any, Union, get_origin, get_args
 from pydantic import BaseModel
-import os, importlib.util
+import os, importlib.util, types
 from pathlib import Path
 
 # Root of the repository relative to this file
@@ -34,11 +34,20 @@ def camel_case(name: str) -> str:
   """Convert snake_case names to CamelCase."""
   return "".join(part.capitalize() for part in name.split("_"))
 
-def load_module(path: str):
-  spec = importlib.util.spec_from_file_location("mod", path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)  # type: ignore[attr-defined]
-  return module
+# def load_module(path: str):
+#   spec = importlib.util.spec_from_file_location("mod", path)
+#   module = importlib.util.module_from_spec(spec)
+#   spec.loader.exec_module(module)  # type: ignore[attr-defined]
+#   return module
+
+def load_module(path: str) -> types.ModuleType:
+    module_name = os.path.splitext(os.path.basename(path))[0] + "_tmp"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if not spec or not spec.loader:
+        raise ImportError(f"Could not load spec for module at {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 def py_to_ts(py_type: Any) -> str:
   origin = get_origin(py_type)
