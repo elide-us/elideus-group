@@ -16,9 +16,8 @@ class FrontendUserProfileData1(BaseModel):
   storageEnabled: Optional[bool] = None
   displayEmail: bool = False
   roles: list[str] = []
-  rotationToken: Optional[str] = None
-  rotationExpires: Optional[datetime] = None
 
 class FrontendUserSetDisplayName1(BaseModel):
   bearerToken: str
   displayName: str
+

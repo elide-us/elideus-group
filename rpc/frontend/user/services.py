@@ -38,8 +38,6 @@ async def get_profile_data_v1(request: Request) -> RPCResponse:
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
     roles=roles,
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:frontend:user:profile_data:1', payload=payload, version=1)
 
@@ -72,7 +70,6 @@ async def set_display_name_v1(request: Request) -> RPCResponse:
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
     roles=roles,
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:frontend:user:set_display_name:1', payload=payload, version=1)
+

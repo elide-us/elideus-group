@@ -73,8 +73,6 @@ async def get_user_profile_v1(request: Request) -> RPCResponse:
     storageUsed=await storage.get_user_folder_size(guid),
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:account:users:get_profile:1', payload=payload, version=1)
 
@@ -100,8 +98,6 @@ async def set_user_credits_v1(request: Request) -> RPCResponse:
     storageUsed=await storage.get_user_folder_size(data.userGuid),
     storageEnabled=await storage.user_folder_exists(data.userGuid),
     displayEmail=user.get('display_email', False),
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:account:users:set_credits:1', payload=payload, version=1)
 
@@ -127,8 +123,6 @@ async def set_user_display_name_v1(request: Request) -> RPCResponse:
     storageUsed=await storage.get_user_folder_size(data.userGuid),
     storageEnabled=await storage.user_folder_exists(data.userGuid),
     displayEmail=user.get('display_email', False),
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:account:users:set_display_name:1', payload=payload, version=1)
 
@@ -156,7 +150,6 @@ async def enable_user_storage_v1(request: Request) -> RPCResponse:
     storageUsed=await storage.get_user_folder_size(guid),
     storageEnabled=await storage.user_folder_exists(guid),
     displayEmail=user.get('display_email', False),
-    rotationToken=_utos(user.get('rotation_token')) if user.get('rotation_token') else None,
-    rotationExpires=user.get('rotation_expires'),
   )
   return RPCResponse(op='urn:account:users:enable_storage:1', payload=payload, version=1)
+

@@ -24,7 +24,7 @@ async def refresh_v1(request: Request) -> RPCResponse:
   bearer = _auth.make_bearer_token(guid)
   new_rotation, exp = _auth.make_rotation_token(guid)
   await _mssql.update_session_tokens(session['session_id'], bearer, new_rotation, exp)
-  payload = AuthSessionTokens1(bearerToken=bearer, rotationToken=new_rotation, rotationExpires=exp)
+  payload = AuthSessionTokens1(bearerToken=bearer)
   return RPCResponse(op='urn:auth:session:refresh:1', payload=payload, version=1)
 
 async def invalidate_v1(request: Request) -> RPCResponse:
@@ -39,3 +39,4 @@ async def invalidate_v1(request: Request) -> RPCResponse:
   if session:
     await _mssql.delete_session(session['session_id'])
   return RPCResponse(op='urn:auth:session:invalidate:1', payload=True, version=1)
+
