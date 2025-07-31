@@ -24,22 +24,3 @@ class AccountRoleMemberUpdate1(BaseModel):
 class AccountRoleMembers1(BaseModel):
   members: list[UserListItem]
   nonMembers: list[UserListItem]
-
-class AccountRolesList2(BaseModel):
-  roles: list[RoleItem]
-
-class AccountRoleUpdate2(BaseModel):
-  name: str
-  display: str
-  bit: int
-
-class AccountRoleDelete2(BaseModel):
-  name: str
-
-class AccountRoleMemberUpdate2(BaseModel):
-  role: str
-  userGuid: str
-
-class AccountRoleMembers2(BaseModel):
-  members: list[UserListItem]
-  nonMembers: list[UserListItem]

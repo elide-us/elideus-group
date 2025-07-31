@@ -4,48 +4,27 @@ from rpc.frontend.vars.models import (
   FrontendVarsVersion1,
   FrontendVarsHostname1,
   FrontendVarsRepo1,
-  FrontendVarsFfmpegVersion1,
-  FrontendVarsVersion2,
-  FrontendVarsHostname2,
-  FrontendVarsRepo2,
+  FrontendVarsFfmpegVersion1
 )
 from rpc.models import RPCResponse
 
 async def get_version_v1(request: Request):
-  db = request.app.state.database
+  db = request.app.state.mssql
   version = await db.get_config_value("Version")
   payload = FrontendVarsVersion1(version=version)
   return RPCResponse(op="urn:frontend:vars:version:1", payload=payload, version=1)
 
 async def get_hostname_v1(request: Request):
-  db = request.app.state.database
+  db = request.app.state.mssql
   hostname = await db.get_config_value("Hostname")
   payload = FrontendVarsHostname1(hostname=hostname)
   return RPCResponse(op="urn:frontend:vars:hostname:1", payload=payload, version=1)
 
 async def get_repo_v1(request: Request):
-  db = request.app.state.database
+  db = request.app.state.mssql
   repo = await db.get_config_value("Repo")
   payload = FrontendVarsRepo1(repo=repo)
   return RPCResponse(op="urn:frontend:vars:repo:1", payload=payload, version=1)
-
-async def get_version_v2(request: Request):
-  db = request.app.state.mssql
-  version = await db.get_config_value("Version")
-  payload = FrontendVarsVersion2(version=version)
-  return RPCResponse(op="urn:frontend:vars:version:2", payload=payload, version=2)
-
-async def get_hostname_v2(request: Request):
-  db = request.app.state.mssql
-  hostname = await db.get_config_value("Hostname")
-  payload = FrontendVarsHostname2(hostname=hostname)
-  return RPCResponse(op="urn:frontend:vars:hostname:2", payload=payload, version=2)
-
-async def get_repo_v2(request: Request):
-  db = request.app.state.mssql
-  repo = await db.get_config_value("Repo")
-  payload = FrontendVarsRepo2(repo=repo)
-  return RPCResponse(op="urn:frontend:vars:repo:2", payload=payload, version=2)
 
 async def get_ffmpeg_version_v1(request: Request):
   try:

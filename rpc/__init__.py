@@ -11,4 +11,3 @@ HANDLERS: dict[str, callable] = {
   "frontend": handle_frontend_request,
   "storage": handle_storage_request
 }
-

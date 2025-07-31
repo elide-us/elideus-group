@@ -15,15 +15,3 @@ class SystemRouteUpdate1(SystemRouteItem):
 
 class SystemRouteDelete1(BaseModel):
   path: str
-
-
-class SystemRoutesList2(BaseModel):
-  routes: list[SystemRouteItem]
-
-
-class SystemRouteUpdate2(SystemRouteItem):
-  pass
-
-
-class SystemRouteDelete2(BaseModel):
-  path: str

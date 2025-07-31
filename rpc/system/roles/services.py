@@ -5,18 +5,13 @@ from rpc.system.roles.models import (
   SystemRoleUpdate1,
   SystemRoleDelete1,
   SystemRoleMembers1,
-  SystemRoleMemberUpdate1,
-  SystemRolesList2,
-  SystemRoleUpdate2,
-  SystemRoleDelete2,
-  SystemRoleMembers2,
-  SystemRoleMemberUpdate2,
+  SystemRoleMemberUpdate1
 )
 from rpc.system.users.models import UserListItem
 from rpc.models import RPCRequest, RPCResponse
-from server.modules.database_module import DatabaseModule, _utos
-from server.modules.mssql_module import MSSQLModule
-from server.helpers import roles as role_helper
+from server.modules.mssql_module import MSSQLModule, _utos
+from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import ROLE_REGISTERED, load_roles
 
 
 def mask_to_bit(mask: int) -> int:
@@ -29,38 +24,16 @@ def bit_to_mask(bit: int) -> int:
     raise HTTPException(status_code=400, detail='Invalid bit index')
   return 1 << bit
 
-async def list_roles_v1(request: Request) -> RPCResponse:
-  db: DatabaseModule = request.app.state.database
-  rows = await db.list_roles()
-  roles = [
-    RoleItem(name=r['name'], display=r['display'], bit=mask_to_bit(int(r['mask'])))
-    for r in rows
-  ]
-  roles.sort(key=lambda r: r.bit)
-  payload = SystemRolesList1(roles=roles)
-  return RPCResponse(op='urn:system:roles:list:1', payload=payload, version=1)
+# TODO: RoleHelper stuff in this area
 
-async def set_role_v1(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleUpdate1(**(rpc_request.payload or {}))
-  db: DatabaseModule = request.app.state.database
-  mask = bit_to_mask(data.bit)
-  await db.set_role(data.name, mask, data.display)
-  await role_helper.load_roles(db)
-  return await list_roles_v1(request)
-
-async def delete_role_v1(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleDelete1(**(rpc_request.payload or {}))
-  db: DatabaseModule = request.app.state.database
-  await db.delete_role(data.name)
-  await role_helper.load_roles(db)
-  return await list_roles_v1(request)
-
-async def get_role_members_v1(rpc_request, request: Request) -> RPCResponse:
+async def get_role_members_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+  
   payload = rpc_request.payload or {}
   role = payload.get('role')
   if not role:
     raise HTTPException(status_code=400, detail='Missing role')
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
   mask = role_map.get(role)
@@ -77,33 +50,7 @@ async def get_role_members_v1(rpc_request, request: Request) -> RPCResponse:
   payload = SystemRoleMembers1(members=members, nonMembers=non_members)
   return RPCResponse(op='urn:system:roles:get_members:1', payload=payload, version=1)
 
-async def add_role_member_v1(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
-  db: DatabaseModule = request.app.state.database
-  rows = await db.list_roles()
-  role_map = {r['name']: int(r['mask']) for r in rows}
-  mask = role_map.get(data.role)
-  if mask is None:
-    raise HTTPException(status_code=404, detail='Role not found')
-  current = await db.get_user_roles(data.userGuid)
-  await db.set_user_roles(data.userGuid, current | mask | role_helper.ROLE_REGISTERED)
-  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
-  return await get_role_members_v1(new_req, request)
-
-async def remove_role_member_v1(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
-  db: DatabaseModule = request.app.state.database
-  rows = await db.list_roles()
-  role_map = {r['name']: int(r['mask']) for r in rows}
-  mask = role_map.get(data.role)
-  if mask is None:
-    raise HTTPException(status_code=404, detail='Role not found')
-  current = await db.get_user_roles(data.userGuid)
-  await db.set_user_roles(data.userGuid, current & ~mask | role_helper.ROLE_REGISTERED)
-  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
-  return await get_role_members_v1(new_req, request)
-
-async def list_roles_v2(request: Request) -> RPCResponse:
+async def list_roles_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql
   rows = await db.list_roles()
   roles = [
@@ -111,48 +58,32 @@ async def list_roles_v2(request: Request) -> RPCResponse:
     for r in rows
   ]
   roles.sort(key=lambda r: r.bit)
-  payload = SystemRolesList2(roles=roles)
-  return RPCResponse(op='urn:system:roles:list:2', payload=payload, version=2)
+  payload = SystemRolesList1(roles=roles)
+  return RPCResponse(op='urn:system:roles:list:1', payload=payload, version=1)
 
-async def set_role_v2(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleUpdate2(**(rpc_request.payload or {}))
+async def set_role_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
+  data = SystemRoleUpdate1(**(rpc_request.payload or {}))
   db: MSSQLModule = request.app.state.mssql
   mask = bit_to_mask(data.bit)
   await db.set_role(data.name, mask, data.display)
-  await role_helper.load_roles(db)
-  return await list_roles_v2(request)
+  await load_roles(db)
+  return await list_roles_v1(request)
 
-async def delete_role_v2(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleDelete2(**(rpc_request.payload or {}))
+async def delete_role_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
+  data = SystemRoleDelete1(**(rpc_request.payload or {}))
   db: MSSQLModule = request.app.state.mssql
   await db.delete_role(data.name)
-  await role_helper.load_roles(db)
-  return await list_roles_v2(request)
+  await load_roles(db)
+  return await list_roles_v1(request)
 
-async def get_role_members_v2(rpc_request, request: Request) -> RPCResponse:
-  payload = rpc_request.payload or {}
-  role = payload.get('role')
-  if not role:
-    raise HTTPException(status_code=400, detail='Missing role')
-  db: MSSQLModule = request.app.state.mssql
-  rows = await db.list_roles()
-  role_map = {r['name']: int(r['mask']) for r in rows}
-  mask = role_map.get(role)
-  if mask is None:
-    raise HTTPException(status_code=404, detail='Role not found')
-  members = [
-    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
-    for r in await db.select_users_with_role(mask)
-  ]
-  non_members = [
-    UserListItem(guid=_utos(r['guid']), displayName=r['display_name'])
-    for r in await db.select_users_without_role(mask)
-  ]
-  payload = SystemRoleMembers2(members=members, nonMembers=non_members)
-  return RPCResponse(op='urn:system:roles:get_members:2', payload=payload, version=2)
-
-async def add_role_member_v2(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleMemberUpdate2(**(rpc_request.payload or {}))
+async def add_role_member_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+  
+  data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: MSSQLModule = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
@@ -160,12 +91,14 @@ async def add_role_member_v2(rpc_request, request: Request) -> RPCResponse:
   if mask is None:
     raise HTTPException(status_code=404, detail='Role not found')
   current = await db.get_user_roles(data.userGuid)
-  await db.set_user_roles(data.userGuid, current | mask | role_helper.ROLE_REGISTERED)
-  new_req = RPCRequest(op='', payload={'role': data.role}, version=2)
-  return await get_role_members_v2(new_req, request)
+  await db.set_user_roles(data.userGuid, current | mask | ROLE_REGISTERED)
+  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
+  return await get_role_members_v1(new_req, request)
 
-async def remove_role_member_v2(rpc_request, request: Request) -> RPCResponse:
-  data = SystemRoleMemberUpdate2(**(rpc_request.payload or {}))
+async def remove_role_member_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+  
+  data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: MSSQLModule = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
@@ -173,6 +106,6 @@ async def remove_role_member_v2(rpc_request, request: Request) -> RPCResponse:
   if mask is None:
     raise HTTPException(status_code=404, detail='Role not found')
   current = await db.get_user_roles(data.userGuid)
-  await db.set_user_roles(data.userGuid, current & ~mask | role_helper.ROLE_REGISTERED)
-  new_req = RPCRequest(op='', payload={'role': data.role}, version=2)
-  return await get_role_members_v2(new_req, request)
+  await db.set_user_roles(data.userGuid, current & ~mask | ROLE_REGISTERED)
+  new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
+  return await get_role_members_v1(new_req, request)

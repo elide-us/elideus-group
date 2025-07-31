@@ -24,15 +24,6 @@ class RPCResponse(BaseModel):
     description="Server UTC timestamp of response generation"
   )
 
-# ###REVIEW### Unused model, verify necessity
-class UserData(BaseModel):
-  bearerToken: str
-
-class BrowserSessionData1(BaseModel):
-  bearerToken: str | None = None
-  rotationToken: str | None = None
-  rotationExpires: datetime | None = None
-
 class AccessToken1(BaseModel):
   accessSubject: str | None = None
   accessToken: str | None = None

@@ -15,8 +15,3 @@ class RouteItem(BaseModel):
 class FrontendLinksRoutes1(BaseModel):
   routes: list[RouteItem]
 
-class FrontendLinksHome2(BaseModel):
-  links: list[LinkItem]
-
-class FrontendLinksRoutes2(BaseModel):
-  routes: list[RouteItem]

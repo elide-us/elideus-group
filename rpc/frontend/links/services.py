@@ -5,28 +5,25 @@ from rpc.frontend.links.models import (
   FrontendLinksHome1,
   LinkItem,
   FrontendLinksRoutes1,
-  RouteItem,
-  FrontendLinksHome2,
-  FrontendLinksRoutes2,
+  RouteItem
 )
-from server.modules.database_module import DatabaseModule
 from server.modules.mssql_module import MSSQLModule
 from server.modules.permcap_module import PermCapModule
 
 async def get_home_v1(request: Request) -> RPCResponse:
-    db: DatabaseModule = request.app.state.database
-    permcap: PermCapModule = request.app.state.permcap
-    role_mask = getattr(request.state, 'role_mask', 0)
-    data = await db.select_links(role_mask)
-    data = permcap.filter_routes(data, role_mask)
-    links = [LinkItem(title=row["title"], url=row["url"]) for row in data]
+  db: MSSQLModule = request.app.state.mssql
+  permcap: PermCapModule = request.app.state.permcap
+  role_mask = getattr(request.state, 'role_mask', 0)
+  data = await db.select_links(role_mask)
+  data = permcap.filter_routes(data, role_mask)
+  links = [LinkItem(title=row["title"], url=row["url"]) for row in data]
 
-    payload = FrontendLinksHome1(links=links)
-    return RPCResponse(op="urn:frontend:links:home:1", payload=payload, version=1)
+  payload = FrontendLinksHome1(links=links)
+  return RPCResponse(op="urn:frontend:links:home:1", payload=payload, version=1)
 
 
 async def get_routes_v1(request: Request) -> RPCResponse:
-  db: DatabaseModule = request.app.state.database
+  db: MSSQLModule = request.app.state.mssql
   permcap: PermCapModule = request.app.state.permcap
   role_mask = getattr(request.state, 'role_mask', 0)
   data = await db.select_routes(role_mask)
@@ -36,33 +33,3 @@ async def get_routes_v1(request: Request) -> RPCResponse:
   payload = FrontendLinksRoutes1(routes=routes)
   return RPCResponse(op="urn:frontend:links:routes:1", payload=payload, version=1)
 
-async def get_home_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
-  permcap: PermCapModule = request.app.state.permcap
-  role_mask = getattr(request.state, 'role_mask', 0)
-  data = await db.select_links(role_mask)
-  data = permcap.filter_routes(data, role_mask)
-  links = [
-    LinkItem(title=row["element_title"], url=row["element_url"]) for row in data
-  ]
-
-  payload = FrontendLinksHome2(links=links)
-  return RPCResponse(op="urn:frontend:links:home:2", payload=payload, version=2)
-
-async def get_routes_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
-  permcap: PermCapModule = request.app.state.permcap
-  role_mask = getattr(request.state, 'role_mask', 0)
-  data = await db.get_user_routes(role_mask)
-  data = permcap.filter_routes(data, role_mask)
-  routes = [
-    RouteItem(
-      path=row['element_path'],
-      name=row['element_name'],
-      icon=row['element_icon']
-    )
-    for row in data
-  ]
-
-  payload = FrontendLinksRoutes2(routes=routes)
-  return RPCResponse(op="urn:frontend:links:routes:2", payload=payload, version=2)

@@ -3,17 +3,16 @@ import logging
 from rpc.models import RPCResponse, RPCRequest
 from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule, _utos
-from server.helpers.roles import mask_to_names
+from server.modules.mssql_module import MSSQLModule, _utos
+from rpc.helpers import mask_to_names
+from rpc.helpers import get_rpcrequest_from_request
 
-async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+async def user_login_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
   req_payload = rpc_request.payload or {}
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.database
-  logging.debug(
-    "user_login_v1 payload=%s",
-    req_payload,
-  )
+  db: MSSQLModule = request.app.state.mssql
 
   provider = req_payload.get("provider", "microsoft")
   logging.debug("user_login_v1 provider=%s", provider)

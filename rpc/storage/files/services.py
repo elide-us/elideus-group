@@ -5,8 +5,11 @@ from server.helpers.buffers import AsyncBufferWriter
 import base64, re
 from server.modules.auth_module import AuthModule
 from server.modules.storage_module import StorageModule
+from rpc.helpers import get_rpcrequest_from_request
 
-async def list_files_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+async def list_files_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
   payload = rpc_request.payload or {}
   token = payload.get('bearerToken')
   if not token:
@@ -20,7 +23,9 @@ async def list_files_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
   payload = StorageFilesList1(files=items)
   return RPCResponse(op='urn:storage:files:list:1', payload=payload, version=1)
 
-async def delete_file_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+async def delete_file_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
   payload = rpc_request.payload or {}
   token = payload.get('bearerToken')
   filename = payload.get('filename')
@@ -36,7 +41,9 @@ async def delete_file_v1(rpc_request: RPCRequest, request: Request) -> RPCRespon
   payload = StorageFilesList1(files=items)
   return RPCResponse(op='urn:storage:files:delete:1', payload=payload, version=1)
 
-async def upload_file_v1(rpc_request: RPCRequest, request: Request) -> RPCResponse:
+async def upload_file_v1(request: Request) -> RPCResponse:
+  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
+
   data = StorageFileUpload1(**(rpc_request.payload or {}))
   auth: AuthModule = request.app.state.auth
   storage: StorageModule = request.app.state.storage
