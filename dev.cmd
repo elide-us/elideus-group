@@ -19,9 +19,9 @@ EXIT /b 1
 
 :INSTALL_DEPS
 ECHO Installing Python dependencies...
-CALL pip install -q -r requirements.txt
+CALL pip install -r requirements.txt
 IF ERRORLEVEL 1 EXIT /b 1
-CALL pip install -q -r requirements-dev.txt
+CALL pip install -r requirements-dev.txt
 IF ERRORLEVEL 1 EXIT /b 1
 EXIT /b 0
 

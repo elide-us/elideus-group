@@ -25,6 +25,34 @@ export interface RPCResponse {
   version: number;
   timestamp: any;
 }
+export interface AccountRoleDelete1 {
+  name: string;
+}
+export interface AccountRoleMemberList1 {
+  guid: string;
+  displayName: string;
+}
+export interface AccountRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AccountRoleMembers1 {
+  members: AccountRoleMemberList1[];
+  nonMembers: AccountRoleMemberList1[];
+}
+export interface AccountRoleUpdate1 {
+  name: string;
+  display: string;
+  bit: number;
+}
+export interface AccountRolesList1 {
+  roles: RoleItem[];
+}
+export interface RoleItem {
+  name: string;
+  display: string;
+  bit: number;
+}
 export interface AccountUserCreditsUpdate1 {
   userGuid: string;
   credits: number;
@@ -157,11 +185,6 @@ export interface SystemConfigList1 {
 export interface SystemConfigUpdate1 {
   key: string;
   value: string;
-}
-export interface RoleItem {
-  name: string;
-  display: string;
-  bit: number;
 }
 export interface RoleMemberListItem1 {
   guid: string;
