@@ -1,5 +1,7 @@
 from pydantic import BaseModel
+
 from rpc.system.users.models import UserListItem
+
 
 class RoleItem(BaseModel):
   name: str

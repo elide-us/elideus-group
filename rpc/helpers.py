@@ -1,8 +1,11 @@
 import logging
+
 from fastapi import Request
+
+from rpc.models import RPCRequest
 from server.modules.auth_module import AuthModule
 from server.modules.mssql_module import MSSQLModule
-from rpc.models import RPCRequest
+
 
 def _get_token_from_request(request: Request) -> str:
   header = request.headers.get('authorization')
@@ -42,6 +45,7 @@ ROLE_NAMES: list[str] = []
 ROLE_REGISTERED: int = 1
 
 import pyodbc
+
 
 async def load_roles(db) -> None:
   try:

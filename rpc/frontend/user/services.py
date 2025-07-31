@@ -1,11 +1,12 @@
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+
+from rpc.frontend.user.models import (FrontendUserProfileData1,
+                                      FrontendUserSetDisplayName1)
+from rpc.helpers import get_rpcrequest_from_request, mask_to_names
 from rpc.models import RPCRequest, RPCResponse
-from rpc.frontend.user.models import FrontendUserProfileData1, FrontendUserSetDisplayName1
 from server.modules.auth_module import AuthModule
 from server.modules.mssql_module import MSSQLModule, _utos
-from rpc.helpers import mask_to_names
 from server.modules.storage_module import StorageModule
-from rpc.helpers import get_rpcrequest_from_request
 
 
 async def get_profile_data_v1(request: Request) -> RPCResponse:

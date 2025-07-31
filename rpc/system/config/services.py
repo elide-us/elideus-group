@@ -1,13 +1,11 @@
 from fastapi import Request
-from rpc.models import RPCRequest, RPCResponse
-from rpc.system.config.models import (
-  SystemConfigList1,
-  ConfigItem,
-  SystemConfigUpdate1,
-  SystemConfigDelete1
-)
-from server.modules.mssql_module import MSSQLModule
+
 from rpc.helpers import get_rpcrequest_from_request
+from rpc.models import RPCRequest, RPCResponse
+from rpc.system.config.models import (ConfigItem, SystemConfigDelete1,
+                                      SystemConfigList1, SystemConfigUpdate1)
+from server.modules.mssql_module import MSSQLModule
+
 
 async def list_config_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql

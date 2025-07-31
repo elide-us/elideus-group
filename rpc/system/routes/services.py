@@ -1,15 +1,12 @@
 from fastapi import Request
-from rpc.models import RPCRequest, RPCResponse
-from rpc.helpers import get_rpcrequest_from_request
-from rpc.system.routes.models import (
-  SystemRouteItem,
-  SystemRoutesList1,
-  SystemRouteUpdate1,
-  SystemRouteDelete1
-)
 
+from rpc.helpers import (get_rpcrequest_from_request, mask_to_names,
+                         names_to_mask)
+from rpc.models import RPCRequest, RPCResponse
+from rpc.system.routes.models import (SystemRouteDelete1, SystemRouteItem,
+                                      SystemRoutesList1, SystemRouteUpdate1)
 from server.modules.mssql_module import MSSQLModule
-from rpc.helpers import mask_to_names, names_to_mask
+
 
 async def list_routes_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql

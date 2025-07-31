@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Any, Optional
 from datetime import datetime, timezone
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field
+
 
 class RPCRequest(BaseModel):
   op: str

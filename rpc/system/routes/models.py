@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class SystemRouteItem(BaseModel):
   path: str
   name: str

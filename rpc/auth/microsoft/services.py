@@ -1,11 +1,13 @@
-from fastapi import Request
 import logging
-from rpc.models import RPCResponse, RPCRequest
+
+from fastapi import Request
+
 from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
+from rpc.helpers import get_rpcrequest_from_request, mask_to_names
+from rpc.models import RPCRequest, RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.mssql_module import MSSQLModule, _utos
-from rpc.helpers import mask_to_names
-from rpc.helpers import get_rpcrequest_from_request
+
 
 async def user_login_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)

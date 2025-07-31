@@ -1,9 +1,11 @@
-from fastapi import Request, HTTPException
-from rpc.models import RPCResponse
-from rpc.helpers import get_rpcrequest_from_request
+from fastapi import HTTPException, Request
+
 from rpc.auth.session.models import AuthSessionTokens1
+from rpc.helpers import get_rpcrequest_from_request
+from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.mssql_module import MSSQLModule
+
 
 async def refresh_v1(request: Request) -> RPCResponse:
   rpc_request = get_rpcrequest_from_request(request)

@@ -1,6 +1,9 @@
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+
 from rpc.models import RPCResponse
+
 from . import DISPATCHERS
+
 
 async def handle_links_request(parts: list[str], request: Request) -> RPCResponse:
   key = tuple(parts[:2])

@@ -1,11 +1,16 @@
-from fastapi import Request, HTTPException
+import base64
+import re
+
+from fastapi import HTTPException, Request
+
+from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCRequest, RPCResponse
-from rpc.storage.files.models import StorageFilesList1, FileItem, StorageFileDelete1, StorageFileUpload1
+from rpc.storage.files.models import (FileItem, StorageFileDelete1,
+                                      StorageFilesList1, StorageFileUpload1)
 from server.helpers.buffers import AsyncBufferWriter
-import base64, re
 from server.modules.auth_module import AuthModule
 from server.modules.storage_module import StorageModule
-from rpc.helpers import get_rpcrequest_from_request
+
 
 async def list_files_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)

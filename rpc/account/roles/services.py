@@ -1,17 +1,14 @@
-from fastapi import Request, HTTPException
-from rpc.account.roles.models import (
-  RoleItem,
-  AccountRolesList1,
-  AccountRoleUpdate1,
-  AccountRoleDelete1,
-  AccountRoleMembers1,
-  AccountRoleMemberUpdate1
-)
+from fastapi import HTTPException, Request
+
+from rpc.account.roles.models import (AccountRoleDelete1, AccountRoleMembers1,
+                                      AccountRoleMemberUpdate1,
+                                      AccountRolesList1, AccountRoleUpdate1,
+                                      RoleItem)
 from rpc.account.users.models import UserListItem
-from rpc.models import RPCRequest, RPCResponse
-from server.modules.mssql_module import MSSQLModule, _utos
-from server.helpers import roles as role_helper
 from rpc.helpers import get_rpcrequest_from_request
+from rpc.models import RPCRequest, RPCResponse
+from server.helpers import roles as role_helper
+from server.modules.mssql_module import MSSQLModule, _utos
 
 
 def mask_to_bit(mask: int) -> int:
