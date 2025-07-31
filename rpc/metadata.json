@@ -5,15 +5,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:roles:add_member:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:roles:delete:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:roles:delete:2",
       "capabilities": 0
     },
     {
@@ -21,15 +13,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:roles:get_members:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:roles:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:roles:list:2",
       "capabilities": 0
     },
     {
@@ -37,15 +21,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:roles:remove_member:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:roles:set:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:roles:set:2",
       "capabilities": 0
     },
     {
@@ -53,15 +29,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:enable_storage:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:users:get_profile:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:users:get_profile:2",
       "capabilities": 0
     },
     {
@@ -69,15 +37,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:get_roles:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:users:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:users:list:2",
       "capabilities": 0
     },
     {
@@ -85,15 +45,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:list_roles:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:users:set_credits:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:users:set_credits:2",
       "capabilities": 0
     },
     {
@@ -101,15 +53,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:set_display_name:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:account:users:set_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:account:users:set_roles:2",
       "capabilities": 0
     },
     {
@@ -129,15 +73,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:frontend:links:get_home:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:frontend:links:get_routes:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:frontend:links:get_routes:2",
       "capabilities": 0
     },
     {
@@ -157,23 +93,11 @@
       "capabilities": 0
     },
     {
-      "op": "urn:frontend:vars:get_hostname:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:frontend:vars:get_repo:1",
       "capabilities": 0
     },
     {
-      "op": "urn:frontend:vars:get_repo:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:frontend:vars:get_version:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:frontend:vars:get_version:2",
       "capabilities": 0
     },
     {
@@ -193,15 +117,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:config:delete:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:config:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:config:list:2",
       "capabilities": 0
     },
     {
@@ -209,15 +125,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:config:set:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:roles:add_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:add_member:2",
       "capabilities": 0
     },
     {
@@ -225,15 +133,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:roles:delete:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:roles:get_members:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:get_members:2",
       "capabilities": 0
     },
     {
@@ -241,15 +141,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:roles:list:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:roles:remove_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:remove_member:2",
       "capabilities": 0
     },
     {
@@ -257,15 +149,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:roles:set:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:routes:delete:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:routes:delete:2",
       "capabilities": 0
     },
     {
@@ -273,15 +157,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:routes:list:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:routes:set:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:routes:set:2",
       "capabilities": 0
     },
     {
@@ -289,15 +165,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:users:enable_storage:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:users:get_profile:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:users:get_profile:2",
       "capabilities": 0
     },
     {
@@ -305,15 +173,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:users:get_roles:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:users:list:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:users:list:2",
       "capabilities": 0
     },
     {
@@ -321,23 +181,11 @@
       "capabilities": 0
     },
     {
-      "op": "urn:system:users:list_roles:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:users:set_credits:1",
       "capabilities": 0
     },
     {
-      "op": "urn:system:users:set_credits:2",
-      "capabilities": 0
-    },
-    {
       "op": "urn:system:users:set_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:users:set_roles:2",
       "capabilities": 0
     }
   ]

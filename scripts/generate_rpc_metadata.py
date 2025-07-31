@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os, json
 from pathlib import Path
-from generate_rpc_client import parse_handler
+from generate_rpc_client import parse_dispatchers
 from genlib import REPO_ROOT
 
 RPC_ROOT = Path(REPO_ROOT) / 'rpc'
@@ -10,14 +10,17 @@ METADATA_FILE = RPC_ROOT / 'metadata.json'
 
 def gather_ops() -> dict[str, int]:
   metadata: dict[str, int] = {}
-  missing: list[str] = []
   for root, dirs, files in os.walk(RPC_ROOT):
-    if 'handler.py' not in files:
+    if '__init__.py' not in files:
       continue
-    handler_path = os.path.join(root, 'handler.py')
-    base_parts, ops = parse_handler(handler_path)
+    init_path = os.path.join(root, '__init__.py')
+    base_parts, ops = parse_dispatchers(init_path)
+    if not ops:
+      continue
+    print(f"\n📦 Found DISPATCHERS in: {'.'.join(base_parts)}")
     for op in ops:
       urn = ':'.join(['urn'] + base_parts + [op['op'], op['version']])
+      print(f"  • {urn}")
       metadata.setdefault(urn, 0)
   return metadata
 
@@ -36,19 +39,20 @@ def write_metadata(data: dict[str, int]):
 
 
 def main() -> None:
+  print("✨ Scanning RPC namespaces for capability metadata...")
   ops = gather_ops()
   existing = load_existing()
   merged = {op: existing.get(op, cap) for op, cap in ops.items()}
   missing = [op for op, cap in merged.items() if cap == 0]
   write_metadata(merged)
+
   if missing:
-    print('⚠️ Missing capability metadata for:')
+    print("\n⚠️ Missing capability metadata for:")
     for op in missing:
-      print(f'  - {op}')
+      print(f"  - {op}")
   else:
-    print('✅ RPC metadata written')
+    print("\n✅ All RPC entries have capability metadata!")
 
 
 if __name__ == '__main__':
   main()
-
