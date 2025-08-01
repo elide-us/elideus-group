@@ -1,6 +1,6 @@
 import { useState, ReactNode, useEffect } from 'react';
 import UserContext from './UserContext';
-import type { FrontendUserProfileData1, BrowserSessionData1 } from './RpcModels';
+import type { FrontendUserProfileData1 } from './RpcModels';
 import { fetchProfileData } from '../rpc/frontend/user';
 
 interface UserContextProviderProps {
@@ -14,7 +14,8 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                 const raw = localStorage.getItem('authTokens');
                 if (!raw) return;
                 try {
-                        const stored: BrowserSessionData1 = JSON.parse(raw);
+                        interface StoredSession { bearerToken: string; }
+                        const stored: StoredSession = JSON.parse(raw);
                         if (!stored.bearerToken) return;
 
                         const base: FrontendUserProfileData1 = {
