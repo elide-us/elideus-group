@@ -1,56 +1,14 @@
 from fastapi import HTTPException, Request
 
-from rpc.account.users.models import (AccountUserCreditsUpdate1,
-                                      AccountUserDisplayNameUpdate1,
-                                      AccountUserProfile1, AccountUserRoles1,
-                                      AccountUserRolesUpdate1,
-                                      AccountUsersList1, UserListItem)
-from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request,
-                         mask_to_names, names_to_mask)
+from rpc.account.users.models import (AccountUsersSetCredits1,
+                                      AccountUsersSetDisplay1,
+                                      AccountUsersGetProfile1)
+from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request)
 from rpc.models import RPCRequest, RPCResponse
 from server.modules.mssql_module import MSSQLModule, _utos
 from server.modules.storage_module import StorageModule
 
-
-async def get_users_v1(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
-  rows = await db.select_users()
-  users = [UserListItem(guid=_utos(r['guid']), displayName=r['display_name']) for r in rows]
-  payload = AccountUsersList1(users=users)
-  return RPCResponse(op='urn:account:users:list:1', payload=payload, version=1)
-
-async def get_user_roles_v1(request: Request) -> RPCResponse:
-  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
-
-  payload = rpc_request.payload or {}
-  guid = payload.get('userGuid')
-  if not guid:
-    raise HTTPException(status_code=400, detail='Missing userGuid')
-  db: MSSQLModule = request.app.state.mssql
-  mask = await db.get_user_roles(guid)
-  roles = mask_to_names(mask)
-  payload = AccountUserRoles1(roles=roles)
-  return RPCResponse(op='urn:account:users:get_roles:1', payload=payload, version=1)
-
-async def set_user_roles_v1(request: Request) -> RPCResponse:
-  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
-
-  payload = rpc_request.payload or {}
-  data = AccountUserRolesUpdate1(**payload)
-  db: MSSQLModule = request.app.state.mssql
-  mask = names_to_mask(data.roles) | ROLE_REGISTERED
-  await db.set_user_roles(data.userGuid, mask)
-  payload = AccountUserRoles1(roles=mask_to_names(mask))
-  return RPCResponse(op='urn:account:users:set_roles:1', payload=payload, version=1)
-
-async def list_available_roles_v1(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
-  rows = await db.list_roles()
-  names = [r['name'] for r in rows]
-  payload = AccountUserRoles1(roles=names)
-  return RPCResponse(op='urn:account:users:list_roles:1', payload=payload, version=1)
-
-async def get_user_profile_v1(request: Request) -> RPCResponse:
+async def account_users_get_profile_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
@@ -62,7 +20,7 @@ async def get_user_profile_v1(request: Request) -> RPCResponse:
   user = await db.get_user_profile(guid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
-  payload = AccountUserProfile1(
+  payload = AccountUsersGetProfile1(
     guid=_utos(user.get('guid')),
     defaultProvider=user.get('provider_name', 'microsoft'),
     username=user.get('display_name', ''),
@@ -76,18 +34,18 @@ async def get_user_profile_v1(request: Request) -> RPCResponse:
   )
   return RPCResponse(op='urn:account:users:get_profile:1', payload=payload, version=1)
 
-async def set_user_credits_v1(request: Request) -> RPCResponse:
+async def account_users_set_credits_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
-  data = AccountUserCreditsUpdate1(**payload)
+  data = AccountUsersSetCredits1(**payload)
   db: MSSQLModule = request.app.state.mssql
   storage: StorageModule = request.app.state.storage
   await db.set_user_credits(data.userGuid, data.credits)
   user = await db.get_user_profile(data.userGuid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
-  payload = AccountUserProfile1(
+  payload = AccountUsersGetProfile1(
     guid=_utos(user.get('guid')),
     defaultProvider=user.get('provider_name', 'microsoft'),
     username=user.get('display_name', ''),
@@ -101,18 +59,18 @@ async def set_user_credits_v1(request: Request) -> RPCResponse:
   )
   return RPCResponse(op='urn:account:users:set_credits:1', payload=payload, version=1)
 
-async def set_user_display_name_v1(request: Request) -> RPCResponse:
+async def account_users_set_display_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
-  data = AccountUserDisplayNameUpdate1(**payload)
+  data = AccountUsersSetDisplay1(**payload)
   db: MSSQLModule = request.app.state.mssql
   storage: StorageModule = request.app.state.storage
   await db.update_display_name(data.userGuid, data.displayName)
   user = await db.get_user_profile(data.userGuid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
-  payload = AccountUserProfile1(
+  payload = AccountUsersGetProfile1(
     guid=_utos(user.get('guid')),
     defaultProvider=user.get('provider_name', 'microsoft'),
     username=user.get('display_name', data.displayName),
@@ -126,7 +84,7 @@ async def set_user_display_name_v1(request: Request) -> RPCResponse:
   )
   return RPCResponse(op='urn:account:users:set_display_name:1', payload=payload, version=1)
 
-async def enable_user_storage_v1(request: Request) -> RPCResponse:
+async def account_users_enable_storage_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
@@ -139,7 +97,7 @@ async def enable_user_storage_v1(request: Request) -> RPCResponse:
   user = await db.get_user_profile(guid)
   if not user:
     raise HTTPException(status_code=404, detail='User not found')
-  payload = AccountUserProfile1(
+  payload = AccountUsersGetProfile1(
     guid=_utos(user.get('guid')),
     defaultProvider=user.get('provider_name', 'microsoft'),
     username=user.get('display_name', ''),

@@ -20,7 +20,7 @@ def bit_to_mask(bit: int) -> int:
 
 # TODO: RoleHelper stuff in this area
 
-async def get_role_members_v1(request: Request) -> RPCResponse:
+async def system_roles_get_members_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
   
   payload = rpc_request.payload or {}
@@ -44,37 +44,7 @@ async def get_role_members_v1(request: Request) -> RPCResponse:
   payload = SystemRoleMembers1(members=members, nonMembers=non_members)
   return RPCResponse(op='urn:system:roles:get_members:1', payload=payload, version=1)
 
-async def list_roles_v1(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
-  rows = await db.list_roles()
-  roles = [
-    RoleItem(name=r['name'], display=r['display'], bit=mask_to_bit(int(r['mask'])))
-    for r in rows
-  ]
-  roles.sort(key=lambda r: r.bit)
-  payload = SystemRolesList1(roles=roles)
-  return RPCResponse(op='urn:system:roles:list:1', payload=payload, version=1)
-
-async def set_role_v1(request: Request) -> RPCResponse:
-  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
-
-  data = SystemRoleUpdate1(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
-  mask = bit_to_mask(data.bit)
-  await db.set_role(data.name, mask, data.display)
-  await load_roles(db)
-  return await list_roles_v1(request)
-
-async def delete_role_v1(request: Request) -> RPCResponse:
-  rpc_request: RPCRequest = get_rpcrequest_from_request(request)
-
-  data = SystemRoleDelete1(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
-  await db.delete_role(data.name)
-  await load_roles(db)
-  return await list_roles_v1(request)
-
-async def add_role_member_v1(request: Request) -> RPCResponse:
+async def system_roles_add_member_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
   
   data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
@@ -87,9 +57,9 @@ async def add_role_member_v1(request: Request) -> RPCResponse:
   current = await db.get_user_roles(data.userGuid)
   await db.set_user_roles(data.userGuid, current | mask | ROLE_REGISTERED)
   new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
-  return await get_role_members_v1(new_req, request)
+  return await system_roles_get_members_v1(new_req, request)
 
-async def remove_role_member_v1(request: Request) -> RPCResponse:
+async def system_roes_remove_member_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
   
   data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))
@@ -102,4 +72,4 @@ async def remove_role_member_v1(request: Request) -> RPCResponse:
   current = await db.get_user_roles(data.userGuid)
   await db.set_user_roles(data.userGuid, current & ~mask | ROLE_REGISTERED)
   new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
-  return await get_role_members_v1(new_req, request)
+  return await system_roles_get_members_v1(new_req, request)

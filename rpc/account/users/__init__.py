@@ -1,15 +1,13 @@
-from .services import (enable_user_storage_v1, get_user_profile_v1,
-                       get_user_roles_v1, get_users_v1,
-                       list_available_roles_v1, set_user_credits_v1,
-                       set_user_display_name_v1, set_user_roles_v1)
+from .services import (account_users_get_profile_v1,
+                       account_users_set_display_v1,
+                       account_users_set_credits_v1, 
+                       account_users_enable_storage_v1)
+
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
-  ("list", "1"): get_users_v1,
-  ("get_roles", "1"): get_user_roles_v1,
-  ("set_roles", "1"): set_user_roles_v1,
-  ("list_roles", "1"): list_available_roles_v1,
-  ("get_profile", "1"): get_user_profile_v1,
-  ("set_credits", "1"): set_user_credits_v1,
-  ("set_display_name", "1"): set_user_display_name_v1,
-  ("enable_storage", "1"): enable_user_storage_v1
+  ("get_profile", "1"): account_users_get_profile_v1,
+  ("set_creits", "1"): account_users_set_credits_v1,
+  ("set_display", "1"): account_users_set_display_v1,
+  ("enable_storage", "1"): account_users_enable_storage_v1
 }
+

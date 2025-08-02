@@ -1,7 +1,11 @@
-from .services import delete_config_v1, list_config_v1, set_config_v1
+from .services import (system_config_delete_config_v1,
+                       system_config_get_configs_v1,
+                       system_config_set_config_v1)
+
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
-  ("list", "1"): list_config_v1,
-  ("set", "1"): set_config_v1,
-  ("delete", "1"): delete_config_v1
+  ("get_configs", "1"): system_config_get_configs_v1,
+  ("set_config", "1"): system_config_set_config_v1,
+  ("delete_config", "1"): system_config_delete_config_v1
 }
+

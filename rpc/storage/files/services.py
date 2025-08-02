@@ -12,7 +12,13 @@ from server.modules.auth_module import AuthModule
 from server.modules.storage_module import StorageModule
 
 
-async def list_files_v1(request: Request) -> RPCResponse:
+async def storage_files_get_gallery_v1(request: Request) -> RPCResponse:
+  return NotImplemented
+
+async def storage_files_set_gallery_v1(request: Request) -> RPCResponse:
+  return NotImplemented
+
+async def storage_files_get_files_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
@@ -28,7 +34,7 @@ async def list_files_v1(request: Request) -> RPCResponse:
   payload = StorageFilesList1(files=items)
   return RPCResponse(op='urn:storage:files:list:1', payload=payload, version=1)
 
-async def delete_file_v1(request: Request) -> RPCResponse:
+async def storage_files_delete_files_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   payload = rpc_request.payload or {}
@@ -46,7 +52,7 @@ async def delete_file_v1(request: Request) -> RPCResponse:
   payload = StorageFilesList1(files=items)
   return RPCResponse(op='urn:storage:files:delete:1', payload=payload, version=1)
 
-async def upload_file_v1(request: Request) -> RPCResponse:
+async def storage_files_upload_files_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   data = StorageFileUpload1(**(rpc_request.payload or {}))

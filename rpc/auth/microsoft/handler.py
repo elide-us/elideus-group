@@ -8,7 +8,6 @@ from . import DISPATCHERS
 
 
 async def handle_ms_request(parts: list[str], request: Request) -> RPCResponse:
-  logging.debug("handle_ms_request parts=%s", parts)
   key = tuple(parts[:2])
   handler = DISPATCHERS.get(key)
   if not handler:

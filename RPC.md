@@ -95,7 +95,6 @@ Calls for managing storage
 | `urn:storage:files:get_files:1` | Provide a list of files for the user. |
 | `urn:storage:files:get_gallery:1` | Provide a list of files in the public gallery. |
 | `urn:storage:files:set_gallery:1` | Flag a file for public inclusion in the gallery. |
-| `urn:storage:files:unset_gallery:1` | Remove a file from public includion in the gallery. |
 | `urn:storage:files:upload_files:1` | Upload a file or files from the user into the moderation queue. |
 | `urn:storage:files:delete_files:1` | Delete a file or files specified by the user. |
 

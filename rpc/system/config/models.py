@@ -1,17 +1,11 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
-class ConfigItem(BaseModel):
+class SystemConfigItem1(BaseModel):
   key: str
-  value: str
+  value: Optional[str]
 
 class SystemConfigList1(BaseModel):
-  items: list[ConfigItem]
-
-class SystemConfigUpdate1(ConfigItem):
-  key: str
-  value: str
-
-class SystemConfigDelete1(BaseModel):
-  key: str
-
+  items: list[SystemConfigItem1]
