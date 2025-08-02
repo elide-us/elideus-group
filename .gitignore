@@ -2,6 +2,7 @@
 .azure/
 .vscode/
 *_BACKUP.json
+__ignore
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

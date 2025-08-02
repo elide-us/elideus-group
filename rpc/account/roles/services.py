@@ -21,7 +21,7 @@ def bit_to_mask(bit: int) -> int:
     raise HTTPException(status_code=400, detail='Invalid bit index')
   return 1 << bit
 
-async def list_roles_v1(request: Request) -> RPCResponse:
+async def get_roles_v1(request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql
   rows = await db.list_roles()
   roles = [
@@ -40,7 +40,7 @@ async def set_role_v1(rpc_request, request: Request) -> RPCResponse:
   mask = bit_to_mask(data.bit)
   await db.set_role(data.name, mask, data.display)
   await role_helper.load_roles(db)
-  return await list_roles_v1(request)
+  return await get_roles_v1(request)
 
 async def delete_role_v1(rpc_request, request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
@@ -49,7 +49,7 @@ async def delete_role_v1(rpc_request, request: Request) -> RPCResponse:
   db: MSSQLModule = request.app.state.mssql
   await db.delete_role(data.name)
   await role_helper.load_roles(db)
-  return await list_roles_v1(request)
+  return await get_roles_v1(request)
 
 async def get_role_members_v1(rpc_request, request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)

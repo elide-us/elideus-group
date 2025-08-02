@@ -6,68 +6,44 @@ This document describes each RPC operation in the project and groups them by dom
 
 Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`. Handlers automatically append a `:view:default:1` suffix when no `view` is specified. Custom views may transform the payload for different clients (e.g. Discord).
 
-## System Domain
+## Security Alignment
 
-These calls expose system administration functionality.
+Each RPC domain has an aligned security role. Other than Auth and Public, all other domains require a bearer token and a security lookup before the function is executed on behalf of the user.
 
+## Account Domain
 
 ### `roles`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:system:roles:list:1` | List all role names and their bit positions. |
-| `urn:system:roles:list:2` | List all role names and their bit positions. |
-| `urn:system:roles:set:1` | Create or update a role definition. |
-| `urn:system:roles:set:2` | Create or update a role definition. |
-| `urn:system:roles:delete:1` | Delete a role. |
-| `urn:system:roles:delete:2` | Delete a role. |
-| `urn:system:roles:get_members:1` | Get members and non-members for a role. |
-| `urn:system:roles:get_members:2` | Get members and non-members for a role. |
-| `urn:system:roles:add_member:1` | Add a user to a role. |
-| `urn:system:roles:add_member:2` | Add a user to a role. |
-| `urn:system:roles:remove_member:1` | Remove a user from a role. |
-| `urn:system:roles:remove_member:2` | Remove a user from a role. |
+| `urn:account:roles:get_members:1` | Get members of a given role. |
+| `urn:account:roles:add_member:1` | Add members to a given role. |
+| `urn:account:roles:remove_member:1` | Remove members from a given role. |
 
 ### `users`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:system:users:list:1` | List all users. |
-| `urn:system:users:list:2` | List all users. |
-| `urn:system:users:get_roles:1` | Get the roles assigned to a user. |
-| `urn:system:users:get_roles:2` | Get the roles assigned to a user. |
-| `urn:system:users:set_roles:1` | Replace the roles assigned to a user. |
-| `urn:system:users:set_roles:2` | Replace the roles assigned to a user. |
-| `urn:system:users:list_roles:1` | List available role names. |
-| `urn:system:users:list_roles:2` | List available role names. |
-| `urn:system:users:get_profile:1` | Retrieve profile information for a user. |
-| `urn:system:users:get_profile:2` | Retrieve profile information for a user. |
-| `urn:system:users:set_credits:1` | Update a user's credit balance. |
-| `urn:system:users:set_credits:2` | Update a user's credit balance. |
-| `urn:system:users:enable_storage:1` | Enable storage for a user. |
-| `urn:system:users:enable_storage:2` | Enable storage for a user. |
+| `urn:account:users:get_profile:1` | Get a user's profile details. |
+| `urn:account:users:set_display_name:1` | Moderator user to adjust inappropriate names. |
 
-### `config`
+## Users Domain
+
+### `user`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:system:config:list:1` | List configuration entries. |
-| `urn:system:config:list:2` | List configuration entries. |
-| `urn:system:config:set:1` | Create or update a configuration entry. |
-| `urn:system:config:set:2` | Create or update a configuration entry. |
-| `urn:system:config:delete:1` | Delete a configuration entry. |
-| `urn:system:config:delete:2` | Delete a configuration entry. |
+| `urn:users:users:get_profile:1` | Get a user's profile data. |
+| `urn:users:users:set_display:1` | A user can set their display name. |
+| `urn:users:users:set_optin:1` | A user can select if their email is displayed. |
 
-### `routes`
+### `auth`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:system:routes:list:1` | List application routes. |
-| `urn:system:routes:list:2` | List application routes. |
-| `urn:system:routes:set:1` | Create or update a route definition. |
-| `urn:system:routes:set:2` | Create or update a route definition. |
-| `urn:system:routes:delete:1` | Delete a route definition. |
-| `urn:system:routes:delete:2` | Delete a route definition. |
+| `urn:users:auth:set_provider:1` | A user can select any active provider for their email. |
+| `urn:users:auth:link_provider:1` | A user can link additional providers. |
+| `urn:users:auth:unlink_provider:1` | A user can unlink providers. |
 
 ## Auth Domain
 
@@ -83,57 +59,72 @@ Authentication and session management calls.
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:auth:session:refresh:1` | Exchange a rotation token for new session tokens. |
-| `urn:auth:session:invalidate:1` | Invalidate an existing session using its rotation token. |
+| `urn:auth:session:get_token:1` | Get a bearer token for a new device session. |
+| `urn:auth:session:refresh_token:1` | Get a new bearer token for an existing device session. |
+| `urn:auth:session:invalidate_token:1` | Invalidate an existing device session token. |
 
-## Frontend Domain
+## Frontend (Public) Domain
 
 User focused calls used by the React application.
-
-### `user`
-
-| Operation | Description |
-|-----------|-------------|
-| `urn:frontend:user:get_profile_data:1` | Fetch the profile associated with a bearer token. |
-| `urn:frontend:user:set_display_name:1` | Update the user's display name and return the updated profile. |
 
 ### `links`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:frontend:links:get_home:1` | Returns a list of external links for the home page. |
-| `urn:frontend:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
+| `urn:public:links:get_home:1` | Returns a list of external links for the home page. |
+| `urn:public:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
 
 ### `vars`
 
 | Operation | Description |
 |-----------|-------------|
-| `urn:frontend:vars:get_version:1` | Read the configured application version. |
-| `urn:frontend:vars:get_hostname:1` | Read the configured hostname. |
-| `urn:frontend:vars:get_repo:1` | Read the GitHub repository URL. |
-| `urn:frontend:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
+| `urn:public:vars:get_version:1` | Read the configured application version. |
+| `urn:public:vars:get_hostname:1` | Read the configured hostname. |
+| `urn:public:vars:get_repo:1` | Read the GitHub repository URL. |
+| `urn:public:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
+| `urn:public:vars:get_odbc_version:1` | Return the installed Linux MSSQL ODBC driver versions. |
 
-## Functional Areas
+## Storage Domain
 
-### Login System
+Calls for managing storage
 
-The front-end uses Microsoft OAuth via MSAL. `LoginPage.tsx` prompts the user to authenticate and then calls `urn:auth:microsoft:user_login:1`. The response supplies bearer and rotation tokens which are stored locally and used for subsequent RPC calls. Session refresh and invalidation are handled through the `auth:session` endpoints.
+### `files`
 
-### User Pages
+| Operation | Description |
+|-----------|-------------|
+| `urn:storage:files:get_files:1` | Provide a list of files for the user. |
+| `urn:storage:files:get_gallery:1` | Provide a list of files in the public gallery. |
+| `urn:storage:files:set_gallery:1` | Flag a file for public inclusion in the gallery. |
+| `urn:storage:files:unset_gallery:1` | Remove a file from public includion in the gallery. |
+| `urn:storage:files:upload_files:1` | Upload a file or files from the user into the moderation queue. |
+| `urn:storage:files:delete_files:1` | Delete a file or files specified by the user. |
 
-`UserPage.tsx` displays the current user's profile and allows updating the display name. It calls `frontend:user:get_profile_data` on load and `frontend:user:set_display_name` when saving changes.
+## System Domain
 
-### System Pages
+These calls expose system administration functionality.
 
-The React application provides several administration pages:
+### `roles`
 
-- `AccountUsersPage` lists users. Selecting a user opens `AccountUserPanel` where roles and credits can be modified via the `account:users` RPCs.
-- `SystemRolesPage` manages role definitions using the `system:roles` endpoints.
- - `AccountRoleMembersPage` manages membership for each role through `account:roles` membership operations.
+| Operation | Description |
+|-----------|-------------|
+| `urn:system:roles:get_roles:1` | List all role names and their bit positions. |
+| `urn:system:roles:get_members:1` | Get members and non-members for a role. |
+| `urn:system:roles:set_role:1` | Create or update a role definition. |
+| `urn:system:roles:delete_role:1` | Delete a role. |
 
-Navigation links and routes for these pages are loaded from the server using the `frontend:links` RPCs so that access can be filtered by user roles.
+### `config`
 
-## Security Roles
+| Operation | Description |
+|-----------|-------------|
+| `urn:system:config:get_configs:1` | List configuration entries. |
+| `urn:system:config:set_config:1` | Create or update a configuration entry. |
+| `urn:system:config:delete_config:1` | Delete a configuration entry. |
 
-Role bits are defined in `SECURITY.md`. Key high level roles include SERVICE ADMIN, SYSTEM ADMIN, MODERATOR and SUPPORT. These will control access to future RPC domains such as a planned `service` namespace for service-wide configuration.
+### `routes`
+
+| Operation | Description |
+|-----------|-------------|
+| `urn:system:routes:get_routes:1` | List application routes. |
+| `urn:system:routes:set_route:1` | Create or update a route definition. |
+| `urn:system:routes:delete_route:1` | Delete a route definition. |
 

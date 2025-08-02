@@ -91,13 +91,13 @@ export interface AuthMicrosoftLoginData1 {
   profilePicture: string | null;
   credits: number | null;
 }
-export interface AuthSessionTokens1 {
-  bearerToken: string;
-}
 export interface AccessToken1 {
   accessToken: string;
   accessSubject: string;
   accessExpires: string;
+}
+export interface AuthSessionTokens1 {
+  bearerToken: string;
 }
 export interface FrontendLinksHome1 {
   links: LinkItem[];
