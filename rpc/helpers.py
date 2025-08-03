@@ -1,11 +1,21 @@
 import logging
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from rpc.models import RPCRequest
 from server.modules.auth_module import AuthModule
 from server.modules.mssql_module import MSSQLModule
 
+
+def mask_to_bit(mask: int) -> int:
+  if mask == 0:
+    return 0
+  return (mask.bit_length() - 1)
+
+def bit_to_mask(bit: int) -> int:
+  if bit < 0 or bit >= 63:
+    raise HTTPException(status_code=400, detail='Invalid bit index')
+  return 1 << bit
 
 def _get_token_from_request(request: Request) -> str:
   header = request.headers.get('authorization')

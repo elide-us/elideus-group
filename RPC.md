@@ -26,6 +26,8 @@ Each RPC domain has an aligned security role. Other than Auth and Public, all ot
 |-----------|-------------|
 | `urn:account:users:get_profile:1` | Get a user's profile details. |
 | `urn:account:users:set_display_name:1` | Moderator user to adjust inappropriate names. |
+| `urn:account:users:set_credits:1` | Moderator can set user credit amount. |
+| `urn:account:users:enable_storage:1` | Moderator can enable user storage. |
 
 ## Users Domain
 

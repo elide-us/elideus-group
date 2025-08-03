@@ -1,22 +1,12 @@
 from fastapi import HTTPException, Request
 
-from rpc.helpers import (ROLE_REGISTERED, get_rpcrequest_from_request, load_roles)
 from rpc.models import RPCRequest, RPCResponse
-from rpc.system.roles.models import (RoleItem, SystemRoleDelete1, SystemRoleMembers1,
-                                     SystemRoleMemberUpdate1, SystemRolesList1,
-                                     SystemRoleUpdate1, RoleMemberListItem1)
+from rpc.helpers import ROLE_REGISTERED, get_rpcrequest_from_request
+from rpc.system.roles.models import (SystemRoleMembers1,
+                                     SystemRoleMemberUpdate1,
+                                     RoleMemberListItem1)
 from server.modules.mssql_module import MSSQLModule, _utos
 
-
-def mask_to_bit(mask: int) -> int:
-  if mask == 0:
-    return 0
-  return (mask.bit_length() - 1)
-
-def bit_to_mask(bit: int) -> int:
-  if bit < 0 or bit >= 63:
-    raise HTTPException(status_code=400, detail='Invalid bit index')
-  return 1 << bit
 
 # TODO: RoleHelper stuff in this area
 
@@ -59,7 +49,7 @@ async def system_roles_add_member_v1(request: Request) -> RPCResponse:
   new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
   return await system_roles_get_members_v1(new_req, request)
 
-async def system_roes_remove_member_v1(request: Request) -> RPCResponse:
+async def system_roles_remove_member_v1(request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
   
   data = SystemRoleMemberUpdate1(**(rpc_request.payload or {}))

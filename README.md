@@ -14,7 +14,7 @@ We'll update this section as we move through the rebuild.
 - GitHub Actions CI/CD Integration
 - Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
 - OAuth2 Microsoft Identity
-- PostgreSQL and Azure SQL Databases
+- Azure SQL Databases (PostgreSQL has been deferred)
 - Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.

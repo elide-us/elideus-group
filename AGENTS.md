@@ -3,18 +3,17 @@
 ## Automation and Scripting
 - dev.cmd provides different build workflows, use this to model required actions for testing and building
 - run_tests.py is the central testing module, use this to model required actions for testing and building
-- database_cli.py and dblib.py contain functions for database, schema, and data maintenance and management, use this to model any required database interactions
+- mssql_cli.py and dblib.py contain functions for database, schema, and data maintenance and management, use this to model any required database interactions
 - Consider possible impact to Dockerfile and buildx process, there is no test coverage for this portion of the build, so care must be taken to ensure stability
 
 ## Coding Standards
 - Python scripts use 2-spaces for indentation
 - TypeScript files use 4-space tabs for indentation
-- Ensure all test and automation scripts are updated in line with changes
+- Ensure all test and automation scripts and documentation are updated in line with changes
 
 ## Database Management
-- /scripts folder contains a record of versions and database schema iterations, when changes are requested, generate a new schema file using "schema dump" process from database_cli.py.
-- When creating new tables that are not tied to a specific join key (such as user GUID or session GUID), include an id SERIAL PRIMARY KEY field for the default index.
-- When data loads are required a .sql script is preferred. Human developer will import provided schema and data files using database_cli.py.
+- /scripts folder contains a record of versions and database schema iterations, when changes are requested, generate a new schema file using "schema dump" process from mssql_cli.py.
+- When data loads are required a .sql script is preferred. Human developer will import provided schema and data files using mssql_cli.py.
 
 ## Testing Details
 - Always run RPC generation scripts before running tests

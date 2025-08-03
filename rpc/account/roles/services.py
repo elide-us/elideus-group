@@ -3,21 +3,11 @@ from fastapi import HTTPException, Request
 from rpc.account.roles.models import (AccountRolesMemberList1,
                                       AccountRolesMember1)
 from rpc.account.users.models import UserListItem
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import get_rpcrequest_from_request, mask_to_bit, bit_to_mask
 from rpc.models import RPCRequest, RPCResponse
 from server.helpers import roles as role_helper
 from server.modules.mssql_module import MSSQLModule, _utos
 
-
-def mask_to_bit(mask: int) -> int:
-  if mask == 0:
-    return 0
-  return (mask.bit_length() - 1)
-
-def bit_to_mask(bit: int) -> int:
-  if bit < 0 or bit >= 63:
-    raise HTTPException(status_code=400, detail='Invalid bit index')
-  return 1 << bit
 
 async def account_roles_get_members_v1(rpc_request, request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
@@ -58,7 +48,7 @@ async def account_roles_add_member_v1(rpc_request, request: Request) -> RPCRespo
   new_req = RPCRequest(op='', payload={'role': data.role}, version=1)
   return await account_roles_get_members_v1(new_req, request)
 
-async def account_roles_delete_member_v1(rpc_request, request: Request) -> RPCResponse:
+async def account_roles_remove_member_v1(rpc_request, request: Request) -> RPCResponse:
   rpc_request: RPCRequest = get_rpcrequest_from_request(request)
 
   data = AccountRolesMember1(**(rpc_request.payload or {}))
