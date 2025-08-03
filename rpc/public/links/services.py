@@ -1,7 +1,7 @@
 
 from fastapi import Request
 
-from rpc.frontend.links.models import (FrontendLinksHome1,
+from rpc.public.links.models import (FrontendLinksHome1,
                                        FrontendLinksRoutes1, LinkItem,
                                        RouteItem)
 from rpc.models import RPCResponse

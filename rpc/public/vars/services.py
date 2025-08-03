@@ -2,7 +2,7 @@ import asyncio
 
 from fastapi import HTTPException, Request
 
-from rpc.frontend.vars.models import (FrontendVarsFfmpegVersion1,
+from rpc.public.vars.models import (FrontendVarsFfmpegVersion1,
                                       FrontendVarsHostname1, FrontendVarsRepo1,
                                       FrontendVarsVersion1)
 from rpc.models import RPCResponse

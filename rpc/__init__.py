@@ -1,6 +1,6 @@
 from .account.handler import handle_account_request
 from .auth.handler import handle_auth_request
-from .frontend.handler import handle_frontend_request
+from .public.handler import handle_frontend_request
 from .storage.handler import handle_storage_request
 from .system.handler import handle_system_request
 
