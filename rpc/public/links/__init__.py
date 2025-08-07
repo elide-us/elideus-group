@@ -1,6 +1,11 @@
-from .services import get_home_v1, get_routes_v1
+from .services import (
+  public_links_get_home_links_v1,
+  public_links_get_navbar_routes_v1
+)
+
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
-  ("get_home", "1"): get_home_v1,
-  ("get_routes", "1"): get_routes_v1,
+  ("get_home_links", "1"): public_links_get_home_links_v1,
+  ("get_navbar_routes", "1"): public_links_get_navbar_routes_v1,
 }
+

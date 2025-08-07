@@ -11,3 +11,4 @@ async def handle_system_request(parts: list[str], request: Request) -> RPCRespon
   if not handler:
     raise HTTPException(status_code=404, detail="Unknown RPC subdomain")
   return await handler(parts[1:], request)
+

@@ -1,11 +1,11 @@
 import { createContext } from 'react';
-import type { FrontendUserProfileData1 } from './RpcModels';
 
 export interface UserContext {
-        userData: FrontendUserProfileData1 | null;
-        setUserData: (data: FrontendUserProfileData1 | null) => void;
+        userData: null;
+        setUserData: (data: null) => void;
 	clearUserData: () => void;
 }
+
 const defaultContext: UserContext = {
         userData: null,
         setUserData: () => {},

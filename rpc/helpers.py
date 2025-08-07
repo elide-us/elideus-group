@@ -31,7 +31,7 @@ async def _process_rpcrequest(request: Request) -> RPCRequest:
   rpc_request = RPCRequest(**body)
 
   token: str = _get_token_from_request(request)
-  data: dict[str, str] = await _auth.decode_bearer_token(token)
+  data: dict[str, str] = await _auth.decode_bearer_token(token) #TODO: Include user_role int in bearer token
 
   rpc_request.user_guid = data.get('guid')
   rpc_request.user_role = await _mssql.get_user_roles(rpc_request.user_guid)

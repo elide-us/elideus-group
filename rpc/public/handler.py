@@ -5,7 +5,7 @@ from rpc.models import RPCResponse
 from . import HANDLERS
 
 
-async def handle_frontend_request(parts: list[str], request: Request) -> RPCResponse:
+async def handle_public_request(parts: list[str], request: Request) -> RPCResponse:
   subdomain = parts[0]
   handler = HANDLERS.get(subdomain)
   if not handler:

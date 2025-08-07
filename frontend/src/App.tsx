@@ -4,16 +4,6 @@ import { CssBaseline, Container } from '@mui/material'
 import ElideusTheme from './shared/ElideusTheme'
 import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
-import NavBar from './NavBar'
-import UserPage from './UserPage'
-import LoginPage from './LoginPage'
-import SystemRoutesPage from './SystemRoutesPage'
-import SystemConfigPage from './SystemConfigPage'
-import SystemRolesPage from './SystemRolesPage'
-import AccountUsersPage from './AccountUsersPage'
-import AccountUserPanel from './AccountUserPanel'
-import AccountRoleMembersPage from './AccountRoleMembersPage'
-import FileManager from './FileManager'
 
 function App(): JSX.Element {
 	return (
@@ -21,19 +11,9 @@ function App(): JSX.Element {
 			<CssBaseline />
 			<UserContextProvider>
 				<Router>
-					<NavBar />
                     <Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
 						<Routes>
 							<Route path='/' element={<Home />} />
-							<Route path='/userpage' element={<UserPage />} />
-							<Route path='/loginpage' element={<LoginPage />} />
-							<Route path='/system-routes' element={<SystemRoutesPage />} />
-							<Route path='/system-config' element={<SystemConfigPage />} />
-							<Route path='/system-roles' element={<SystemRolesPage />} />
-							<Route path='/account-userspage' element={<AccountUsersPage />} />
-							<Route path='/account-userpanel/:guid' element={<AccountUserPanel />} />
-							<Route path='/account-role-members' element={<AccountRoleMembersPage />} />
-							<Route path='/file-manager' element={<FileManager />} />
 						</Routes>
 					</Container>
 				</Router>

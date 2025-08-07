@@ -11,3 +11,4 @@ async def handle_roles_request(parts: list[str], request: Request) -> RPCRespons
   if not handler:
     raise HTTPException(status_code=404, detail='Unknown RPC operation')
   return await handler(request)
+

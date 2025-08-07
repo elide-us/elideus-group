@@ -6,8 +6,6 @@ from pydantic import BaseModel, Field
 
 class RPCRequest(BaseModel):
   op: str
-  user_guid: str
-  user_role: int
   payload: Optional[dict[str, Any]] = None
   version: int = 1
 

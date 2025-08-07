@@ -7,7 +7,7 @@ from rpc.models import RPCResponse
 from . import DISPATCHERS
 
 
-async def handle_ms_request(parts: list[str], request: Request) -> RPCResponse:
+async def handle_microsoft_request(parts: list[str], request: Request) -> RPCResponse:
   key = tuple(parts[:2])
   handler = DISPATCHERS.get(key)
   if not handler:

@@ -14,38 +14,38 @@ Each RPC domain has an aligned security role. Other than Auth and Public, all ot
 
 ### `roles`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:account:roles:get_members:1` | Get members of a given role. |
-| `urn:account:roles:add_member:1` | Add members to a given role. |
+| Operation                           | Description                       |
+| ----------------------------------- | --------------------------------- |
+| `urn:account:roles:add_member:1`    | Add members to a given role.      |
+| `urn:account:roles:get_members:1`   | Get members of a given role.      |
 | `urn:account:roles:remove_member:1` | Remove members from a given role. |
 
 ### `users`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:account:users:get_profile:1` | Get a user's profile details. |
-| `urn:account:users:set_display_name:1` | Moderator user to adjust inappropriate names. |
-| `urn:account:users:set_credits:1` | Moderator can set user credit amount. |
-| `urn:account:users:enable_storage:1` | Moderator can enable user storage. |
+| Operation                            | Description                                      |
+| ------------------------------------ | ------------------------------------------------ |
+| `urn:account:users:get_profile:1`    | Get a user's profile details.                    |
+| `urn:account:users:set_credits:1`    | Moderator can set user credit amount.            |
+| `urn:account:users:enable_storage:1` | Moderator can enable user storage.               |
+| `urn:account:users:reset_display:1`  | Moderator reset of user display name to default. |
 
 ## Users Domain
 
 ### `user`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:users:users:get_profile:1` | Get a user's profile data. |
-| `urn:users:users:set_display:1` | A user can set their display name. |
-| `urn:users:users:set_optin:1` | A user can select if their email is displayed. |
+| Operation                      | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `urn:users:user:get_profile:1` | Get a user's profile data.                     |
+| `urn:users:user:set_display:1` | A user can set their display name.             |
+| `urn:users:user:set_optin:1`   | A user can select if their email is displayed. |
 
 ### `auth`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:users:auth:set_provider:1` | A user can select any active provider for their email. |
-| `urn:users:auth:link_provider:1` | A user can link additional providers. |
-| `urn:users:auth:unlink_provider:1` | A user can unlink providers. |
+| Operation                          | Description                                            |
+| ---------------------------------- | ------------------------------------------------------ |
+| `urn:users:auth:set_provider:1`    | A user can select any active provider for their email. |
+| `urn:users:auth:link_provider:1`   | A user can link additional providers.                  |
+| `urn:users:auth:unlink_provider:1` | A user can unlink providers.                           |
 
 ## Auth Domain
 
@@ -53,52 +53,51 @@ Authentication and session management calls.
 
 ### `microsoft`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:auth:microsoft:user_login:1` | Validate Microsoft tokens, create a user record if necessary, and start a user session. Returns bearer and rotation tokens plus profile data. |
+| Operation                          | Description                                                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `urn:auth:microsoft:oauth_login:1` | Validate Microsoft tokens, create a user record if necessary, and start a user session. Returns bearer and profile data. |
 
 ### `session`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:auth:session:get_token:1` | Get a bearer token for a new device session. |
-| `urn:auth:session:refresh_token:1` | Get a new bearer token for an existing device session. |
-| `urn:auth:session:invalidate_token:1` | Invalidate an existing device session token. |
+| Operation                             | Description                                            |
+| ------------------------------------- | ------------------------------------------------------ |
+| `urn:auth:session:get_token:1`        | Get a bearer token for a new device session.           |
+| `urn:auth:session:refresh_token:1`    | Get a new bearer token for an existing device session. |
+| `urn:auth:session:invalidate_token:1` | Invalidate an existing device session token.           |
 
-## Frontend (Public) Domain
+## Public (React/Frontend) Domain
 
 User focused calls used by the React application.
 
 ### `links`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:public:links:get_home:1` | Returns a list of external links for the home page. |
-| `urn:public:links:get_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
+| Operation                              | Description                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------------- |
+| `urn:public:links:get_home_links:1`    | Returns a list of external links for the home page.                              |
+| `urn:public:links:get_navbar_routes:1` | Returns route definitions for the navigation bar filtered by the caller's roles. |
 
 ### `vars`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:public:vars:get_version:1` | Read the configured application version. |
-| `urn:public:vars:get_hostname:1` | Read the configured hostname. |
-| `urn:public:vars:get_repo:1` | Read the GitHub repository URL. |
-| `urn:public:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version. |
-| `urn:public:vars:get_odbc_version:1` | Return the installed Linux MSSQL ODBC driver versions. |
+| Operation                              | Description                                            |
+| -------------------------------------- | ------------------------------------------------------ |
+| `urn:public:vars:get_version:1`        | Read the configured application version.               |
+| `urn:public:vars:get_hostname:1`       | Read the configured hostname.                          |
+| `urn:public:vars:get_repo:1`           | Read the GitHub repository URL.                        |
+| `urn:public:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version.                   |
+| `urn:public:vars:get_odbc_version:1`   | Return the installed Linux MSSQL ODBC driver versions. |
 
 ## Storage Domain
 
-Calls for managing storage
+Calls for user storage management
 
 ### `files`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:storage:files:get_files:1` | Provide a list of files for the user. |
-| `urn:storage:files:get_gallery:1` | Provide a list of files in the public gallery. |
-| `urn:storage:files:set_gallery:1` | Flag a file for public inclusion in the gallery. |
+| Operation                          | Description                                                     |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `urn:storage:files:get_files:1`    | Provide a list of files for the user.                           |
+| `urn:storage:files:set_gallery:1`  | Flag a file for public inclusion in the gallery.                |
 | `urn:storage:files:upload_files:1` | Upload a file or files from the user into the moderation queue. |
-| `urn:storage:files:delete_files:1` | Delete a file or files specified by the user. |
+| `urn:storage:files:delete_files:1` | Delete a file or files specified by the user.                   |
 
 ## System Domain
 
@@ -106,26 +105,27 @@ These calls expose system administration functionality.
 
 ### `roles`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:system:roles:get_roles:1` | List all role names and their bit positions. |
-| `urn:system:roles:get_members:1` | Get members and non-members for a role. |
-| `urn:system:roles:set_role:1` | Create or update a role definition. |
-| `urn:system:roles:delete_role:1` | Delete a role. |
+| Operation                               | Description                                  |
+| --------------------------------------- | -------------------------------------------- |
+| `urn:system:roles:get_roles:1`          | List all role names and their bit positions. |
+| `urn:system:roles:get_role_members:1`   | Get members and non-members for a role.      |
+| `urn:system:roles:add_role_member:1`    | Add members to a role.                       |
+| `urn:system:roles:remove_role_member:1` | Remove members from a role.                  |
+| `urn:system:roles:upsert_role:1`        | Create or update a role definition.          |
+| `urn:system:roles:delete_role:1`        | Delete a role.                               |
 
 ### `config`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:system:config:get_configs:1` | List configuration entries. |
-| `urn:system:config:set_config:1` | Create or update a configuration entry. |
-| `urn:system:config:delete_config:1` | Delete a configuration entry. |
+| Operation                           | Description                             |
+| ----------------------------------- | --------------------------------------- |
+| `urn:system:config:get_configs:1`   | List configuration entries.             |
+| `urn:system:config:upsert_config:1` | Create or update a configuration entry. |
+| `urn:system:config:delete_config:1` | Delete a configuration entry.           |
 
 ### `routes`
 
-| Operation | Description |
-|-----------|-------------|
-| `urn:system:routes:get_routes:1` | List application routes. |
-| `urn:system:routes:set_route:1` | Create or update a route definition. |
-| `urn:system:routes:delete_route:1` | Delete a route definition. |
-
+| Operation                          | Description                          |
+| ---------------------------------- | ------------------------------------ |
+| `urn:system:routes:get_routes:1`   | List application routes.             |
+| `urn:system:routes:upsert_route:1` | Create or update a route definition. |
+| `urn:system:routes:delete_route:1` | Delete a route definition.           |

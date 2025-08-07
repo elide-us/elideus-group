@@ -11,3 +11,4 @@ async def handle_storage_request(parts: list[str], request: Request) -> RPCRespo
   if not handler:
     raise HTTPException(status_code=404, detail='Unknown RPC subdomain')
   return await handler(parts[1:], request)
+
