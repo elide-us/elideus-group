@@ -1,3 +1,9 @@
+"""Handlers for the public namespace accessed by the frontend.
+
+These operations serve unauthenticated data and are exempt from
+security role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
