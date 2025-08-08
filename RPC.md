@@ -31,13 +31,15 @@ Each RPC domain has an aligned security role. Other than Auth and Public, all ot
 
 ## Users Domain
 
-### `user`
+All Users domain calls require `ROLE_USERS_ENABLED`.
 
-| Operation                      | Description                                    |
-| ------------------------------ | ---------------------------------------------- |
-| `urn:users:user:get_profile:1` | Get a user's profile data.                     |
-| `urn:users:user:set_display:1` | A user can set their display name.             |
-| `urn:users:user:set_optin:1`   | A user can select if their email is displayed. |
+### `profile`
+
+| Operation                         | Description                                    |
+| --------------------------------- | ---------------------------------------------- |
+| `urn:users:profile:get_profile:1` | Get a user's profile data.                     |
+| `urn:users:profile:set_display:1` | A user can set their display name.             |
+| `urn:users:profile:set_optin:1`   | A user can select if their email is displayed. |
 
 ### `auth`
 
