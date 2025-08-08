@@ -1,6 +1,6 @@
 """Moderation RPC namespace.
 
-Handles moderation operations requiring ROLE_MODERATOR.
+Handles moderation operations requiring ROLE_MODERATION_SUPPORT.
 Auth and public domains are exempt from role checks.
 """
 
