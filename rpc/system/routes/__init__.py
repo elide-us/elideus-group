@@ -1,3 +1,8 @@
+"""System routes RPC namespace.
+
+Requires ROLE_SYSTEM_ADMIN.
+"""
+
 from .services import (
   system_routes_delete_route_v1,
   system_routes_get_routes_v1,
