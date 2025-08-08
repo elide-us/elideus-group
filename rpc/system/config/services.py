@@ -6,10 +6,10 @@ from rpc.system.config.models import (
   SystemConfigUpdate2,
   SystemConfigDelete2,
 )
-from server.modules.mssql_module import MSSQLModule
+from server.modules.database_provider import DatabaseProvider
 
 async def list_config_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   rows = await db.list_config()
   items = [ConfigItem(key=r['element_key'], value=str(r['element_value'])) for r in rows]
   payload = SystemConfigList2(items=items)
@@ -17,12 +17,12 @@ async def list_config_v2(request: Request) -> RPCResponse:
 
 async def set_config_v2(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   data = SystemConfigUpdate2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   await db.set_config_value(data.key, str(data.value))
   return await list_config_v2(request)
 
 async def delete_config_v2(rpc_request: RPCRequest, request: Request) -> RPCResponse:
   data = SystemConfigDelete2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   await db.delete_config_value(data.key)
   return await list_config_v2(request)

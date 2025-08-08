@@ -9,7 +9,7 @@ from rpc.system.roles.models import (
 )
 from rpc.system.users.models import UserListItem
 from rpc.models import RPCRequest, RPCResponse
-from server.modules.mssql_module import MSSQLModule, _utos
+from server.modules.database_provider import DatabaseProvider, _utos
 from server.helpers import roles as role_helper
 
 
@@ -25,7 +25,7 @@ def bit_to_mask(bit: int) -> int:
 
 
 async def list_roles_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   rows = await db.list_roles()
   roles = [
     RoleItem(name=r['name'], display=r['display'], bit=mask_to_bit(int(r['mask'])))
@@ -37,7 +37,7 @@ async def list_roles_v2(request: Request) -> RPCResponse:
 
 async def set_role_v2(rpc_request, request: Request) -> RPCResponse:
   data = SystemRoleUpdate2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   mask = bit_to_mask(data.bit)
   await db.set_role(data.name, mask, data.display)
   await role_helper.load_roles(db)
@@ -45,7 +45,7 @@ async def set_role_v2(rpc_request, request: Request) -> RPCResponse:
 
 async def delete_role_v2(rpc_request, request: Request) -> RPCResponse:
   data = SystemRoleDelete2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   await db.delete_role(data.name)
   await role_helper.load_roles(db)
   return await list_roles_v2(request)
@@ -55,7 +55,7 @@ async def get_role_members_v2(rpc_request, request: Request) -> RPCResponse:
   role = payload.get('role')
   if not role:
     raise HTTPException(status_code=400, detail='Missing role')
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
   mask = role_map.get(role)
@@ -74,7 +74,7 @@ async def get_role_members_v2(rpc_request, request: Request) -> RPCResponse:
 
 async def add_role_member_v2(rpc_request, request: Request) -> RPCResponse:
   data = SystemRoleMemberUpdate2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
   mask = role_map.get(data.role)
@@ -87,7 +87,7 @@ async def add_role_member_v2(rpc_request, request: Request) -> RPCResponse:
 
 async def remove_role_member_v2(rpc_request, request: Request) -> RPCResponse:
   data = SystemRoleMemberUpdate2(**(rpc_request.payload or {}))
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   rows = await db.list_roles()
   role_map = {r['name']: int(r['mask']) for r in rows}
   mask = role_map.get(data.role)

@@ -9,12 +9,12 @@ from rpc.frontend.links.models import (
   FrontendLinksHome2,
   FrontendLinksRoutes2,
 )
-from server.modules.mssql_module import MSSQLModule
+from server.modules.database_provider import DatabaseProvider
 from server.modules.permcap_module import PermCapModule
 
 
 async def get_home_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   permcap: PermCapModule = request.app.state.permcap
   role_mask = getattr(request.state, 'role_mask', 0)
   data = await db.select_links(role_mask)
@@ -27,7 +27,7 @@ async def get_home_v2(request: Request) -> RPCResponse:
   return RPCResponse(op="urn:frontend:links:home:2", payload=payload, version=2)
 
 async def get_routes_v2(request: Request) -> RPCResponse:
-  db: MSSQLModule = request.app.state.mssql
+  db: DatabaseProvider = request.app.state.mssql
   permcap: PermCapModule = request.app.state.permcap
   role_mask = getattr(request.state, 'role_mask', 0)
   data = await db.select_routes(role_mask)
