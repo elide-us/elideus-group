@@ -1,3 +1,9 @@
+"""Handlers for the authentication namespace.
+
+These operations manage login and session flow and are exempt from
+security role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
