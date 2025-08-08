@@ -45,7 +45,7 @@
       "capabilities": 0
     },
     {
-      "op": "urn:moderation:review_content:1",
+      "op": "urn:moderation:content:review_content:1",
       "capabilities": 0
     },
     {
@@ -77,7 +77,27 @@
       "capabilities": 0
     },
     {
-      "op": "urn:security:audit_log:1",
+      "op": "urn:security:roles:add_role_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:roles:delete_role:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:roles:get_role_members:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:roles:get_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:roles:remove_role_member:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:roles:upsert_role:1",
       "capabilities": 0
     },
     {
@@ -110,30 +130,6 @@
     },
     {
       "op": "urn:system:config:upsert_config:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:add_role_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:delete_role:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:get_role_members:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:get_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:remove_role_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:roles:upsert_role:1",
       "capabilities": 0
     },
     {
