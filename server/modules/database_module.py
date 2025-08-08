@@ -19,7 +19,7 @@ class DatabaseModule(BaseModule):
 
     name = env.get("DB_PROVIDER", "mssql").lower()
     if name == "postgresql":
-      from .providers.postgresql_provider import PostgreSQLProvider
+      from .providers.postgres_provider import PostgreSQLProvider
       self.provider = PostgreSQLProvider()
     else:
       from .providers.mssql_provider import MSSQLProvider
