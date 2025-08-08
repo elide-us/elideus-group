@@ -1,50 +1,26 @@
-from __future__ import annotations
+# database_module.py
+from typing import Any, Dict
+from pydantic import BaseModel
 
-from fastapi import FastAPI
+class DBResult(BaseModel):
+    rows: list[dict] = []
+    rowcount: int = 0
 
-from . import BaseModule
-from .env_module import EnvModule
+_exec = None  # set by init()
 
-
-class DatabaseModule(BaseModule):
-  """Selects and initializes the configured database provider."""
-
-  def __init__(self, app: FastAPI):
-    super().__init__(app)
-    self.provider = None
-
-  async def startup(self):
-    env: EnvModule = self.app.state.env
-    await env.on_ready()
-
-    name = env.get("DB_PROVIDER", "mssql").lower()
-    if name == "postgresql":
-      from .providers.postgres_provider import PostgreSQLProvider
-      self.provider = PostgreSQLProvider()
+async def init(provider: str = "mssql", **cfg):
+    global _exec
+    if provider == "mssql":
+        from .providers.mssql_provider import init as _init, dispatch as _dispatch
+        await _init(**cfg)
+        _exec = _dispatch
     else:
-      from .providers.mssql_provider import MSSQLProvider
-      self.provider = MSSQLProvider()
+        raise ValueError(f"Unsupported provider: {provider}")
 
-    if hasattr(self.provider, "startup"):
-      await self.provider.startup()
-    self.mark_ready()
-
-  async def shutdown(self):
-    if self.provider and hasattr(self.provider, "shutdown"):
-      await self.provider.shutdown()
-    self.provider = None
-
-  async def execute(self, query: str, *args, **kwargs):
-    if not self.provider:
-      raise RuntimeError("Database provider not initialized")
-    return await self.provider.execute(query, *args, **kwargs)
-
-  async def fetch_one(self, query: str, *args, **kwargs):
-    if not self.provider:
-      raise RuntimeError("Database provider not initialized")
-    return await self.provider.fetch_one(query, *args, **kwargs)
-
-  async def fetch_many(self, query: str, *args, **kwargs):
-    if not self.provider:
-      raise RuntimeError("Database provider not initialized")
-    return await self.provider.fetch_many(query, *args, **kwargs)
+async def run(op: str, args: Dict[str, Any]) -> DBResult:
+    assert _exec, "database_module not initialized"
+    out = await _exec(op, args)
+    # normalize to DBResult
+    if isinstance(out, DBResult):
+        return out
+    return DBResult(**out)  # expects {"rows":[...], "rowcount":N}

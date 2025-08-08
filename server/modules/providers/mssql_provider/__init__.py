@@ -1,35 +1,27 @@
-from __future__ import annotations
+# providers/mssql_provider/__init__.py
+from typing import Any, Dict
+from .logic import init_pool, close_pool, fetch_json_one, fetch_json_many, exec_
+from .registry import get_handler
 
-from . import logic
+async def init(**cfg):
+    # pass: dsn="...", etc.
+    await init_pool(**cfg)
 
-
-class MSSQLProvider:
-  """MSSQL database provider."""
-
-  async def startup(self) -> None:
-    """Initialize MSSQL connections if needed."""
-    # Provider-specific startup logic goes here
-    pass
-
-  async def shutdown(self) -> None:
-    """Cleanup MSSQL resources."""
-    # Provider-specific shutdown logic goes here
-    pass
-
-  async def execute(self, query: str, *args, **kwargs):
-    """Execute a write query against MSSQL.
-    Provider-specific execution logic should be implemented in ``logic.execute``.
-    """
-    return await logic.execute(query, *args, **kwargs)
-
-  async def fetch_one(self, query: str, *args, **kwargs):
-    """Fetch a single record from MSSQL.
-    Provider-specific fetch logic should be implemented in ``logic.fetch_one``.
-    """
-    return await logic.fetch_one(query, *args, **kwargs)
-
-  async def fetch_many(self, query: str, *args, **kwargs):
-    """Fetch multiple records from MSSQL.
-    Provider-specific fetch logic should be implemented in ``logic.fetch_many``.
-    """
-    return await logic.fetch_many(query, *args, **kwargs)
+async def dispatch(op: str, args: Dict[str, Any]):
+    handler = get_handler(op)
+    spec = handler(args)
+    # async handler path
+    if hasattr(spec, "__await__"):
+        return await spec  # expected {"rows":[...], "rowcount":N}
+    # tuple path: (mode, sql, params)
+    mode, sql, params = spec
+    if mode == "json_one":
+        row = await fetch_json_one(sql, params)
+        return {"rows": [row] if row else [], "rowcount": 1 if row else 0}
+    if mode == "json_many":
+        rows = await fetch_json_many(sql, params)
+        return {"rows": rows, "rowcount": len(rows)}
+    if mode == "exec":
+        rc = await exec_(sql, params)
+        return {"rows": [], "rowcount": rc}
+    raise ValueError(f"Unknown mode: {mode}")
