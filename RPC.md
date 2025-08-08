@@ -160,4 +160,4 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 
 | Operation                            | Description                          |
 | ------------------------------------ | ------------------------------------ |
-| `urn:moderation:review_content:1`   | Placeholder content review task.    |
+| `urn:moderation:content:review_content:1` | Placeholder content review task.    |
