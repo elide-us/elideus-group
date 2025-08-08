@@ -1,3 +1,9 @@
+"""System RPC namespace.
+
+Contains system-level operations requiring ROLE_SYSTEM_ADMIN.
+Auth and public domains are exempt from role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

@@ -1,3 +1,9 @@
+"""RPC namespace root.
+
+Exports handlers for each RPC domain with role-based access.
+The auth and public domains are exempt from role checks.
+"""
+
 from .admin.handler import handle_admin_request
 from .auth.handler import handle_auth_request
 from .public.handler import handle_public_request

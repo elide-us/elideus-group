@@ -1,3 +1,9 @@
+"""Users RPC namespace.
+
+Manages user operations requiring ROLE_USERS_ENABLED.
+Auth and public domains are exempt from role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
