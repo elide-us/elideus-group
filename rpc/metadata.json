@@ -77,6 +77,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:security:audit_log:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:security:roles:add_role_member:1",
       "capabilities": 0
     },

@@ -105,17 +105,6 @@ Calls for user storage management
 
 These calls expose system administration functionality.
 
-### `roles`
-
-| Operation                               | Description                                  |
-| --------------------------------------- | -------------------------------------------- |
-| `urn:system:roles:get_roles:1`          | List all role names and their bit positions. |
-| `urn:system:roles:get_role_members:1`   | Get members and non-members for a role.      |
-| `urn:system:roles:add_role_member:1`    | Add members to a role.                       |
-| `urn:system:roles:remove_role_member:1` | Remove members from a role.                  |
-| `urn:system:roles:upsert_role:1`        | Create or update a role definition.          |
-| `urn:system:roles:delete_role:1`        | Delete a role.                               |
-
 ### `config`
 
 | Operation                           | Description                             |
@@ -145,6 +134,17 @@ All Service domain calls require `ROLE_SERVICE_ADMIN`.
 ## Security Domain
 
 All Security domain calls require `ROLE_SECURITY_ADMIN`.
+
+### `roles`
+
+| Operation                               | Description                                  |
+| --------------------------------------- | -------------------------------------------- |
+| `urn:security:roles:get_roles:1`        | List all role names and their bit positions. |
+| `urn:security:roles:get_role_members:1` | Get members and non-members for a role.      |
+| `urn:security:roles:add_role_member:1`  | Add members to a role.                       |
+| `urn:security:roles:remove_role_member:1` | Remove members from a role.                |
+| `urn:security:roles:upsert_role:1`      | Create or update a role definition.          |
+| `urn:security:roles:delete_role:1`      | Delete a role.                               |
 
 ### `audit`
 
