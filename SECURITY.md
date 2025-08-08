@@ -21,7 +21,7 @@ for user level flags.
 | 3   | `0x0000000000000008`  | `ROLE_SOCIAL_ENABLED`     | Allows the user to create tokens to interact with the system via API |
 | 2   | `0x0000000000000004`  | `ROLE_DISCORD_ENABLED`    | Allows the user to interact with the system via Discord |
 | 1   | `0x0000000000000002`  | `ROLE_STORAGE_ENABLED`    | Allows access to the storage domain |
-| 0   | `0x0000000000000001`  | `ROLE_USERS_ENABLED`      | Grants access to registered user functionality |
+| 0   | `0x0000000000000001`  | `ROLE_USERS_ENABLED`      | Grants access to profile and provider management |
 
 ## Role Macros
 
