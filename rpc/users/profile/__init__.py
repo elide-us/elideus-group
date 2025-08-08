@@ -1,3 +1,8 @@
+"""Users profile RPC namespace.
+
+Requires ROLE_USERS_ENABLED.
+"""
+
 from .services import (
   users_profile_get_profile_v1,
   users_profile_set_display_v1,
