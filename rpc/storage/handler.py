@@ -1,3 +1,9 @@
+"""Storage RPC namespace.
+
+Provides storage operations requiring ROLE_STORAGE_ENABLED.
+Auth and public domains are exempt from role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

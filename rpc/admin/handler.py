@@ -1,3 +1,9 @@
+"""Admin RPC namespace.
+
+Handles administrative operations requiring ROLE_ADMIN_SUPPORT.
+Auth and public domains are exempt from role checks.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
