@@ -45,6 +45,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:moderation:review_content:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:public:links:get_home_links:1",
       "capabilities": 0
     },
@@ -70,6 +74,14 @@
     },
     {
       "op": "urn:public:vars:get_version:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:security:audit_log:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:service:health_check:1",
       "capabilities": 0
     },
     {
