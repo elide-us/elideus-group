@@ -1,31 +1,31 @@
 {
   "rpc": [
     {
-      "op": "urn:account:roles:add_member:1",
+      "op": "urn:admin:roles:add_member:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:roles:get_members:1",
+      "op": "urn:admin:roles:get_members:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:roles:remove_member:1",
+      "op": "urn:admin:roles:remove_member:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:enable_storage:1",
+      "op": "urn:admin:users:enable_storage:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:get_profile:1",
+      "op": "urn:admin:users:get_profile:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:reset_display:1",
+      "op": "urn:admin:users:reset_display:1",
       "capabilities": 0
     },
     {
-      "op": "urn:account:users:set_credits:1",
+      "op": "urn:admin:users:set_credits:1",
       "capabilities": 0
     },
     {
@@ -58,6 +58,10 @@
     },
     {
       "op": "urn:public:vars:get_hostname:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:public:vars:get_odbc_version:1",
       "capabilities": 0
     },
     {
@@ -145,15 +149,15 @@
       "capabilities": 0
     },
     {
-      "op": "urn:users:user:get_profile:1",
+      "op": "urn:users:profile:get_profile:1",
       "capabilities": 0
     },
     {
-      "op": "urn:users:user:set_display:1",
+      "op": "urn:users:profile:set_display:1",
       "capabilities": 0
     },
     {
-      "op": "urn:users:user:set_optin:1",
+      "op": "urn:users:profile:set_optin:1",
       "capabilities": 0
     }
   ]
