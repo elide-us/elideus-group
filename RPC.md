@@ -10,24 +10,24 @@ Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`
 
 Each RPC domain has an aligned security role. Other than Auth and Public, all other domains require a bearer token and a security lookup before the function is executed on behalf of the user.
 
-## Account Domain
+## Admin Domain
 
 ### `roles`
 
 | Operation                           | Description                       |
 | ----------------------------------- | --------------------------------- |
-| `urn:account:roles:add_member:1`    | Add members to a given role.      |
-| `urn:account:roles:get_members:1`   | Get members of a given role.      |
-| `urn:account:roles:remove_member:1` | Remove members from a given role. |
+| `urn:admin:roles:add_member:1`      | Add members to a given role.      |
+| `urn:admin:roles:get_members:1`     | Get members of a given role.      |
+| `urn:admin:roles:remove_member:1`   | Remove members from a given role. |
 
 ### `users`
 
 | Operation                            | Description                                      |
 | ------------------------------------ | ------------------------------------------------ |
-| `urn:account:users:get_profile:1`    | Get a user's profile details.                    |
-| `urn:account:users:set_credits:1`    | Moderator can set user credit amount.            |
-| `urn:account:users:enable_storage:1` | Moderator can enable user storage.               |
-| `urn:account:users:reset_display:1`  | Moderator reset of user display name to default. |
+| `urn:admin:users:get_profile:1`      | Get a user's profile details.                    |
+| `urn:admin:users:set_credits:1`      | Moderator can set user credit amount.            |
+| `urn:admin:users:enable_storage:1`   | Moderator can enable user storage.               |
+| `urn:admin:users:reset_display:1`    | Moderator reset of user display name to default. |
 
 ## Users Domain
 
