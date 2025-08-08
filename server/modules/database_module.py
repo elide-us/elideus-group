@@ -4,6 +4,10 @@ import os
 from importlib import import_module
 from typing import Any, Dict, Protocol, cast, Awaitable, Callable
 from pydantic import BaseModel
+from fastapi import FastAPI
+
+from . import BaseModule
+from .env_module import EnvModule
 
 
 class DBResult(BaseModel):
@@ -49,3 +53,28 @@ async def run(op: str, args: Dict[str, Any]) -> DBResult:
   if isinstance(out, DBResult):
     return out
   return DBResult(**out)  # expects {"rows":[...], "rowcount":N}
+
+
+class DatabaseModule(BaseModule):
+  def __init__(self, app: FastAPI):
+    super().__init__(app)
+
+  async def startup(self):
+    env: EnvModule = self.app.state.env
+    await env.on_ready()
+    provider = env.get("DATABASE_PROVIDER")
+    cfg: Dict[str, Any] = {}
+    if provider == "mssql":
+      cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
+    elif provider == "postgres":
+      cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
+    await init(provider=provider, **cfg)
+    self.app.state.db = self
+    self.app.state.db_provider = provider
+    self.mark_ready()
+
+  async def shutdown(self):
+    return
+
+  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
+    return await run(op, args)
