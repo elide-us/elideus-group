@@ -9,9 +9,10 @@ from .services import (
 
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
-  # These functions are used to make changes to user role assignments.
-  # The roles are stored in the database. Each role has a bitmask flag.
-  # Users have a combined bitmask value stored for all roles assigned.
+  # These functions are for making changes to the role definitions and 
+  # managing role membership. The roles are stored in the database. 
+  # Each role has a bitmask flag. Users have a combined bitmask value 
+  # stored for all roles assigned.
   # This namespace is restricted to users with the SYSTEM role.
   ("get_roles", "1"): system_roles_get_roles_v1,
   ("upsert_role", "1"): system_roles_upsert_role_v1,
