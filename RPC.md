@@ -154,7 +154,7 @@ All Security domain calls require `ROLE_SECURITY_ADMIN`.
 
 ## Moderation Domain
 
-All Moderation domain calls require `ROLE_MODERATOR`.
+All Moderation domain calls require `ROLE_MODERATION_SUPPORT`.
 
 ### `content`
 
