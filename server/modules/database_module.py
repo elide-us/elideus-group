@@ -14,6 +14,10 @@ async def init(provider: str = "mssql", **cfg):
         from .providers.mssql_provider import init as _init, dispatch as _dispatch
         await _init(**cfg)
         _exec = _dispatch
+    elif provider == "postgres":
+        from .providers.postgres_provider import init as _init, dispatch as _dispatch
+        await _init(**cfg)
+        _exec = _dispatch
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
