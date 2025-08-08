@@ -27,6 +27,7 @@ These items were previously implemented and are on the rebuild roadmap.
 - The project contains a startup.sh which will be executed by the environment on activation.
 - The project contains a dev.cmd script that supports `generate`, `start`, `fast`, and `test` subcommands for local development on Windows.
 - Environment variables are configured in .env for local work, but are set up as environment variables on the web app.
+- The database provider can be selected with the `DATABASE_PROVIDER` environment variable (`mssql`, `postgres`, etc.).
 - You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
 - Recommend using the Azure Web App Container Quickstart configuration.
 - Use Deployment Center to configure CI/CD from GitHub Actions post deploy, target build-ready repo.
