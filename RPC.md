@@ -12,6 +12,8 @@ Each RPC domain has an aligned security role. Other than Auth and Public, all ot
 
 ## Admin Domain
 
+All Admin domain calls require `ROLE_ADMIN_SUPPORT`.
+
 ### `roles`
 
 | Operation                           | Description                       |
@@ -90,7 +92,7 @@ User focused calls used by the React application.
 
 ## Storage Domain
 
-Calls for user storage management
+Calls for user storage management. All Storage domain calls require `ROLE_STORAGE_ENABLED`.
 
 ### `files`
 
@@ -103,7 +105,7 @@ Calls for user storage management
 
 ## System Domain
 
-These calls expose system administration functionality.
+These calls expose system administration functionality. All System domain calls require `ROLE_SYSTEM_ADMIN`.
 
 ### `config`
 
