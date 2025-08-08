@@ -1,3 +1,8 @@
+"""System routes RPC handler.
+
+Dispatches route management operations requiring ROLE_SYSTEM_ADMIN.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
