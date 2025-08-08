@@ -131,3 +131,33 @@ These calls expose system administration functionality.
 | `urn:system:routes:get_routes:1`   | List application routes.             |
 | `urn:system:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:system:routes:delete_route:1` | Delete a route definition.           |
+
+## Service Domain
+
+All Service domain calls require `ROLE_SERVICE_ADMIN`.
+
+### `general`
+
+| Operation                         | Description                         |
+| --------------------------------- | ----------------------------------- |
+| `urn:service:health_check:1`     | Placeholder service health check.  |
+
+## Security Domain
+
+All Security domain calls require `ROLE_SECURITY_ADMIN`.
+
+### `audit`
+
+| Operation                         | Description                         |
+| --------------------------------- | ----------------------------------- |
+| `urn:security:audit_log:1`       | Placeholder audit log retrieval.    |
+
+## Moderation Domain
+
+All Moderation domain calls require `ROLE_MODERATOR`.
+
+### `content`
+
+| Operation                            | Description                          |
+| ------------------------------------ | ------------------------------------ |
+| `urn:moderation:review_content:1`   | Placeholder content review task.    |
