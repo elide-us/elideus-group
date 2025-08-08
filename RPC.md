@@ -43,13 +43,13 @@ All Users domain calls require `ROLE_USERS_ENABLED`.
 | `urn:users:profile:set_display:1` | A user can set their display name.             |
 | `urn:users:profile:set_optin:1`   | A user can select if their email is displayed. |
 
-### `auth`
+### `providers`
 
-| Operation                          | Description                                            |
-| ---------------------------------- | ------------------------------------------------------ |
-| `urn:users:auth:set_provider:1`    | A user can select any active provider for their email. |
-| `urn:users:auth:link_provider:1`   | A user can link additional providers.                  |
-| `urn:users:auth:unlink_provider:1` | A user can unlink providers.                           |
+| Operation                               | Description                                            |
+| --------------------------------------- | ------------------------------------------------------ |
+| `urn:users:providers:set_provider:1`    | A user can select any active provider for their email. |
+| `urn:users:providers:link_provider:1`   | A user can link additional providers.                  |
+| `urn:users:providers:unlink_provider:1` | A user can unlink providers.                           |
 
 ## Auth Domain
 

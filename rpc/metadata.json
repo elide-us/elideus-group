@@ -77,10 +77,6 @@
       "capabilities": 0
     },
     {
-      "op": "urn:security:audit_log:1",
-      "capabilities": 0
-    },
-    {
       "op": "urn:security:roles:add_role_member:1",
       "capabilities": 0
     },
@@ -149,18 +145,6 @@
       "capabilities": 0
     },
     {
-      "op": "urn:users:auth:link_provider:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:auth:set_provider:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:auth:unlink_provider:1",
-      "capabilities": 0
-    },
-    {
       "op": "urn:users:profile:get_profile:1",
       "capabilities": 0
     },
@@ -170,6 +154,18 @@
     },
     {
       "op": "urn:users:profile:set_optin:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:providers:link_provider:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:providers:set_provider:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:providers:unlink_provider:1",
       "capabilities": 0
     }
   ]

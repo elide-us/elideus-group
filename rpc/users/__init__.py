@@ -1,9 +1,14 @@
+"""User namespace for profiles and authentication providers.
+
+All subdomains require ROLE_USERS_ENABLED.
+"""
+
 from .profile.handler import handle_profile_request
-from .auth.handler import handle_auth_request
+from .providers.handler import handle_providers_request
 
 
 HANDLERS: dict[str, callable] = {
   "profile": handle_profile_request,
-  "auth": handle_auth_request
+  "providers": handle_providers_request
 }
 

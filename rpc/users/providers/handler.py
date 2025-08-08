@@ -1,6 +1,6 @@
-"""Users auth RPC handler.
+"""Users providers RPC handler.
 
-Dispatches provider management operations. Unauthenticated; no role required.
+Dispatches provider management operations. Requires ROLE_USERS_ENABLED.
 """
 
 from fastapi import HTTPException, Request
@@ -10,7 +10,7 @@ from rpc.models import RPCResponse
 from . import DISPATCHERS
 
 
-async def handle_auth_request(parts: list[str], request: Request) -> RPCResponse:
+async def handle_providers_request(parts: list[str], request: Request) -> RPCResponse:
   key = tuple(parts[:2])
   handler = DISPATCHERS.get(key)
   if not handler:

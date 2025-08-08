@@ -1,3 +1,8 @@
+"""Service namespace exposing internal service operations.
+
+Requires ROLE_SERVICE_ADMIN.
+"""
+
 from .services import service_health_check_v1
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
