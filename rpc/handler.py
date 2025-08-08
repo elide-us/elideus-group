@@ -8,7 +8,7 @@ from rpc.storage.handler import handle_storage_request
 from rpc.models import RPCRequest, RPCResponse
 from rpc.suffix import split_suffix, apply_suffixes
 from server.modules.auth_module import AuthModule
-from server.modules.mssql_module import MSSQLModule
+from server.modules.database_provider import DatabaseProvider
 from server.helpers.roles import ROLE_REGISTERED
 
 
@@ -19,7 +19,7 @@ async def _populate_request_roles(request: Request) -> None:
     return
   token = header.split(' ', 1)[1].strip()
   auth: AuthModule | None = getattr(request.app.state, 'auth', None)
-  db: MSSQLModule | None = getattr(request.app.state, 'mssql', None)
+  db: DatabaseProvider | None = getattr(request.app.state, 'mssql', None)
   if not auth or not db:
     return
   try:

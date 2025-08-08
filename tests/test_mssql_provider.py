@@ -2,8 +2,8 @@ import pytest
 import asyncio
 from fastapi import FastAPI
 from types import SimpleNamespace
-import server.modules.mssql_module as db_mod
-from server.modules.mssql_module import MSSQLModule
+import server.modules.mssql_provider as db_mod
+from server.modules.mssql_provider import MSSQLProvider
 from server.modules.env_module import EnvironmentModule
 
 @pytest.fixture
@@ -21,12 +21,12 @@ def test_mssql_startup(monkeypatch, mssql_app):
   async def fake_pool(**kwargs):
     return "pool"
   monkeypatch.setattr(db_mod.aioodbc, "create_pool", fake_pool)
-  dbm = MSSQLModule(mssql_app, dsn="sql://cs")
+  dbm = MSSQLProvider(mssql_app, dsn="sql://cs")
   asyncio.run(dbm.startup())
   assert dbm.pool == "pool"
 
 def test_mssql_fetch_one_without_pool(mssql_app):
-  dbm = MSSQLModule(mssql_app, dsn="sql://cs")
+  dbm = MSSQLProvider(mssql_app, dsn="sql://cs")
   with pytest.raises(RuntimeError):
     asyncio.run(dbm._fetch_one("SELECT 1"))
 
@@ -86,7 +86,7 @@ class DummyPool:
     pass
 
 def test_mssql_get_config_value(mssql_app):
-  dbm = MSSQLModule(mssql_app, dsn="sql://cs")
+  dbm = MSSQLProvider(mssql_app, dsn="sql://cs")
   dbm.pool = DummyPool(('v',), column="element_value")
   result = asyncio.run(dbm.get_config_value('Version'))
   assert result == 'v'
@@ -98,7 +98,7 @@ def test_mssql_profile_image_ops(mssql_app):
       self.c = c
     def acquire(self):
       return DummyAcquire(self.c)
-  dbm = MSSQLModule(mssql_app, dsn="sql://cs")
+  dbm = MSSQLProvider(mssql_app, dsn="sql://cs")
   dbm.pool = Pool(conn)
   img = asyncio.run(dbm.get_user_profile_image('uid'))
   assert img == 'img'

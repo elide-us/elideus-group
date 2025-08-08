@@ -9,14 +9,14 @@ from server.modules.storage_module import StorageModule
 from server.modules.discord_module import DiscordModule
 from server.modules.auth_module import AuthModule
 from server.modules.permcap_module import PermCapModule
-from server.modules.mssql_module import MSSQLModule
+from server.modules.mssql_provider import MSSQLProvider
 
 from server.helpers import roles as role_helper
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   mssql_dsn = os.getenv("AZURE_SQL_CONNECTION_STRING")
-  app.state.mssql = MSSQLModule(app, dsn=mssql_dsn)
+  app.state.mssql = MSSQLProvider(app, dsn=mssql_dsn)
   await app.state.mssql.startup()
 
   await role_helper.load_roles(app.state.mssql)

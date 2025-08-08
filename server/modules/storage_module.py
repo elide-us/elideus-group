@@ -3,7 +3,7 @@ from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
-from .mssql_module import MSSQLModule
+from .database_provider import DatabaseProvider
 import io, logging
 
 class StorageModule(BaseModule):
@@ -11,7 +11,7 @@ class StorageModule(BaseModule):
     super().__init__(app)
     try:
       self.env: EnvironmentModule = app.state.env
-      self.db: MSSQLModule = app.state.mssql
+      self.db: DatabaseProvider = app.state.mssql
     except AttributeError:
       raise Exception("Env and Database modules must be loaded first")
     self.client = None

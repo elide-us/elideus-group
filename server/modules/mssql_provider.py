@@ -1,9 +1,10 @@
 import json, aioodbc, logging
-from uuid import UUID, uuid4
+from uuid import uuid4
 from datetime import datetime
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
+from .database_provider import DatabaseProvider, _utos
 
 def _maybe_loads_json(data):
   if isinstance(data, str):
@@ -17,13 +18,7 @@ def _maybe_loads_json(data):
     return [_maybe_loads_json(v) for v in data]
   return data
 
-def _stou(value: str) -> UUID:
-  return UUID(value)
-
-def _utos(value: UUID) -> str:
-  return str(value)
-
-class MSSQLModule(BaseModule):
+class MSSQLProvider(BaseModule, DatabaseProvider):
   def __init__(self, app: FastAPI, dsn: str | None = None):
     super().__init__(app)
     self.pool: aioodbc.pool.Pool | None = None
