@@ -44,7 +44,7 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `AZURE_SQL_CONNECTION_STRING` environment variable to function properly.
-- `generate_rpc_client.py` generates function accessors for the RPC namespace defining required interface types.
+- `generate_rpc_client.py` generates function accessors for the RPC namespace, parsing dispatcher mappings and payload models via the Python AST.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
 - `genlib.py` handles common RPC namespace generation functions.
 - `dblib.py` handles most of the database querying operations.
