@@ -1,3 +1,8 @@
+"""Users profile RPC handler.
+
+Dispatches profile operations requiring ROLE_USERS_ENABLED.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

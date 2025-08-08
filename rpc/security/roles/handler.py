@@ -1,3 +1,8 @@
+"""Security roles RPC handler.
+
+Dispatches role management operations requiring ROLE_SECURITY_ADMIN.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

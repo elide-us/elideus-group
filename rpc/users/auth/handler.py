@@ -1,3 +1,8 @@
+"""Users auth RPC handler.
+
+Dispatches provider management operations. Unauthenticated; no role required.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

@@ -1,3 +1,8 @@
+"""Storage files RPC handler.
+
+Dispatches file operations requiring ROLE_STORAGE_ENABLED.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

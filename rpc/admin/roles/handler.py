@@ -1,3 +1,8 @@
+"""Admin roles RPC handler.
+
+Dispatches role membership operations requiring ROLE_ADMIN_SUPPORT.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse

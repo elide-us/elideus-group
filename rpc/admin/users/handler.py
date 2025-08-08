@@ -1,3 +1,8 @@
+"""Admin users RPC handler.
+
+Dispatches user management operations requiring ROLE_ADMIN_SUPPORT.
+"""
+
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCResponse
