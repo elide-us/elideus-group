@@ -1,4 +1,4 @@
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, ReactNode } from 'react';
 import UserContext from './UserContext';
 
 interface UserContextProviderProps {

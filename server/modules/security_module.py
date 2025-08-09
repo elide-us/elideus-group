@@ -22,11 +22,13 @@ class SecurityModule(BaseModule):
     try:
       with open(self.metadata_file, 'r') as f:
         data = json.load(f)
-      self.capabilities = {
-        i['op']: i.get('capabilities', 0)
-        for i in data.get('rpc', [])
-        if 'op' in i
-      }
+      self.capabilities = {}
+      for dom in data.get('rpc', {}).get('domains', []):
+        for sub in dom.get('subdomains', []):
+          for fn in sub.get('functions', []):
+            op = fn.get('op')
+            if op:
+              self.capabilities[op] = fn.get('capabilities', 0)
     except FileNotFoundError:
       logging.warning("PermCapModule metadata file not found: %s", self.metadata_file)
       self.capabilities = {}
