@@ -14,11 +14,10 @@ We'll update this section as we move through the rebuild.
 - GitHub Actions CI/CD Integration
 - Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
 - OAuth2 Microsoft Identity
-- Azure SQL Databases (PostgreSQL has been deferred)
+- PostgreSQL or MSSQL (Azure SQL)
 - Discord Bot TheOracleGPT-dev
 
 These items were previously implemented and are on the rebuild roadmap.
-- Azure Storage Account (blob and file share)
 - OpenAI, LumaAI, BlueSky Social
 - OAuth for Google, Discord, Apple
 
@@ -29,7 +28,7 @@ These items were previously implemented and are on the rebuild roadmap.
 - Environment variables are configured in .env for local work, but are set up as environment variables on the web app.
 - The database provider can be selected with the `DATABASE_PROVIDER` environment variable (`mssql`, `postgres`, etc.).
 - You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
-- Recommend using the Azure Web App Container Quickstart configuration.
+- Deploy the Azure Web App Container Quickstart configuration.
 - Use Deployment Center to configure CI/CD from GitHub Actions post deploy, target build-ready repo.
 
 ### Pull Request Testing
@@ -40,15 +39,18 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 
 ### CLI Utilities
 Several helper scripts in the `scripts` directory manage the project database and data entities:
-- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details.
+- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details. This is the PostgreSQL utility.
 - `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
-    - Requires `AZURE_SQL_CONNECTION_STRING` environment variable to function properly.
+    - Requires `DATABASE_PROVIDER` environment variable to function properly. Also requires one of the following:
+    - `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL database.
+    - `POSTGRE_SQL_CONNCTION_STRING` environment variable for postgres database.
 - `generate_rpc_client.py` generates function accessors for the RPC namespace, parsing dispatcher mappings and payload models via the Python AST.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
+- `generate_rpc_metadata.py` generates a metadata.json that catalogs all of the RPC endpoints. This is to be used in the future for security planning and later transition to security management in the application layers.
 - `genlib.py` handles common RPC namespace generation functions.
-- `dblib.py` handles most of the database querying operations.
-- `msdblib.py` handles most of the database querying operations.
+- `dblib.py` handles most of the postgres querying operations.
+- `msdblib.py` handles most of the mssql querying operations.
   Schema dumps now record NVARCHAR field lengths for accurate
   recreation across environments.
 
