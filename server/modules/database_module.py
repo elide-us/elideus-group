@@ -20,7 +20,7 @@ class Provider(Protocol):
   async def dispatch(op: str, args: Dict[str, Any]) -> Dict[str, Any] | DBResult: ...
 
 
-_exec: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
+_dispatch_executor: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
 
 
 async def init(provider: str | None = None, **cfg):
@@ -30,25 +30,25 @@ async def init(provider: str | None = None, **cfg):
   from the ``DATABASE_PROVIDER`` environment variable. Defaults to ``mssql``.
   """
 
-  global _exec
-  provider_name = provider or cfg.pop("provider", None) or os.getenv("DATABASE_PROVIDER", "mssql")
+  global _dispatch_executor
+  provider_name = provider or "mssql"
 
   try:
-    mod = import_module(f".providers.{provider_name}_provider", __package__)
+    _module = import_module(f".providers.{provider_name}_provider", __package__)
   except ModuleNotFoundError as e:
     raise ValueError(f"Unsupported provider: {provider_name}") from e
 
-  if not hasattr(mod, "init") or not hasattr(mod, "dispatch"):
+  if not hasattr(_module, "init") or not hasattr(_module, "dispatch"):
     raise ValueError(f"Provider '{provider_name}' missing required interface")
 
-  provider_mod = cast(Provider, mod)
+  provider_mod = cast(Provider, _module)
   await provider_mod.init(**cfg)
-  _exec = provider_mod.dispatch
+  _dispatch_executor = provider_mod.dispatch
 
 
 async def run(op: str, args: Dict[str, Any]) -> DBResult:
-  assert _exec, "database_module not initialized"
-  out = await _exec(op, args)
+  assert _dispatch_executor, "database_module not initialized"
+  out = await _dispatch_executor(op, args)
   # normalize to DBResult
   if isinstance(out, DBResult):
     return out
@@ -69,8 +69,8 @@ class DatabaseModule(BaseModule):
     elif provider == "postgres":
       cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
     await init(provider=provider, **cfg)
-    self.app.state.db = self
-    self.app.state.db_provider = provider
+    self.app.state.database = self
+    self.app.state.database_provider = provider
     self.mark_ready()
 
   async def shutdown(self):
