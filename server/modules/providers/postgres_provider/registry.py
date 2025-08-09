@@ -18,7 +18,7 @@ def get_handler(op: str):
   except KeyError:
     raise KeyError(f"No PostgreSQL handler for '{op}'")
 
-@register("urn:users:core:get_by_provider_identifier:v1")
+@register("urn:users:providers:get_by_provider_identifier:1")
 def _users_select(args: Dict[str, Any]):
   provider = args["provider"]
   identifier = args["provider_identifier"]
@@ -40,7 +40,7 @@ def _users_select(args: Dict[str, Any]):
   """
   return ("one", sql, (provider, identifier))
 
-@register("urn:users:core:get_roles:v1")
+@register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
   guid = args["guid"]
   sql = """
@@ -49,7 +49,7 @@ def _users_get_roles(args: Dict[str, Any]):
   """
   return ("many", sql, (guid,))
 
-@register("urn:users:core:set_roles:v1")
+@register("urn:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
   guid, roles = args["guid"], int(args["roles"])
   rc = await execute(

@@ -22,7 +22,7 @@ def get_handler(op: str):
 
 # -------------------- MAPPINGS (representative set) --------------------
 
-@register("urn:users:core:get_by_provider_identifier:v1")
+@register("urn:users:providers:get_by_provider_identifier:1")
 def _users_select(provider_args: Dict[str, Any]):
     provider = provider_args["provider"]
     identifier = provider_args["provider_identifier"]
@@ -45,7 +45,7 @@ def _users_select(provider_args: Dict[str, Any]):
     """
     return ("json_one", sql, (provider, identifier))
 
-@register("urn:users:core:create_from_provider:v1")
+@register("urn:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
     # mirrors your insert_user() logic, including provider recid lookup + 3 inserts
     from uuid import uuid4
@@ -89,7 +89,7 @@ async def _users_insert(args: Dict[str, Any]):
                                (_users_select({"provider": provider, "provider_identifier": identifier})[2]))
     return {"rows": [out] if out else [], "rowcount": 1 if out else 0}
 
-@register("urn:users:core:get_profile:v1")
+@register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
@@ -117,7 +117,7 @@ def _users_profile(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("urn:users:core:get_roles:v1")
+@register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
@@ -127,7 +127,7 @@ def _users_get_roles(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("urn:users:core:set_roles:v1")
+@register("urn:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
     guid, roles = args["guid"], int(args["roles"])
     if roles == 0:
@@ -158,7 +158,7 @@ def _routes_get(args: Dict[str, Any]):
     """
     return ("json_many", sql, (mask,))
 
-@register("urn:users:core:set_profile_image:v1")
+@register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
     guid, image_b64 = args["guid"], args["image_b64"]
     rc = await exec_("UPDATE users_profileimg SET element_base64 = ? WHERE users_guid = ?;", (image_b64, guid))
