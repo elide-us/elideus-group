@@ -141,6 +141,30 @@ async def _users_set_roles(args: Dict[str, Any]):
         rc = await exec_("INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);", (guid, roles))
     return {"rows": [], "rowcount": rc}
 
+@register("urn:users:rotkey:set:1")
+def _users_rotkey_set(args: Dict[str, Any]):
+    guid = args["guid"]
+    rotkey = args["rotkey"]
+    iat = args["iat"]
+    exp = args["exp"]
+    sql = """
+      UPDATE account_users
+      SET element_rotkey = ?, element_rotkey_iat = ?, element_rotkey_exp = ?
+      WHERE element_guid = ?;
+    """
+    return ("exec", sql, (rotkey, iat, exp, guid))
+
+@register("urn:users:rotkey:get:1")
+def _users_rotkey_get(args: Dict[str, Any]):
+    guid = args["guid"]
+    sql = """
+      SELECT element_rotkey AS rotkey
+      FROM account_users
+      WHERE element_guid = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+    """
+    return ("json_one", sql, (guid,))
+
 @register("urn:frontend:routes:get_by_role_mask:v1")
 def _routes_get(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
