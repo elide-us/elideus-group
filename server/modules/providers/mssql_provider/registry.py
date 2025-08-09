@@ -213,3 +213,47 @@ def _sessions_get(args: Dict[str, Any]):
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
     return ("json_one", sql, (token,))
+
+# -------------------- SYSTEM CONFIG --------------------
+
+@register("urn:system:config:get:v1")
+def _config_get(args: Dict[str, Any]):
+  key = args["key"]
+  sql = """
+    SELECT element_value AS value
+    FROM system_config
+    WHERE element_key = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return ("json_one", sql, (key,))
+
+@register("urn:system:config:set:v1")
+async def _config_set(args: Dict[str, Any]):
+  key = args["key"]
+  value = args["value"]
+  rc = await exec_(
+    "UPDATE system_config SET element_value = ? WHERE element_key = ?;",
+    (value, key),
+  )
+  if rc == 0:
+    rc = await exec_(
+      "INSERT INTO system_config (element_key, element_value) VALUES (?, ?);",
+      (key, value),
+    )
+  return {"rows": [], "rowcount": rc}
+
+@register("urn:system:config:list:v1")
+def _config_list(_: Dict[str, Any]):
+  sql = """
+    SELECT element_key AS [key], element_value AS value
+    FROM system_config
+    ORDER BY element_key
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, ())
+
+@register("urn:system:config:delete:v1")
+def _config_delete(args: Dict[str, Any]):
+  key = args["key"]
+  sql = "DELETE FROM system_config WHERE element_key = ?;"
+  return ("exec", sql, (key,))

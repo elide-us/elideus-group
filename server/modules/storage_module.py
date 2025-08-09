@@ -3,7 +3,7 @@ from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
-from .mssql_module import MSSQLModule
+from .database_module import DatabaseModule
 import io, logging
 
 class StorageModule(BaseModule):
@@ -15,11 +15,14 @@ class StorageModule(BaseModule):
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.mssql: MSSQLModule = self.app.state.mssql
-    await self.mssql.on_ready()
+    self.db: DatabaseModule = self.app.state.db
+    await self.db.on_ready()
 
     dsn = self.env.get("AZURE_BLOB_CONNECTION_STRING")
-    self.container = await self.mssql.get_config_value("AzureBlobContainerName")
+    res = await self.db.run("urn:system:config:get:v1", {"key": "AzureBlobContainerName"})
+    if not res.rows:
+      raise ValueError("Missing config value for key: AzureBlobContainerName")
+    self.container = res.rows[0]["value"]
 
     bsc = BlobServiceClient.from_connection_string(dsn)
     self.client = bsc.get_container_client(self.container)

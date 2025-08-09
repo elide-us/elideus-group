@@ -7,7 +7,7 @@ from typing import Dict
 
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
-from server.modules.mssql_module import MSSQLModule
+from server.modules.database_module import DatabaseModule
 
 DEFAULT_BEARER_TOKEN_EXPIRY = 24 # hours
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -40,10 +40,13 @@ class AuthModule(BaseModule):
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.mssql: MSSQLModule = self.app.state.mssql
-    await self.mssql.on_ready()
-    
-    self.ms_api_id = await self.mssql.get_config_value("MsApiId")
+    self.db: DatabaseModule = self.app.state.db
+    await self.db.on_ready()
+
+    res = await self.db.run("urn:system:config:get:v1", {"key": "MsApiId"})
+    if not res.rows:
+      raise ValueError("Missing config value for key: MsApiId")
+    self.ms_api_id = res.rows[0]["value"]
     self.jwt_secret = self.env.get("JWT_SECRET")
 
     try:
