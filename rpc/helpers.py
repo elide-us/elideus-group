@@ -4,7 +4,6 @@ from fastapi import HTTPException, Request
 
 from rpc.models import RPCRequest
 from server.modules.auth_module import AuthModule
-from server.modules.provider import DBResult
 
 
 def mask_to_bit(mask: int) -> int:
@@ -25,20 +24,15 @@ def _get_token_from_request(request: Request) -> str:
 
 async def _process_rpcrequest(request: Request) -> RPCRequest:
   _auth: AuthModule = request.app.state.auth
-  db = request.app.state.db
 
   body = await request.json()
   rpc_request = RPCRequest(**body)
 
   token: str = _get_token_from_request(request)
-  data: dict[str, str] = await _auth.decode_bearer_token(token) #TODO: Include user_role int in bearer token
+  data: dict = await _auth.decode_session_token(token)
 
-  rpc_request.user_guid = data.get('guid')
-  result: DBResult = await db.run(
-    "urn:users:profile:get_roles:1", {"guid": rpc_request.user_guid}
-  )
-  rows = getattr(result, "rows", [])
-  rpc_request.user_role = int(rows[0].get("element_roles", 0)) if rows else 0
+  rpc_request.user_guid = data.get('sub')
+  rpc_request.user_role = names_to_mask(data.get('roles', []))
 
   return rpc_request
 

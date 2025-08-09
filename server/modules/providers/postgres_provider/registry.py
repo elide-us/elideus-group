@@ -63,3 +63,22 @@ async def _users_set_roles(args: Dict[str, Any]):
     )
   return {"rows": [], "rowcount": rc}
 
+@register("urn:users:rotkey:set:1")
+def _users_rotkey_set(args: Dict[str, Any]):
+  guid = args["guid"]
+  rotkey = args["rotkey"]
+  iat = args["iat"]
+  exp = args["exp"]
+  sql = """
+    UPDATE account_users
+    SET element_rotkey = $1, element_rotkey_iat = $2, element_rotkey_exp = $3
+    WHERE element_guid = $4;
+  """
+  return ("exec", sql, (rotkey, iat, exp, guid))
+
+@register("urn:users:rotkey:get:1")
+def _users_rotkey_get(args: Dict[str, Any]):
+  guid = args["guid"]
+  sql = "SELECT element_rotkey AS rotkey FROM account_users WHERE element_guid = $1;"
+  return ("one", sql, (guid,))
+

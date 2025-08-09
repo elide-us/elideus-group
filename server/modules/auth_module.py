@@ -1,7 +1,6 @@
 import aiohttp, base64, logging, uuid
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, HTTPException, Request, status, Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError
 from typing import Dict
 
@@ -9,7 +8,7 @@ from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.database_module import DatabaseModule
 
-DEFAULT_BEARER_TOKEN_EXPIRY = 24 # hours
+DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 
 async def fetch_ms_jwks_uri() -> str:
@@ -125,9 +124,18 @@ class AuthModule(BaseModule):
       return guid, profile
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
 
-  def make_bearer_token(self, guid: str, rotation_token: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(hours=DEFAULT_BEARER_TOKEN_EXPIRY)
-    token_data = {"sub": guid, "exp": exp.timestamp()}
+  def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> str:
+    now = datetime.now(timezone.utc)
+    exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+    token_data = {
+      "sub": guid,
+      "roles": roles,
+      "iat": int(now.timestamp()),
+      "exp": int(exp.timestamp()),
+      "jti": uuid.uuid4().hex,
+      "session": rotation_token,
+      "provider": provider,
+    }
     derived_secret = f"{self.jwt_secret}:{rotation_token}"
     token = jwt.encode(token_data, derived_secret, algorithm=self.jwt_algo_int)
     return token
@@ -140,8 +148,22 @@ class AuthModule(BaseModule):
     encoded = base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8").rstrip("=")
     return encoded, exp
 
-  async def decode_bearer_token(self, token: str, rotation_token: str) -> Dict:
-    derived_secret = f"{self.jwt_secret}:{rotation_token}"
+  async def decode_session_token(self, token: str) -> Dict:
+    try:
+      claims = jwt.get_unverified_claims(token)
+    except JWTError:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
+
+    guid = claims.get("sub")
+    if not guid:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
+
+    res = await self.db.run("urn:users:rotkey:get:1", {"guid": guid})
+    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    if not rotkey:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
+
+    derived_secret = f"{self.jwt_secret}:{rotkey}"
     try:
       payload = jwt.decode(token, derived_secret, algorithms=[self.jwt_algo_int])
     except JWTError:
@@ -151,11 +173,7 @@ class AuthModule(BaseModule):
     if not exp or datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
 
-    sub = payload.get("sub")
-    if not sub:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
-
-    return {"guid": sub, "expires": exp}
+    return payload
 
   def decode_rotation_token(self, token: str) -> Dict:
     try:
