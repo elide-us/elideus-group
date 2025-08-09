@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from . import BaseModule
 from .env_module import EnvModule
-from .mssql_module import MSSQLModule
+from .database_module import DatabaseModule
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging
 
@@ -15,21 +15,23 @@ class DiscordModule(BaseModule):
     self.syschan: int = 0
     self.task: asyncio.Task | None = None
     self.bot: commands.Bot | None = None
-    self.mssql: MSSQLModule | None = None
+    self.db: DatabaseModule | None = None
     self.env: EnvModule | None = None
     
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.mssql: MSSQLModule = self.app.state.mssql
-    await self.mssql.on_ready()
+    self.db: DatabaseModule = self.app.state.db
+    await self.db.on_ready()
     self.secret = self.env.get("DISCORD_SECRET")
     self.bot = self._init_discord_bot('!')
     self.bot.app = self.app
     self._init_bot_routes()
     configure_discord_logging(self)
-    val = await self.mssql.get_config_value("DiscordSyschan")
-    self.syschan = int(val or 0)
+    res = await self.db.run("urn:system:config:get:v1", {"key": "DiscordSyschan"})
+    if not res.rows:
+      raise ValueError("Missing config value for key: DiscordSyschan")
+    self.syschan = int(res.rows[0]["value"] or 0)
     self.task = asyncio.create_task(self.bot.start(self.secret))
     logging.info("Discord module loaded")
     self.mark_ready()
@@ -64,7 +66,8 @@ class DiscordModule(BaseModule):
     async def on_ready():
       channel = self.bot.get_channel(self.syschan)
       if channel:
-        version = await self.mssql.get_config_value("Version")
+        res = await self.db.run("urn:system:config:get:v1", {"key": "Version"})
+        version = res.rows[0]["value"] if res.rows else None
         logging.info(f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}")
       else:
         logging.warning("[DiscordProvider] System channel not found on ready.")
