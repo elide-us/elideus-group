@@ -2,22 +2,12 @@
 
 import os
 from importlib import import_module
-from typing import Any, Dict, Protocol, cast, Awaitable, Callable
-from pydantic import BaseModel
+from typing import Any, Dict, cast, Awaitable, Callable
 from fastapi import FastAPI
 
 from . import BaseModule
 from .env_module import EnvModule
-
-
-class DBResult(BaseModel):
-  rows: list[dict] = []
-  rowcount: int = 0
-
-
-class Provider(Protocol):
-  async def init(**cfg) -> None: ...
-  async def dispatch(op: str, args: Dict[str, Any]) -> Dict[str, Any] | DBResult: ...
+from .provider import DBResult, Provider
 
 
 _dispatch_executor: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
