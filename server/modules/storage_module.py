@@ -19,7 +19,7 @@ class StorageModule(BaseModule):
     await self.db.on_ready()
 
     dsn = self.env.get("AZURE_BLOB_CONNECTION_STRING")
-    res = await self.db.run("urn:system:config:get:v1", {"key": "AzureBlobContainerName"})
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
     if not res.rows:
       raise ValueError("Missing config value for key: AzureBlobContainerName")
     self.container = res.rows[0]["value"]

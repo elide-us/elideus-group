@@ -28,7 +28,7 @@ class DiscordModule(BaseModule):
     self.bot.app = self.app
     self._init_bot_routes()
     configure_discord_logging(self)
-    res = await self.db.run("urn:system:config:get:v1", {"key": "DiscordSyschan"})
+    res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
     if not res.rows:
       raise ValueError("Missing config value for key: DiscordSyschan")
     self.syschan = int(res.rows[0]["value"] or 0)
@@ -66,7 +66,7 @@ class DiscordModule(BaseModule):
     async def on_ready():
       channel = self.bot.get_channel(self.syschan)
       if channel:
-        res = await self.db.run("urn:system:config:get:v1", {"key": "Version"})
+        res = await self.db.run("db:system:config:get_config:1", {"key": "Version"})
         version = res.rows[0]["value"] if res.rows else None
         logging.info(f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}")
       else:

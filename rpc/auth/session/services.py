@@ -22,13 +22,13 @@ async def auth_session_get_token_v1(request: Request):
   provider_uid, profile = await auth.handle_auth_login(provider, id_token, access_token)
 
   res = await db.run(
-    "urn:users:providers:get_by_provider_identifier:1",
+    "db:users:providers:get_by_provider_identifier:1",
     {"provider": provider, "provider_identifier": provider_uid},
   )
   user = res.rows[0] if res.rows else None
   if not user:
     res = await db.run(
-      "urn:users:providers:create_from_provider:1",
+      "db:users:providers:create_from_provider:1",
       {
         "provider": provider,
         "provider_identifier": provider_uid,
@@ -44,11 +44,11 @@ async def auth_session_get_token_v1(request: Request):
   rotation_token, rot_exp = auth.make_rotation_token(user_guid)
   now = datetime.now(timezone.utc)
   await db.run(
-    "urn:users:rotkey:set:1",
+    "db:users:session:set_rotkey:1",
     {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
   )
 
-  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
+  roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
   roles = mask_to_names(role_mask)
 
@@ -77,11 +77,11 @@ async def auth_session_refresh_token_v1(request: Request):
 
   data = auth.decode_rotation_token(rotation_token)
   user_guid = data["guid"]
-  stored = await db.run("urn:users:rotkey:get:1", {"guid": user_guid})
+  stored = await db.run("db:users:session:get_rotkey:1", {"guid": user_guid})
   if not stored.rows or stored.rows[0].get("rotkey") != rotation_token:
     raise HTTPException(status_code=401, detail="Invalid rotation token")
 
-  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
+  roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
   roles = mask_to_names(role_mask)
 
@@ -100,7 +100,7 @@ async def auth_session_invalidate_token_v1(request: Request):
   user_guid = data["guid"]
   now = datetime.now(timezone.utc)
   await db.run(
-    "urn:users:rotkey:set:1",
+    "db:users:session:set_rotkey:1",
     {"guid": user_guid, "rotkey": "", "iat": now, "exp": now},
   )
   resp = RPCResponse(op="urn:auth:session:invalidate_token:1", payload={"ok": True}, version=1)
