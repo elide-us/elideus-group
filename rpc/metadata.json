@@ -149,11 +149,31 @@
       "capabilities": 0
     },
     {
+      "op": "urn:users:profile:get_roles:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:users:profile:set_display:1",
       "capabilities": 0
     },
     {
       "op": "urn:users:profile:set_optin:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:profile:set_profile_image:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:profile:set_roles:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:providers:create_from_provider:1",
+      "capabilities": 0
+    },
+    {
+      "op": "urn:users:providers:get_by_provider_identifier:1",
       "capabilities": 0
     },
     {

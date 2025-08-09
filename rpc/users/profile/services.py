@@ -9,3 +9,12 @@ async def users_profile_set_display_v1(request: Request):
 async def users_profile_set_optin_v1(request: Request):
   raise NotImplementedError("urn:users:profile:set_optin:1")
 
+async def users_profile_get_roles_v1(request: Request):
+  raise NotImplementedError("urn:users:profile:get_roles:1")
+
+async def users_profile_set_roles_v1(request: Request):
+  raise NotImplementedError("urn:users:profile:set_roles:1")
+
+async def users_profile_set_profile_image_v1(request: Request):
+  raise NotImplementedError("urn:users:profile:set_profile_image:1")
+

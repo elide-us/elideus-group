@@ -35,7 +35,7 @@ async def _process_rpcrequest(request: Request) -> RPCRequest:
 
   rpc_request.user_guid = data.get('guid')
   result: DBResult = await db.run(
-    "urn:users:core:get_roles:v1", {"guid": rpc_request.user_guid}
+    "urn:users:profile:get_roles:1", {"guid": rpc_request.user_guid}
   )
   rows = getattr(result, "rows", [])
   rpc_request.user_role = int(rows[0].get("element_roles", 0)) if rows else 0
