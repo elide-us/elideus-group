@@ -18,7 +18,7 @@ def get_handler(op: str):
   except KeyError:
     raise KeyError(f"No PostgreSQL handler for '{op}'")
 
-@register("urn:users:providers:get_by_provider_identifier:1")
+@register("db:users:providers:get_by_provider_identifier:1")
 def _users_select(args: Dict[str, Any]):
   provider = args["provider"]
   identifier = args["provider_identifier"]
@@ -40,7 +40,7 @@ def _users_select(args: Dict[str, Any]):
   """
   return ("one", sql, (provider, identifier))
 
-@register("urn:users:profile:get_roles:1")
+@register("db:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
   guid = args["guid"]
   sql = """
@@ -49,7 +49,7 @@ def _users_get_roles(args: Dict[str, Any]):
   """
   return ("many", sql, (guid,))
 
-@register("urn:users:profile:set_roles:1")
+@register("db:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
   guid, roles = args["guid"], int(args["roles"])
   rc = await execute(
@@ -63,8 +63,8 @@ async def _users_set_roles(args: Dict[str, Any]):
     )
   return {"rows": [], "rowcount": rc}
 
-@register("urn:users:rotkey:set:1")
-def _users_rotkey_set(args: Dict[str, Any]):
+@register("db:users:session:set_rotkey:1")
+def _users_session_set_rotkey(args: Dict[str, Any]):
   guid = args["guid"]
   rotkey = args["rotkey"]
   iat = args["iat"]
@@ -76,8 +76,8 @@ def _users_rotkey_set(args: Dict[str, Any]):
   """
   return ("exec", sql, (rotkey, iat, exp, guid))
 
-@register("urn:users:rotkey:get:1")
-def _users_rotkey_get(args: Dict[str, Any]):
+@register("db:users:session:get_rotkey:1")
+def _users_session_get_rotkey(args: Dict[str, Any]):
   guid = args["guid"]
   sql = "SELECT element_rotkey AS rotkey FROM account_users WHERE element_guid = $1;"
   return ("one", sql, (guid,))

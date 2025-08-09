@@ -42,7 +42,7 @@ class AuthModule(BaseModule):
     self.db: DatabaseModule = self.app.state.db
     await self.db.on_ready()
 
-    res = await self.db.run("urn:system:config:get:v1", {"key": "MsApiId"})
+    res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
     self.ms_api_id = res.rows[0]["value"]
@@ -158,7 +158,7 @@ class AuthModule(BaseModule):
     if not guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("urn:users:rotkey:get:1", {"guid": guid})
+    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
     rotkey = res.rows[0].get("rotkey") if res.rows else None
     if not rotkey:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})

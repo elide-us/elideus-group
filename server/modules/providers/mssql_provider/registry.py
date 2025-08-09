@@ -22,7 +22,7 @@ def get_handler(op: str):
 
 # -------------------- MAPPINGS (representative set) --------------------
 
-@register("urn:users:providers:get_by_provider_identifier:1")
+@register("db:users:providers:get_by_provider_identifier:1")
 def _users_select(provider_args: Dict[str, Any]):
     provider = provider_args["provider"]
     identifier = provider_args["provider_identifier"]
@@ -45,7 +45,7 @@ def _users_select(provider_args: Dict[str, Any]):
     """
     return ("json_one", sql, (provider, identifier))
 
-@register("urn:users:providers:create_from_provider:1")
+@register("db:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
     # mirrors your insert_user() logic, including provider recid lookup + 3 inserts
     from uuid import uuid4
@@ -89,7 +89,7 @@ async def _users_insert(args: Dict[str, Any]):
                                (_users_select({"provider": provider, "provider_identifier": identifier})[2]))
     return {"rows": [out] if out else [], "rowcount": 1 if out else 0}
 
-@register("urn:users:profile:get_profile:1")
+@register("db:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
@@ -117,7 +117,7 @@ def _users_profile(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("urn:users:profile:get_roles:1")
+@register("db:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
@@ -127,7 +127,7 @@ def _users_get_roles(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("urn:users:profile:set_roles:1")
+@register("db:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
     guid, roles = args["guid"], int(args["roles"])
     if roles == 0:
@@ -141,8 +141,8 @@ async def _users_set_roles(args: Dict[str, Any]):
         rc = await exec_("INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);", (guid, roles))
     return {"rows": [], "rowcount": rc}
 
-@register("urn:users:rotkey:set:1")
-def _users_rotkey_set(args: Dict[str, Any]):
+@register("db:users:session:set_rotkey:1")
+def _users_session_set_rotkey(args: Dict[str, Any]):
     guid = args["guid"]
     rotkey = args["rotkey"]
     iat = args["iat"]
@@ -154,8 +154,8 @@ def _users_rotkey_set(args: Dict[str, Any]):
     """
     return ("exec", sql, (rotkey, iat, exp, guid))
 
-@register("urn:users:rotkey:get:1")
-def _users_rotkey_get(args: Dict[str, Any]):
+@register("db:users:session:get_rotkey:1")
+def _users_session_get_rotkey(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
       SELECT element_rotkey AS rotkey
@@ -165,8 +165,8 @@ def _users_rotkey_get(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("urn:frontend:routes:get_by_role_mask:v1")
-def _routes_get(args: Dict[str, Any]):
+@register("db:public:links:get_navbar_routes:1")
+def _public_links_get_navbar_routes(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
     sql = """
       SELECT
@@ -182,7 +182,7 @@ def _routes_get(args: Dict[str, Any]):
     """
     return ("json_many", sql, (mask,))
 
-@register("urn:users:profile:set_profile_image:1")
+@register("db:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
     guid, image_b64 = args["guid"], args["image_b64"]
     rc = await exec_("UPDATE users_profileimg SET element_base64 = ? WHERE users_guid = ?;", (image_b64, guid))
@@ -190,8 +190,8 @@ async def _users_set_img(args: Dict[str, Any]):
         rc = await exec_("INSERT INTO users_profileimg (users_guid, element_base64) VALUES (?, ?);", (guid, image_b64))
     return {"rows": [], "rowcount": rc}
 
-@register("urn:sessions:create:v1")
-async def _sessions_create(args: Dict[str, Any]):
+@register("db:auth:session:create_session:1")
+async def _auth_session_create_session(args: Dict[str, Any]):
     from uuid import uuid4
     session_guid = str(uuid4())
     device_guid = str(uuid4())
@@ -216,8 +216,8 @@ async def _sessions_create(args: Dict[str, Any]):
 
     return {"rows": [{"session_guid": session_guid, "device_guid": device_guid}], "rowcount": 1}
 
-@register("urn:sessions:get_by_access_token:v1")
-def _sessions_get(args: Dict[str, Any]):
+@register("db:auth:session:get_by_access_token:1")
+def _auth_session_get_by_access_token(args: Dict[str, Any]):
     token = args["access_token"]
     sql = """
       SELECT
@@ -240,7 +240,7 @@ def _sessions_get(args: Dict[str, Any]):
 
 # -------------------- SYSTEM CONFIG --------------------
 
-@register("urn:system:config:get:v1")
+@register("db:system:config:get_config:1")
 def _config_get(args: Dict[str, Any]):
   key = args["key"]
   sql = """
@@ -251,7 +251,7 @@ def _config_get(args: Dict[str, Any]):
   """
   return ("json_one", sql, (key,))
 
-@register("urn:system:config:set:v1")
+@register("db:system:config:upsert_config:1")
 async def _config_set(args: Dict[str, Any]):
   key = args["key"]
   value = args["value"]
@@ -266,7 +266,7 @@ async def _config_set(args: Dict[str, Any]):
     )
   return {"rows": [], "rowcount": rc}
 
-@register("urn:system:config:list:v1")
+@register("db:system:config:get_configs:1")
 def _config_list(_: Dict[str, Any]):
   sql = """
     SELECT element_key AS [key], element_value AS value
@@ -276,7 +276,7 @@ def _config_list(_: Dict[str, Any]):
   """
   return ("json_many", sql, ())
 
-@register("urn:system:config:delete:v1")
+@register("db:system:config:delete_config:1")
 def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
