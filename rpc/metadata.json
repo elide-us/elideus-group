@@ -1,192 +1,333 @@
 {
-  "rpc": [
-    {
-      "op": "urn:admin:roles:add_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:roles:get_members:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:roles:remove_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:users:enable_storage:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:users:get_profile:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:users:reset_display:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:admin:users:set_credits:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:auth:microsoft:oauth_login:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:auth:session:get_token:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:auth:session:invalidate_token:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:auth:session:refresh_token:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:moderation:content:review_content:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:links:get_home_links:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:links:get_navbar_routes:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:vars:get_ffmpeg_version:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:vars:get_hostname:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:vars:get_odbc_version:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:vars:get_repo:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:public:vars:get_version:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:add_role_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:delete_role:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:get_role_members:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:get_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:remove_role_member:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:security:roles:upsert_role:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:service:health_check:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:storage:files:delete_files:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:storage:files:get_files:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:storage:files:set_gallery:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:storage:files:upload_files:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:config:delete_config:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:config:get_configs:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:config:upsert_config:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:routes:delete_route:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:routes:get_routes:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:system:routes:upsert_route:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:get_profile:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:get_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:set_display:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:set_optin:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:set_profile_image:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:profile:set_roles:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:providers:create_from_provider:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:providers:get_by_provider_identifier:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:providers:link_provider:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:providers:set_provider:1",
-      "capabilities": 0
-    },
-    {
-      "op": "urn:users:providers:unlink_provider:1",
-      "capabilities": 0
-    }
-  ]
+  "rpc": {
+    "capabilities": 0,
+    "domains": [
+      {
+        "domain": "admin",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "roles",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:admin:roles:add_member:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:admin:roles:get_members:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:admin:roles:remove_member:1",
+                "capabilities": 0
+              }
+            ]
+          },
+          {
+            "subdomain": "users",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:admin:users:enable_storage:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:admin:users:get_profile:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:admin:users:reset_display:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:admin:users:set_credits:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "auth",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "microsoft",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:auth:microsoft:oauth_login:1",
+                "capabilities": 0
+              }
+            ]
+          },
+          {
+            "subdomain": "session",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:auth:session:get_token:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:auth:session:invalidate_token:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:auth:session:refresh_token:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "moderation",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "content",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:moderation:content:review_content:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "public",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "links",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:public:links:get_home_links:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:public:links:get_navbar_routes:1",
+                "capabilities": 0
+              }
+            ]
+          },
+          {
+            "subdomain": "vars",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:public:vars:get_ffmpeg_version:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:public:vars:get_hostname:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:public:vars:get_odbc_version:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:public:vars:get_repo:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:public:vars:get_version:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "security",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "roles",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:security:roles:add_role_member:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:security:roles:delete_role:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:security:roles:get_role_members:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:security:roles:get_roles:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:security:roles:remove_role_member:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:security:roles:upsert_role:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "service",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "general",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:service:health_check:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "storage",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "files",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:storage:files:delete_files:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:storage:files:get_files:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:storage:files:set_gallery:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:storage:files:upload_files:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "system",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "config",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:system:config:delete_config:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:system:config:get_configs:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:system:config:upsert_config:1",
+                "capabilities": 0
+              }
+            ]
+          },
+          {
+            "subdomain": "routes",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:system:routes:delete_route:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:system:routes:get_routes:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:system:routes:upsert_route:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "users",
+        "capabilities": 0,
+        "subdomains": [
+          {
+            "subdomain": "profile",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:users:profile:get_profile:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:profile:get_roles:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:profile:set_display:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:profile:set_optin:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:profile:set_profile_image:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:profile:set_roles:1",
+                "capabilities": 0
+              }
+            ]
+          },
+          {
+            "subdomain": "providers",
+            "capabilities": 0,
+            "functions": [
+              {
+                "op": "urn:users:providers:create_from_provider:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:providers:get_by_provider_identifier:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:providers:link_provider:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:providers:set_provider:1",
+                "capabilities": 0
+              },
+              {
+                "op": "urn:users:providers:unlink_provider:1",
+                "capabilities": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }
