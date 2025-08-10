@@ -9,7 +9,7 @@ from rpc.suffix import apply_suffixes, split_suffix
 
 
 async def handle_rpc_request(request: Request) -> RPCResponse:
-  rpc_request, parts = get_rpcrequest_from_request(request)
+  rpc_request, parts = await get_rpcrequest_from_request(request)
 
   if parts[:1] != ["urn"]:
     raise HTTPException(400, "Invalid URN prefix")
