@@ -7,8 +7,8 @@ import {
         fetchVersion,
         fetchRepo,
         fetchFfmpegVersion,
-} from './rpc/frontend/vars';
-import { fetchHome } from './rpc/frontend/links';
+} from './rpc/public/vars';
+import { fetchHomeLinks } from './rpc/public/links';
 
 const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');
@@ -52,8 +52,8 @@ const Home = (): JSX.Element => {
 			}
 
 			try {
-				const homeLinks = await fetchHome();
-				setLinks(homeLinks.links);
+                                const homeLinks = await fetchHomeLinks();
+                                setLinks(homeLinks.links);
 			} catch {
 				setLinks([]);
 			}
