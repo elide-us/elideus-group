@@ -12,11 +12,11 @@ class SecurityModule(BaseModule):
 
   async def startup(self):
     await self.load()
-    logging.info("PermCapModule loaded %d capability ops", len(self.capabilities))
+    logging.info("SecurityModule loaded %d capability ops", len(self.capabilities))
     self.mark_ready()
 
   async def shutdown(self):
-    logging.info("PermCapModule shutdown")
+    logging.info("SecurityModule shutdown")
 
   async def load(self):
     try:
@@ -31,10 +31,10 @@ class SecurityModule(BaseModule):
             if op:
               self.capabilities[op] = fn.get('capabilities', 0)
     except FileNotFoundError:
-      logging.warning("PermCapModule metadata file not found: %s", self.metadata_file)
+      logging.warning("SecurityModule metadata file not found: %s", self.metadata_file)
       self.capabilities = {}
     except Exception as e:
-      logging.error("PermCapModule failed to load capabilities: %s", e)
+      logging.error("SecurityModule failed to load capabilities: %s", e)
       self.capabilities = {}
 
   def get_capabilities(self, op: str) -> int:
