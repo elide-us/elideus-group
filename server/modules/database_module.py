@@ -48,19 +48,19 @@ async def run(op: str, args: Dict[str, Any]) -> DBResult:
 class DatabaseModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
+    self.provider: str = "mssql"
 
   async def startup(self):
     env: EnvModule = self.app.state.env
     await env.on_ready()
-    provider = env.get("DATABASE_PROVIDER")
+    self.provider = env.get("DATABASE_PROVIDER")
     cfg: Dict[str, Any] = {}
-    if provider == "mssql":
+    if self.provider == "mssql":
       cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
-    elif provider == "postgres":
+    elif self.provider == "postgres":
       cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
-    await init(provider=provider, **cfg)
-    self.app.state.database = self
-    self.app.state.database_provider = provider
+    await init(provider=self.provider, **cfg)
+    self.app.state.db = self
     self.mark_ready()
 
   async def shutdown(self):
