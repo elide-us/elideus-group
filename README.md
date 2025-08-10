@@ -39,7 +39,7 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 
 ### CLI Utilities
 Several helper scripts in the `scripts` directory manage the project database and data entities:
-- `database_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details. This is the PostgreSQL utility.
+- `postgres_cli.py` opens an interactive console with shortcuts for common queries. It provides a `help` command for details. This is the PostgreSQL utility.
 - `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `DATABASE_PROVIDER` environment variable to function properly. Also requires one of the following:
@@ -49,7 +49,7 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
 - `generate_rpc_metadata.py` generates a hierarchical metadata.json that catalogs all RPC endpoints grouped by domain and subdomain with capability aggregates. This is used for security planning and later transition to security management in the application layers.
 - `genlib.py` handles common RPC namespace generation functions.
-- `dblib.py` handles most of the postgres querying operations.
+- `pgdblib.py` handles most of the postgres querying operations.
 - `msdblib.py` handles most of the mssql querying operations.
   Schema dumps now record NVARCHAR field lengths for accurate
   recreation across environments.

@@ -1,10 +1,7 @@
 from __future__ import annotations
 import asyncio
 import subprocess
-import dblib as db
-
-
-import subprocess
+import pgdblib as db
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
     subprocess.check_call(f'git add {schema_file}', shell=True)
