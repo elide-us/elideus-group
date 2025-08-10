@@ -1,9 +1,13 @@
+from __future__ import annotations
 import logging
 
+from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCRequest
-from server.modules.auth_module import AuthModule
+
+if TYPE_CHECKING:
+  from server.modules.auth_module import AuthModule
 
 
 def mask_to_bit(mask: int) -> int:
@@ -20,6 +24,7 @@ def _get_token_from_request(request: Request) -> str:
   header = request.headers.get('authorization')
   if not header or not header.lower().startswith('bearer '):
     logging.warning("No bearer token found in request headers")
+    raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
   return header.split(' ', 1)[1].strip()
 
 async def _process_rpcrequest(request: Request) -> RPCRequest:
