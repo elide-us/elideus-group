@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from rpc.helpers import mask_to_names
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
-from server.modules.database_module import DatabaseModule
+from server.modules.db_module import DbModule
 
 async def auth_session_get_token_v1(request: Request):
   body = await request.json()
@@ -17,7 +17,7 @@ async def auth_session_get_token_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing credentials")
 
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.db
+  db: DbModule = request.app.state.db
 
   provider_uid, profile = await auth.handle_auth_login(provider, id_token, access_token)
 
@@ -73,7 +73,7 @@ async def auth_session_refresh_token_v1(request: Request):
     raise HTTPException(status_code=401, detail="Missing rotation token")
 
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.db
+  db: DbModule = request.app.state.db
 
   data = auth.decode_rotation_token(rotation_token)
   user_guid = data["guid"]
@@ -94,7 +94,7 @@ async def auth_session_invalidate_token_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing rotation token")
 
   auth: AuthModule = request.app.state.auth
-  db: DatabaseModule = request.app.state.db
+  db: DbModule = request.app.state.db
 
   data = auth.decode_rotation_token(rotation_token)
   user_guid = data["guid"]

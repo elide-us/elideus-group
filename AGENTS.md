@@ -32,6 +32,15 @@ This project uses the following technologies currently:
 - FastAPI on Python 3.12::Back end RPC server
 - Docker::WSGI Compliant Container
 
+## Module Initialization
+ - `server/modules/__init__.py` auto-loads classes from files named `*_module.py` and attaches each instance to `app.state` using the file name without the `_module` suffix. `db_module.py` becomes `app.state.db`.
+ - When other modules depend on the database they should retrieve it from `app.state.db` and await `on_ready()` before use.
+- Modules inherit from `BaseModule` and should:
+  - call `super().__init__(app)` in `__init__`
+  - during `startup`, fetch dependencies from `app.state`, await their `on_ready()` methods, perform setup, and call `mark_ready()` when initialization completes
+  - expose any required helpers on `app.state` if other modules need them
+- Consumers should await `on_ready()` for any module they depend on to ensure startup ordering.
+
 ## File Structure:
 ### **PYTHON:**
 - / folder contains solution build and test automation, configuration and main entry point to FastAPI server

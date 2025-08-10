@@ -3,7 +3,7 @@ from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
-from .database_module import DatabaseModule
+from .db_module import DbModule
 import io, logging
 
 class StorageModule(BaseModule):
@@ -15,7 +15,7 @@ class StorageModule(BaseModule):
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.db: DatabaseModule = self.app.state.db
+    self.db: DbModule = self.app.state.db
     await self.db.on_ready()
 
     dsn = self.env.get("AZURE_BLOB_CONNECTION_STRING")

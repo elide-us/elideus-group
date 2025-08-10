@@ -6,7 +6,7 @@ from typing import Dict
 
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
-from server.modules.database_module import DatabaseModule
+from server.modules.db_module import DbModule
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -39,7 +39,7 @@ class AuthModule(BaseModule):
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.db: DatabaseModule = self.app.state.db
+    self.db: DbModule = self.app.state.db
     await self.db.on_ready()
 
     res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
