@@ -1,6 +1,6 @@
 # RPC Namespace Overview
 
-This document describes each RPC operation in the project and groups them by domain. The list mirrors `rpc/metadata.json`, which organizes endpoints hierarchically by domain and subdomain with capability aggregates.
+This document describes each RPC operation in the project and groups them by domain. The list mirrors `rpc/metadata.json`, which organizes endpoints hierarchically by domain and subdomain with role aggregates.
 
 ## Naming Scheme
 
