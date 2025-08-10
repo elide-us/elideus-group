@@ -8,7 +8,7 @@ Every database operation uses a URN in the form `db:{domain}:{subsystem}:{functi
 
 ## Providers
 
-`DatabaseModule` selects a provider at startup and exposes a `run` method that delegates to provider-specific registries. Configuration comes from environment variables such as `DATABASE_PROVIDER` and DSN strings.
+`DbModule` selects a provider at startup and exposes a `run` method that delegates to provider-specific registries. Configuration comes from environment variables such as `DATABASE_PROVIDER` and DSN strings.
 
 ## Users Domain
 

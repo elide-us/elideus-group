@@ -37,7 +37,7 @@ async def init(provider: str | None = None, **cfg):
 
 
 async def run(op: str, args: Dict[str, Any]) -> DBResult:
-  assert _dispatch_executor, "database_module not initialized"
+  assert _dispatch_executor, "db_module not initialized"
   out = await _dispatch_executor(op, args)
   # normalize to DBResult
   if isinstance(out, DBResult):
@@ -45,7 +45,7 @@ async def run(op: str, args: Dict[str, Any]) -> DBResult:
   return DBResult(**out)  # expects {"rows":[...], "rowcount":N}
 
 
-class DatabaseModule(BaseModule):
+class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.provider: str = "mssql"
@@ -60,7 +60,6 @@ class DatabaseModule(BaseModule):
     elif self.provider == "postgres":
       cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
     await init(provider=self.provider, **cfg)
-    self.app.state.db = self
     self.mark_ready()
 
   async def shutdown(self):

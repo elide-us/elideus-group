@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from . import BaseModule
 from .env_module import EnvModule
-from .database_module import DatabaseModule
+from .db_module import DbModule
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging
 
@@ -15,13 +15,13 @@ class DiscordModule(BaseModule):
     self.syschan: int = 0
     self.task: asyncio.Task | None = None
     self.bot: commands.Bot | None = None
-    self.db: DatabaseModule | None = None
+    self.db: DbModule | None = None
     self.env: EnvModule | None = None
     
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
-    self.db: DatabaseModule = self.app.state.db
+    self.db: DbModule = self.app.state.db
     await self.db.on_ready()
     self.secret = self.env.get("DISCORD_SECRET")
     self.bot = self._init_discord_bot('!')
