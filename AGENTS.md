@@ -5,7 +5,7 @@
 - run_tests.py is the central testing script, use this to model required actions for testing and building
 - There are utiliti
 - mssql_cli.py and msdblib.py contain functions for Azure SQL database, schema, and data maintenance and management, use this to model any required database interactions
-- database_cli.py and dblib.py are the deprecated postgres database management utilities. These scripts should be avoided as the Postgres backend does not exist
+- postgres_cli.py and pgdblib.py are the deprecated postgres database management utilities. These scripts should be avoided as the Postgres backend does not exist
 - Consider possible impact to Dockerfile and buildx process, there is no test coverage for this portion of the build, so care must be taken to ensure stability
 
 ## Coding Standards
