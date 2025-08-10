@@ -9,3 +9,8 @@ class SessionToken(BaseModel):
   jti: str
   session: str
   provider: str
+
+
+class AuthTokens(BaseModel):
+  bearerToken: str
+  session: SessionToken

@@ -4,6 +4,6 @@
 // overwritten the next time the generator runs.
 // ================================================
 
-import { rpcCall } from '../../../shared/RpcModels';
+import { rpcCall } from '../../shared/RpcModels';
 
 export const fetchHealthCheck = (payload: any = null): Promise<any> => rpcCall('urn:service:health_check:1', payload);

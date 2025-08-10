@@ -18,6 +18,39 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
+export interface HomeLinks {
+  links: LinkItem[];
+}
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface NavbarRoute {
+  path: string;
+  label: string;
+}
+export interface NavbarRoutes {
+  routes: NavbarRoute[];
+}
+export interface FfmpegVersion {
+  ffmpeg_version: string;
+}
+export interface HostnameInfo {
+  hostname: string;
+}
+export interface OdbcVersion {
+  odbc_version: string;
+}
+export interface RepoInfo {
+  repo: string;
+}
+export interface VersionInfo {
+  version: string;
+}
+export interface AuthTokens {
+  bearerToken: string;
+  session: SessionToken;
+}
 export interface SessionToken {
   sub: string;
   roles: string[];
@@ -28,12 +61,10 @@ export interface SessionToken {
   provider: string;
 }
 
-export async function rpcCall<T>(op: string, payload: any = null, user_guid: string, user_role: number): Promise<T> {
+export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
     const request: RPCRequest = {
         op,
         payload,
-        user_guid,
-        user_role,
         version: 1,
         timestamp: new Date().toISOString()
     };

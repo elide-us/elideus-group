@@ -1,9 +1,10 @@
 import { createContext } from 'react';
+import type { AuthTokens } from './RpcModels';
 
 export interface UserContext {
-        userData: null;
-        setUserData: (data: null) => void;
-	clearUserData: () => void;
+        userData: AuthTokens | null;
+        setUserData: (data: AuthTokens) => void;
+        clearUserData: () => void;
 }
 
 const defaultContext: UserContext = {

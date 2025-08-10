@@ -11,12 +11,10 @@ from genlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
 sys.path.insert(0, REPO_ROOT)
 
 RPC_CALL_FUNC = [
-  "export async function rpcCall<T>(op: string, payload: any = null, user_guid: string, user_role: number): Promise<T> {",
+  "export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {",
   "    const request: RPCRequest = {",
   "        op,",
   "        payload,",
-  "        user_guid,",
-  "        user_role,",
   "        version: 1,",
   "        timestamp: new Date().toISOString()",
   "    };",

@@ -91,10 +91,11 @@ def generate_ts(base: list[str], ops: list[dict[str, str]], service_models: dict
 
   lines = HEADER_COMMENT.copy()
 
+  rel_to_shared = '../' * (len(base) + 1) + 'shared/RpcModels'
   if model_imports:
-    lines.append(f"import {{ rpcCall, {model_imports} }} from '../../../shared/RpcModels';")
+    lines.append(f"import {{ rpcCall, {model_imports} }} from '{rel_to_shared}';")
   else:
-    lines.append("import { rpcCall } from '../../../shared/RpcModels';")
+    lines.append(f"import {{ rpcCall }} from '{rel_to_shared}';")
 
   lines.append('')
 
