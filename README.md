@@ -47,7 +47,7 @@ Several helper scripts in the `scripts` directory manage the project database an
     - `POSTGRE_SQL_CONNCTION_STRING` environment variable for postgres database.
 - `generate_rpc_client.py` generates function accessors for the RPC namespace, parsing dispatcher mappings and payload models via the Python AST.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
-- `generate_rpc_metadata.py` generates a hierarchical metadata.json that catalogs all RPC endpoints grouped by domain and subdomain with capability aggregates. This is used for security planning and later transition to security management in the application layers.
+- `generate_rpc_metadata.py` generates a hierarchical metadata.json that catalogs all RPC endpoints grouped by domain and subdomain with role aggregates. This is used for security planning and later transition to security management in the application layers.
 - `genlib.py` handles common RPC namespace generation functions.
 - `pgdblib.py` handles most of the postgres querying operations.
 - `msdblib.py` handles most of the mssql querying operations.
