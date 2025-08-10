@@ -26,7 +26,7 @@ class BaseModule(ABC):
     await self._ready_event.wait()
 
 class ModuleManager:
-  def __init__(self, app: FastAPI, module_classes: List[Type[BaseModule]]):
+  def __init__(self, app: FastAPI):
     self.app = app
     self.instances: Dict[str, BaseModule] = {}
 
