@@ -23,7 +23,8 @@ class SecurityModule(BaseModule):
       with open(self.metadata_file, 'r') as f:
         data = json.load(f)
       self.capabilities = {}
-      for dom in data.get('rpc', {}).get('domains', []):
+      section = data.get('urn') or {}
+      for dom in section.get('domains', []):
         for sub in dom.get('subdomains', []):
           for fn in sub.get('functions', []):
             op = fn.get('op')

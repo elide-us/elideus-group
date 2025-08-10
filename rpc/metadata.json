@@ -1,14 +1,13 @@
 {
-  "rpc": {
-    "capabilities": 0,
+  "urn": {
+    "roles": 0,
     "domains": [
       {
         "domain": "admin",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "roles",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:admin:roles:add_member:1",
@@ -26,7 +25,6 @@
           },
           {
             "subdomain": "users",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:admin:users:enable_storage:1",
@@ -50,11 +48,10 @@
       },
       {
         "domain": "auth",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "microsoft",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:auth:microsoft:oauth_login:1",
@@ -64,7 +61,6 @@
           },
           {
             "subdomain": "session",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:auth:session:get_token:1",
@@ -84,11 +80,10 @@
       },
       {
         "domain": "moderation",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "content",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:moderation:content:review_content:1",
@@ -100,11 +95,10 @@
       },
       {
         "domain": "public",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "links",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:public:links:get_home_links:1",
@@ -118,7 +112,6 @@
           },
           {
             "subdomain": "vars",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:public:vars:get_ffmpeg_version:1",
@@ -146,11 +139,10 @@
       },
       {
         "domain": "security",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "roles",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:security:roles:add_role_member:1",
@@ -182,11 +174,10 @@
       },
       {
         "domain": "service",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "general",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:service:health_check:1",
@@ -198,11 +189,10 @@
       },
       {
         "domain": "storage",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "files",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:storage:files:delete_files:1",
@@ -226,11 +216,10 @@
       },
       {
         "domain": "system",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "config",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:system:config:delete_config:1",
@@ -248,7 +237,6 @@
           },
           {
             "subdomain": "routes",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:system:routes:delete_route:1",
@@ -268,11 +256,10 @@
       },
       {
         "domain": "users",
-        "capabilities": 0,
+        "roles": 0,
         "subdomains": [
           {
             "subdomain": "profile",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:users:profile:get_profile:1",
@@ -302,7 +289,6 @@
           },
           {
             "subdomain": "providers",
-            "capabilities": 0,
             "functions": [
               {
                 "op": "urn:users:providers:create_from_provider:1",

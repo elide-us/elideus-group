@@ -34,12 +34,8 @@ def load_existing() -> dict[str, int]:
     with open(METADATA_FILE, 'r') as f:
       data = json.load(f)
     existing: dict[str, int] = {}
-    rpc_section = data.get('rpc', {})
-    if isinstance(rpc_section, list):
-      for item in rpc_section:
-        existing[item['op']] = item.get('capabilities', 0)
-      return existing
-    for dom in rpc_section.get('domains', []):
+    urn_section = data.get('urn') or {}
+    for dom in urn_section.get('domains', []):
       for sub in dom.get('subdomains', []):
         for fn in sub.get('functions', []):
           existing[fn['op']] = fn.get('capabilities', 0)
@@ -49,21 +45,22 @@ def load_existing() -> dict[str, int]:
 
 def write_metadata(tree: dict):
   for dom in tree.values():
+    dom_roles = 0
     for sub in dom['subdomains'].values():
-      sub['capabilities'] = sum(f['capabilities'] for f in sub['functions'])
-    dom['capabilities'] = sum(sub['capabilities'] for sub in dom['subdomains'].values())
-  total = sum(dom['capabilities'] for dom in tree.values())
+      sub_cap = sum(f['capabilities'] for f in sub['functions'])
+      dom_roles += sub_cap
+    dom['roles'] = dom_roles
+  total = sum(dom['roles'] for dom in tree.values())
   out = {
-    'rpc': {
-      'capabilities': total,
+    'urn': {
+      'roles': total,
       'domains': [
         {
           'domain': d,
-          'capabilities': dom['capabilities'],
+          'roles': dom['roles'],
           'subdomains': [
             {
               'subdomain': s,
-              'capabilities': sub['capabilities'],
               'functions': sorted(sub['functions'], key=lambda f: f['op'])
             }
             for s, sub in sorted(dom['subdomains'].items())
