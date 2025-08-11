@@ -20,24 +20,31 @@ def bit_to_mask(bit: int) -> int:
     raise HTTPException(status_code=400, detail='Invalid bit index')
   return 1 << bit
 
-def _get_token_from_request(request: Request) -> str:
+def _get_token_from_request(request: Request) -> str | None:
   header = request.headers.get('authorization')
   if not header or not header.lower().startswith('bearer '):
-    logging.warning("No bearer token found in request headers")
-    raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
+    logging.debug("No bearer token found in request headers")
+    return None
   return header.split(' ', 1)[1].strip()
 
 async def _process_rpcrequest(request: Request) -> RPCRequest:
-  _auth: AuthModule = request.app.state.auth
-
   body = await request.json()
   rpc_request = RPCRequest(**body)
 
-  token: str = _get_token_from_request(request)
-  data: dict = await _auth.decode_session_token(token)
+  token = _get_token_from_request(request)
+  parts = rpc_request.op.split(':')
+  domain = parts[1] if len(parts) > 1 else ''
 
-  rpc_request.user_guid = data.get('sub')
-  rpc_request.user_role = names_to_mask(data.get('roles', []))
+  if token:
+    _auth: AuthModule = request.app.state.auth
+    data: dict = await _auth.decode_session_token(token)
+    rpc_request.user_guid = data.get('sub')
+    rpc_request.user_role = names_to_mask(data.get('roles', []))
+  else:
+    if domain not in ('public', 'auth'):
+      raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
+    rpc_request.user_guid = None
+    rpc_request.user_role = 0
 
   return rpc_request
 
