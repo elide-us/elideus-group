@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class VersionInfo(BaseModel):
+class PublicVarsVersion1(BaseModel):
   version: str
 
 
@@ -19,4 +19,3 @@ class FfmpegVersion(BaseModel):
 
 class OdbcVersion(BaseModel):
   odbc_version: str
-

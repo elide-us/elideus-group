@@ -23,18 +23,25 @@ sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.db_module', db_module_pkg)
 
-from rpc.public.vars.services import public_vars_get_hostname_v1
+from rpc.public.vars.services import public_vars_get_hostname_v1, public_vars_get_version_v1
 
 
-class DummyDb:
+class DummyDbHostname:
   async def run(self, op: str, args: dict):
     assert op == "urn:public:vars:get_hostname:1"
     assert args == {}
     return types.SimpleNamespace(rows=[{"hostname": "example.com"}], rowcount=1)
 
 
+class DummyDbVersion:
+  async def run(self, op: str, args: dict):
+    assert op == "urn:public:vars:get_version:1"
+    assert args == {}
+    return types.SimpleNamespace(rows=[{"version": "1.2.3"}], rowcount=1)
+
+
 app = FastAPI()
-app.state.db = DummyDb()
+app.state.db = DummyDbHostname()
 
 
 @app.post("/rpc")
@@ -51,4 +58,24 @@ def test_get_hostname_service():
   data = resp.json()
   assert data["op"] == "urn:public:vars:get_hostname:1"
   assert data["payload"] == {"hostname": "example.com"}
+
+
+app_version = FastAPI()
+app_version.state.db = DummyDbVersion()
+
+
+@app_version.post("/rpc")
+async def rpc_endpoint_version(request: Request):
+  return await public_vars_get_version_v1(request)
+
+
+client_version = TestClient(app_version)
+
+
+def test_get_version_service():
+  resp = client_version.post("/rpc", json={"op": "urn:public:vars:get_version:1"})
+  assert resp.status_code == 200
+  data = resp.json()
+  assert data["op"] == "urn:public:vars:get_version:1"
+  assert data["payload"] == {"version": "1.2.3"}
 
