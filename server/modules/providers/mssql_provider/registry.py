@@ -194,6 +194,16 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
     """
     return ("json_many", sql, (mask,))
 
+@register("urn:public:vars:get_hostname:1")
+def _public_vars_get_hostname(args: Dict[str, Any]):
+  sql = """
+    SELECT element_value AS hostname
+    FROM system_config
+    WHERE element_key = 'hostname'
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return ("json_one", sql, ())
+
 @register("db:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
     guid, image_b64 = args["guid"], args["image_b64"]

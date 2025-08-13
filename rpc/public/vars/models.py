@@ -5,7 +5,7 @@ class VersionInfo(BaseModel):
   version: str
 
 
-class HostnameInfo(BaseModel):
+class PublicVarsHostname1(BaseModel):
   hostname: str
 
 
