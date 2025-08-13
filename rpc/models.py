@@ -42,3 +42,7 @@ class RPCResponse(BaseModel):
     default_factory=lambda: datetime.now(timezone.utc),
     description="Server UTC timestamp of response generation"
   )
+
+
+class ViewSuffixDiscord1(BaseModel):
+  content: str

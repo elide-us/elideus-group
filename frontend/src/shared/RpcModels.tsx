@@ -18,19 +18,21 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface HomeLinks {
-  links: LinkItem[];
+export interface ViewSuffixDiscord1 {
+  content: string;
 }
-export interface LinkItem {
-  title: string;
-  url: string;
+export interface AuthTokens {
+  bearerToken: string;
+  session: SessionToken;
 }
-export interface NavbarRoute {
-  path: string;
-  label: string;
-}
-export interface NavbarRoutes {
-  routes: NavbarRoute[];
+export interface SessionToken {
+  sub: string;
+  roles: string[];
+  iat: number;
+  exp: number;
+  jti: string;
+  session: string;
+  provider: string;
 }
 export interface FfmpegVersion {
   ffmpeg_version: string;
@@ -47,18 +49,19 @@ export interface RepoInfo {
 export interface VersionInfo {
   version: string;
 }
-export interface AuthTokens {
-  bearerToken: string;
-  session: SessionToken;
+export interface HomeLinks {
+  links: LinkItem[];
 }
-export interface SessionToken {
-  sub: string;
-  roles: string[];
-  iat: number;
-  exp: number;
-  jti: string;
-  session: string;
-  provider: string;
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+export interface NavbarRoute {
+  path: string;
+  label: string;
+}
+export interface NavbarRoutes {
+  routes: NavbarRoute[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
