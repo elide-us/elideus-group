@@ -28,7 +28,7 @@ from rpc.public.links.services import public_links_get_home_links_v1
 
 class DummyDb:
   async def run(self, op: str, args: dict):
-    assert op == "db:public:links:get_home_links:1"
+    assert op == "urn:public:links:get_home_links:1"
     assert args == {}
     return types.SimpleNamespace(rows=[{"title": "GitHub", "url": "https://github.com"}], rowcount=1)
 
@@ -46,7 +46,7 @@ client = TestClient(app)
 
 
 def test_get_home_links_service():
-  resp = client.post("/rpc", json={})
+  resp = client.post("/rpc", json={"op": "urn:public:links:get_home_links:1"})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:links:get_home_links:1"

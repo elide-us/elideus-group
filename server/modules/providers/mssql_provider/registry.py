@@ -165,7 +165,7 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
-@register("db:public:links:get_home_links:1")
+@register("urn:public:links:get_home_links:1")
 def _public_links_get_home_links(args: Dict[str, Any]):
     sql = """
       SELECT
