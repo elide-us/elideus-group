@@ -100,17 +100,5 @@ def _view_handler(resp: RPCResponse, args: List[str]) -> RPCResponse:
     from rpc.public.vars.models import FrontendVarsRepo1
     assert isinstance(resp.payload, FrontendVarsRepo1)
     resp.payload = ViewSuffixDiscord1(content=f"GitHub: {resp.payload.repo}")
-  if resp.op == "urn:frontend:vars:hostname:2" and context == "discord" and version == "2":
-    from rpc.public.vars.models import FrontendVarsHostname2
-    assert isinstance(resp.payload, FrontendVarsHostname2)
-    resp.payload = ViewSuffixDiscord1(content=f"Hostname: {resp.payload.hostname}")
-  if resp.op == "urn:frontend:vars:version:2" and context == "discord" and version == "2":
-    from rpc.public.vars.models import FrontendVarsVersion2
-    assert isinstance(resp.payload, FrontendVarsVersion2)
-    resp.payload = ViewSuffixDiscord1(content=f"Version: {resp.payload.version}")
-  if resp.op == "urn:frontend:vars:repo:2" and context == "discord" and version == "2":
-    from rpc.public.vars.models import FrontendVarsRepo2
-    assert isinstance(resp.payload, FrontendVarsRepo2)
-    resp.payload = ViewSuffixDiscord1(content=f"GitHub: {resp.payload.repo}")
   return resp
 
