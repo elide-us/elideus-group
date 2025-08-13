@@ -11,7 +11,7 @@ class RPCRequest(BaseModel):
 
   timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),
-    description="Client-supplied or default UTC timestamp"
+    description="Client-supplied or default UTC timestamp",
   )
 
   _user_guid: Optional[str] = PrivateAttr(None)
@@ -40,7 +40,7 @@ class RPCResponse(BaseModel):
 
   timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),
-    description="Server UTC timestamp of response generation"
+    description="Server UTC timestamp of response generation",
   )
 
 
