@@ -165,6 +165,18 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
     """
     return ("json_one", sql, (guid,))
 
+@register("db:public:links:get_home_links:1")
+def _public_links_get_home_links(args: Dict[str, Any]):
+  sql = """
+    SELECT
+      element_title AS title,
+      element_url AS url
+    FROM frontend_links
+    ORDER BY element_sequence
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, ())
+
 @register("db:public:links:get_navbar_routes:1")
 def _public_links_get_navbar_routes(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
