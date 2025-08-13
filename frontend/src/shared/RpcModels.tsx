@@ -18,19 +18,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface AuthTokens {
-  bearerToken: string;
-  session: SessionToken;
-}
-export interface SessionToken {
-  sub: string;
-  roles: string[];
-  iat: number;
-  exp: number;
-  jti: string;
-  session: string;
-  provider: string;
-}
 export interface HomeLinks {
   links: LinkItem[];
 }
@@ -48,17 +35,30 @@ export interface NavbarRoutes {
 export interface FfmpegVersion {
   ffmpeg_version: string;
 }
-export interface HostnameInfo {
-  hostname: string;
-}
 export interface OdbcVersion {
   odbc_version: string;
+}
+export interface PublicVarsHostname1 {
+  hostname: string;
 }
 export interface RepoInfo {
   repo: string;
 }
 export interface VersionInfo {
   version: string;
+}
+export interface AuthTokens {
+  bearerToken: string;
+  session: SessionToken;
+}
+export interface SessionToken {
+  sub: string;
+  roles: string[];
+  iat: number;
+  exp: number;
+  jti: string;
+  session: string;
+  provider: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
