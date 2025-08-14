@@ -82,13 +82,27 @@ class DiscordModule(BaseModule):
 
     @self.bot.command(name="rpc")
     async def rpc_command(ctx, *, op: str):
-      req = Request({"type": "http", "app": self.app, "headers": []})
       from rpc.handler import handle_rpc_request
-      from rpc.models import RPCRequest
 
-      rpc_req = RPCRequest(op=op)
+      body = json.dumps({"op": op}).encode()
+
+      async def receive():
+        nonlocal body
+        data = body
+        body = b""
+        return {"type": "http.request", "body": data, "more_body": False}
+
+      scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/rpc",
+        "headers": [(b"content-type", b"application/json")],
+        "app": self.app,
+      }
+      req = Request(scope, receive)
+
       try:
-        resp = await handle_rpc_request(rpc_req, req)
+        resp = await handle_rpc_request(req)
         payload = resp.payload
 
         if hasattr(payload, "model_dump"):
