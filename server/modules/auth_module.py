@@ -52,6 +52,7 @@ class AuthModule(BaseModule):
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
       logging.info("Auth module loaded")
+      self.mark_ready()
     except Exception as e:
       logging.error(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
 
