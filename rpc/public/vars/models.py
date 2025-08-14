@@ -9,13 +9,13 @@ class PublicVarsHostname1(BaseModel):
   hostname: str
 
 
-class RepoInfo(BaseModel):
+class PublicVarsRepo1(BaseModel):
   repo: str
 
 
-class FfmpegVersion(BaseModel):
+class PublicVarsFfmpegVersion1(BaseModel):
   ffmpeg_version: str
 
 
-class OdbcVersion(BaseModel):
+class PublicVarsOdbcVersion1(BaseModel):
   odbc_version: str
