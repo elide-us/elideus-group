@@ -1,6 +1,5 @@
 import logging
 from typing import Dict
-import pyodbc
 
 from fastapi import FastAPI
 
@@ -29,13 +28,11 @@ class AuthzModule(BaseModule):
   async def load_roles(self):
     if not self.db:
       return
-    list_roles = getattr(self.db, 'list_roles', None)
-    if not list_roles:
-      return
     try:
-      rows = await list_roles()
-    except pyodbc.Error:
+      result = await self.db.run("db:system:roles:list:1", {})
+    except Exception:
       return
+    rows = result.rows
     if not rows:
       return
     ROLES.clear()
