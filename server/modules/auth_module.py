@@ -30,7 +30,7 @@ class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.ms_jwks: Dict | None = None
-    self.ms_jwks_fetched_at: datetime = datetime.now(timezone.utc)
+    self.ms_jwks_fetched_at: datetime | None = None
     self.ms_api_id: str | None = None
     self.jwt_secret: str | None = None
     self.jwt_algo_ms: str = "RS256"
@@ -51,6 +51,7 @@ class AuthModule(BaseModule):
     try:
       jwks_uri = await fetch_ms_jwks_uri()
       self.ms_jwks = await fetch_ms_jwks(jwks_uri)
+      self.ms_jwks_fetched_at = datetime.now(timezone.utc)
       logging.info("Auth module loaded")
       self.mark_ready()
     except Exception as e:
@@ -60,9 +61,14 @@ class AuthModule(BaseModule):
     logging.info("Auth module shutdown")
 
   async def verify_ms_id_token(self, id_token: str) -> Dict:
-    # Check timestamp and refresh JWKS if over 1h old
-    if not self.ms_jwks:
-      raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Microsoft keys unavailable")
+    now = datetime.now(timezone.utc)
+    if not self.ms_jwks or not self.ms_jwks_fetched_at or now - self.ms_jwks_fetched_at > timedelta(hours=1):
+      try:
+        jwks_uri = await fetch_ms_jwks_uri()
+        self.ms_jwks = await fetch_ms_jwks(jwks_uri)
+        self.ms_jwks_fetched_at = now
+      except Exception:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Microsoft keys unavailable")
     try:
       unverified_header = jwt.get_unverified_header(id_token)
     except Exception:
