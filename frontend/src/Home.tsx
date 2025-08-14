@@ -7,15 +7,17 @@ import {
         fetchVersion,
         fetchRepo,
         fetchFfmpegVersion,
+        fetchOdbcVersion,
 } from './rpc/public/vars';
 import { fetchHomeLinks } from './rpc/public/links';
 
 const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');
 	const [version, setVersion] = useState('');
-	const [repo, setRepo] = useState('');
-	const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
-	const [links, setLinks] = useState<LinkItem[]>([]);
+        const [repo, setRepo] = useState('');
+        const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
+        const [odbcVersion, setOdbcVersion] = useState<string | null>(null);
+        const [links, setLinks] = useState<LinkItem[]>([]);
 
 	useEffect(() => {
 		void (async () => {
@@ -43,13 +45,21 @@ const Home = (): JSX.Element => {
 				setVersion('v0.0.0');
 			}
 
-			try {
-				const ffmpegInfo = await fetchFfmpegVersion();
-				const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
-				setFfmpegVersion(cleanFfmpeg);
-			} catch {
-				setFfmpegVersion('unknown');
-			}
+                        try {
+                                const ffmpegInfo = await fetchFfmpegVersion();
+                                const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
+                                setFfmpegVersion(cleanFfmpeg);
+                        } catch {
+                                setFfmpegVersion('unknown');
+                        }
+
+                        try {
+                                const odbcInfo = await fetchOdbcVersion();
+                                const cleanOdbc = odbcInfo.odbc_version.replace(/^"|"$/g, '');
+                                setOdbcVersion(cleanOdbc);
+                        } catch {
+                                setOdbcVersion('unknown');
+                        }
 
 			try {
                                 const homeLinks = await fetchHomeLinks();
@@ -90,11 +100,14 @@ const Home = (): JSX.Element => {
 			<Typography variant="body1" sx={{ marginTop: '20px' }}>
 				{version} running on {hostname}
 			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '4px' }}>
-				{ffmpegVersion ? ffmpegVersion : 'Loading version...'}
-			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '4px' }}>
-				GitHub:{' '}
+                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
+                                {ffmpegVersion ? ffmpegVersion : 'Loading version...'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
+                                {odbcVersion ? odbcVersion : 'Loading version...'}
+                        </Typography>
+                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
+                                GitHub:{' '}
 				<Link
 					href={repo}
 					target="_blank"
