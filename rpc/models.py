@@ -26,5 +26,3 @@ class RPCResponse(BaseModel):
   )
 
 
-class ViewSuffixDiscord1(BaseModel):
-  content: str
