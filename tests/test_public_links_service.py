@@ -11,6 +11,7 @@ sys.modules.setdefault('rpc', pkg)
 server_pkg = types.ModuleType('server')
 modules_pkg = types.ModuleType('server.modules')
 db_module_pkg = types.ModuleType('server.modules.db_module')
+models_pkg = types.ModuleType('server.models')
 
 class DbModule:  # minimal placeholder for import
   pass
@@ -22,11 +23,13 @@ class AuthContext:
   def __init__(self, **data):
     self.role_mask = 0
     self.__dict__.update(data)
-server_pkg.AuthContext = AuthContext
+models_pkg.AuthContext = AuthContext
+server_pkg.models = models_pkg
 
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.db_module', db_module_pkg)
+sys.modules.setdefault('server.models', models_pkg)
 
 from rpc.public.links.services import public_links_get_home_links_v1
 
