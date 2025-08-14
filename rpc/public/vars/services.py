@@ -1,4 +1,5 @@
 import asyncio
+import subprocess
 from fastapi import HTTPException, Request
 
 from rpc.helpers import get_rpcrequest_from_request
@@ -11,6 +12,21 @@ from .models import (
   PublicVarsVersion1,
   PublicVarsOdbcVersion1,
 )
+
+
+async def _run_command(*cmd: str):
+  try:
+    process = await asyncio.create_subprocess_exec(
+      *cmd,
+      stdout=asyncio.subprocess.PIPE,
+      stderr=asyncio.subprocess.PIPE,
+    )
+    return await process.communicate()
+  except NotImplementedError:
+    result = await asyncio.to_thread(
+      subprocess.run, cmd, capture_output=True
+    )
+    return result.stdout, result.stderr
 
 
 async def public_vars_get_version_v1(request: Request):
@@ -52,13 +68,7 @@ async def public_vars_get_repo_v1(request: Request):
 async def public_vars_get_ffmpeg_version_v1(request: Request):
   rpc_request, _, _ = await get_rpcrequest_from_request(request)
   try:
-    process = await asyncio.create_subprocess_exec(
-      "ffmpeg",
-      "-version",
-      stdout=asyncio.subprocess.PIPE,
-      stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
+    stdout, stderr = await _run_command("ffmpeg", "-version")
     if stdout:
       version_line = stdout.decode().splitlines()[0]
     else:
@@ -80,14 +90,11 @@ async def public_vars_get_odbc_version_v1(request: Request):
   system = __import__("platform").system()
   try:
     if system == "Windows":
-      process = await asyncio.create_subprocess_exec(
+      stdout, stderr = await _run_command(
         "cmd",
         "/c",
         "reg query \"HKLM\\SOFTWARE\\ODBC\\ODBCINST.INI\\ODBC Driver 18 for SQL Server\" /v Version",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
       )
-      stdout, stderr = await process.communicate()
       output = stdout.decode() or stderr.decode()
       version_line = ""
       for line in output.splitlines():
@@ -99,16 +106,13 @@ async def public_vars_get_odbc_version_v1(request: Request):
         version_line = "odbc library not found (Windows)"
     else:
       packages = ["msodbcsql18", "unixodbc", "libodbc2"]
-      process = await asyncio.create_subprocess_exec(
+      stdout, stderr = await _run_command(
         "dpkg-query",
         "-W",
         "-f",
         "${Package} ${Version}\\n",
         *packages,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
       )
-      stdout, stderr = await process.communicate()
       if stdout:
         version_line = stdout.decode().strip().replace("\n", "; ")
       else:

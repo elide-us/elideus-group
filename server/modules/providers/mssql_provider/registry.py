@@ -214,6 +214,16 @@ def _public_vars_get_version(args: Dict[str, Any]):
   """
   return ("json_one", sql, ())
 
+@register("urn:public:vars:get_repo:1")
+def _public_vars_get_repo(args: Dict[str, Any]):
+  sql = """
+    SELECT element_value AS repo
+    FROM system_config
+    WHERE element_key = 'repo'
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return ("json_one", sql, ())
+
 @register("db:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
     guid, image_b64 = args["guid"], args["image_b64"]
