@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request
 
 from rpc.models import RPCRequest
+from server.auth_context import AuthContext
 
 if TYPE_CHECKING:
   from server.modules.auth_module import AuthModule
+  from server.modules.authz_module import AuthzModule
 
 
 def mask_to_bit(mask: int) -> int:
@@ -27,7 +29,7 @@ def _get_token_from_request(request: Request) -> str | None:
     return None
   return header.split(' ', 1)[1].strip()
 
-async def _process_rpcrequest(request: Request) -> RPCRequest:
+async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext]:
   body = await request.json()
   rpc_request = RPCRequest(**body)
 
@@ -35,63 +37,24 @@ async def _process_rpcrequest(request: Request) -> RPCRequest:
   parts = rpc_request.op.split(':')
   domain = parts[1] if len(parts) > 1 else ''
 
+  auth_ctx = AuthContext()
+
   if token:
     _auth: AuthModule = request.app.state.auth
     data: dict = await _auth.decode_session_token(token)
-    rpc_request.user_guid = data.get('sub')
-    rpc_request.user_role = names_to_mask(data.get('roles', []))
+    auth_ctx.user_guid = data.get('sub')
+    auth_ctx.roles = data.get('roles', [])
+    auth_ctx.provider = data.get('provider')
+    auth_ctx.claims = data
+    authz: AuthzModule = request.app.state.authz
+    auth_ctx.role_mask = authz.names_to_mask(auth_ctx.roles)
   else:
     if domain not in ('public', 'auth'):
       raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
-    rpc_request.user_guid = None
-    rpc_request.user_role = 0
 
-  return rpc_request
+  return rpc_request, auth_ctx
 
 async def get_rpcrequest_from_request(request):
-  rpc_request = await _process_rpcrequest(request)
+  rpc_request, auth_ctx = await _process_rpcrequest(request)
   parts = rpc_request.op.split(':')
-  return rpc_request, parts
-
-# Mapping of role names to their masks loaded from the database.
-ROLES: dict[str, int] = {}
-
-# List of all roles except ``ROLE_REGISTERED`` for convenience.
-ROLE_NAMES: list[str] = []
-
-# ``ROLE_REGISTERED`` is used frequently so expose it directly.  It will be
-# updated when ``load_roles`` is called.  Default to ``1`` so code using the
-# constant before roles are loaded behaves as expected.
-ROLE_REGISTERED: int = 1
-
-import pyodbc
-
-
-async def load_roles(db) -> None:
-  try:
-    rows = await db.list_roles()
-  except pyodbc.Error:
-    return
-  if not rows:
-    return
-  ROLES.clear()
-  for r in rows:
-    ROLES[r['name']] = int(r['mask'])
-  global ROLE_NAMES, ROLE_REGISTERED
-  ROLE_NAMES = [n for n in ROLES.keys() if n != 'ROLE_REGISTERED']
-  ROLE_REGISTERED = ROLES.get('ROLE_REGISTERED', 0)
-
-
-################################################################################
-## We probably only need to keep the two functions below here
-## and they can probably be moved to auth module...
-################################################################################
-
-def mask_to_names(mask: int) -> list[str]:
-  return [name for name, bit in ROLES.items() if mask & bit]
-
-def names_to_mask(names: list[str]) -> int:
-  mask = 0
-  for name in names:
-    mask |= ROLES.get(name, 0)
-  return mask
+  return rpc_request, auth_ctx, parts

@@ -7,7 +7,7 @@ from .models import PublicVarsHostname1, PublicVarsVersion1
 
 
 async def public_vars_get_version_v1(request: Request):
-  rpc_request, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   version = res.rows[0].get("version") if res.rows else ""
@@ -19,7 +19,7 @@ async def public_vars_get_version_v1(request: Request):
   )
 
 async def public_vars_get_hostname_v1(request: Request):
-  rpc_request, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   hostname = res.rows[0].get("hostname") if res.rows else ""

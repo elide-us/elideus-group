@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from rpc.helpers import mask_to_names
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
@@ -50,7 +49,8 @@ async def auth_session_get_token_v1(request: Request):
 
   roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
-  roles = mask_to_names(role_mask)
+  authz = request.app.state.authz
+  roles = authz.mask_to_names(role_mask)
 
   session_token = auth.make_session_token(user_guid, rotation_token, roles, provider)
 
@@ -83,7 +83,8 @@ async def auth_session_refresh_token_v1(request: Request):
 
   roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
-  roles = mask_to_names(role_mask)
+  authz = request.app.state.authz
+  roles = authz.mask_to_names(role_mask)
 
   session_token = auth.make_session_token(user_guid, rotation_token, roles, "microsoft")
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)

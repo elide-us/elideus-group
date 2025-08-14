@@ -7,7 +7,7 @@ from .models import HomeLinks, LinkItem
 
 
 async def public_links_get_home_links_v1(request: Request):
-  rpc_request, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   links = [LinkItem(**row) for row in res.rows]

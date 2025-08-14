@@ -11,6 +11,7 @@ sys.modules.setdefault('rpc', pkg)
 server_pkg = types.ModuleType('server')
 modules_pkg = types.ModuleType('server.modules')
 db_module_pkg = types.ModuleType('server.modules.db_module')
+auth_context_pkg = types.ModuleType('server.auth_context')
 
 class DbModule:  # minimal placeholder for import
   pass
@@ -18,10 +19,16 @@ class DbModule:  # minimal placeholder for import
 db_module_pkg.DbModule = DbModule
 modules_pkg.db_module = db_module_pkg
 server_pkg.modules = modules_pkg
+class AuthContext:
+  def __init__(self, **data):
+    self.role_mask = 0
+    self.__dict__.update(data)
+auth_context_pkg.AuthContext = AuthContext
 
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.db_module', db_module_pkg)
+sys.modules.setdefault('server.auth_context', auth_context_pkg)
 
 from rpc.public.vars.services import public_vars_get_hostname_v1, public_vars_get_version_v1
 
