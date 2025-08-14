@@ -9,6 +9,7 @@ from .models import (
   PublicVarsHostname1,
   PublicVarsRepo1,
   PublicVarsVersion1,
+  PublicVarsOdbcVersion1,
 )
 
 
@@ -62,15 +63,65 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
       version_line = stdout.decode().splitlines()[0]
     else:
       version_line = stderr.decode().splitlines()[0]
-    payload = PublicVarsFfmpegVersion1(ffmpeg_version=version_line)
-    return RPCResponse(
-      op=rpc_request.op,
-      payload=payload.model_dump(),
-      version=rpc_request.version,
-    )
+  except FileNotFoundError:
+    version_line = "ffmpeg library not found (Windows)"
   except Exception as e:
     raise HTTPException(status_code=500, detail=f"Error checking ffmpeg: {e}")
 
+  payload = PublicVarsFfmpegVersion1(ffmpeg_version=version_line)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
+
 async def public_vars_get_odbc_version_v1(request: Request):
-  raise NotImplementedError("urn:public:vars:get_odbc_version:1")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  system = __import__("platform").system()
+  try:
+    if system == "Windows":
+      process = await asyncio.create_subprocess_exec(
+        "cmd",
+        "/c",
+        "reg query \"HKLM\\SOFTWARE\\ODBC\\ODBCINST.INI\\ODBC Driver 18 for SQL Server\" /v Version",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+      )
+      stdout, stderr = await process.communicate()
+      output = stdout.decode() or stderr.decode()
+      version_line = ""
+      for line in output.splitlines():
+        if line.strip().startswith("Version"):
+          parts = line.split()
+          version_line = f"ODBC Driver 18 for SQL Server {parts[-1]}"
+          break
+      if not version_line:
+        version_line = "odbc library not found (Windows)"
+    else:
+      packages = ["msodbcsql18", "unixodbc", "libodbc2"]
+      process = await asyncio.create_subprocess_exec(
+        "dpkg-query",
+        "-W",
+        "-f",
+        "${Package} ${Version}\\n",
+        *packages,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+      )
+      stdout, stderr = await process.communicate()
+      if stdout:
+        version_line = stdout.decode().strip().replace("\n", "; ")
+      else:
+        version_line = stderr.decode().strip() or "odbc library not found"
+  except FileNotFoundError:
+    version_line = "odbc library not found" if system != "Windows" else "odbc library not found (Windows)"
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Error checking odbc: {e}")
+
+  payload = PublicVarsOdbcVersion1(odbc_version=version_line)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
 
