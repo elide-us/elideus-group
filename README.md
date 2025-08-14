@@ -54,13 +54,3 @@ Several helper scripts in the `scripts` directory manage the project database an
   Schema dumps now record NVARCHAR field lengths for accurate
   recreation across environments.
 
-### RPC Response Views
-Responses support a simple view suffix in the URN:
-`urn:{domain}:{sub}:{func}:{ver}:view:{context}:{variant}`. Each handler
-parses these values and applies the appropriate transform after calling the
-service function. When no view section is supplied the handler inserts the
-default `:view:default:1` suffix which leaves the payload unchanged.
-
-For example `urn:admin:vars:get_hostname:1:view:discord:1` returns a
-Discord-friendly hostname string while `urn:admin:vars:get_hostname:1`
-returns `urn:admin:vars:hostname:1:view:default:1` with the raw payload.

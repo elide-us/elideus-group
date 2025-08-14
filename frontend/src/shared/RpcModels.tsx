@@ -18,9 +18,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface ViewSuffixDiscord1 {
-  content: string;
-}
 export interface AuthTokens {
   bearerToken: string;
   session: SessionToken;

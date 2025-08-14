@@ -4,7 +4,7 @@ This document describes each RPC operation in the project and groups them by dom
 
 ## Naming Scheme
 
-Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`. Handlers automatically append a `:view:default:1` suffix when no `view` is specified. Custom views may transform the payload for different clients (e.g. Discord).
+Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`.
 
 ## Security Alignment
 
