@@ -123,7 +123,7 @@ class AuthModule(BaseModule):
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
     if provider == "microsoft":
       payload = await self.verify_ms_id_token(id_token)
-      guid = payload.get("sub")
+      guid = payload.get("oid") or payload.get("sub")
       if not guid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
       profile = await self.fetch_ms_user_profile(access_token)
