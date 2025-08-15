@@ -4,21 +4,25 @@ import { CssBaseline, Container } from '@mui/material'
 import ElideusTheme from './shared/ElideusTheme'
 import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
+import NavBar from './NavBar'
+import Gallery from './Gallery'
 
 function App(): JSX.Element {
 	return (
-		<ThemeProvider theme={ ElideusTheme }>
-			<CssBaseline />
-			<UserContextProvider>
-				<Router>
-                    <Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
-						<Routes>
-							<Route path='/' element={<Home />} />
-						</Routes>
-					</Container>
-				</Router>
-			</UserContextProvider>
-		</ThemeProvider>
+			<ThemeProvider theme={ ElideusTheme }>
+				<CssBaseline />
+				<UserContextProvider>
+	<Router>
+	<NavBar />
+	<Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
+	<Routes>
+	<Route path='/' element={<Home />} />
+	<Route path='/gallery' element={<Gallery />} />
+	</Routes>
+	</Container>
+	</Router>
+				</UserContextProvider>
+			</ThemeProvider>
 	);
 }
 

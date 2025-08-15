@@ -31,34 +31,53 @@ sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.db_module', db_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
-from rpc.public.links.services import public_links_get_home_links_v1
+from rpc.public.links.services import public_links_get_home_links_v1, public_links_get_navbar_routes_v1
 
 
 class DummyDb:
   async def run(self, op: str, args: dict):
-    assert op == "urn:public:links:get_home_links:1"
-    assert args == {}
-    return types.SimpleNamespace(rows=[{"title": "GitHub", "url": "https://github.com"}], rowcount=1)
+    if op == "urn:public:links:get_home_links:1":
+      assert args == {}
+      return types.SimpleNamespace(rows=[{"title": "GitHub", "url": "https://github.com"}], rowcount=1)
+    if op == "urn:public:links:get_navbar_routes:1":
+      assert args == {"role_mask": 0}
+      return types.SimpleNamespace(rows=[{"element_path": "/", "element_name": "Home", "element_icon": "home"}], rowcount=1)
+    raise AssertionError("Unexpected op")
 
 
 app = FastAPI()
 app.state.db = DummyDb()
 
 
-@app.post("/rpc")
-async def rpc_endpoint(request: Request):
+@app.post("/rpc_home")
+async def rpc_home(request: Request):
   return await public_links_get_home_links_v1(request)
+
+
+@app.post("/rpc_nav")
+async def rpc_nav(request: Request):
+  return await public_links_get_navbar_routes_v1(request)
 
 
 client = TestClient(app)
 
 
 def test_get_home_links_service():
-  resp = client.post("/rpc", json={"op": "urn:public:links:get_home_links:1"})
+  resp = client.post("/rpc_home", json={"op": "urn:public:links:get_home_links:1"})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:links:get_home_links:1"
   assert data["payload"] == {
     "links": [{"title": "GitHub", "url": "https://github.com"}]
+  }
+
+
+def test_get_navbar_routes_service():
+  resp = client.post("/rpc_nav", json={"op": "urn:public:links:get_navbar_routes:1"})
+  assert resp.status_code == 200
+  data = resp.json()
+  assert data["op"] == "urn:public:links:get_navbar_routes:1"
+  assert data["payload"] == {
+    "routes": [{"path": "/", "name": "Home", "icon": "home"}]
   }
 
