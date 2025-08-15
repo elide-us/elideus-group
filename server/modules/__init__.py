@@ -12,11 +12,11 @@ class BaseModule(ABC):
     self._ready_event = asyncio.Event()
 
   @abstractmethod
-  async def startup():
+  async def startup(self):
     pass
 
   @abstractmethod
-  async def shutdown():
+  async def shutdown(self):
     pass
 
   def mark_ready(self):
