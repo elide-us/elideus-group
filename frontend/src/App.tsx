@@ -6,6 +6,7 @@ import UserContextProvider from './shared/UserContextProvider'
 import Home from './Home'
 import NavBar from './NavBar'
 import Gallery from './Gallery'
+import LoginPage from './LoginPage'
 
 function App(): JSX.Element {
 	return (
@@ -15,10 +16,11 @@ function App(): JSX.Element {
 				<Router>
 					<NavBar />
 					<Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
-						<Routes>
-							<Route path='/' element={<Home />} />
-							<Route path='/gallery' element={<Gallery />} />
-						</Routes>
+												<Routes>
+														<Route path='/' element={<Home />} />
+														<Route path='/gallery' element={<Gallery />} />
+														<Route path='/loginpage' element={<LoginPage />} />
+												</Routes>
 					</Container>
 				</Router>
 			</UserContextProvider>
