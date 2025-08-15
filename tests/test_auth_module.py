@@ -33,3 +33,38 @@ def test_verify_ms_id_token_refreshes_jwks(monkeypatch):
 
   asyncio.run(module.verify_ms_id_token("token"))
   assert module.ms_jwks_fetched_at > datetime.now(timezone.utc) - timedelta(minutes=5)
+
+
+def test_handle_auth_login_prefers_oid(monkeypatch):
+  app = FastAPI()
+  module = AuthModule(app)
+
+  async def fake_verify_ms_id_token(token):
+    return {"oid": "oid123", "sub": "sub456"}
+
+  async def fake_fetch_ms_user_profile(token):
+    return {"email": "user@example.com", "username": "User"}
+
+  monkeypatch.setattr(module, "verify_ms_id_token", fake_verify_ms_id_token)
+  monkeypatch.setattr(module, "fetch_ms_user_profile", fake_fetch_ms_user_profile)
+
+  guid, profile = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
+  assert guid == "oid123"
+  assert profile["email"] == "user@example.com"
+
+
+def test_handle_auth_login_falls_back_to_sub(monkeypatch):
+  app = FastAPI()
+  module = AuthModule(app)
+
+  async def fake_verify_ms_id_token(token):
+    return {"sub": "sub456"}
+
+  async def fake_fetch_ms_user_profile(token):
+    return {"email": "user@example.com", "username": "User"}
+
+  monkeypatch.setattr(module, "verify_ms_id_token", fake_verify_ms_id_token)
+  monkeypatch.setattr(module, "fetch_ms_user_profile", fake_fetch_ms_user_profile)
+
+  guid, _ = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
+  assert guid == "sub456"
