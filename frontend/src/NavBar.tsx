@@ -15,19 +15,20 @@ import type { PublicLinksNavBarRoute1, PublicLinksNavBarRoutes1 } from './shared
 import { fetchNavbarRoutes } from './rpc/public/links';
 import { iconMap, defaultIcon } from './icons';
 import UserContext from './shared/UserContext';
+import Login from './Login';
 
 const DRAWER_OPEN = 240;
 const DRAWER_CLOSED = 60;
 
 const NavBar = (): JSX.Element => {
 	const [open, setOpen] = useState(false);
-        const [routes, setRoutes] = useState<PublicLinksNavBarRoute1[]>([]);
+	const [routes, setRoutes] = useState<PublicLinksNavBarRoute1[]>([]);
 	const { userData } = useContext(UserContext);
 
 	useEffect(() => {
 		void (async () => {
 			try {
-                                const res: PublicLinksNavBarRoutes1 = await fetchNavbarRoutes();
+				const res: PublicLinksNavBarRoutes1 = await fetchNavbarRoutes();
 				setRoutes(res.routes);
 			} catch {
 				setRoutes([]);
@@ -49,10 +50,12 @@ const NavBar = (): JSX.Element => {
 					width: open ? DRAWER_OPEN : DRAWER_CLOSED,
 					overflowX: 'hidden',
 					position: 'fixed',
+					display: 'flex',
+					flexDirection: 'column',
 				},
 			}}
 		>
-			<Box sx={{ display: 'flex', justifyContent: 'flex-start', pl: 1, py: 1 }}>
+			<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', pl: 1, py: 1 }}>
 				<Tooltip title="Toggle Menu">
 					<IconButton onClick={() => setOpen(!open)}>
 						<MenuIcon />
@@ -72,6 +75,9 @@ const NavBar = (): JSX.Element => {
 					);
 				})}
 			</List>
+			<Box sx={{ p: 1 }}>
+				<Login open={open} />
+			</Box>
 		</Drawer>
 	);
 };
