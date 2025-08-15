@@ -10,6 +10,7 @@ from server.models import AuthContext
 if TYPE_CHECKING:
   from server.modules.auth_module import AuthModule
   from server.modules.authz_module import AuthzModule
+  from server.modules.db_module import DbModule
 
 
 def mask_to_bit(mask: int) -> int:
@@ -43,11 +44,14 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
     _auth: AuthModule = request.app.state.auth
     data: dict = await _auth.decode_session_token(token)
     auth_ctx.user_guid = data.get('sub')
-    auth_ctx.roles = data.get('roles', [])
     auth_ctx.provider = data.get('provider')
     auth_ctx.claims = data
+    db: DbModule = request.app.state.db
+    res = await db.run('urn:users:profile:get_roles:1', {'guid': auth_ctx.user_guid})
+    role_mask = int(res.rows[0].get('element_roles', 0)) if res.rows else 0
+    auth_ctx.role_mask = role_mask
     authz: AuthzModule = request.app.state.authz
-    auth_ctx.role_mask = authz.names_to_mask(auth_ctx.roles)
+    auth_ctx.roles = authz.mask_to_names(role_mask)
   else:
     if domain not in ('public', 'auth'):
       raise HTTPException(status_code=401, detail='Missing or invalid authorization header')

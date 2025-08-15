@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 
-from rpc.auth.session.models import AuthSessionAuthTokens, AuthSessionSessionToken
 from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.authz_module import AuthzModule
 from server.modules.db_module import DbModule
+from .models import AuthMicrosoftOauthLogin1
 
 
 async def auth_microsoft_oauth_login_v1(request: Request):
@@ -64,6 +64,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       "urn:users:profile:set_profile_image:1",
       {"guid": user_guid, "image_b64": profile["profilePicture"], "provider": provider},
     )
+    user["profile_image"] = profile["profilePicture"]
   rotation_token, rot_exp = auth.make_rotation_token(user_guid)
   now = datetime.now(timezone.utc)
   await db.run(
@@ -76,9 +77,13 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   authz: AuthzModule = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
 
-  bearer = auth.make_session_token(user_guid, rotation_token, roles, provider)
-  session_claims = await auth.decode_session_token(bearer)
+  session_token = auth.make_session_token(user_guid, rotation_token, roles, provider)
 
-  payload = AuthSessionAuthTokens(bearerToken=bearer, session=AuthSessionSessionToken(**session_claims))
+  payload = AuthMicrosoftOauthLogin1(
+    sessionToken=session_token,
+    display_name=user["display_name"],
+    credits=user["credits"],
+    profile_image=user.get("profile_image"),
+  )
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 

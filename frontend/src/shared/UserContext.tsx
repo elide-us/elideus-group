@@ -1,9 +1,9 @@
 import { createContext } from 'react';
-import type { AuthSessionAuthTokens } from './RpcModels';
+import type { AuthMicrosoftOauthLogin1 } from './RpcModels';
 
 export interface UserContext {
-        userData: AuthSessionAuthTokens | null;
-        setUserData: (data: AuthSessionAuthTokens) => void;
+        userData: AuthMicrosoftOauthLogin1 | null;
+        setUserData: (data: AuthMicrosoftOauthLogin1) => void;
         clearUserData: () => void;
 }
 

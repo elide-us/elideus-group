@@ -18,6 +18,25 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface UsersProfileAuthProvider1 {
+  name: string;
+  display: string;
+}
+export interface UsersProfileProfile1 {
+  guid: string;
+  display_name: string;
+  email: string;
+  display_email: boolean;
+  credits: number;
+  profile_image: string | null;
+  auth_providers: UsersProfileAuthProvider1[];
+}
 export interface PublicLinksHomeLinks1 {
   links: PublicLinksLinkItem1[];
 }
@@ -48,32 +67,6 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
   version: string;
 }
-export interface AuthSessionAuthTokens {
-  bearerToken: string;
-  session: AuthSessionSessionToken;
-}
-export interface AuthSessionSessionToken {
-  sub: string;
-  roles: string[];
-  iat: number;
-  exp: number;
-  jti: string;
-  session: string;
-  provider: string;
-}
-export interface UsersProfileAuthProvider1 {
-  name: string;
-  display: string;
-}
-export interface UsersProfileProfile1 {
-  guid: string;
-  display_name: string;
-  email: string;
-  display_email: boolean;
-  credits: number;
-  profile_image: string | null;
-  auth_providers: UsersProfileAuthProvider1[];
-}
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
     const request: RPCRequest = {
@@ -87,8 +80,8 @@ export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
         try {
             const raw = localStorage.getItem('authTokens');
             if (raw) {
-                const { bearerToken } = JSON.parse(raw);
-                if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
+                const { sessionToken } = JSON.parse(raw);
+                if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
             }
         } catch {
             /* ignore token parsing errors */

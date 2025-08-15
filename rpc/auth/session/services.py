@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
@@ -109,22 +110,16 @@ async def auth_session_refresh_token_v1(request: Request):
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 
 async def auth_session_invalidate_token_v1(request: Request):
-  rotation_token = request.cookies.get("rotation_token")
-  if not rotation_token:
-    raise HTTPException(status_code=400, detail="Missing rotation token")
+  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rotation_token = auth_ctx.claims.get("session")
+  if not rotation_token or not auth_ctx.user_guid:
+    raise HTTPException(status_code=401, detail="Missing or invalid session token")
 
-  auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
-
-  data = auth.decode_rotation_token(rotation_token)
-  user_guid = data["guid"]
   now = datetime.now(timezone.utc)
   await db.run(
     "db:users:session:set_rotkey:1",
-    {"guid": user_guid, "rotkey": "", "iat": now, "exp": now},
+    {"guid": auth_ctx.user_guid, "rotkey": "", "iat": now, "exp": now},
   )
-  resp = RPCResponse(op="urn:auth:session:invalidate_token:1", payload={"ok": True}, version=1)
-  response = JSONResponse(content=resp.model_dump())
-  response.delete_cookie("rotation_token")
-  return response
+  return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
 
