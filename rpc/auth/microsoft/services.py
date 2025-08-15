@@ -23,13 +23,26 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
 
-  provider_uid, profile = await auth.handle_auth_login(provider, id_token, access_token)
+  provider_uid, profile, payload = await auth.handle_auth_login(provider, id_token, access_token)
 
-  res = await db.run(
-    "urn:users:providers:get_by_provider_identifier:1",
-    {"provider": provider, "provider_identifier": provider_uid},
-  )
-  user = res.rows[0] if res.rows else None
+  identifiers = []
+  oid = payload.get("oid")
+  sub = payload.get("sub")
+  if oid:
+    identifiers.append(oid)
+  if sub and sub not in identifiers:
+    identifiers.append(sub)
+
+  user = None
+  for pid in identifiers:
+    res = await db.run(
+      "urn:users:providers:get_by_provider_identifier:1",
+      {"provider": provider, "provider_identifier": pid},
+    )
+    if res.rows:
+      user = res.rows[0]
+      break
+
   if not user:
     res = await db.run(
       "urn:users:providers:create_from_provider:1",
@@ -45,6 +58,12 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="Unable to create user")
 
   user_guid = user["guid"]
+
+  if profile.get("profilePicture"):
+    await db.run(
+      "urn:users:profile:set_profile_image:1",
+      {"guid": user_guid, "image_b64": profile["profilePicture"], "provider": provider},
+    )
   rotation_token, rot_exp = auth.make_rotation_token(user_guid)
   now = datetime.now(timezone.utc)
   await db.run(

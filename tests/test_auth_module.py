@@ -48,9 +48,11 @@ def test_handle_auth_login_prefers_oid(monkeypatch):
   monkeypatch.setattr(module, "verify_ms_id_token", fake_verify_ms_id_token)
   monkeypatch.setattr(module, "fetch_ms_user_profile", fake_fetch_ms_user_profile)
 
-  guid, profile = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
+  guid, profile, payload = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
   assert guid == "oid123"
   assert profile["email"] == "user@example.com"
+  assert payload["oid"] == "oid123"
+  assert payload["sub"] == "sub456"
 
 
 def test_handle_auth_login_falls_back_to_sub(monkeypatch):
@@ -66,5 +68,6 @@ def test_handle_auth_login_falls_back_to_sub(monkeypatch):
   monkeypatch.setattr(module, "verify_ms_id_token", fake_verify_ms_id_token)
   monkeypatch.setattr(module, "fetch_ms_user_profile", fake_fetch_ms_user_profile)
 
-  guid, _ = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
+  guid, _, payload = asyncio.run(module.handle_auth_login("microsoft", "id", "access"))
   assert guid == "sub456"
+  assert payload["sub"] == "sub456"

@@ -224,10 +224,23 @@ def _public_vars_get_repo(args: Dict[str, Any]):
 
 @register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
-    guid, image_b64 = args["guid"], args["image_b64"]
-    rc = await exec_("UPDATE users_profileimg SET element_base64 = ? WHERE users_guid = ?;", (image_b64, guid))
+    guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
+    row = await fetch_json_one(
+        "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+        (provider,)
+    )
+    if not row:
+        raise ValueError(f"Unknown auth provider: {provider}")
+    ap_recid = row["recid"]
+    rc = await exec_(
+        "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
+        (image_b64, ap_recid, guid)
+    )
     if rc == 0:
-        rc = await exec_("INSERT INTO users_profileimg (users_guid, element_base64) VALUES (?, ?);", (guid, image_b64))
+        rc = await exec_(
+            "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
+            (guid, image_b64, ap_recid)
+        )
     return {"rows": [], "rowcount": rc}
 
 @register("db:auth:session:create_session:1")
