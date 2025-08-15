@@ -6,7 +6,7 @@ import { msalConfig, loginRequest } from './config/msal';
 import UserContext from './shared/UserContext';
 import Notification from './Notification';
 import { fetchOauthLogin } from './rpc/auth/microsoft';
-import type { AuthTokens } from './shared/RpcModels';
+import type { AuthSessionAuthTokens } from './shared/RpcModels';
 
 const pca = new PublicClientApplication(msalConfig);
 
@@ -33,7 +33,7 @@ const LoginPage = (): JSX.Element => {
 				idToken,
 				accessToken,
 				provider: 'microsoft',
-			}) as AuthTokens;
+                        }) as AuthSessionAuthTokens;
 
 			setUserData(data);
 			setNotification({ open: true, severity: 'success', message: 'Login successful!' });

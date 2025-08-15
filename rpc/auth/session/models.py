@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class SessionToken(BaseModel):
+class AuthSessionSessionToken(BaseModel):
   sub: str
   roles: list[str]
   iat: int
@@ -11,6 +11,6 @@ class SessionToken(BaseModel):
   provider: str
 
 
-class AuthTokens(BaseModel):
+class AuthSessionAuthTokens(BaseModel):
   bearerToken: str
-  session: SessionToken
+  session: AuthSessionSessionToken
