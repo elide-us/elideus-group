@@ -18,11 +18,11 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface AuthTokens {
+export interface AuthSessionAuthTokens {
   bearerToken: string;
-  session: SessionToken;
+  session: AuthSessionSessionToken;
 }
-export interface SessionToken {
+export interface AuthSessionSessionToken {
   sub: string;
   roles: string[];
   iat: number;

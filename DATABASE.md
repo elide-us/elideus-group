@@ -4,7 +4,7 @@ This document describes each internal database operation and groups them by doma
 
 ## Naming Scheme
 
-Every database operation uses a URN in the form `db:{domain}:{subsystem}:{function}:{version}`. Providers register handlers for these operations and the database module dispatches calls through the selected provider.
+Database operations use URNs in the form `{namespace}:{domain}:{subsystem}:{function}:{version}`. Operations exposed to the frontend share the `urn:` namespace, while internal-only calls retain the `db:` prefix. Providers register handlers for these operations and the database module dispatches calls through the selected provider.
 
 ## Providers
 
@@ -18,17 +18,17 @@ Operations supporting user accounts and onboarding.
 
 | Operation | Description |
 | --- | --- |
-| `db:users:providers:get_by_provider_identifier:1` | Fetch a user record using an external provider and identifier. |
-| `db:users:providers:create_from_provider:1` | Insert a new user based on provider data, returning the created record. |
+| `urn:users:providers:get_by_provider_identifier:1` | Fetch a user record using an external provider and identifier. |
+| `urn:users:providers:create_from_provider:1` | Insert a new user based on provider data, returning the created record. |
 
 ### `profile`
 
 | Operation | Description |
 | --- | --- |
-| `db:users:profile:get_profile:1` | Retrieve profile details including email, credits, providers and profile image. |
-| `db:users:profile:get_roles:1` | Read the stored role bitmask for a user. |
-| `db:users:profile:set_roles:1` | Update or insert the role bitmask for a user. |
-| `db:users:profile:set_profile_image:1` | Upsert a profile image for the user. |
+| `urn:users:profile:get_profile:1` | Retrieve profile details including email, credits, providers and profile image. |
+| `urn:users:profile:get_roles:1` | Read the stored role bitmask for a user. |
+| `urn:users:profile:set_roles:1` | Update or insert the role bitmask for a user. |
+| `urn:users:profile:set_profile_image:1` | Upsert a profile image for the user. |
 
 ### `session`
 

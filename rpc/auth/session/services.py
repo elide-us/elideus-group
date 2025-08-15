@@ -21,13 +21,13 @@ async def auth_session_get_token_v1(request: Request):
   provider_uid, profile = await auth.handle_auth_login(provider, id_token, access_token)
 
   res = await db.run(
-    "db:users:providers:get_by_provider_identifier:1",
+    "urn:users:providers:get_by_provider_identifier:1",
     {"provider": provider, "provider_identifier": provider_uid},
   )
   user = res.rows[0] if res.rows else None
   if not user:
     res = await db.run(
-      "db:users:providers:create_from_provider:1",
+      "urn:users:providers:create_from_provider:1",
       {
         "provider": provider,
         "provider_identifier": provider_uid,
@@ -47,7 +47,7 @@ async def auth_session_get_token_v1(request: Request):
     {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
   )
 
-  roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
+  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
   authz = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
@@ -81,7 +81,7 @@ async def auth_session_refresh_token_v1(request: Request):
   if not stored.rows or stored.rows[0].get("rotkey") != rotation_token:
     raise HTTPException(status_code=401, detail="Invalid rotation token")
 
-  roles_res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
+  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
   authz = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
