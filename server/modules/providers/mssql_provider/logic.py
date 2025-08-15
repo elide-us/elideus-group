@@ -25,14 +25,20 @@ async def transaction():
     assert _pool, "MSSQL pool not initialized"
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
+            # aioodbc connections created with autocommit=True do not support
+            # explicit transaction begin. Temporarily disable autocommit so
+            # commit/rollback can manage the transaction scope.
+            orig_autocommit = conn.autocommit
+            conn.autocommit = False
             try:
-                await conn.begin()
                 yield cur
                 await conn.commit()
             except Exception as e:
                 await conn.rollback()
                 logging.debug(f"[TRANSACTION ERROR] Rolled back due to: {e}")
                 raise
+            finally:
+                conn.autocommit = orig_autocommit
 
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):  # no JSON decode here
     return dict(zip(cols, row))
