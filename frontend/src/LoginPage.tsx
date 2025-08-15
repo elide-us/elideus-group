@@ -6,7 +6,7 @@ import { msalConfig, loginRequest } from './config/msal';
 import UserContext from './shared/UserContext';
 import Notification from './Notification';
 import { fetchOauthLogin } from './rpc/auth/microsoft';
-import type { AuthSessionAuthTokens } from './shared/RpcModels';
+import type { AuthMicrosoftOauthLogin1 } from './shared/RpcModels';
 
 const pca = new PublicClientApplication(msalConfig);
 
@@ -29,11 +29,11 @@ const LoginPage = (): JSX.Element => {
 			const loginResponse = await pca.loginPopup(loginRequest);
 			const { idToken, accessToken } = loginResponse;
 
-			const data = await fetchOauthLogin({
-				idToken,
-				accessToken,
-				provider: 'microsoft',
-                        }) as AuthSessionAuthTokens;
+                        const data = await fetchOauthLogin({
+                                idToken,
+                                accessToken,
+                                provider: 'microsoft',
+                        }) as AuthMicrosoftOauthLogin1;
 
 			setUserData(data);
 			setNotification({ open: true, severity: 'success', message: 'Login successful!' });

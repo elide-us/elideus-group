@@ -1,18 +1,18 @@
 import { useState, ReactNode } from 'react';
 import UserContext from './UserContext';
-import type { AuthSessionAuthTokens } from './RpcModels';
+import type { AuthMicrosoftOauthLogin1 } from './RpcModels';
 
 interface UserContextProviderProps {
   	children: ReactNode;
 }
 
 const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Element => {
-        const [userData, setUserDataState] = useState<AuthSessionAuthTokens | null>(() => {
+        const [userData, setUserDataState] = useState<AuthMicrosoftOauthLogin1 | null>(() => {
                 if (typeof localStorage !== 'undefined') {
                         try {
                                 const raw = localStorage.getItem('authTokens');
                                 if (raw) {
-                                        return JSON.parse(raw) as AuthSessionAuthTokens;
+                                        return JSON.parse(raw) as AuthMicrosoftOauthLogin1;
                                 }
                         } catch {
                                 /* ignore */
@@ -21,7 +21,7 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                 return null;
         });
 
-        const setUserData = (data: AuthSessionAuthTokens) => {
+        const setUserData = (data: AuthMicrosoftOauthLogin1) => {
                 setUserDataState(data);
                 if (typeof localStorage !== 'undefined') {
                         localStorage.setItem('authTokens', JSON.stringify(data));
