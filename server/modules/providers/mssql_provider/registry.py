@@ -177,16 +177,14 @@ def _public_links_get_home_links(args: Dict[str, Any]):
     """
     return ("json_many", sql, ())
 
-@register("db:public:links:get_navbar_routes:1")
+@register("urn:public:links:get_navbar_routes:1")
 def _public_links_get_navbar_routes(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
     sql = """
       SELECT
-        element_path,
-        element_name,
-        element_icon,
-        element_roles,
-        element_sequence
+        element_path AS path,
+        element_name AS name,
+        element_icon AS icon
       FROM frontend_routes
       WHERE element_roles = 0 OR (element_roles & ?) = element_roles
       ORDER BY element_sequence
