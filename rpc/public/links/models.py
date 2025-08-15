@@ -12,7 +12,8 @@ class HomeLinks(BaseModel):
 
 class NavbarRoute(BaseModel):
   path: str
-  label: str
+  name: str
+  icon: str | None = None
 
 
 class NavbarRoutes(BaseModel):

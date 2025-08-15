@@ -55,7 +55,8 @@ export interface LinkItem {
 }
 export interface NavbarRoute {
   path: string;
-  label: string;
+  name: string;
+  icon: any;
 }
 export interface NavbarRoutes {
   routes: NavbarRoute[];
