@@ -56,7 +56,7 @@ Frontend-facing operations.
 
 | Operation | Description |
 | --- | --- |
-| `db:public:links:get_navbar_routes:1` | Return navigation routes filtered by role mask. |
+| `urn:public:links:get_navbar_routes:1` | Return navigation routes filtered by role mask. |
 
 ## System Domain
 

@@ -31,6 +31,21 @@ export interface SessionToken {
   session: string;
   provider: string;
 }
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+  path: string;
+  name: string;
+  icon: string | null;
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
+}
 export interface PublicVarsFfmpegVersion1 {
   ffmpeg_version: string;
 }
@@ -45,20 +60,6 @@ export interface PublicVarsRepo1 {
 }
 export interface PublicVarsVersion1 {
   version: string;
-}
-export interface HomeLinks {
-  links: LinkItem[];
-}
-export interface LinkItem {
-  title: string;
-  url: string;
-}
-export interface NavbarRoute {
-  path: string;
-  label: string;
-}
-export interface NavbarRoutes {
-  routes: NavbarRoute[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

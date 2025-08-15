@@ -1,20 +1,23 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
-class LinkItem(BaseModel):
+class PublicLinksLinkItem1(BaseModel):
   title: str
   url: str
 
 
-class HomeLinks(BaseModel):
-  links: list[LinkItem]
+class PublicLinksHomeLinks1(BaseModel):
+  links: list[PublicLinksLinkItem1]
 
 
-class NavbarRoute(BaseModel):
+class PublicLinksNavBarRoute1(BaseModel):
   path: str
-  label: str
+  name: str
+  icon: Optional[str] = None
 
 
-class NavbarRoutes(BaseModel):
-  routes: list[NavbarRoute]
+class PublicLinksNavBarRoutes1(BaseModel):
+  routes: list[PublicLinksNavBarRoute1]
 

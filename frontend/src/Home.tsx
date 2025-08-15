@@ -1,6 +1,6 @@
 import { Box, Typography, Link, CardMedia } from '@mui/material';
 import { useEffect, useState } from 'react';
-import type { LinkItem } from './shared/RpcModels';
+import type { PublicLinksLinkItem1 } from './shared/RpcModels';
 import Logo from './assets/elideus_group_green.png';
 import {
         fetchHostname,
@@ -17,7 +17,7 @@ const Home = (): JSX.Element => {
         const [repo, setRepo] = useState('');
         const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
         const [odbcVersion, setOdbcVersion] = useState<string | null>(null);
-        const [links, setLinks] = useState<LinkItem[]>([]);
+        const [links, setLinks] = useState<PublicLinksLinkItem1[]>([]);
 
 	useEffect(() => {
 		void (async () => {
