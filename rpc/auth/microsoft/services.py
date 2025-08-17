@@ -50,12 +50,26 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     except Exception as e:
       logging.debug(f"[auth_microsoft_oauth_login_v1] home_account_id generation failed: {e}")
 
-  user = None
-  for pid in identifiers:
+  def _norm(pid: str) -> str | None:
     try:
-      uid = str(uuid.UUID(pid))
+      return str(uuid.UUID(pid))
     except ValueError:
+      try:
+        pad = pid + "=" * (-len(pid) % 4)
+        raw = base64.urlsafe_b64decode(pad)
+        if len(raw) >= 16:
+          return str(uuid.UUID(bytes=raw[-16:]))
+      except Exception:
+        return None
+    return None
+
+  user = None
+  checked = set()
+  for pid in identifiers:
+    uid = _norm(pid)
+    if not uid or uid in checked:
       continue
+    checked.add(uid)
     logging.debug(f"[auth_microsoft_oauth_login_v1] checking identifier={pid[:40]}")
     res = await db.run(
       "urn:users:providers:get_by_provider_identifier:1",
