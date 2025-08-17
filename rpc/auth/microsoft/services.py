@@ -79,6 +79,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
         "provider_identifier": provider_uid,
         "provider_email": profile["email"],
         "provider_displayname": profile["username"],
+        "provider_profile_image": profile.get("profilePicture"),
       },
     )
     user = res.rows[0] if res.rows else None
@@ -87,13 +88,6 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="Unable to create user")
 
   user_guid = user["guid"]
-
-  if profile.get("profilePicture"):
-    await db.run(
-      "urn:users:profile:set_profile_image:1",
-      {"guid": user_guid, "image_b64": profile["profilePicture"], "provider": provider},
-    )
-    user["profile_image"] = profile["profilePicture"]
   rotation_token, rot_exp = auth.make_rotation_token(user_guid)
   logging.debug(f"[auth_microsoft_oauth_login_v1] rotation_token={rotation_token[:40]}")
   now = datetime.now(timezone.utc)

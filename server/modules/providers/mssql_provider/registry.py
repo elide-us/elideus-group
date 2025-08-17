@@ -57,6 +57,7 @@ async def _users_insert(args: Dict[str, Any]):
     identifier = str(UUID(args["provider_identifier"]))
     provider_email = args["provider_email"]
     provider_displayname = args["provider_displayname"]
+    provider_profileimg = args.get("provider_profile_image", "")
 
     row = await fetch_json_one(
         "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
@@ -82,10 +83,18 @@ async def _users_insert(args: Dict[str, Any]):
             "INSERT INTO users_credits (users_guid, element_credits) VALUES (?, ?);",
             (new_guid, 50)
         )
+        await cur.execute(
+            "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
+            (new_guid, provider_profileimg, ap_recid)
+        )
+        await cur.execute(
+            "INSERT INTO users_roles (users_guid) VALUES (?);",
+            (new_guid,)
+        )
 
     # return same shape as select_user
-    out = await fetch_json_one(_users_select({"provider": provider, "provider_identifier": identifier})[1],
-                               (_users_select({"provider": provider, "provider_identifier": identifier})[2]))
+    sel = _users_select({"provider": provider, "provider_identifier": identifier})
+    out = await fetch_json_one(sel[1], sel[2])
     return {"rows": [out] if out else [], "rowcount": 1 if out else 0}
 
 @register("urn:users:profile:get_profile:1")
