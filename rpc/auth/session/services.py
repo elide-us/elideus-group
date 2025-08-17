@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
+import uuid
 
 from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
@@ -33,7 +34,7 @@ async def auth_session_get_token_v1(request: Request):
   base_id = oid or sub or provider_uid
   if base_id:
     try:
-      import base64, uuid
+      import base64
       home_account_id = base64.urlsafe_b64encode(b"\x00" * 16 + uuid.UUID(base_id).bytes).decode("utf-8").rstrip("=")
       if home_account_id not in identifiers:
         identifiers.append(home_account_id)
@@ -42,15 +43,23 @@ async def auth_session_get_token_v1(request: Request):
 
   user = None
   for pid in identifiers:
+    try:
+      uid = str(uuid.UUID(pid))
+    except ValueError:
+      continue
     res = await db.run(
       "urn:users:providers:get_by_provider_identifier:1",
-      {"provider": provider, "provider_identifier": pid},
+      {"provider": provider, "provider_identifier": uid},
     )
     if res.rows:
       user = res.rows[0]
       break
 
   if not user:
+    try:
+      provider_uid = str(uuid.UUID(provider_uid))
+    except ValueError:
+      raise HTTPException(status_code=400, detail="Invalid provider identifier")
     res = await db.run(
       "urn:users:providers:create_from_provider:1",
       {

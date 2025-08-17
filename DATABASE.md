@@ -15,6 +15,8 @@ JOIN users_profileimg up ON au.element_guid = up.users_guid
 JOIN auth_providers ap ON au.providers_recid = ap.recid
 JOIN sessions_devices sd ON us.element_guid = sd.sessions_guid
 
+Note: `users_auth.element_identifier` is a `UNIQUEIDENTIFIER` and must be unique across all providers.
+
 The above materialized view would result in a row that looks like this:
 
 recid	element_guid	element_rotkey	element_rotkey_iat	element_rotkey_exp	element_email	element_display	providers_recid	element_optin	element_guid	users_guid	element_created_at	recid	users_guid	providers_recid	element_identifier	users_guid	element_credits	element_reserve	users_guid	element_roles	users_guid	element_base64	providers_recid	recid	element_name	element_display	element_guid	sessions_guid	element_token	element_token_iat	element_token_exp	element_device_fingerprint	element_user_agent	element_ip_last_seen	element_revoked_at

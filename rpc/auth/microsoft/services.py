@@ -52,10 +52,14 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   user = None
   for pid in identifiers:
+    try:
+      uid = str(uuid.UUID(pid))
+    except ValueError:
+      continue
     logging.debug(f"[auth_microsoft_oauth_login_v1] checking identifier={pid[:40]}")
     res = await db.run(
       "urn:users:providers:get_by_provider_identifier:1",
-      {"provider": provider, "provider_identifier": pid},
+      {"provider": provider, "provider_identifier": uid},
     )
     if res.rows:
       user = res.rows[0]
@@ -64,6 +68,10 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
+    try:
+      provider_uid = str(uuid.UUID(provider_uid))
+    except ValueError:
+      raise HTTPException(status_code=400, detail="Invalid provider identifier")
     res = await db.run(
       "urn:users:providers:create_from_provider:1",
       {
