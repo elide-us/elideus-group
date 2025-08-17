@@ -88,8 +88,8 @@ async def _users_insert(args: Dict[str, Any]):
             (new_guid, provider_profileimg, ap_recid)
         )
         await cur.execute(
-            "INSERT INTO users_roles (users_guid) VALUES (?);",
-            (new_guid,)
+            "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
+            (new_guid, 1)
         )
 
     # return same shape as select_user
