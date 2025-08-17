@@ -49,3 +49,31 @@ Response formats (bits 1–4):
 - `0x0000000000000002` – `CAP_RESP_DISCORD`
 - `0x0000000000000004` – `CAP_RESP_API`
 - `0x0000000000000008` – `CAP_RESP_BSKY`
+
+## Authentication Domains
+
+Understanding the various authentication domains and where values are used and stored is vital to the stability of the application.
+
+### Provider Domain
+
+The authentication provider is a client-side domain, this is the data that the client provides to the application via libraries such as the MSAL that provides a private client for the user to obtain a security token to validate their identity against public well-known JWKS. There are four pieces of data from the provide that are passed to the app:
+
+1) User's unique identifier
+2) User's email address or primary username
+3) User's profile image
+4) User's display name
+
+### Application Domain
+
+ This is the user's local session on a given device. This session includes a bearer token which identifies the unique session and device that is being handled by the back end. When a user makes a request (via app, discord, api, mcp) their bearer token is decoded and security is looked up in the back end for the user, if authorized, the RPC transaction will then continue forward. The client retains only this bearer token which contains only arbitrary internal data such as the user's randomly assigned GUID, no personal details should be included in this token.
+
+ ### Server Domain
+
+ This is the back end server which handles all requests. The server domain includes the database and the information that is retained in the database is as follows:
+
+ 1) User's unique account identifier
+ 2) User's email address*
+ 3) User's unique session and device identifier
+ 4) User's profile image (if available)
+
+ Email Opt-Out: If the user opt out of email, they will not be sent any e-mail based communication and their email address will not be shown to other users in their public profile.
