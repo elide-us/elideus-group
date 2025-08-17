@@ -98,9 +98,23 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
   authz: AuthzModule = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
-
-  session_token = auth.make_session_token(user_guid, rotation_token, roles, provider)
+  session_token, session_exp = auth.make_session_token(user_guid, rotation_token, roles, provider)
   logging.debug(f"[auth_microsoft_oauth_login_v1] session_token={session_token[:40]}")
+
+  fingerprint = req_payload.get("fingerprint")
+  user_agent = request.headers.get("user-agent")
+  ip_address = request.client.host if request.client else None
+  await db.run(
+    "db:auth:session:create_session:1",
+    {
+      "access_token": session_token,
+      "expires": session_exp,
+      "fingerprint": fingerprint,
+      "user_agent": user_agent,
+      "ip_address": ip_address,
+      "user_guid": user_guid,
+    },
+  )
 
   payload = AuthMicrosoftOauthLogin1(
     sessionToken=session_token,

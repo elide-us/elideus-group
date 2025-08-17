@@ -131,7 +131,7 @@ class AuthModule(BaseModule):
       return guid, profile, payload
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
 
-  def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> str:
+  def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> tuple[str, datetime]:
     now = datetime.now(timezone.utc)
     exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
     token_data = {
@@ -145,7 +145,7 @@ class AuthModule(BaseModule):
     }
     derived_secret = f"{self.jwt_secret}:{rotation_token}"
     token = jwt.encode(token_data, derived_secret, algorithm=self.jwt_algo_int)
-    return token
+    return token, exp
 
   def make_rotation_token(self, guid: str) -> tuple[str, datetime]:
     exp = datetime.now(timezone.utc) + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY)
