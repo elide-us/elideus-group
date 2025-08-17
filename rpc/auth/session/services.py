@@ -71,6 +71,12 @@ async def auth_session_get_token_v1(request: Request):
       },
     )
     user = res.rows[0] if res.rows else None
+    if not user:
+      res = await db.run(
+        "urn:users:providers:get_by_provider_identifier:1",
+        {"provider": provider, "provider_identifier": provider_uid},
+      )
+      user = res.rows[0] if res.rows else None
   if not user:
     raise HTTPException(status_code=500, detail="Unable to create user")
 
