@@ -22,12 +22,23 @@ async def auth_session_get_token_v1(request: Request):
   provider_uid, profile, payload = await auth.handle_auth_login(provider, id_token, access_token)
 
   identifiers = []
+  if provider_uid:
+    identifiers.append(provider_uid)
   oid = payload.get("oid")
   sub = payload.get("sub")
-  if oid:
+  if oid and oid not in identifiers:
     identifiers.append(oid)
   if sub and sub not in identifiers:
     identifiers.append(sub)
+  base_id = oid or sub or provider_uid
+  if base_id:
+    try:
+      import base64, uuid
+      home_account_id = base64.urlsafe_b64encode(b"\x00" * 16 + uuid.UUID(base_id).bytes).decode("utf-8").rstrip("=")
+      if home_account_id not in identifiers:
+        identifiers.append(home_account_id)
+    except Exception:
+      pass
 
   user = None
   for pid in identifiers:
@@ -72,7 +83,22 @@ async def auth_session_get_token_v1(request: Request):
   authz = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
 
-  session_token = auth.make_session_token(user_guid, rotation_token, roles, provider)
+  session_token, session_exp = auth.make_session_token(user_guid, rotation_token, roles, provider)
+
+  fingerprint = body.get("fingerprint")
+  user_agent = request.headers.get("user-agent")
+  ip_address = request.client.host if request.client else None
+  await db.run(
+    "db:auth:session:create_session:1",
+    {
+      "access_token": session_token,
+      "expires": session_exp,
+      "fingerprint": fingerprint,
+      "user_agent": user_agent,
+      "ip_address": ip_address,
+      "user_guid": user_guid,
+    },
+  )
 
   payload = {"token": session_token, "profile": profile}
   rpc_resp = RPCResponse(op="urn:auth:session:get_token:1", payload=payload, version=1)
@@ -106,7 +132,7 @@ async def auth_session_refresh_token_v1(request: Request):
   authz = request.app.state.authz
   roles = authz.mask_to_names(role_mask)
 
-  session_token = auth.make_session_token(user_guid, rotation_token, roles, "microsoft")
+  session_token, _ = auth.make_session_token(user_guid, rotation_token, roles, "microsoft")
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 
 async def auth_session_invalidate_token_v1(request: Request):
