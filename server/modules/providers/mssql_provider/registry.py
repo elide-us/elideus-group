@@ -27,7 +27,7 @@ def _users_select(provider_args: Dict[str, Any]):
     provider = provider_args["provider"]
     identifier = provider_args["provider_identifier"]
     sql = """
-      SELECT
+      SELECT TOP 1
         u.element_guid AS guid,
         u.element_display AS display_name,
         u.element_email AS email,
@@ -37,6 +37,8 @@ def _users_select(provider_args: Dict[str, Any]):
         upi.element_base64 AS profile_image
       FROM account_users u
       JOIN users_auth ua ON ua.users_guid = u.element_guid
+      LEFT JOIN users_sessions us ON us.users_guid = u.element_guid
+      LEFT JOIN sessions_devices sd ON sd.sessions_guid = us.element_guid
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
       LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
       LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
