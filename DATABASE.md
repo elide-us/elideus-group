@@ -1,80 +1,81 @@
-# Database Namespace Overview
+# Database Overview
 
-This document describes each internal database operation and groups them by domain. The namespace mirrors RPCs and is organized by domain and subsystem to support module and frontend integration.
+## Simple User Schema
 
-## Naming Scheme
+The below statement illustrates a simple JOIN statement to get the entire view of a standard user, this will incude
+their user account GUID as the unique internal identifier for the user, details about their selected authentication 
+provider, their credits, security roles, and session/device details and tokens.
 
-Database operations use URNs in the form `{namespace}:{domain}:{subsystem}:{function}:{version}`. Operations exposed to the frontend share the `urn:` namespace, while internal-only calls retain the `db:` prefix. Providers register handlers for these operations and the database module dispatches calls through the selected provider.
+SELECT * FROM account_users au
+JOIN users_sessions us ON au.element_guid = us.users_guid
+JOIN users_auth ua ON au.element_guid = ua.users_guid
+JOIN users_credits uc ON au.element_guid = uc.users_guid
+JOIN users_roles ur ON au.element_guid = ur.users_guid
+JOIN users_profileimg up ON au.element_guid = up.users_guid
+JOIN auth_providers ap ON au.providers_recid = ap.recid
+JOIN sessions_devices sd ON us.element_guid = sd.sessions_guid
 
-## Providers
+The above materialized view would result in a row that looks like this:
 
-`DbModule` selects a provider at startup and exposes a `run` method that delegates to provider-specific registries. Configuration comes from environment variables such as `DATABASE_PROVIDER` and DSN strings.
+recid	element_guid	element_rotkey	element_rotkey_iat	element_rotkey_exp	element_email	element_display	providers_recid	element_optin	element_guid	users_guid	element_created_at	recid	users_guid	providers_recid	element_identifier	users_guid	element_credits	element_reserve	users_guid	element_roles	users_guid	element_base64	providers_recid	recid	element_name	element_display	element_guid	sessions_guid	element_token	element_token_iat	element_token_exp	element_device_fingerprint	element_user_agent	element_ip_last_seen	element_revoked_at
 
-## Users Domain
 
-Operations supporting user accounts and onboarding.
+2	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	<ROTATION TOKEN>	2025-08-17 18:08:54.2495610 +00:00	2025-11-15 18:08:54.2494240 +00:00	aaron@elideus.net	Aaron Stackpole	1	0	8FAE009D-3592-4721-A887-9E034B1F60FA	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	2025-08-17 18:08:53.5314685 +00:00	1	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	1	00000000-0000-0000-12ea-852a20ad51ae	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	4999890	NULL	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	8935141660703064191	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	BASE64ENCODEDIMG	1	1	microsoft	Microsoft	31E0EC77-00B2-4BD3-A21E-735D1F1A6567	8FAE009D-3592-4721-A887-9E034B1F60FA	<BEARER TOKEN>	2025-08-17 18:08:53.6252199 +00:00	2025-08-17 18:23:54.4412460 +00:00	NULL	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0	127.0.0.1	NULL
 
-### `providers`
+The following view has been added to simplify this table structure:
 
-| Operation | Description |
-| --- | --- |
-| `urn:users:providers:get_by_provider_identifier:1` | Fetch a user record using an external provider and identifier. |
-| `urn:users:providers:create_from_provider:1` | Insert a new user based on provider data, returning the created record. |
-| `urn:users:providers:set_provider:1` | Update the default authentication provider for a user. |
+CREATE VIEW vw_account_user_sessions AS
+SELECT
+    -- account_users
+    au.recid                    AS account_user_recid,
+    au.element_guid             AS user_guid,
+    au.element_rotkey,
+    au.element_rotkey_iat,
+    au.element_rotkey_exp,
+    au.element_email,
+    au.element_display          AS user_display,
+    au.providers_recid          AS provider_recid,
+    au.element_optin,
 
-### `profile`
+    -- users_sessions
+    us.element_guid             AS session_guid,
+    us.element_created_at       AS session_created_at,
 
-| Operation | Description |
-| --- | --- |
-| `urn:users:profile:get_profile:1` | Retrieve profile details including email, credits, providers and profile image. |
-| `urn:users:profile:set_display:1` | Update the display name for a user. |
-| `urn:users:profile:set_optin:1` | Update whether a user's email is displayed. |
-| `urn:users:profile:get_roles:1` | Read the stored role bitmask for a user. |
-| `urn:users:profile:set_roles:1` | Update or insert the role bitmask for a user. |
-| `urn:users:profile:set_profile_image:1` | Upsert a profile image for the user. |
+    -- users_auth
+    ua.recid                    AS auth_recid,
+    ua.element_identifier       AS auth_identifier,
 
-### `session`
+    -- users_credits
+    uc.element_credits,
+    uc.element_reserve,
 
-| Operation | Description |
-| --- | --- |
-| `db:users:session:set_rotkey:1` | Store the current rotation key and metadata for a user. |
-| `db:users:session:get_rotkey:1` | Retrieve the rotation key metadata for a user. |
+    -- users_roles
+    ur.element_roles,
 
-## Auth Domain
+    -- users_profileimg
+    up.element_base64           AS profile_image_base64,
 
-Session management operations used by authentication workflows.
+    -- auth_providers
+    ap.recid                    AS provider_recid_actual,
+    ap.element_name             AS provider_name,
+    ap.element_display          AS provider_display,
 
-### `session`
-
-| Operation | Description |
-| --- | --- |
-| `db:auth:session:create_session:1` | Create session and device records with access token information. |
-| `db:auth:session:get_by_access_token:1` | Lookup session and device details by access token. |
-
-## Public Domain
-
-Frontend-facing operations.
-
-### `links`
-
-| Operation | Description |
-| --- | --- |
-| `urn:public:links:get_navbar_routes:1` | Return navigation routes filtered by role mask. |
-
-## System Domain
-
-Administrative configuration operations supporting initial system setup.
-
-### `config`
-
-| Operation | Description |
-| --- | --- |
-| `db:system:config:get_config:1` | Fetch a configuration entry by key. |
-| `db:system:config:upsert_config:1` | Insert or update a configuration entry. |
-| `db:system:config:get_configs:1` | List all configuration entries. |
-| `db:system:config:delete_config:1` | Remove a configuration entry. |
-
-## Future Onboarding
-
-The `users.providers` operations enable creation and linking of accounts across multiple identity providers. Combined with system configuration calls, they form the basis for upcoming onboarding workflows for both initial setup and new user registration.
+    -- sessions_devices
+    sd.element_guid             AS device_guid,
+    sd.sessions_guid,
+    sd.element_token,
+    sd.element_token_iat,
+    sd.element_token_exp,
+    sd.element_device_fingerprint,
+    sd.element_user_agent,
+    sd.element_ip_last_seen,
+    sd.element_revoked_at
+FROM account_users au
+JOIN users_sessions us     ON au.element_guid = us.users_guid
+JOIN users_auth ua         ON au.element_guid = ua.users_guid
+JOIN users_credits uc      ON au.element_guid = uc.users_guid
+JOIN users_roles ur        ON au.element_guid = ur.users_guid
+JOIN users_profileimg up   ON au.element_guid = up.users_guid
+JOIN auth_providers ap     ON au.providers_recid = ap.recid
+JOIN sessions_devices sd   ON us.element_guid = sd.sessions_guid;
 
