@@ -83,6 +83,13 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       },
     )
     user = res.rows[0] if res.rows else None
+    if not user:
+      logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
+      res = await db.run(
+        "urn:users:providers:get_by_provider_identifier:1",
+        {"provider": provider, "provider_identifier": provider_uid},
+      )
+      user = res.rows[0] if res.rows else None
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
     raise HTTPException(status_code=500, detail="Unable to create user")
