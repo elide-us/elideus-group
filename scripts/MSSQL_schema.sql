@@ -70,7 +70,7 @@ CREATE TABLE users_auth (
     recid INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     users_guid UNIQUEIDENTIFIER NOT NULL,
     providers_recid INT NOT NULL,
-    element_identifier NVARCHAR(MAX) NOT NULL,
+    element_identifier UNIQUEIDENTIFIER NOT NULL UNIQUE,
     FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid),
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );

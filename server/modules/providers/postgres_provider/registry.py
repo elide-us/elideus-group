@@ -1,5 +1,6 @@
 # providers/postgres_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
+from uuid import UUID
 from .logic import execute, fetch_one, fetch_many, transaction
 
 _REG: Dict[str, Callable[[Dict[str, Any]], Any]] = {}
@@ -21,7 +22,7 @@ def get_handler(op: str):
 @register("urn:users:providers:get_by_provider_identifier:1")
 def _users_select(args: Dict[str, Any]):
   provider = args["provider"]
-  identifier = args["provider_identifier"]
+  identifier = str(UUID(args["provider_identifier"]))
   sql = """
     SELECT
       v.user_guid AS guid,

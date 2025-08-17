@@ -18,8 +18,11 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface UsersProvidersSetProvider1 {
-  provider: string;
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
 }
 export interface UsersProfileAuthProvider1 {
   name: string;
@@ -41,11 +44,8 @@ export interface UsersProfileSetDisplay1 {
 export interface UsersProfileSetOptin1 {
   display_email: boolean;
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
+export interface UsersProvidersSetProvider1 {
+  provider: string;
 }
 export interface PublicLinksHomeLinks1 {
   links: PublicLinksLinkItem1[];

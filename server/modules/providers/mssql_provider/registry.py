@@ -1,5 +1,6 @@
 # providers/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
+from uuid import UUID
 from .logic import init_pool, close_pool, fetch_json_one, fetch_json_many, exec_, transaction
 
 # handler can be:
@@ -25,7 +26,7 @@ def get_handler(op: str):
 @register("urn:users:providers:get_by_provider_identifier:1")
 def _users_select(provider_args: Dict[str, Any]):
     provider = provider_args["provider"]
-    identifier = provider_args["provider_identifier"]
+    identifier = str(UUID(provider_args["provider_identifier"]))
     sql = """
       SELECT TOP 1
         v.user_guid AS guid,
@@ -53,7 +54,7 @@ async def _users_insert(args: Dict[str, Any]):
     element_rotkey_iat = datetime.now(timezone.utc)
     element_rotkey_exp = datetime.now(timezone.utc)
     provider = args["provider"]
-    identifier = args["provider_identifier"]
+    identifier = str(UUID(args["provider_identifier"]))
     provider_email = args["provider_email"]
     provider_displayname = args["provider_displayname"]
 
