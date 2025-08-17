@@ -20,12 +20,15 @@ Operations supporting user accounts and onboarding.
 | --- | --- |
 | `urn:users:providers:get_by_provider_identifier:1` | Fetch a user record using an external provider and identifier. |
 | `urn:users:providers:create_from_provider:1` | Insert a new user based on provider data, returning the created record. |
+| `urn:users:providers:set_provider:1` | Update the default authentication provider for a user. |
 
 ### `profile`
 
 | Operation | Description |
 | --- | --- |
 | `urn:users:profile:get_profile:1` | Retrieve profile details including email, credits, providers and profile image. |
+| `urn:users:profile:set_display:1` | Update the display name for a user. |
+| `urn:users:profile:set_optin:1` | Update whether a user's email is displayed. |
 | `urn:users:profile:get_roles:1` | Read the stored role bitmask for a user. |
 | `urn:users:profile:set_roles:1` | Update or insert the role bitmask for a user. |
 | `urn:users:profile:set_profile_image:1` | Upsert a profile image for the user. |
