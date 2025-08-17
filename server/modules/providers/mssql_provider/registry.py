@@ -100,6 +100,7 @@ def _users_profile(args: Dict[str, Any]):
         u.element_optin AS display_email,
         COALESCE(uc.element_credits, 0) AS credits,
         upi.element_base64 AS profile_image,
+        apd.element_name AS default_provider,
         (
           SELECT
             ap.element_name AS name,
@@ -110,12 +111,54 @@ def _users_profile(args: Dict[str, Any]):
           FOR JSON PATH
         ) AS auth_providers
       FROM account_users u
+      JOIN auth_providers apd ON apd.recid = u.providers_recid
       LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
       LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
       WHERE u.element_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
     return ("json_one", sql, (guid,))
+
+
+@register("urn:users:profile:set_display:1")
+def _users_set_display(args: Dict[str, Any]):
+    guid = args["guid"]
+    display_name = args["display_name"]
+    sql = """
+      UPDATE account_users
+      SET element_display = ?
+      WHERE element_guid = ?;
+    """
+    return ("exec", sql, (display_name, guid))
+
+
+@register("urn:users:profile:set_optin:1")
+def _users_set_optin(args: Dict[str, Any]):
+    guid = args["guid"]
+    display_email = args["display_email"]
+    sql = """
+      UPDATE account_users
+      SET element_optin = ?
+      WHERE element_guid = ?;
+    """
+    return ("exec", sql, (display_email, guid))
+
+
+@register("urn:users:providers:set_provider:1")
+async def _users_set_provider(args: Dict[str, Any]):
+    guid = args["guid"]
+    provider = args["provider"]
+    row = await fetch_json_one(
+        "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+        (provider,)
+    )
+    if not row:
+        raise ValueError(f"Unknown auth provider: {provider}")
+    rc = await exec_(
+        "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
+        (row["recid"], guid)
+    )
+    return {"rows": [], "rowcount": rc}
 
 @register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):

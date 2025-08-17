@@ -18,12 +18,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
 export interface UsersProfileAuthProvider1 {
   name: string;
   display: string;
@@ -35,7 +29,32 @@ export interface UsersProfileProfile1 {
   display_email: boolean;
   credits: number;
   profile_image: string | null;
+  default_provider: string;
   auth_providers: UsersProfileAuthProvider1[];
+}
+export interface UsersProfileSetDisplay1 {
+  display_name: string;
+}
+export interface UsersProfileSetOptin1 {
+  display_email: boolean;
+}
+export interface UsersProvidersSetProvider1 {
+  provider: string;
+}
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface PublicVarsHostname1 {
+  hostname: string;
+}
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
 }
 export interface PublicLinksHomeLinks1 {
   links: PublicLinksLinkItem1[];
@@ -52,20 +71,11 @@ export interface PublicLinksNavBarRoute1 {
 export interface PublicLinksNavBarRoutes1 {
   routes: PublicLinksNavBarRoute1[];
 }
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-  hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

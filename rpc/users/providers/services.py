@@ -1,7 +1,27 @@
-from fastapi import Request
+from fastapi import HTTPException, Request
+
+from rpc.helpers import get_rpcrequest_from_request
+from rpc.models import RPCResponse
+from server.modules.db_module import DbModule
+from .models import UsersProvidersSetProvider1
+
 
 async def users_providers_set_provider_v1(request: Request):
-  raise NotImplementedError("urn:users:providers:set_provider:1")
+  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  if not auth_ctx.user_guid:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+  payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.run(rpc_request.op, {
+    "guid": auth_ctx.user_guid,
+    "provider": payload.provider,
+  })
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
 
 async def users_providers_link_provider_v1(request: Request):
   raise NotImplementedError("urn:users:providers:link_provider:1")

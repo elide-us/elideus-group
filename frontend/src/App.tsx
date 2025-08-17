@@ -7,6 +7,7 @@ import Home from './Home'
 import NavBar from './NavBar'
 import Gallery from './Gallery'
 import LoginPage from './LoginPage'
+import UserPage from './UserPage'
 
 function App(): JSX.Element {
 	return (
@@ -18,9 +19,10 @@ function App(): JSX.Element {
 					<Container maxWidth='lg' disableGutters sx={{ bgcolor: 'background.paper', color: 'text.primary', minHeight: '100vh', py: 2 }}>
 												<Routes>
 														<Route path='/' element={<Home />} />
-														<Route path='/gallery' element={<Gallery />} />
-														<Route path='/loginpage' element={<LoginPage />} />
-												</Routes>
+                                                                                                                <Route path='/gallery' element={<Gallery />} />
+                                                                                                                <Route path='/loginpage' element={<LoginPage />} />
+                                                                                                                <Route path='/userpage' element={<UserPage />} />
+                                                                                                </Routes>
 					</Container>
 				</Router>
 			</UserContextProvider>
