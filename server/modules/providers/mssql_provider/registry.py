@@ -28,20 +28,16 @@ def _users_select(provider_args: Dict[str, Any]):
     identifier = provider_args["provider_identifier"]
     sql = """
       SELECT TOP 1
-        u.element_guid AS guid,
-        u.element_display AS display_name,
-        u.element_email AS email,
-        COALESCE(uc.element_credits, 0) AS credits,
-        ap.element_name AS provider_name,
-        ap.element_display AS provider_display,
-        upi.element_base64 AS profile_image
-      FROM account_users u
-      JOIN users_auth ua ON ua.users_guid = u.element_guid
-      LEFT JOIN users_sessions us ON us.users_guid = u.element_guid
-      LEFT JOIN sessions_devices sd ON sd.sessions_guid = us.element_guid
+        v.user_guid AS guid,
+        v.display_name,
+        v.email,
+        v.credits,
+        v.provider_name,
+        v.provider_display,
+        v.profile_image_base64 AS profile_image
+      FROM vw_account_user_profile v
+      JOIN users_auth ua ON ua.users_guid = v.user_guid
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
-      LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
-      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
       WHERE ap.element_name = ? AND ua.element_identifier = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
@@ -96,27 +92,24 @@ def _users_profile(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
       SELECT TOP 1
-        u.element_guid AS guid,
-        u.element_display AS display_name,
-        u.element_email AS email,
-        u.element_optin AS display_email,
-        COALESCE(uc.element_credits, 0) AS credits,
-        upi.element_base64 AS profile_image,
-        apd.element_name AS default_provider,
+        v.user_guid AS guid,
+        v.display_name,
+        v.email,
+        v.opt_in AS display_email,
+        v.credits,
+        v.profile_image_base64 AS profile_image,
+        v.provider_name AS default_provider,
         (
           SELECT
             ap.element_name AS name,
             ap.element_display AS display
           FROM users_auth ua
           JOIN auth_providers ap ON ap.recid = ua.providers_recid
-          WHERE ua.users_guid = u.element_guid
+          WHERE ua.users_guid = v.user_guid
           FOR JSON PATH
         ) AS auth_providers
-      FROM account_users u
-      JOIN auth_providers apd ON apd.recid = u.providers_recid
-      LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
-      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
-      WHERE u.element_guid = ?
+      FROM vw_account_user_profile v
+      WHERE v.user_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
     return ("json_one", sql, (guid,))
@@ -203,9 +196,9 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
 def _users_session_get_rotkey(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
-      SELECT element_rotkey AS rotkey
-      FROM account_users
-      WHERE element_guid = ?
+      SELECT TOP 1 element_rotkey AS rotkey
+      FROM vw_account_user_security
+      WHERE user_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
     return ("json_one", sql, (guid,))
@@ -319,19 +312,18 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
     token = args["access_token"]
     sql = """
       SELECT
-        sd.element_guid AS device_guid,
-        sd.sessions_guid AS session_guid,
-        us.users_guid AS user_guid,
-        sd.element_token AS token,
-        sd.element_token_iat AS issued_at,
-        sd.element_token_exp AS expires_at,
-        sd.element_revoked_at AS revoked_at,
-        sd.element_device_fingerprint AS fingerprint,
-        sd.element_user_agent AS user_agent,
-        sd.element_ip_last_seen AS ip
-      FROM sessions_devices sd
-      JOIN users_sessions us ON us.element_guid = sd.sessions_guid
-      WHERE sd.element_token = ?
+        device_guid,
+        session_guid,
+        user_guid,
+        element_token AS token,
+        element_token_iat AS issued_at,
+        element_token_exp AS expires_at,
+        element_revoked_at AS revoked_at,
+        element_device_fingerprint AS device_fingerprint,
+        element_user_agent AS user_agent,
+        element_ip_last_seen AS ip_last_seen
+      FROM vw_account_user_security
+      WHERE element_token = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
     return ("json_one", sql, (token,))

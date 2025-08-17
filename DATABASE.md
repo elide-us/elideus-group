@@ -22,60 +22,41 @@ recid	element_guid	element_rotkey	element_rotkey_iat	element_rotkey_exp	element_
 
 2	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	<ROTATION TOKEN>	2025-08-17 18:08:54.2495610 +00:00	2025-11-15 18:08:54.2494240 +00:00	aaron@elideus.net	Aaron Stackpole	1	0	8FAE009D-3592-4721-A887-9E034B1F60FA	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	2025-08-17 18:08:53.5314685 +00:00	1	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	1	00000000-0000-0000-12ea-852a20ad51ae	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	4999890	NULL	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	8935141660703064191	92ACBA93-E0B9-4D41-A7B4-6A0418DB4B47	BASE64ENCODEDIMG	1	1	microsoft	Microsoft	31E0EC77-00B2-4BD3-A21E-735D1F1A6567	8FAE009D-3592-4721-A887-9E034B1F60FA	<BEARER TOKEN>	2025-08-17 18:08:53.6252199 +00:00	2025-08-17 18:23:54.4412460 +00:00	NULL	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0	127.0.0.1	NULL
 
-The following view has been added to simplify this table structure:
+The following views simplify this table structure:
 
-CREATE VIEW vw_account_user_sessions AS
+```
+CREATE VIEW vw_account_user_profile AS
 SELECT
-    -- account_users
-    au.recid                    AS account_user_recid,
+    au.element_guid         AS user_guid,
+    au.element_email        AS email,
+    au.element_display      AS display_name,
+    ap.element_name         AS provider_name,
+    ap.element_display      AS provider_display,
+    up.element_base64       AS profile_image_base64,
+    au.element_optin        AS opt_in,
+    uc.element_credits      AS credits
+FROM account_users AS au
+JOIN auth_providers AS ap ON au.providers_recid = ap.recid
+JOIN users_profileimg AS up ON au.element_guid = up.users_guid
+JOIN users_credits AS uc ON au.element_guid = uc.users_guid;
+
+CREATE VIEW vw_account_user_security AS
+SELECT
     au.element_guid             AS user_guid,
     au.element_rotkey,
     au.element_rotkey_iat,
     au.element_rotkey_exp,
-    au.element_email,
-    au.element_display          AS user_display,
-    au.providers_recid          AS provider_recid,
-    au.element_optin,
-
-    -- users_sessions
     us.element_guid             AS session_guid,
-    us.element_created_at       AS session_created_at,
-
-    -- users_auth
-    ua.recid                    AS auth_recid,
-    ua.element_identifier       AS auth_identifier,
-
-    -- users_credits
-    uc.element_credits,
-    uc.element_reserve,
-
-    -- users_roles
-    ur.element_roles,
-
-    -- users_profileimg
-    up.element_base64           AS profile_image_base64,
-
-    -- auth_providers
-    ap.recid                    AS provider_recid_actual,
-    ap.element_name             AS provider_name,
-    ap.element_display          AS provider_display,
-
-    -- sessions_devices
     sd.element_guid             AS device_guid,
-    sd.sessions_guid,
     sd.element_token,
     sd.element_token_iat,
     sd.element_token_exp,
+    sd.element_revoked_at,
     sd.element_device_fingerprint,
     sd.element_user_agent,
-    sd.element_ip_last_seen,
-    sd.element_revoked_at
-FROM account_users au
-JOIN users_sessions us     ON au.element_guid = us.users_guid
-JOIN users_auth ua         ON au.element_guid = ua.users_guid
-JOIN users_credits uc      ON au.element_guid = uc.users_guid
-JOIN users_roles ur        ON au.element_guid = ur.users_guid
-JOIN users_profileimg up   ON au.element_guid = up.users_guid
-JOIN auth_providers ap     ON au.providers_recid = ap.recid
-JOIN sessions_devices sd   ON us.element_guid = sd.sessions_guid;
+    sd.element_ip_last_seen
+FROM account_users AS au
+JOIN users_sessions AS us ON au.element_guid = us.users_guid
+JOIN sessions_devices AS sd ON us.element_guid = sd.sessions_guid;
+```
 

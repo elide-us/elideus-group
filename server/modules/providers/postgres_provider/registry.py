@@ -24,20 +24,16 @@ def _users_select(args: Dict[str, Any]):
   identifier = args["provider_identifier"]
   sql = """
     SELECT
-      u.element_guid AS guid,
-      u.element_display AS display_name,
-      u.element_email AS email,
-      COALESCE(uc.element_credits, 0) AS credits,
-      ap.element_name AS provider_name,
-      ap.element_display AS provider_display,
-      upi.element_base64 AS profile_image
-    FROM account_users u
-    JOIN users_auth ua ON ua.users_guid = u.element_guid
-    LEFT JOIN users_sessions us ON us.users_guid = u.element_guid
-    LEFT JOIN sessions_devices sd ON sd.sessions_guid = us.element_guid
+      v.user_guid AS guid,
+      v.display_name AS display_name,
+      v.email AS email,
+      v.credits,
+      v.provider_name,
+      v.provider_display,
+      v.profile_image_base64 AS profile_image
+    FROM vw_account_user_profile v
+    JOIN users_auth ua ON ua.users_guid = v.user_guid
     JOIN auth_providers ap ON ap.recid = ua.providers_recid
-    LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
-    LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
     WHERE ap.element_name = $1 AND ua.element_identifier = $2
     LIMIT 1;
   """
@@ -82,6 +78,11 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
 @register("db:users:session:get_rotkey:1")
 def _users_session_get_rotkey(args: Dict[str, Any]):
   guid = args["guid"]
-  sql = "SELECT element_rotkey AS rotkey FROM account_users WHERE element_guid = $1;"
+  sql = """
+    SELECT element_rotkey AS rotkey
+    FROM vw_account_user_security
+    WHERE user_guid = $1
+    LIMIT 1;
+  """
   return ("one", sql, (guid,))
 
