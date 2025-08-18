@@ -325,6 +325,7 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
         device_guid,
         session_guid,
         user_guid,
+        session_created_at,
         element_token AS token,
         element_token_iat AS issued_at,
         element_token_exp AS expires_at,
