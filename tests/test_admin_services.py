@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import pathlib
 import sys
 import types
 from types import SimpleNamespace
@@ -26,19 +27,61 @@ def _load_module(path, name):
   orig_server = sys.modules.get("server.modules")
   modules_pkg = types.ModuleType("server.modules")
   db_module_pkg = types.ModuleType("server.modules.db_module")
+  storage_module_pkg = types.ModuleType("server.modules.storage_module")
   class DbModule: ...
+  class StorageModule: ...
   db_module_pkg.DbModule = DbModule
+  storage_module_pkg.StorageModule = StorageModule
   modules_pkg.db_module = db_module_pkg
+  modules_pkg.storage_module = storage_module_pkg
   sys.modules["server.modules"] = modules_pkg
   sys.modules["server.modules.db_module"] = db_module_pkg
+  sys.modules["server.modules.storage_module"] = storage_module_pkg
+  pkg_root = pathlib.Path(__file__).resolve().parent.parent / "rpc"
+  orig_rpc = sys.modules.get("rpc")
+  rpc_pkg = types.ModuleType("rpc")
+  rpc_pkg.__path__ = [str(pkg_root)]
+  sys.modules["rpc"] = rpc_pkg
+  orig_rpc_admin = sys.modules.get("rpc.admin")
+  rpc_admin_pkg = types.ModuleType("rpc.admin")
+  rpc_admin_pkg.__path__ = [str(pkg_root / "admin")]
+  sys.modules["rpc.admin"] = rpc_admin_pkg
+  orig_rpc_admin_roles = sys.modules.get("rpc.admin.roles")
+  rpc_admin_roles_pkg = types.ModuleType("rpc.admin.roles")
+  rpc_admin_roles_pkg.__path__ = [str(pkg_root / "admin/roles")]
+  sys.modules["rpc.admin.roles"] = rpc_admin_roles_pkg
+  orig_rpc_admin_users = sys.modules.get("rpc.admin.users")
+  rpc_admin_users_pkg = types.ModuleType("rpc.admin.users")
+  rpc_admin_users_pkg.__path__ = [str(pkg_root / "admin/users")]
+  sys.modules["rpc.admin.users"] = rpc_admin_users_pkg
+
   spec = importlib.util.spec_from_file_location(name, path)
   mod = importlib.util.module_from_spec(spec)
+  pkg_name = path.rsplit("/", 1)[0].replace("/", ".")
+  mod.__package__ = pkg_name
   spec.loader.exec_module(mod)
   if orig_server is not None:
     sys.modules["server.modules"] = orig_server
   else:
     del sys.modules["server.modules"]
   del sys.modules["server.modules.db_module"]
+  del sys.modules["server.modules.storage_module"]
+  if orig_rpc is not None:
+    sys.modules["rpc"] = orig_rpc
+  else:
+    del sys.modules["rpc"]
+  if orig_rpc_admin is not None:
+    sys.modules["rpc.admin"] = orig_rpc_admin
+  else:
+    del sys.modules["rpc.admin"]
+  if orig_rpc_admin_roles is not None:
+    sys.modules["rpc.admin.roles"] = orig_rpc_admin_roles
+  else:
+    del sys.modules["rpc.admin.roles"]
+  if orig_rpc_admin_users is not None:
+    sys.modules["rpc.admin.users"] = orig_rpc_admin_users
+  else:
+    del sys.modules["rpc.admin.users"]
   return mod
 
 
@@ -54,6 +97,7 @@ class DummyDb:
     self.members = members or []
     self.non_members = non_members or []
     self.profile = profile or {}
+    self.initial_non_members = list(self.non_members)
 
   async def run(self, op, args):
     self.calls.append((op, args))
@@ -74,6 +118,9 @@ class DummyDb:
         if r.get("guid") == guid:
           self.members.remove(r)
           self.non_members.append(r)
+      for r in self.initial_non_members:
+        if r not in self.non_members:
+          self.non_members.append(r)
       return DBRes()
     if op == "db:users:profile:get_profile:1":
       return DBRes([self.profile], 1 if self.profile else 0)
@@ -81,8 +128,10 @@ class DummyDb:
 
 
 class DummyState:
-  def __init__(self, db):
+  def __init__(self, db, storage=None):
     self.db = db
+    if storage is not None:
+      self.storage = storage
 
 
 class DummyApp:
@@ -208,6 +257,36 @@ def test_admin_users_calls_db():
   resp2 = asyncio.run(users_mod.admin_users_get_profile_v1(req))
   assert any(op == "db:users:profile:get_profile:1" for op, _ in db.calls)
   assert resp2.payload["guid"] == "u1"
+  helpers.get_rpcrequest_from_request = orig
+  users_mod.get_rpcrequest_from_request = orig
+
+
+def test_admin_enable_storage_creates_folder():
+  users_mod = _load_module("rpc/admin/users/services.py", "admin_users_services")
+
+  class DummyStorage:
+    def __init__(self):
+      self.called = False
+      self.guid = None
+    async def ensure_user_folder(self, guid):
+      self.called = True
+      self.guid = guid
+
+  db = DummyDb()
+  storage = DummyStorage()
+  req = DummyRequest(DummyState(db, storage))
+
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:admin:users:enable_storage:1", payload={"userGuid": "u1"}, version=1)
+    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+
+  orig = helpers.get_rpcrequest_from_request
+  helpers.get_rpcrequest_from_request = fake_get
+  users_mod.get_rpcrequest_from_request = fake_get
+  resp = asyncio.run(users_mod.admin_users_enable_storage_v1(req))
+  assert ("db:admin:users:enable_storage:1", {"guid": "u1"}) in db.calls
+  assert storage.called and storage.guid == "u1"
+  assert isinstance(resp, RPCResponse)
   helpers.get_rpcrequest_from_request = orig
   users_mod.get_rpcrequest_from_request = orig
 
