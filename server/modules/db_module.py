@@ -1,6 +1,5 @@
 """Database module loader."""
 
-import os
 from importlib import import_module
 from typing import Any, Dict, cast, Awaitable, Callable
 from fastapi import FastAPI
@@ -59,9 +58,7 @@ class DbModule(BaseModule):
     self.provider = env.get("DATABASE_PROVIDER")
     cfg: Dict[str, Any] = {}
     if self.provider == "mssql":
-      cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
-    elif self.provider == "postgres":
-      cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
+      cfg = {"dsn": env.get("AZURE_SQL_CONNECTION_STRING")}
     await init(provider=self.provider, **cfg)
     res = await run("db:system:config:get_config:1", {"key": "DebugLogging"})
     val = res.rows[0]["value"] if res.rows else ""

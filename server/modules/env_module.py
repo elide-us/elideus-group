@@ -13,8 +13,9 @@ class EnvModule(BaseModule):
     self._getenv("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
     self._getenv("JWT_SECRET", "MISSING_ENV_JWT_SECRET")
     self._getenv("DATABASE_PROVIDER", "mssql")
-    self._getenv("POSTGRES_CONNECTION_STRING", "MISSING_ENV_POSTGRES_CONNECTION_STRING")
-    self._getenv("AZURE_SQL_CONNECTION_STRING", "MISSING_ENV_AZURE_SQL_CONNECTION_STRING")
+    provider = self._env["DATABASE_PROVIDER"]
+    if provider == "mssql":
+      self._getenv("AZURE_SQL_CONNECTION_STRING", "MISSING_ENV_AZURE_SQL_CONNECTION_STRING")
     self._getenv("AZURE_BLOB_CONNECTION_STRING", "MISSING_ENV_AZURE_BLOB_CONNECTION_STRING")
     self._getenv("AUTH_PROVIDERS", "microsoft")
     self._getenv("JWKS_CACHE_MINUTES", "60")

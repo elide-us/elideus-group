@@ -1,9 +1,9 @@
-# Security Roles and Capability Masks
+# Security Roles
 
-This project uses a signed 64‑bit integer to represent security roles,
-user feature flags and RPC capabilities. Bit 63 is unused to avoid the
-sign bit. The high bits define system roles and the low bits are used
-for user level flags.
+This project uses a signed 64‑bit integer to represent security roles
+and user feature flags. Bit 63 is unused to avoid the sign bit. The
+high bits define system roles and the low bits are used for user level
+flags.
 
 ## Role Bit Assignments
 
@@ -32,23 +32,6 @@ for user level flags.
 `ROLE_USER_RESTRICTED = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED`
 `ROLE_USER_ABSTRACT = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED | ROLE_API_ENABLED`
 `ROLE_USER_INTERACTIVE = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED | ROLE_DISCORD_ENABLED | ROLE_SOCIAL_ENABLED`
-
-## Capability Masks
-
-RPC capability masks use the lower 32‑bits for response formats and the
-upper 32‑bits for callable sources. This is meant to provide a filtering 
-mechanism to ensure responses are able to be formatted for the task channel
-
-Callable sources (bits 33–35):
-- `0x0000000100000000` – `CAP_CALL_WEB`
-- `0x0000000200000000` – `CAP_CALL_DISCORD`
-- `0x0000000400000000` – `CAP_CALL_API`
-
-Response formats (bits 1–4):
-- `0x0000000000000001` – `CAP_RESP_TYPED`
-- `0x0000000000000002` – `CAP_RESP_DISCORD`
-- `0x0000000000000004` – `CAP_RESP_API`
-- `0x0000000000000008` – `CAP_RESP_BSKY`
 
 ## Authentication Domains
 
