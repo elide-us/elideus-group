@@ -13,6 +13,8 @@ IF /I "%CMD%"=="start" GOTO DO_START
 IF /I "%CMD%"=="fast" GOTO DO_FAST
 IF /I "%CMD%"=="test" GOTO DO_TEST
 IF /I "%CMD%"=="restart" GOTO DO_RESTART
+IF /I "%CMD%"=="refast" GOTO DO_REFAST
+
 
 :HELP
 ECHO Usage: dev [generate^|start^|fast^|test]
@@ -101,6 +103,29 @@ CALL :GET_LATEST || EXIT /b 1
 CALL :INSTALL_DEPS || EXIT /b 1
 CALL :GENERATE_LIBS || EXIT /b 1
 CALL :FRONTEND_TASKS || EXIT /b 1
+CALL :RUN_PYTEST || EXIT /b 1
+ECHO Starting Uvicorn...
+CALL python -m uvicorn main:app --reload --host localhost
+EXIT /b %ERRORLEVEL%
+
+:DO_REFAST
+CALL :GET_LATEST || EXIT /b 1
+CALL :INSTALL_DEPS || EXIT /b 1
+CALL :GENERATE_LIBS || EXIT /b 1
+CD frontend
+ECHO Running lint on Frontend...
+CALL npm run lint
+IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
+ECHO Running type-check on Frontend...
+CALL npm run type-check
+IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
+ECHO Running vitest on Frontend...
+CALL npm test -- --run
+IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
+ECHO Running tsc + vite on Frontend...
+CALL npm run build
+IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
+CD ..
 CALL :RUN_PYTEST || EXIT /b 1
 ECHO Starting Uvicorn...
 CALL python -m uvicorn main:app --reload --host localhost
