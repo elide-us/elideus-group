@@ -32,10 +32,7 @@ function App(): JSX.Element {
 							<Route path="/gallery" element={<Gallery />} />
 							<Route path="/loginpage" element={<LoginPage />} />
 							<Route path="/userpage" element={<UserPage />} />
-                                                        <Route
-                                                                path="/system_routes"
-                                                                element={<SystemRoutesPage />}
-                                                        />
+							<Route path="/system-routes" element={<SystemRoutesPage />} />
 						</Routes>
 					</Container>
 				</Router>
