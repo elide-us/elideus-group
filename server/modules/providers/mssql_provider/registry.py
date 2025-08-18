@@ -1,7 +1,8 @@
 # providers/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
 from uuid import UUID
-from .logic import init_pool, close_pool, fetch_json_one, fetch_json_many, fetch_row_one, exec_, transaction
+from .logic import init_pool, close_pool, transaction
+from .db_helpers import fetch_rows, fetch_json, exec_query
 
 # handler can be:
 #  - sync: (mode, sql, params) -> provider will run it
@@ -58,13 +59,13 @@ async def _users_insert(args: Dict[str, Any]):
     provider_displayname = args["provider_displayname"]
     provider_profileimg = args.get("provider_profile_image", "")
 
-    row = await fetch_json_one(
-        "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (provider,)
+    res = await fetch_json(
+      "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+      (provider,)
     )
-    if not row:
-        raise ValueError(f"Unknown auth provider: {provider}")
-    ap_recid = row["recid"]
+    if not res.rows:
+      raise ValueError(f"Unknown auth provider: {provider}")
+    ap_recid = res.rows[0]["recid"]
 
     async with transaction() as cur:
         await cur.execute(
@@ -93,8 +94,7 @@ async def _users_insert(args: Dict[str, Any]):
 
     # return same shape as select_user
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
-    out = await fetch_row_one(sel[1], sel[2])
-    return {"rows": [out] if out else [], "rowcount": 1 if out else 0}
+    return await fetch_rows(sel[1], sel[2], one=True)
 
 @register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
@@ -149,19 +149,18 @@ def _users_set_optin(args: Dict[str, Any]):
 
 @register("urn:users:providers:set_provider:1")
 async def _users_set_provider(args: Dict[str, Any]):
-    guid = args["guid"]
-    provider = args["provider"]
-    row = await fetch_json_one(
-        "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (provider,)
-    )
-    if not row:
-        raise ValueError(f"Unknown auth provider: {provider}")
-    rc = await exec_(
-        "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
-        (row["recid"], guid)
-    )
-    return {"rows": [], "rowcount": rc}
+  guid = args["guid"]
+  provider = args["provider"]
+  res = await fetch_json(
+    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (provider,),
+  )
+  if not res.rows:
+    raise ValueError(f"Unknown auth provider: {provider}")
+  return await exec_query(
+    "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
+    (res.rows[0]["recid"], guid),
+  )
 
 @register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
@@ -175,17 +174,19 @@ def _users_get_roles(args: Dict[str, Any]):
 
 @register("urn:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
-    guid, roles = args["guid"], int(args["roles"])
-    if roles == 0:
-        rc = await exec_("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
-        return {"rows": [], "rowcount": rc}
-    rc = await exec_(
-        "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
-        (roles, guid)
+  guid, roles = args["guid"], int(args["roles"])
+  if roles == 0:
+    return await exec_query("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
+  res = await exec_query(
+    "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
+    (roles, guid),
+  )
+  if res.rowcount == 0:
+    res = await exec_query(
+      "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
+      (guid, roles),
     )
-    if rc == 0:
-        rc = await exec_("INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);", (guid, roles))
-    return {"rows": [], "rowcount": rc}
+  return res
 
 @register("db:users:session:set_rotkey:1")
 def _users_session_set_rotkey(args: Dict[str, Any]):
@@ -270,24 +271,24 @@ def _public_vars_get_repo(args: Dict[str, Any]):
 
 @register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
-    guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
-    row = await fetch_json_one(
-        "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (provider,)
+  guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
+  res = await fetch_json(
+    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (provider,),
+  )
+  if not res.rows:
+    raise ValueError(f"Unknown auth provider: {provider}")
+  ap_recid = res.rows[0]["recid"]
+  rc = await exec_query(
+    "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
+    (image_b64, ap_recid, guid),
+  )
+  if rc.rowcount == 0:
+    rc = await exec_query(
+      "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
+      (guid, image_b64, ap_recid),
     )
-    if not row:
-        raise ValueError(f"Unknown auth provider: {provider}")
-    ap_recid = row["recid"]
-    rc = await exec_(
-        "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
-        (image_b64, ap_recid, guid)
-    )
-    if rc == 0:
-        rc = await exec_(
-            "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
-            (guid, image_b64, ap_recid)
-        )
-    return {"rows": [], "rowcount": rc}
+  return rc
 
 @register("db:auth:session:create_session:1")
 async def _auth_session_create_session(args: Dict[str, Any]):
@@ -354,16 +355,16 @@ def _config_get(args: Dict[str, Any]):
 async def _config_set(args: Dict[str, Any]):
   key = args["key"]
   value = args["value"]
-  rc = await exec_(
+  rc = await exec_query(
     "UPDATE system_config SET element_value = ? WHERE element_key = ?;",
     (value, key),
   )
-  if rc == 0:
-    rc = await exec_(
+  if rc.rowcount == 0:
+    rc = await exec_query(
       "INSERT INTO system_config (element_key, element_value) VALUES (?, ?);",
       (key, value),
     )
-  return {"rows": [], "rowcount": rc}
+  return rc
 
 @register("db:system:config:get_configs:1")
 def _config_list(_: Dict[str, Any]):
@@ -400,24 +401,24 @@ async def _security_roles_upsert_role(args: Dict[str, Any]):
   name = args["name"]
   mask = int(args["mask"])
   display = args.get("display")
-  rc = await exec_(
+  rc = await exec_query(
     "UPDATE auth_roles SET element_mask = ?, element_display = ? WHERE element_name = ?;",
     (mask, display, name),
   )
-  if rc == 0:
-    rc = await exec_(
+  if rc.rowcount == 0:
+    rc = await exec_query(
       "INSERT INTO auth_roles (element_name, element_mask, element_display) VALUES (?, ?, ?);",
       (name, mask, display),
     )
-  return {"rows": [], "rowcount": rc}
+  return rc
 
 
 @register("db:security:roles:delete_role:1")
 async def _security_roles_delete_role(args: Dict[str, Any]):
   name = args["name"]
-  await exec_("DELETE FROM auth_roles_members WHERE roles_name = ?;", (name,))
-  rc = await exec_("DELETE FROM auth_roles WHERE element_name = ?;", (name,))
-  return {"rows": [], "rowcount": rc}
+  await exec_query("DELETE FROM auth_roles_members WHERE roles_name = ?;", (name,))
+  rc = await exec_query("DELETE FROM auth_roles WHERE element_name = ?;", (name,))
+  return rc
 
 
 @register("db:security:roles:get_role_members:1")

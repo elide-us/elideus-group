@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from server.modules.providers.mssql_provider import registry
+from server.modules.providers.models import DBResult
 
 
 def test_create_from_provider_inserts_profile_image(monkeypatch):
@@ -16,15 +17,18 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
   async def dummy_transaction():
     yield DummyCursor()
 
-  async def fake_fetch_json_one(query, params):
+  async def fake_fetch_json(query, params, many=False):
     q = query.strip().lower()
     if q.startswith("select recid from auth_providers"):
-      return {"recid": 1}
-    return {"guid": "gid", "profile_image": args["provider_profile_image"]}
+      return DBResult(rows=[{"recid": 1}], rowcount=1)
+    return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
+
+  async def fake_fetch_rows(query, params, one=False, stream=False):
+    return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
   monkeypatch.setattr(registry, "transaction", dummy_transaction)
-  monkeypatch.setattr(registry, "fetch_json_one", fake_fetch_json_one)
-  monkeypatch.setattr(registry, "fetch_row_one", fake_fetch_json_one)
+  monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(registry, "fetch_rows", fake_fetch_rows)
 
   handler = registry.get_handler("urn:users:providers:create_from_provider:1")
   args = {
@@ -38,6 +42,6 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
 
   assert any("insert into users_profileimg" in sql for sql in executed)
   assert any("insert into users_roles" in sql for sql in executed)
-  assert res["rows"]
-  assert res["rows"][0]["profile_image"] == "img"
+  assert res.rows
+  assert res.rows[0]["profile_image"] == "img"
 
