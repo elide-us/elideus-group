@@ -13,20 +13,36 @@ const UserPage = (): JSX.Element => {
         const [provider, setProvider] = useState('microsoft');
         const [dirty, setDirty] = useState(false);
 
-        useEffect(() => {
-                if (!userData) return;
-                void (async () => {
-                        try {
-                                const res: UsersProfileProfile1 = await fetchProfile();
-                                setProfile(res);
-                                setDisplayName(res.display_name);
-                                setDisplayEmail(res.display_email);
-                                setProvider(res.default_provider);
-                        } catch {
-                                setProfile(null);
-                        }
-                })();
-        }, [userData]);
+	const normalizeGuid = (guid: unknown): string => {
+		if (typeof guid === 'string') return guid;
+		if (guid && typeof guid === 'object') {
+			const val = (guid as { toString?: () => string }).toString;
+			if (val) {
+				try {
+					return val.call(guid);
+				} catch {
+					/* ignore */
+				}
+			}
+		}
+		return '';
+	};
+
+	useEffect(() => {
+		if (!userData) return;
+		void (async () => {
+			try {
+				const res: any = await fetchProfile();
+				const profileData: UsersProfileProfile1 = { ...res, guid: normalizeGuid(res.guid) };
+				setProfile(profileData);
+				setDisplayName(profileData.display_name);
+				setDisplayEmail(profileData.display_email);
+				setProvider(profileData.default_provider);
+			} catch {
+				setProfile(null);
+			}
+		})();
+	}, [userData]);
 
         const handleToggle = (): void => {
                 setDisplayEmail(!displayEmail);
