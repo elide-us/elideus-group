@@ -33,7 +33,7 @@ function App(): JSX.Element {
 							<Route path="/loginpage" element={<LoginPage />} />
 							<Route path="/userpage" element={<UserPage />} />
 							<Route
-								path="/system/routes"
+								path="/system-routes"
 								element={<SystemRoutesPage />}
 							/>
 						</Routes>
