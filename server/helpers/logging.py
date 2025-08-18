@@ -16,6 +16,9 @@ class DiscordHandler(logging.Handler):
     self.last_sent = 0.0
 
   def emit(self, record):
+    if record.name.startswith('discord'):
+      return
+
     msg = self.format(record)
 
     if not msg or msg == "None":
@@ -54,8 +57,11 @@ class DiscordHandler(logging.Handler):
 
 def configure_discord_logging(discord_module):
   handler = DiscordHandler(discord_module)
+  handler.setLevel(logging.INFO)
   handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
   logging.getLogger().addHandler(handler)
+  logging.getLogger('discord').setLevel(logging.WARNING)
+  logging.getLogger('discord.http').setLevel(logging.WARNING)
 
 def update_logging_level(debug: bool = False):
   """Update global logging level including Azure SDK logger."""
