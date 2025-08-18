@@ -380,3 +380,86 @@ def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
   return ("exec", sql, (key,))
+
+
+# -------------------- SECURITY ROLES --------------------
+
+@register("db:system:roles:list:1")
+def _system_roles_list(_: Dict[str, Any]):
+  sql = """
+    SELECT element_name AS name, element_mask AS mask, element_display AS display
+    FROM auth_roles
+    ORDER BY element_mask
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, ())
+
+
+@register("db:security:roles:upsert_role:1")
+async def _security_roles_upsert_role(args: Dict[str, Any]):
+  name = args["name"]
+  mask = int(args["mask"])
+  display = args.get("display")
+  rc = await exec_(
+    "UPDATE auth_roles SET element_mask = ?, element_display = ? WHERE element_name = ?;",
+    (mask, display, name),
+  )
+  if rc == 0:
+    rc = await exec_(
+      "INSERT INTO auth_roles (element_name, element_mask, element_display) VALUES (?, ?, ?);",
+      (name, mask, display),
+    )
+  return {"rows": [], "rowcount": rc}
+
+
+@register("db:security:roles:delete_role:1")
+async def _security_roles_delete_role(args: Dict[str, Any]):
+  name = args["name"]
+  await exec_("DELETE FROM auth_roles_members WHERE roles_name = ?;", (name,))
+  rc = await exec_("DELETE FROM auth_roles WHERE element_name = ?;", (name,))
+  return {"rows": [], "rowcount": rc}
+
+
+@register("db:security:roles:get_role_members:1")
+def _security_roles_get_members(args: Dict[str, Any]):
+  role = args["role"]
+  sql = """
+    SELECT arm.users_guid AS guid, au.element_display AS display_name
+    FROM auth_roles_members arm
+    JOIN account_users au ON au.element_guid = arm.users_guid
+    WHERE arm.roles_name = ?
+    ORDER BY au.element_display
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, (role,))
+
+
+@register("db:security:roles:get_role_non_members:1")
+def _security_roles_get_non_members(args: Dict[str, Any]):
+  role = args["role"]
+  sql = """
+    SELECT au.element_guid AS guid, au.element_display AS display_name
+    FROM account_users au
+    WHERE au.element_guid NOT IN (
+      SELECT users_guid FROM auth_roles_members WHERE roles_name = ?
+    )
+    ORDER BY au.element_display
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, (role,))
+
+
+@register("db:security:roles:add_role_member:1")
+def _security_roles_add_member(args: Dict[str, Any]):
+  role = args["role"]
+  user_guid = args["user_guid"]
+  sql = "INSERT INTO auth_roles_members (roles_name, users_guid) VALUES (?, ?);"
+  return ("exec", sql, (role, user_guid))
+
+
+@register("db:security:roles:remove_role_member:1")
+def _security_roles_remove_member(args: Dict[str, Any]):
+  role = args["role"]
+  user_guid = args["user_guid"]
+  sql = "DELETE FROM auth_roles_members WHERE roles_name = ? AND users_guid = ?;"
+  return ("exec", sql, (role, user_guid))
