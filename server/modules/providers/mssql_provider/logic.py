@@ -43,6 +43,21 @@ async def transaction():
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):  # no JSON decode here
     return dict(zip(cols, row))
 
+async def fetch_row_one(query: str, params: tuple[Any, ...] = ()):
+    assert _pool, "MSSQL pool not initialized"
+    try:
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                row = await cur.fetchone()
+                if not row:
+                    return None
+                cols = [c[0] for c in cur.description]
+                return _rowdict(cols, row)
+    except Exception as e:
+        logging.debug(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
+        return None
+
 async def fetch_json_one(query: str, params: tuple[Any, ...] = ()):
     """Assumes SELECT ... FOR JSON ... WITHOUT_ARRAY_WRAPPER"""
     assert _pool, "MSSQL pool not initialized"

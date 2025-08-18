@@ -24,6 +24,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
 
   monkeypatch.setattr(registry, "transaction", dummy_transaction)
   monkeypatch.setattr(registry, "fetch_json_one", fake_fetch_json_one)
+  monkeypatch.setattr(registry, "fetch_row_one", fake_fetch_json_one)
 
   handler = registry.get_handler("urn:users:providers:create_from_provider:1")
   args = {

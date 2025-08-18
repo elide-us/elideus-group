@@ -1,7 +1,7 @@
 # providers/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
 from uuid import UUID
-from .logic import init_pool, close_pool, fetch_json_one, fetch_json_many, exec_, transaction
+from .logic import init_pool, close_pool, fetch_json_one, fetch_json_many, fetch_row_one, exec_, transaction
 
 # handler can be:
 #  - sync: (mode, sql, params) -> provider will run it
@@ -39,10 +39,9 @@ def _users_select(provider_args: Dict[str, Any]):
       FROM vw_account_user_profile v
       JOIN users_auth ua ON ua.users_guid = v.user_guid
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
-      WHERE ap.element_name = ? AND ua.element_identifier = ?
-      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+      WHERE ap.element_name = ? AND ua.element_identifier = ?;
     """
-    return ("json_one", sql, (provider, identifier))
+    return ("row_one", sql, (provider, identifier))
 
 @register("urn:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
@@ -94,7 +93,7 @@ async def _users_insert(args: Dict[str, Any]):
 
     # return same shape as select_user
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
-    out = await fetch_json_one(sel[1], sel[2])
+    out = await fetch_row_one(sel[1], sel[2])
     return {"rows": [out] if out else [], "rowcount": 1 if out else 0}
 
 @register("urn:users:profile:get_profile:1")
