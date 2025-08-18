@@ -68,6 +68,7 @@ Authentication and session management calls.
 | `urn:auth:session:get_token:1`        | Get a bearer token for a new device session.           |
 | `urn:auth:session:refresh_token:1`    | Get a new bearer token for an existing device session. |
 | `urn:auth:session:invalidate_token:1` | Invalidate an existing device session token.           |
+| `urn:auth:session:get_session:1`      | Map a bearer token to its session and device details.  |
 
 ## Public (React/Frontend) Domain
 
