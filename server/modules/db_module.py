@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
 from .provider import DBResult, Provider
+from server.helpers.logging import update_logging_level
 
 
 _dispatch_executor: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
@@ -49,6 +50,7 @@ class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.provider: str = "mssql"
+    self.debug_logging: bool = False
 
   async def startup(self):
     env: EnvModule = self.app.state.env
@@ -60,6 +62,10 @@ class DbModule(BaseModule):
     elif self.provider == "postgres":
       cfg["dsn"] = env.get("POSTGRES_CONNECTION_STRING")
     await init(provider=self.provider, **cfg)
+    res = await run("db:system:config:get_config:1", {"key": "DebugLogging"})
+    val = res.rows[0]["value"] if res.rows else ""
+    self.debug_logging = str(val).lower() == "true"
+    update_logging_level(self.debug_logging)
     self.mark_ready()
 
   async def shutdown(self):
