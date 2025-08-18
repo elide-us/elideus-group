@@ -15,6 +15,8 @@ JOIN users_profileimg up ON au.element_guid = up.users_guid
 JOIN auth_providers ap ON au.providers_recid = ap.recid
 JOIN sessions_devices sd ON us.element_guid = sd.sessions_guid
 
+`users_sessions` records only map a user to a session identifier and creation time. Token data and device metadata live in `sessions_devices`, which references the session via `sessions_guid`.
+
 Note: `users_auth.element_identifier` is a `UNIQUEIDENTIFIER` and must be unique across all providers.
 
 The above materialized view would result in a row that looks like this:
@@ -49,6 +51,7 @@ SELECT
     au.element_rotkey_iat,
     au.element_rotkey_exp,
     us.element_guid             AS session_guid,
+    us.element_created_at       AS session_created_at,
     sd.element_guid             AS device_guid,
     sd.element_token,
     sd.element_token_iat,

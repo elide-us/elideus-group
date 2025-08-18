@@ -62,7 +62,7 @@ CREATE TABLE users_apitokens (
     element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     element_token_exp DATETIMEOFFSET NOT NULL,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
-    UNIQUE (users_guid, element_guid)
+    UNIQUE (users_guid)
 );
 
 -- Contains the unique identifiers supplied by the OAuth provider
@@ -106,14 +106,26 @@ CREATE TABLE users_roles (
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
 
--- Tracks active sessions and devices and manages the access tokens for users
+-- Tracks active user sessions
 CREATE TABLE users_sessions (
     element_guid UNIQUEIDENTIFIER PRIMARY KEY,
     users_guid UNIQUEIDENTIFIER NOT NULL,
+    element_created_at DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
+);
+
+-- Tracks device tokens associated with sessions
+CREATE TABLE sessions_devices (
+    element_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    sessions_guid UNIQUEIDENTIFIER NOT NULL,
     element_token NVARCHAR(MAX) NOT NULL,
     element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     element_token_exp DATETIMEOFFSET NOT NULL,
-    FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
-    UNIQUE (users_guid, element_guid)
+    element_device_fingerprint NVARCHAR(512) NULL,
+    element_user_agent NVARCHAR(1024) NULL,
+    element_ip_last_seen NVARCHAR(64) NULL,
+    element_revoked_at DATETIMEOFFSET NULL,
+    FOREIGN KEY (sessions_guid) REFERENCES users_sessions(element_guid),
+    UNIQUE (sessions_guid)
 );
 
