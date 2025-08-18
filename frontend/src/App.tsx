@@ -9,6 +9,7 @@ import Gallery from "./Gallery";
 import LoginPage from "./LoginPage";
 import UserPage from "./UserPage";
 import SystemRoutesPage from "./SystemRoutesPage";
+import FileManager from "./FileManager";
 
 function App(): JSX.Element {
 	return (
@@ -31,8 +32,9 @@ function App(): JSX.Element {
 							<Route path="/" element={<Home />} />
 							<Route path="/gallery" element={<Gallery />} />
 							<Route path="/loginpage" element={<LoginPage />} />
-							<Route path="/userpage" element={<UserPage />} />
-							<Route path="/system-routes" element={<SystemRoutesPage />} />
+                                                        <Route path="/userpage" element={<UserPage />} />
+                                                        <Route path="/system-routes" element={<SystemRoutesPage />} />
+                                                        <Route path="/file-manager" element={<FileManager />} />
 						</Routes>
 					</Container>
 				</Router>
