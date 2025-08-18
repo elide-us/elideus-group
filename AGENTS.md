@@ -105,6 +105,59 @@ The **server module system** uses a **two-phase initialization pattern** to ensu
 
 This design ensures that startup is deterministic, deadlock-free, and extensible: modules only proceed when their dependencies are explicitly ready.
 
+sequenceDiagram
+    autonumber
+    participant L as Loader (modules/__init__.py)
+    participant A as ModuleA (no deps)
+    participant B as ModuleB (depends on A)
+    participant C as ModuleC (depends on A & B)
+
+    rect rgb(245,245,245)
+    note over L: Phase 1 — Instantiation
+    L->>A: import & instantiate A
+    L->>B: import & instantiate B
+    L->>C: import & instantiate C
+    note over A,B,C: All objects exist on app.state, but none are "ready"
+    end
+
+    rect rgb(235,245,255)
+    note over L: Phase 2 — Asynchronous startup
+    par Startups launched concurrently
+        L->>+A: A.startup()
+        L->>+B: B.startup()
+        L->>+C: C.startup()
+    end
+
+    %% A has no deps; it can initialize immediately
+    A-->>A: initialize internal state
+    A-->>L: mark_ready(A)
+    deactivate A
+    note over A: A is now ready
+
+    %% B depends on A; B awaits A.on_ready()
+    B-->>B: await A.on_ready()
+    note over B: A is ready → B proceeds
+    B-->>B: initialize internal state
+    B-->>L: mark_ready(B)
+    deactivate B
+    note over B: B is now ready
+
+    %% C depends on A & B; C awaits both
+    C-->>C: await A.on_ready()
+    C-->>C: await B.on_ready()
+    note over C: A & B are ready → C proceeds
+    C-->>C: initialize internal state
+    C-->>L: mark_ready(C)
+    deactivate C
+    note over C: C is now ready
+
+    note over L,A,B,C: Natural ordering emerges from awaits; no hard-coded sequence needed
+    ```
+
+**Legend / intent:**
+- **Phase 1**: loader imports & instantiates all modules → attaches to `app.state` (not ready).
+- **Phase 2**: `startup()` for all modules runs concurrently; each module explicitly `await on_ready()` for its deps; deps call `mark_ready()` when done; dependents resume.
+
 ## File Structure
 
 ### Python
