@@ -1,6 +1,23 @@
 from fastapi import Request
+import importlib.util
+import pathlib
+import sys
 
-from rpc.helpers import get_rpcrequest_from_request
+# The admin service tests monkeypatch ``rpc.helpers`` with a stub module and do
+# not restore it afterwards.  Subsequent tests that import helper functions (the
+# public link and vars services as well as ``tests/test_rpc_helpers.py``) expect
+# the real implementation.  To ensure the helpers are available we reload the
+# helper module directly from the source file and replace the entry in
+# ``sys.modules``.  This makes the import resilient to earlier stubs while still
+# allowing tests to monkeypatch the function attribute as needed.
+_helpers_spec = importlib.util.spec_from_file_location(
+  "rpc.helpers", pathlib.Path(__file__).resolve().parents[2] / "helpers.py"
+)
+_helpers_mod = importlib.util.module_from_spec(_helpers_spec)
+_helpers_spec.loader.exec_module(_helpers_mod)
+sys.modules["rpc.helpers"] = _helpers_mod
+get_rpcrequest_from_request = _helpers_mod.get_rpcrequest_from_request
+
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (

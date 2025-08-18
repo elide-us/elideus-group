@@ -1,8 +1,21 @@
 import asyncio
 import subprocess
+import importlib.util
+import pathlib
+import sys
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+# See note in ``rpc.public.links.services`` for why the helper module is loaded
+# explicitly.  The admin service tests leave a stub in ``sys.modules`` which
+# would otherwise cause these public services to fail with ``NotImplementedError``.
+_helpers_spec = importlib.util.spec_from_file_location(
+  "rpc.helpers", pathlib.Path(__file__).resolve().parents[2] / "helpers.py"
+)
+_helpers_mod = importlib.util.module_from_spec(_helpers_spec)
+_helpers_spec.loader.exec_module(_helpers_mod)
+sys.modules["rpc.helpers"] = _helpers_mod
+get_rpcrequest_from_request = _helpers_mod.get_rpcrequest_from_request
+
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
