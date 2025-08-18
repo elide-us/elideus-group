@@ -19,8 +19,13 @@ async def users_profile_get_profile_v1(request: Request):
   res = await db.run(rpc_request.op, {"guid": auth_ctx.user_guid})
   if not res.rows:
     raise HTTPException(status_code=404, detail="Profile not found")
-
-  profile = UsersProfileProfile1(**res.rows[0])
+  row = res.rows[0]
+  row["guid"] = str(row.get("guid", ""))
+  auth_providers = row.get("auth_providers")
+  if isinstance(auth_providers, str):
+    import json
+    row["auth_providers"] = json.loads(auth_providers) if auth_providers else []
+  profile = UsersProfileProfile1(**row)
   return RPCResponse(
     op=rpc_request.op,
     payload=profile.model_dump(),
