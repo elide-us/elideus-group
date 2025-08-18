@@ -98,7 +98,7 @@ async def _users_insert(args: Dict[str, Any]):
 
 @register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
-    guid = args["guid"]
+    guid = str(args["guid"])
     sql = """
       SELECT TOP 1
         v.user_guid AS guid,
@@ -118,10 +118,9 @@ def _users_profile(args: Dict[str, Any]):
           FOR JSON PATH
         ) AS auth_providers
       FROM vw_account_user_profile v
-      WHERE v.user_guid = ?
-      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+      WHERE v.user_guid = ?;
     """
-    return ("json_one", sql, (guid,))
+    return ("row_one", sql, (guid,))
 
 
 @register("urn:users:profile:set_display:1")
