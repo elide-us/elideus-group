@@ -18,18 +18,41 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface SystemRoutesDeleteRoute1 {
-  path: string;
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
 }
-export interface SystemRoutesList1 {
-  routes: SystemRoutesRouteItem1[];
+export interface PublicVarsHostname1 {
+  hostname: string;
 }
-export interface SystemRoutesRouteItem1 {
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
+}
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
   path: string;
   name: string;
   icon: string | null;
-  sequence: number;
-  required_roles: string[];
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
+}
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
 }
 export interface SecurityRolesDeleteRole1 {
   name: string;
@@ -54,42 +77,6 @@ export interface SecurityRolesUserItem1 {
   guid: string;
   displayName: string;
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
-  name: string;
-  icon: string | null;
-}
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
-}
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-  hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
-}
 export interface UsersProvidersSetProvider1 {
   provider: string;
 }
@@ -112,6 +99,38 @@ export interface UsersProfileSetDisplay1 {
 }
 export interface UsersProfileSetOptin1 {
   display_email: boolean;
+}
+export interface SystemRoutesDeleteRoute1 {
+  path: string;
+}
+export interface SystemRoutesList1 {
+  routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+  path: string;
+  name: string;
+  icon: string | null;
+  sequence: number;
+  required_roles: string[];
+}
+export interface AdminUsersGuid1 {
+  userGuid: string;
+}
+export interface AdminUsersSetCredits1 {
+  userGuid: string;
+  credits: number;
+}
+export interface AdminRolesMembers1 {
+  members: AdminRolesUserItem1[];
+  nonMembers: AdminRolesUserItem1[];
+}
+export interface AdminRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AdminRolesUserItem1 {
+  guid: string;
+  displayName: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

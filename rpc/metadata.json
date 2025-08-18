@@ -4,7 +4,7 @@
     "domains": [
       {
         "domain": "admin",
-        "roles": 0,
+        "roles": 288230376151711744,
         "subdomains": [
           {
             "subdomain": "roles",
