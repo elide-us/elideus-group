@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 import aiohttp
 
-from .auth_base import AuthProvider
+from . import AuthProvider
 from fastapi import HTTPException, status
 
 MICROSOFT_OPENID_CONFIG = "https://login.microsoftonline.com/consumers/v2.0/.well-known/openid-configuration"

@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, status
 from datetime import datetime, timedelta, timezone
 
 from server.modules.auth_module import AuthModule
-from server.modules.providers import auth_base
+import server.modules.providers as providers
 from server.modules.providers.microsoft import MicrosoftAuthProvider
 
 
@@ -25,8 +25,8 @@ def test_verify_id_token_refreshes_jwks(monkeypatch):
   def fake_decode(token, key, algorithms, audience, issuer):
     return {"sub": "123"}
 
-  monkeypatch.setattr(auth_base.jwt, "get_unverified_header", fake_get_unverified_header)
-  monkeypatch.setattr(auth_base.jwt, "decode", fake_decode)
+  monkeypatch.setattr(providers.jwt, "get_unverified_header", fake_get_unverified_header)
+  monkeypatch.setattr(providers.jwt, "decode", fake_decode)
 
   asyncio.run(provider.verify_id_token("token"))
   assert provider._jwks_fetched_at > datetime.now(timezone.utc) - timedelta(minutes=5)

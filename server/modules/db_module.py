@@ -7,7 +7,8 @@ from fastapi import FastAPI
 
 from . import BaseModule
 from .env_module import EnvModule
-from .provider import DBResult, Provider
+from .providers import Provider
+from .providers.models import DBResult
 from server.helpers.logging import update_logging_level
 
 

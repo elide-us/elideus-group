@@ -7,7 +7,7 @@ from typing import Dict
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
-from server.modules.providers.auth_base import AuthProvider
+from server.modules.providers import AuthProvider
 from server.modules.providers.microsoft import MicrosoftAuthProvider
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
