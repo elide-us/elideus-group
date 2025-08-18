@@ -18,6 +18,12 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
 export interface PublicLinksHomeLinks1 {
   links: PublicLinksLinkItem1[];
 }
@@ -48,6 +54,19 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
   version: string;
 }
+export interface SystemRoutesDeleteRoute1 {
+  path: string;
+}
+export interface SystemRoutesList1 {
+  routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+  path: string;
+  name: string;
+  icon: string | null;
+  sequence: number;
+  required_roles: string[];
+}
 export interface UsersProvidersSetProvider1 {
   provider: string;
 }
@@ -71,11 +90,8 @@ export interface UsersProfileSetDisplay1 {
 export interface UsersProfileSetOptin1 {
   display_email: boolean;
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
+export interface SecurityRolesRoles1 {
+  roles: string[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
