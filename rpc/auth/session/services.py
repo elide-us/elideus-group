@@ -174,3 +174,41 @@ async def auth_session_invalidate_token_v1(request: Request):
   )
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
 
+
+async def auth_session_get_session_v1(request: Request):
+  rpc_request, _auth_ctx, _ = await get_rpcrequest_from_request(request)
+  header = request.headers.get("authorization")
+  if not header or not header.lower().startswith("bearer "):
+    raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+  token = header.split(" ", 1)[1].strip()
+
+  db: DbModule = request.app.state.db
+  res = await db.run("db:auth:session:get_by_access_token:1", {"access_token": token})
+  session = res.rows[0] if res.rows else None
+  if not session:
+    raise HTTPException(status_code=401, detail="Invalid session token")
+
+  if session.get("revoked_at"):
+    raise HTTPException(status_code=401, detail="Session revoked")
+
+  expires_at = session.get("expires_at")
+  if expires_at:
+    try:
+      exp_dt = datetime.fromisoformat(expires_at)
+    except ValueError:
+      exp_dt = None
+    if exp_dt and exp_dt.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+      raise HTTPException(status_code=401, detail="Session expired")
+
+  payload = {
+    "session_guid": session.get("session_guid"),
+    "device_guid": session.get("device_guid"),
+    "user_guid": session.get("user_guid"),
+    "issued_at": session.get("issued_at"),
+    "expires_at": session.get("expires_at"),
+    "device_fingerprint": session.get("device_fingerprint"),
+    "user_agent": session.get("user_agent"),
+    "ip_last_seen": session.get("ip_last_seen"),
+  }
+  return RPCResponse(op=rpc_request.op, payload=payload, version=rpc_request.version)
+

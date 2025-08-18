@@ -63,6 +63,10 @@
             "subdomain": "session",
             "functions": [
               {
+                "op": "urn:auth:session:get_session:1",
+                "capabilities": 0
+              },
+              {
                 "op": "urn:auth:session:get_token:1",
                 "capabilities": 0
               },
