@@ -4,6 +4,7 @@ from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
 from rpc.users.profile.models import UsersProfileProfile1
 from server.modules.db_module import DbModule
+from server.modules.storage_module import StorageModule
 from .models import AdminUsersGuid1, AdminUsersSetCredits1
 
 
@@ -68,6 +69,8 @@ async def admin_users_enable_storage_v1(request: Request):
   data = AdminUsersGuid1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:admin:users:enable_storage:1", {"guid": data.userGuid})
+  storage: StorageModule = request.app.state.storage
+  await storage.ensure_user_folder(data.userGuid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
