@@ -18,6 +18,42 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
+export interface SystemRoutesDeleteRoute1 {
+  path: string;
+}
+export interface SystemRoutesList1 {
+  routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+  path: string;
+  name: string;
+  icon: string | null;
+  sequence: number;
+  required_roles: string[];
+}
+export interface SecurityRolesDeleteRole1 {
+  name: string;
+}
+export interface SecurityRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SecurityRolesRoleMembers1 {
+  members: SecurityRolesUserItem1[];
+  nonMembers: SecurityRolesUserItem1[];
+}
+export interface SecurityRolesRoles1 {
+  roles: string[];
+}
+export interface SecurityRolesUpsertRole1 {
+  name: string;
+  bit: number;
+  display: any;
+}
+export interface SecurityRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
 export interface AuthMicrosoftOauthLogin1 {
   sessionToken: string;
   display_name: string;
@@ -54,19 +90,6 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
   version: string;
 }
-export interface SystemRoutesDeleteRoute1 {
-  path: string;
-}
-export interface SystemRoutesList1 {
-  routes: SystemRoutesRouteItem1[];
-}
-export interface SystemRoutesRouteItem1 {
-  path: string;
-  name: string;
-  icon: string | null;
-  sequence: number;
-  required_roles: string[];
-}
 export interface UsersProvidersSetProvider1 {
   provider: string;
 }
@@ -89,9 +112,6 @@ export interface UsersProfileSetDisplay1 {
 }
 export interface UsersProfileSetOptin1 {
   display_email: boolean;
-}
-export interface SecurityRolesRoles1 {
-  roles: string[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
