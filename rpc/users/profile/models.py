@@ -26,3 +26,12 @@ class UsersProfileSetDisplay1(BaseModel):
 class UsersProfileSetOptin1(BaseModel):
   display_email: bool
 
+
+class UsersProfileRoles1(BaseModel):
+  roles: int
+
+
+class UsersProfileSetProfileImage1(BaseModel):
+  image_b64: str
+  provider: str
+

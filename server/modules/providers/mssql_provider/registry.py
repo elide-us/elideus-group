@@ -164,16 +164,18 @@ async def _users_set_provider(args: Dict[str, Any]):
 
 @register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
-    guid = args["guid"]
-    sql = """
-      SELECT element_roles FROM users_roles
-      WHERE users_guid = ?
-      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-    """
-    return ("json_one", sql, (guid,))
+  """Fetch a user's role mask."""
+  guid = args["guid"]
+  sql = """
+    SELECT element_roles FROM users_roles
+    WHERE users_guid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return ("json_one", sql, (guid,))
 
 @register("urn:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
+  """Upsert a user's role mask."""
   guid, roles = args["guid"], int(args["roles"])
   if roles == 0:
     return await exec_query("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
@@ -271,6 +273,7 @@ def _public_vars_get_repo(args: Dict[str, Any]):
 
 @register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
+  """Insert or update a user's profile image."""
   guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
   res = await fetch_json(
     "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",

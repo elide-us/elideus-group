@@ -7,6 +7,8 @@ from .models import (
   UsersProfileProfile1,
   UsersProfileSetDisplay1,
   UsersProfileSetOptin1,
+  UsersProfileRoles1,
+  UsersProfileSetProfileImage1,
 )
 
 
@@ -67,11 +69,49 @@ async def users_profile_set_optin_v1(request: Request):
   )
 
 async def users_profile_get_roles_v1(request: Request):
-  raise NotImplementedError("urn:users:profile:get_roles:1")
+  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  if not auth_ctx.user_guid:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+  db: DbModule = request.app.state.db
+  res = await db.run(rpc_request.op, {"guid": auth_ctx.user_guid})
+  roles = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+  payload = UsersProfileRoles1(roles=roles)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
 
 async def users_profile_set_roles_v1(request: Request):
-  raise NotImplementedError("urn:users:profile:set_roles:1")
+  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  if not auth_ctx.user_guid:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+  payload = UsersProfileRoles1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.run(rpc_request.op, {"guid": auth_ctx.user_guid, "roles": payload.roles})
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
 
 async def users_profile_set_profile_image_v1(request: Request):
-  raise NotImplementedError("urn:users:profile:set_profile_image:1")
+  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  if not auth_ctx.user_guid:
+    raise HTTPException(status_code=401, detail="Unauthorized")
+
+  payload = UsersProfileSetProfileImage1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.run(rpc_request.op, {
+    "guid": auth_ctx.user_guid,
+    "image_b64": payload.image_b64,
+    "provider": payload.provider,
+  })
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
 
