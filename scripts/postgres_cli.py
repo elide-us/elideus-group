@@ -1,34 +1,6 @@
 from __future__ import annotations
 import asyncio
-import subprocess
 import pgdblib as db
-
-def _commit_and_tag(version: str, schema_file: str) -> None:
-    subprocess.check_call(f'git add {schema_file}', shell=True)
-    subprocess.check_call(f'git commit -m "Exported DB schema for {version}"', shell=True)
-    subprocess.check_call(f'git tag {version}', shell=True)
-
-    current_branch = subprocess.check_output(
-        "git rev-parse --abbrev-ref HEAD", shell=True, text=True
-    ).strip()
-    subprocess.check_call(f'git push origin {current_branch}', shell=True)
-    subprocess.check_call('git push origin --tags', shell=True)
-
-
-def _parse_version(ver: str) -> tuple[int, int, int, int]:
-  ver = ver.lstrip('v')
-  major, minor, patch, build = [int(v) for v in ver.split('.')]
-  return major, minor, patch, build
-
-
-async def _update_config(conn, key: str, value: str):
-  res = await conn.execute(
-    "UPDATE config SET value=$1 WHERE key=$2", value, key
-  )
-  if res.startswith('UPDATE 0'):
-    await conn.execute(
-      "INSERT INTO config(key, value) VALUES($1, $2)", key, value
-    )
 
 HELP_TEXT = """
 Available commands:
@@ -43,9 +15,6 @@ Available commands:
   schema apply <file>                Apply schema JSON to the database
   dump data [name]                   Dump DB schema and rows to <name>_YYYYMMDD.json
   dump mssql [name]                  Dump data formatted for MSSQL import
-  update version major               Increment the major version
-  update version minor               Increment the minor version
-  update version patch               Increment the patch version
 """
 
 async def interactive_console(conn):
@@ -98,29 +67,6 @@ async def interactive_console(conn):
         await db.dump_mssql(conn)
       case ['dump', 'mssql', name]:
         await db.dump_mssql(conn, name)
-      case ['update', 'version', part] if part in {'major', 'minor', 'patch'}:
-        cur = await conn.fetchval("SELECT value FROM config WHERE key='Version'")
-        if not cur:
-          print('Version entry not found in config table')
-          continue
-        ma, mi, pa, bu = _parse_version(cur)
-        match part:
-          case 'major':
-            ma += 1
-            mi = 0
-            pa = 0
-            bu = 0
-          case 'minor':
-            mi += 1
-            pa = 0
-            bu = 0
-          case 'patch':
-            pa += 1
-        new_ver = f"v{ma}.{mi}.{pa}.{bu}"
-        await _update_config(conn, 'Version', new_ver)
-        print(f'Updated Version: {cur} -> {new_ver}')
-        schema_file = await db.dump_schema(conn, new_ver)
-        _commit_and_tag(new_ver, schema_file)
       case _:
         try:
           rows = await conn.fetch(raw)
