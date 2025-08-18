@@ -1,4 +1,4 @@
-import aiohttp, base64, logging, uuid
+import base64, logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError
@@ -7,129 +7,58 @@ from typing import Dict
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
+from server.modules.providers import AuthProvider
+from server.modules.providers.microsoft import MicrosoftAuthProvider
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 
-async def fetch_ms_jwks_uri() -> str:
-  async with aiohttp.ClientSession() as session:
-    async with session.get("https://login.microsoftonline.com/consumers/v2.0/.well-known/openid-configuration") as response:
-      if response.status != 200:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to fetch OpenID configuration.")
-      data = await response.json()
-      return data["jwks_uri"]
-
-async def fetch_ms_jwks(jwks_uri: str) -> Dict:
-  async with aiohttp.ClientSession() as session:
-    async with session.get(jwks_uri) as response:
-      if response.status != 200:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to fetch JWKS.")
-      return await response.json()
-
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.ms_jwks: Dict | None = None
-    self.ms_jwks_fetched_at: datetime | None = None
-    self.ms_api_id: str | None = None
+    self.providers: dict[str, AuthProvider] = {}
     self.jwt_secret: str | None = None
-    self.jwt_algo_ms: str = "RS256"
     self.jwt_algo_int: str = "HS256"
+    self.jwks_cache_minutes: int = 60
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-
-    res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
-    if not res.rows:
-      raise ValueError("Missing config value for key: MsApiId")
-    self.ms_api_id = res.rows[0]["value"]
     self.jwt_secret = self.env.get("JWT_SECRET")
+    self.jwks_cache_minutes = int(self.env.get("JWKS_CACHE_MINUTES"))
 
+    providers_cfg = [p.strip() for p in self.env.get("AUTH_PROVIDERS").split(",") if p.strip()]
     try:
-      jwks_uri = await fetch_ms_jwks_uri()
-      self.ms_jwks = await fetch_ms_jwks(jwks_uri)
-      self.ms_jwks_fetched_at = datetime.now(timezone.utc)
+      if "microsoft" in providers_cfg:
+        res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
+        if not res.rows:
+          raise ValueError("Missing config value for key: MsApiId")
+        ms_api_id = res.rows[0]["value"]
+        provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
+        await provider._get_jwks()
+        self.providers["microsoft"] = provider
       logging.info("Auth module loaded")
       self.mark_ready()
     except Exception as e:
-      logging.error(f"[AuthModule] Failed to load Microsoft JWKS: {e}")
+      logging.error(f"[AuthModule] Failed to load providers: {e}")
 
   async def shutdown(self):
     logging.info("Auth module shutdown")
 
-  async def verify_ms_id_token(self, id_token: str) -> Dict:
-    now = datetime.now(timezone.utc)
-    if not self.ms_jwks or not self.ms_jwks_fetched_at or now - self.ms_jwks_fetched_at > timedelta(hours=1):
-      try:
-        jwks_uri = await fetch_ms_jwks_uri()
-        self.ms_jwks = await fetch_ms_jwks(jwks_uri)
-        self.ms_jwks_fetched_at = now
-      except Exception:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Microsoft keys unavailable")
-    try:
-      unverified_header = jwt.get_unverified_header(id_token)
-    except Exception:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ID token.")
-    rsa_key = next(
-      ({
-        "kty": key["kty"],
-        "kid": key["kid"],
-        "use": key["use"],
-        "n": key["n"],
-        "e": key["e"],
-      } for key in self.ms_jwks.get("keys", []) if key["kid"] == unverified_header["kid"]),
-      None,
-    )
-    if not rsa_key:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header.")
-    try:
-      payload = jwt.decode(
-        id_token,
-        rsa_key,
-        algorithms=[self.jwt_algo_ms],
-        audience=self.ms_api_id,
-        issuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0",
-      )
-      return payload
-    except jwt.ExpiredSignatureError:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired.")
-    except jwt.JWTClaimsError:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect claims. Please check the audience and issuer.")
-    except Exception:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token validation failed.")
-
-  async def fetch_ms_user_profile(self, access_token: str) -> Dict:
-    async with aiohttp.ClientSession() as session:
-      headers = {"Authorization": f"Bearer {access_token}"}
-      async with session.get("https://graph.microsoft.com/v1.0/me", headers=headers) as response:
-        if response.status != 200:
-          error_message = await response.text()
-          raise HTTPException(status_code=500, detail=f"Failed to fetch user profile. Status: {response.status}, Error: {error_message}")
-        user = await response.json()
-      profile_picture_base64 = None
-      async with session.get("https://graph.microsoft.com/v1.0/me/photo/$value", headers=headers) as response:
-        if response.status == 200:
-          picture_bytes = await response.read()
-          profile_picture_base64 = base64.b64encode(picture_bytes).decode("utf-8")
-      return {
-        "email": user.get("mail") or user.get("userPrincipalName"),
-        "username": user.get("displayName"),
-        "profilePicture": profile_picture_base64,
-      }
 
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
-    if provider == "microsoft":
-      payload = await self.verify_ms_id_token(id_token)
-      guid = payload.get("oid") or payload.get("sub")
-      if not guid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
-      profile = await self.fetch_ms_user_profile(access_token)
-      logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
-      return guid, profile, payload
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
+    strategy = self.providers.get(provider)
+    if not strategy:
+      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
+    payload = await strategy.verify_id_token(id_token)
+    guid = strategy.extract_guid(payload)
+    if not guid:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
+    profile = await strategy.fetch_user_profile(access_token)
+    logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
+    return guid, profile, payload
 
   def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> tuple[str, datetime]:
     now = datetime.now(timezone.utc)
