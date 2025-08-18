@@ -6,7 +6,7 @@ from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
 
-from server.helpers.logging import configure_discord_logging, remove_discord_logging
+from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 
 class DiscordModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -27,6 +27,7 @@ class DiscordModule(BaseModule):
     self.bot = self._init_discord_bot('!')
     self.bot.app = self.app
     self._init_bot_routes()
+    update_logging_level(self.db.debug_logging)
     configure_discord_logging(self)
     res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
     if not res.rows:

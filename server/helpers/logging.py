@@ -57,6 +57,13 @@ def configure_discord_logging(discord_module):
   handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
   logging.getLogger().addHandler(handler)
 
+def update_logging_level(debug: bool = False):
+  """Update global logging level including Azure SDK logger."""
+  logger = logging.getLogger()
+  logger.setLevel(logging.DEBUG if debug else logging.INFO)
+  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
+  azure_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+
 def configure_root_logging(debug: bool = False):
   logger = logging.getLogger()
   if logger.handlers:
@@ -64,10 +71,7 @@ def configure_root_logging(debug: bool = False):
   handler = logging.StreamHandler(sys.stdout)
   handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
   logger.addHandler(handler)
-  logger.setLevel(logging.DEBUG if debug else logging.INFO)
-
-  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
-  azure_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+  update_logging_level(debug)
 
 def remove_discord_logging(discord_module):
   logger = logging.getLogger()
