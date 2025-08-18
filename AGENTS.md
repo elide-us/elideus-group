@@ -18,9 +18,6 @@ These are the *canonical entry points* for automation and must be used to model 
 * **`mssql_cli.py`** and **`msdblib.py`**
   Contain functions for SQL Server schema and data management. Use these utilities for schema dumps, migrations, and maintenance tasks.
 
-* **`postgres_cli.py`** and **`pgdblib.py`**
-  Deprecated. Postgres is no longer a supported backend. Avoid using these utilities.
-
 * **Docker considerations**
   The Dockerfile and `buildx` process may be affected by changes, but there is no automated test coverage for these steps. Exercise caution when modifying anything related to container builds.
 

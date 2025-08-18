@@ -35,13 +35,11 @@ IF ERRORLEVEL 1 EXIT /b 1
 EXIT /b 0
 
 :GENERATE_LIBS
-python scripts\generate_rpc_library.py
-IF ERRORLEVEL 1 EXIT /b 1
-python scripts\generate_rpc_client.py
-IF ERRORLEVEL 1 EXIT /b 1
-python scripts\generate_rpc_metadata.py
-IF ERRORLEVEL 1 EXIT /b 1
-EXIT /b 0
+  python scripts\generate_rpc_library.py
+  IF ERRORLEVEL 1 EXIT /b 1
+  python scripts\generate_rpc_client.py
+  IF ERRORLEVEL 1 EXIT /b 1
+  EXIT /b 0
 
 :FRONTEND_TASKS
 CD frontend
