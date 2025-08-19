@@ -12,6 +12,7 @@ from server.helpers.logging import update_logging_level
 
 
 _dispatch_executor: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
+_shutdown_executor: Callable[[], Awaitable[None]] | None = None
 
 
 async def init(provider: str | None = None, **cfg):
@@ -21,7 +22,7 @@ async def init(provider: str | None = None, **cfg):
   from the ``DATABASE_PROVIDER`` environment variable. Defaults to ``mssql``.
   """
 
-  global _dispatch_executor
+  global _dispatch_executor, _shutdown_executor
   provider_name = provider or "mssql"
 
   try:
@@ -35,6 +36,7 @@ async def init(provider: str | None = None, **cfg):
   provider_mod = cast(Provider, _module)
   await provider_mod.init(**cfg)
   _dispatch_executor = provider_mod.dispatch
+  _shutdown_executor = getattr(provider_mod, "close_pool", None)
 
 
 async def run(op: str, args: Dict[str, Any]) -> DBResult:
@@ -67,7 +69,10 @@ class DbModule(BaseModule):
     self.mark_ready()
 
   async def shutdown(self):
-    return
+    global _shutdown_executor
+    if _shutdown_executor:
+      await _shutdown_executor()
+      _shutdown_executor = None
 
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
     return await run(op, args)

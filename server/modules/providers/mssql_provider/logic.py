@@ -16,7 +16,8 @@ async def init_pool(*, dsn: str | None = None, **cfg):
 async def close_pool():
   global _pool
   if _pool:
-    await _pool.close()
+    _pool.close()
+    await _pool.wait_closed()
     _pool = None
     logging.info("MSSQL ODBC Connection Pool Closed")
 
