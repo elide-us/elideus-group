@@ -4,8 +4,8 @@ from typing import Dict, Any
 
 import aiohttp
 
-from . import AuthProvider
 from fastapi import HTTPException, status
+from server.modules.providers import AuthProvider
 
 MICROSOFT_OPENID_CONFIG = "https://login.microsoftonline.com/consumers/v2.0/.well-known/openid-configuration"
 MICROSOFT_GRAPH_USER = "https://graph.microsoft.com/v1.0/me"

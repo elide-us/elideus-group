@@ -9,6 +9,8 @@ from jose import jwt
 
 from .models import DBResult
 
+__all__ = ["AuthProvider", "Provider"]
+
 
 class Provider(Protocol):
   async def init(**cfg) -> None: ...
