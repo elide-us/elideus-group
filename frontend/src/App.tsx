@@ -10,6 +10,7 @@ import LoginPage from "./LoginPage";
 import UserPage from "./UserPage";
 import SystemRoutesPage from "./SystemRoutesPage";
 import FileManager from "./FileManager";
+import SystemConfigPage from "./SystemConfigPage";
 
 function App(): JSX.Element {
 	return (
@@ -34,6 +35,7 @@ function App(): JSX.Element {
 							<Route path="/loginpage" element={<LoginPage />} />
                                                         <Route path="/userpage" element={<UserPage />} />
                                                         <Route path="/system-routes" element={<SystemRoutesPage />} />
+                                                        <Route path="/system-config" element={<SystemConfigPage />} />
                                                         <Route path="/file-manager" element={<FileManager />} />
 						</Routes>
 					</Container>
