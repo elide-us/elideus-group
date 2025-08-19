@@ -3,7 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import get_rpcrequest_from_request, bit_to_mask
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
-from server.modules.authz_module import ROLE_NAMES, AuthzModule
+from server.modules.auth_module import AuthModule
 from .models import (
   SecurityRolesRoles1,
   SecurityRolesUpsertRole1,
@@ -18,7 +18,8 @@ async def security_roles_get_roles_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
   if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
     raise HTTPException(status_code=403, detail="Forbidden")
-  payload = SecurityRolesRoles1(roles=list(ROLE_NAMES))
+  auth: AuthModule = request.app.state.auth
+  payload = SecurityRolesRoles1(roles=list(auth.get_role_names(exclude_registered=True)))
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -36,8 +37,8 @@ async def security_roles_upsert_role_v1(request: Request):
     "mask": bit_to_mask(data.bit),
     "display": data.display,
   })
-  authz: AuthzModule = request.app.state.authz
-  await authz.load_roles()
+  auth: AuthModule = request.app.state.auth
+  await auth.refresh_role_cache()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -52,8 +53,8 @@ async def security_roles_delete_role_v1(request: Request):
   data = SecurityRolesDeleteRole1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:delete_role:1", {"name": data.name})
-  authz: AuthzModule = request.app.state.authz
-  await authz.load_roles()
+  auth: AuthModule = request.app.state.auth
+  await auth.refresh_role_cache()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),

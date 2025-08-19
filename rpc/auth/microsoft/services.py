@@ -6,7 +6,6 @@ from fastapi import HTTPException, Request
 from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
-from server.modules.authz_module import AuthzModule
 from server.modules.db_module import DbModule
 from .models import AuthMicrosoftOauthLogin1
 
@@ -73,7 +72,6 @@ async def lookup_user(db: DbModule, provider: str, identifiers: list[str]):
 
 async def create_session(
   auth: AuthModule,
-  authz: AuthzModule,
   db: DbModule,
   user_guid: str,
   provider: str,
@@ -88,9 +86,7 @@ async def create_session(
     "db:users:session:set_rotkey:1",
     {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
   )
-  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
-  role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
-  roles = authz.mask_to_names(role_mask)
+  roles, _ = await auth.get_user_roles(user_guid)
   session_token, session_exp = auth.make_session_token(
     user_guid, rotation_token, roles, provider
   )
@@ -128,7 +124,6 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
-  authz: AuthzModule = request.app.state.authz
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
@@ -173,7 +168,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_token, session_exp = await create_session(
-    auth, authz, db, user_guid, provider, fingerprint, user_agent, ip_address
+    auth, db, user_guid, provider, fingerprint, user_agent, ip_address
   )
 
   payload = AuthMicrosoftOauthLogin1(

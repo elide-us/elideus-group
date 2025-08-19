@@ -20,6 +20,10 @@ class AuthModule(BaseModule):
     self.jwt_secret: str | None = None
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
+    self.roles: dict[str, int] = {}
+    self.role_names: list[str] = []
+    self.role_registered: int = 0
+    self._user_roles: dict[str, tuple[list[str], int]] = {}
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
@@ -39,6 +43,7 @@ class AuthModule(BaseModule):
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider._get_jwks()
         self.providers["microsoft"] = provider
+      await self.load_roles()
       logging.info("Auth module loaded")
       self.mark_ready()
     except Exception as e:
@@ -125,4 +130,48 @@ class AuthModule(BaseModule):
       return {"guid": guid}
     except Exception:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
+
+  async def load_roles(self):
+    try:
+      result = await self.db.run("db:system:roles:list:1", {})
+    except Exception:
+      return
+    rows = result.rows
+    if not rows:
+      return
+    self.roles.clear()
+    for r in rows:
+      self.roles[r["name"]] = int(r["mask"])
+    self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
+    self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
+    self._user_roles.clear()
+
+  async def refresh_role_cache(self):
+    await self.load_roles()
+
+  def mask_to_names(self, mask: int) -> list[str]:
+    return [name for name, bit in self.roles.items() if mask & bit]
+
+  def names_to_mask(self, names: list[str]) -> int:
+    mask = 0
+    for name in names:
+      mask |= self.roles.get(name, 0)
+    return mask
+
+  def get_role_names(self, exclude_registered: bool = False) -> list[str]:
+    if exclude_registered:
+      return [n for n in self.role_names]
+    return list(self.roles.keys())
+
+  async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
+    if not refresh and guid in self._user_roles:
+      return self._user_roles[guid]
+    res = await self.db.run("urn:users:profile:get_roles:1", {"guid": guid})
+    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+    names = self.mask_to_names(mask)
+    self._user_roles[guid] = (names, mask)
+    return names, mask
+
+  async def refresh_user_roles(self, guid: str):
+    await self.get_user_roles(guid, refresh=True)
 

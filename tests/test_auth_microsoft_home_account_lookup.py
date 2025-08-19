@@ -12,10 +12,8 @@ class DummyAuth:
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
   def make_session_token(self, user_guid, rot, roles, provider):
     return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
-
-class DummyAuthz:
-  def mask_to_names(self, mask):
-    return []
+  async def get_user_roles(self, guid, refresh=False):
+    return [], 0
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -35,7 +33,6 @@ class DummyState:
   def __init__(self):
     self.auth = DummyAuth()
     self.db = DummyDb()
-    self.authz = DummyAuthz()
 
 class DummyApp:
   def __init__(self):
@@ -84,10 +81,6 @@ def test_lookup_with_home_account_id(monkeypatch):
   class AuthModule: ...
   auth_mod.AuthModule = AuthModule
   sys.modules["server.modules.auth_module"] = auth_mod
-  authz_mod = types.ModuleType("server.modules.authz_module")
-  class AuthzModule: ...
-  authz_mod.AuthzModule = AuthzModule
-  sys.modules["server.modules.authz_module"] = authz_mod
   db_mod = types.ModuleType("server.modules.db_module")
   class DbModule: ...
   db_mod.DbModule = DbModule
