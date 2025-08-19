@@ -37,7 +37,9 @@ class StorageModule(BaseModule):
     self.mark_ready()
 
   async def shutdown(self):
-    self.client = None
+    if self.client:
+      await self.client.close()
+      self.client = None
     logging.info("Storage module shutdown")
 
   async def write_buffer(self, buffer: io.BytesIO, user_guid: str, filename: str, content_type: str | None = None):
