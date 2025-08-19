@@ -31,15 +31,15 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
 				}
 		};
 
-		const clearUserData = () => {
-				setUserDataState(null);
-				if (typeof localStorage !== 'undefined') {
-						localStorage.removeItem('authTokens');
-				}
-		};
+                const clearUserData = () => {
+                                setUserDataState(null);
+                                if (typeof localStorage !== 'undefined') {
+                                                localStorage.removeItem('authTokens');
+                                }
+                };
 
-		useEffect(() => {
-				const msal = new PublicClientApplication(msalConfig);
+                useEffect(() => {
+                                const msal = new PublicClientApplication(msalConfig);
 				const init = async () => {
 						try {
 								await msal.initialize();
@@ -59,8 +59,18 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
 								/* silent token acquisition failed */
 						}
 				};
-				void init();
-		}, []);
+                                void init();
+                }, []);
+
+               useEffect(() => {
+                               const handler = () => {
+                                               clearUserData();
+                               };
+                               window.addEventListener('sessionExpired', handler);
+                               return () => {
+                                               window.removeEventListener('sessionExpired', handler);
+                               };
+               }, []);
 
 		return (
 		<UserContext.Provider value={{ userData, setUserData, clearUserData }}>
