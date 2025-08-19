@@ -137,6 +137,7 @@ All Service domain calls require `ROLE_SERVICE_ADMIN`.
 ## Security Domain
 
 All Security domain calls require `ROLE_SECURITY_ADMIN`.
+`urn:security:roles:get_roles:1` may also be called by users with `ROLE_SYSTEM_ADMIN`.
 
 ### `roles`
 

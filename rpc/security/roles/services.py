@@ -16,7 +16,10 @@ from .models import (
 
 async def security_roles_get_roles_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
+  if (
+    "ROLE_SECURITY_ADMIN" not in auth_ctx.roles
+    and "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles
+  ):
     raise HTTPException(status_code=403, detail="Forbidden")
   auth: AuthModule = request.app.state.auth
   payload = SecurityRolesRoles1(roles=list(auth.get_role_names(exclude_registered=True)))
