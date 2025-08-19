@@ -21,35 +21,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface SecurityRolesDeleteRole1 {
-  name: string;
-}
-export interface SecurityRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface SecurityRolesRoleMembers1 {
-  members: SecurityRolesUserItem1[];
-  nonMembers: SecurityRolesUserItem1[];
-}
-export interface SecurityRolesRoles1 {
-  roles: string[];
-}
-export interface SecurityRolesUpsertRole1 {
-  name: string;
-  bit: number;
-  display: any;
-}
-export interface SecurityRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
 export interface StorageFilesDeleteFiles1 {
   files: string[];
 }
@@ -73,65 +44,28 @@ export interface StorageFilesUploadFile1 {
 export interface StorageFilesUploadFiles1 {
   files: StorageFilesUploadFile1[];
 }
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-  hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
-}
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
+export interface SecurityRolesDeleteRole1 {
   name: string;
-  icon: string | null;
 }
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
+export interface SecurityRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
 }
-export interface UsersProfileAuthProvider1 {
+export interface SecurityRolesRoleMembers1 {
+  members: SecurityRolesUserItem1[];
+  nonMembers: SecurityRolesUserItem1[];
+}
+export interface SecurityRolesRoles1 {
+  roles: string[];
+}
+export interface SecurityRolesUpsertRole1 {
   name: string;
-  display: string;
+  bit: number;
+  display: any;
 }
-export interface UsersProfileProfile1 {
+export interface SecurityRolesUserItem1 {
   guid: string;
-  display_name: string;
-  email: string;
-  display_email: boolean;
-  credits: number;
-  profile_image: string | null;
-  default_provider: string;
-  auth_providers: UsersProfileAuthProvider1[];
-}
-export interface UsersProfileRoles1 {
-  roles: number;
-}
-export interface UsersProfileSetDisplay1 {
-  display_name: string;
-}
-export interface UsersProfileSetOptin1 {
-  display_email: boolean;
-}
-export interface UsersProfileSetProfileImage1 {
-  image_b64: string;
-  provider: string;
-}
-export interface UsersProvidersSetProvider1 {
-  provider: string;
+  displayName: string;
 }
 export interface AdminRolesMembers1 {
   members: AdminRolesUserItem1[];
@@ -164,6 +98,72 @@ export interface SystemRoutesRouteItem1 {
   icon: string | null;
   sequence: number;
   required_roles: string[];
+}
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface PublicVarsHostname1 {
+  hostname: string;
+}
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
+}
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+  path: string;
+  name: string;
+  icon: string | null;
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
+}
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface UsersProfileAuthProvider1 {
+  name: string;
+  display: string;
+}
+export interface UsersProfileProfile1 {
+  guid: string;
+  display_name: string;
+  email: string;
+  display_email: boolean;
+  credits: number;
+  profile_image: string | null;
+  default_provider: string;
+  auth_providers: UsersProfileAuthProvider1[];
+}
+export interface UsersProfileRoles1 {
+  roles: number;
+}
+export interface UsersProfileSetDisplay1 {
+  display_name: string;
+}
+export interface UsersProfileSetOptin1 {
+  display_email: boolean;
+}
+export interface UsersProfileSetProfileImage1 {
+  image_b64: string;
+  provider: string;
+}
+export interface UsersProvidersSetProvider1 {
+  provider: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

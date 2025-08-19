@@ -51,47 +51,70 @@ const SystemRoutesPage = (): JSX.Element => {
 		sequence: 0,
 		required_roles: [],
 	});
-	const [newLeft, setNewLeft] = useState<string | null>(null);
-	const [newRight, setNewRight] = useState<string | null>(null);
+		const [newLeft, setNewLeft] = useState<string | null>(null);
+		const [newRight, setNewRight] = useState<string | null>(null);
+		const [forbidden, setForbidden] = useState(false);
 
-	const load = async (): Promise<void> => {
-		try {
-			const res: SystemRoutesList1 = await fetchRoutes();
-			setRoutes(res.routes.sort((a, b) => a.sequence - b.sequence));
-		} catch {
-			setRoutes([]);
+		const load = async (): Promise<void> => {
+				try {
+						const res: SystemRoutesList1 = await fetchRoutes();
+						setRoutes(res.routes.sort((a, b) => a.sequence - b.sequence));
+						console.debug("[SystemRoutesPage] loaded routes");
+				} catch (e: any) {
+						console.debug("[SystemRoutesPage] failed to load routes", e);
+						if (e?.response?.status === 403) {
+								setForbidden(true);
+						} else {
+								setRoutes([]);
+						}
+				}
+				try {
+						const roles: SecurityRolesRoles1 = await fetchRoles();
+						setRoleNames(roles.roles);
+						console.debug("[SystemRoutesPage] loaded roles");
+				} catch (e: any) {
+						console.debug("[SystemRoutesPage] failed to load roles", e);
+						if (e?.response?.status === 403) {
+								setForbidden(true);
+						} else {
+								setRoleNames([]);
+						}
+				}
+		};
+
+		useEffect(() => {
+				void load();
+		}, []);
+
+		if (forbidden) {
+				return (
+						<Box sx={{ p: 2 }}>
+								<Typography variant="h6">Forbidden</Typography>
+						</Box>
+				);
 		}
-		try {
-			const roles: SecurityRolesRoles1 = await fetchRoles();
-			setRoleNames(roles.roles);
-		} catch {
-			setRoleNames([]);
-		}
-	};
 
-	useEffect(() => {
-		void load();
-	}, []);
-
-	const updateRoute = async (
-		index: number,
-		field: keyof SystemRoutesRouteItem1,
-		value: any,
+		const updateRoute = async (
+				index: number,
+				field: keyof SystemRoutesRouteItem1,
+				value: any,
 	): Promise<void> => {
-		const updated = [...routes];
-		(updated[index] as any)[field] = value;
-		setRoutes(updated);
-		await fetchUpsertRoute(updated[index]);
-		void load();
-	};
+				const updated = [...routes];
+				(updated[index] as any)[field] = value;
+				setRoutes(updated);
+				console.debug("[SystemRoutesPage] updating route", updated[index]);
+				await fetchUpsertRoute(updated[index]);
+				void load();
+		};
 
 	const moveRight = async (idx: number): Promise<void> => {
 		const role = selectedLeft[idx];
 		if (!role) return;
 		const updatedRoles = [...routes[idx].required_roles, role];
-		setSelectedLeft({ ...selectedLeft, [idx]: "" });
-		await updateRoute(idx, "required_roles", updatedRoles);
-	};
+				setSelectedLeft({ ...selectedLeft, [idx]: "" });
+				await updateRoute(idx, "required_roles", updatedRoles);
+				console.debug("[SystemRoutesPage] moved role to required", role);
+		};
 
 	const moveLeft = async (idx: number): Promise<void> => {
 		const role = selectedRight[idx];
@@ -99,39 +122,44 @@ const SystemRoutesPage = (): JSX.Element => {
 		const updatedRoles = routes[idx].required_roles.filter(
 			(r) => r !== role,
 		);
-		setSelectedRight({ ...selectedRight, [idx]: "" });
-		await updateRoute(idx, "required_roles", updatedRoles);
-	};
+				setSelectedRight({ ...selectedRight, [idx]: "" });
+				await updateRoute(idx, "required_roles", updatedRoles);
+				console.debug("[SystemRoutesPage] removed role from required", role);
+		};
 
 	const handleDelete = async (path: string): Promise<void> => {
-		await fetchDeleteRoute({ path });
-		void load();
-	};
+				console.debug("[SystemRoutesPage] deleting route", path);
+				await fetchDeleteRoute({ path });
+				void load();
+		};
 
 	const addMoveRight = (role: string | null): void => {
 		if (!role) return;
-		setNewRoute({
-			...newRoute,
-			required_roles: [...newRoute.required_roles, role],
-		});
-		setNewLeft(null);
-	};
+				setNewRoute({
+						...newRoute,
+						required_roles: [...newRoute.required_roles, role],
+				});
+				console.debug("[SystemRoutesPage] added role to new route", role);
+				setNewLeft(null);
+		};
 
 	const addMoveLeft = (role: string | null): void => {
 		if (!role) return;
-		setNewRoute({
-			...newRoute,
-			required_roles: newRoute.required_roles.filter((r) => r !== role),
-		});
-		setNewRight(null);
-	};
+				setNewRoute({
+						...newRoute,
+						required_roles: newRoute.required_roles.filter((r) => r !== role),
+				});
+				console.debug("[SystemRoutesPage] removed role from new route", role);
+				setNewRight(null);
+		};
 
 	const handleAdd = async (): Promise<void> => {
 		if (!newRoute.path) return;
-		await fetchUpsertRoute(newRoute);
-		setNewRoute({
-			path: "",
-			name: "",
+				console.debug("[SystemRoutesPage] adding route", newRoute);
+				await fetchUpsertRoute(newRoute);
+				setNewRoute({
+						path: "",
+						name: "",
 			icon: "",
 			sequence: 0,
 			required_roles: [],
