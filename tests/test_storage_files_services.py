@@ -77,9 +77,15 @@ storage_files_upload_files_v1 = svc_mod.storage_files_upload_files_v1
 storage_files_delete_files_v1 = svc_mod.storage_files_delete_files_v1
 storage_files_set_gallery_v1 = svc_mod.storage_files_set_gallery_v1
 
+class DummyAuth:
+  def __init__(self):
+    self.roles = {"ROLE_STORAGE_ENABLED": 0x2}
+
+
 class DummyState:
   def __init__(self, storage):
     self.storage = storage
+    self.auth = DummyAuth()
 
 class DummyApp:
   def __init__(self, state):
@@ -94,7 +100,7 @@ class DummyRequest:
 def test_get_files_returns_list():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:storage:files:get_files:1", payload=None, version=1)
-    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"])
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
   svc_mod.get_rpcrequest_from_request = fake_get
   storage = StorageModule()
@@ -112,7 +118,7 @@ def test_upload_files_calls_storage():
       payload={"files": [{"name": "a.txt", "content_b64": "YQ==", "content_type": "text/plain"}]},
       version=1,
     )
-    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"])
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
   svc_mod.get_rpcrequest_from_request = fake_up
   storage = StorageModule()
@@ -129,7 +135,7 @@ def test_delete_files_calls_storage():
       payload={"files": ["a.txt", "b.txt"]},
       version=1,
     )
-    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"])
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
   svc_mod.get_rpcrequest_from_request = fake_del
   storage = StorageModule()
@@ -147,7 +153,7 @@ def test_set_gallery_validates_file():
       payload={"name": "a.txt", "gallery": True},
       version=1,
     )
-    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"])
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
   svc_mod.get_rpcrequest_from_request = fake_set
   storage = StorageModule()
