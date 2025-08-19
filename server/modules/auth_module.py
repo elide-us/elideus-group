@@ -34,15 +34,19 @@ class AuthModule(BaseModule):
     self.jwks_cache_minutes = int(self.env.get("JWKS_CACHE_MINUTES"))
 
     providers_cfg = [p.strip() for p in self.env.get("AUTH_PROVIDERS").split(",") if p.strip()]
+    logging.debug(f"[AuthModule] Provider configuration: {providers_cfg}")
     try:
       if "microsoft" in providers_cfg:
+        logging.debug("[AuthModule] Loading Microsoft provider")
         res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
         if not res.rows:
           raise ValueError("Missing config value for key: MsApiId")
         ms_api_id = res.rows[0]["value"]
+        logging.debug("[AuthModule] MsApiId=%s", ms_api_id)
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider._get_jwks()
         self.providers["microsoft"] = provider
+        logging.debug("[AuthModule] Microsoft provider ready")
       await self.load_roles()
       logging.info("Auth module loaded")
       self.mark_ready()
@@ -54,15 +58,19 @@ class AuthModule(BaseModule):
 
 
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
+    logging.debug("[AuthModule] handle_auth_login provider=%s", provider)
     strategy = self.providers.get(provider)
     if not strategy:
+      logging.error("[AuthModule] Unsupported auth provider %s", provider)
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
     payload = await strategy.verify_id_token(id_token)
     guid = strategy.extract_guid(payload)
     if not guid:
+      logging.error("[AuthModule] Missing guid in token for provider %s", provider)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
     profile = await strategy.fetch_user_profile(access_token)
     logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
+    logging.debug("[AuthModule] Login payload guid=%s provider=%s", guid, provider)
     return guid, profile, payload
 
   def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> tuple[str, datetime]:
@@ -77,6 +85,7 @@ class AuthModule(BaseModule):
       "session": rotation_token,
       "provider": provider,
     }
+    logging.debug("[AuthModule] Creating session token for %s roles=%s provider=%s", guid, roles, provider)
     derived_secret = f"{self.jwt_secret}:{rotation_token}"
     token = jwt.encode(token_data, derived_secret, algorithm=self.jwt_algo_int)
     return token, exp
@@ -87,12 +96,15 @@ class AuthModule(BaseModule):
     now = datetime.now(timezone.utc)
     raw = f"{guid}:{now}:{':'.join(parts)}"
     encoded = base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8").rstrip("=")
+    logging.debug("[AuthModule] Generated rotation token for %s", guid)
     return encoded, exp
 
   async def decode_session_token(self, token: str) -> Dict:
+    logging.debug("[AuthModule] Decoding session token")
     try:
       claims = jwt.get_unverified_claims(token)
     except JWTError:
+      logging.error("[AuthModule] Failed to decode session token")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
 
     guid = claims.get("sub")
@@ -102,21 +114,25 @@ class AuthModule(BaseModule):
     res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
     rotkey = res.rows[0].get("rotkey") if res.rows else None
     if not rotkey:
+      logging.error("[AuthModule] Rotation key not found for %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
 
     derived_secret = f"{self.jwt_secret}:{rotkey}"
     try:
       payload = jwt.decode(token, derived_secret, algorithms=[self.jwt_algo_int])
     except JWTError:
+      logging.error("[AuthModule] JWT decode failed for guid %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
 
     exp = payload.get("exp")
     if not exp or datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+      logging.error("[AuthModule] Session token expired for %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
 
     return payload
 
   def decode_rotation_token(self, token: str) -> Dict:
+    logging.debug("[AuthModule] Decoding rotation token")
     try:
       padded_token = token + '=' * (-len(token) % 4)  # restore stripped padding
       raw = base64.urlsafe_b64decode(padded_token.encode("utf-8")).decode("utf-8")
@@ -126,18 +142,23 @@ class AuthModule(BaseModule):
       guid, timestamp = parts[0], parts[1]
       token_time = datetime.fromisoformat(timestamp)
       if token_time + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY) < datetime.now(timezone.utc):
+        logging.error("[AuthModule] Rotation token expired for %s", guid)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Rotation token expired")
       return {"guid": guid}
     except Exception:
+      logging.error("[AuthModule] Failed to decode rotation token")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
 
   async def load_roles(self):
+    logging.debug("[AuthModule] Loading roles from database")
     try:
       result = await self.db.run("db:system:roles:list:1", {})
-    except Exception:
+    except Exception as e:
+      logging.error("[AuthModule] Failed to load roles: %s", e)
       return
     rows = result.rows
     if not rows:
+      logging.debug("[AuthModule] No roles returned")
       return
     self.roles.clear()
     for r in rows:
@@ -145,8 +166,10 @@ class AuthModule(BaseModule):
     self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
     self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
     self._user_roles.clear()
+    logging.debug("[AuthModule] Loaded roles: %s", self.roles)
 
   async def refresh_role_cache(self):
+    logging.debug("[AuthModule] Refreshing role cache")
     await self.load_roles()
 
   def mask_to_names(self, mask: int) -> list[str]:
@@ -165,13 +188,17 @@ class AuthModule(BaseModule):
 
   async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
     if not refresh and guid in self._user_roles:
+      logging.debug("[AuthModule] Returning cached roles for %s", guid)
       return self._user_roles[guid]
+    logging.debug("[AuthModule] Fetching roles for %s", guid)
     res = await self.db.run("urn:users:profile:get_roles:1", {"guid": guid})
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
+    logging.debug("[AuthModule] Roles for %s: %s", guid, names)
     return names, mask
 
   async def refresh_user_roles(self, guid: str):
+    logging.debug("[AuthModule] Refreshing user roles for %s", guid)
     await self.get_user_roles(guid, refresh=True)
 
