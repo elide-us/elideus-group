@@ -14,6 +14,19 @@ class RPCRequest(BaseModel):
     description="Client-supplied or default UTC timestamp",
   )
 
+  user_guid: Optional[str] = Field(
+    default=None,
+    description="GUID extracted from bearer token",
+  )
+  roles: list[str] = Field(
+    default_factory=list,
+    description="Role names assigned to the user",
+  )
+  role_mask: int = Field(
+    default=0,
+    description="Bitmask representing user roles",
+  )
+
 
 class RPCResponse(BaseModel):
   op: str
