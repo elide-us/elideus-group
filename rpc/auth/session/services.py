@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -191,6 +192,15 @@ async def auth_session_get_session_v1(request: Request):
       exp_dt = None
     if exp_dt and exp_dt.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
       raise HTTPException(status_code=401, detail="Session expired")
+  ip_address = request.client.host if request.client else None
+  user_agent = request.headers.get("user-agent")
+  try:
+    await db.run(
+      "db:auth:session:update_session:1",
+      {"access_token": token, "ip_address": ip_address, "user_agent": user_agent},
+    )
+  except Exception as e:
+    logging.error("[auth_session_get_session_v1] Failed to update session metadata: %s", e)
 
   payload = {
     "session_guid": session.get("session_guid"),
