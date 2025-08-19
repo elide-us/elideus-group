@@ -241,6 +241,47 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
     """
     return ("json_many", sql, (mask,))
 
+# -------------------- SYSTEM ROUTES --------------------
+
+@register("urn:system:routes:get_routes:1")
+def _system_routes_get_routes(_: Dict[str, Any]):
+  sql = """
+    SELECT
+      element_path,
+      element_name,
+      element_icon,
+      element_sequence,
+      element_roles
+    FROM frontend_routes
+    ORDER BY element_sequence
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, ())
+
+@register("urn:system:routes:upsert_route:1")
+async def _system_routes_upsert_route(args: Dict[str, Any]):
+  path = args["path"]
+  name = args["name"]
+  icon = args.get("icon")
+  sequence = int(args["sequence"])
+  roles = int(args["roles"])
+  rc = await exec_query(
+    "UPDATE frontend_routes SET element_name = ?, element_icon = ?, element_sequence = ?, element_roles = ? WHERE element_path = ?;",
+    (name, icon, sequence, roles, path),
+  )
+  if rc.rowcount == 0:
+    rc = await exec_query(
+      "INSERT INTO frontend_routes (element_path, element_name, element_icon, element_sequence, element_roles) VALUES (?, ?, ?, ?, ?);",
+      (path, name, icon, sequence, roles),
+    )
+  return rc
+
+@register("urn:system:routes:delete_route:1")
+def _system_routes_delete_route(args: Dict[str, Any]):
+  path = args["path"]
+  sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
+  return ("exec", sql, (path,))
+
 @register("urn:public:vars:get_hostname:1")
 def _public_vars_get_hostname(args: Dict[str, Any]):
   sql = """
