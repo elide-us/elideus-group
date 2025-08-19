@@ -392,7 +392,7 @@ def _config_delete(args: Dict[str, Any]):
 def _system_roles_list(_: Dict[str, Any]):
   sql = """
     SELECT element_name AS name, element_mask AS mask, element_display AS display
-    FROM auth_roles
+    FROM system_roles
     ORDER BY element_mask
     FOR JSON PATH;
   """
@@ -405,12 +405,12 @@ async def _security_roles_upsert_role(args: Dict[str, Any]):
   mask = int(args["mask"])
   display = args.get("display")
   rc = await exec_query(
-    "UPDATE auth_roles SET element_mask = ?, element_display = ? WHERE element_name = ?;",
+    "UPDATE system_roles SET element_mask = ?, element_display = ? WHERE element_name = ?;",
     (mask, display, name),
   )
   if rc.rowcount == 0:
     rc = await exec_query(
-      "INSERT INTO auth_roles (element_name, element_mask, element_display) VALUES (?, ?, ?);",
+      "INSERT INTO system_roles (element_name, element_mask, element_display) VALUES (?, ?, ?);",
       (name, mask, display),
     )
   return rc
@@ -419,8 +419,13 @@ async def _security_roles_upsert_role(args: Dict[str, Any]):
 @register("db:security:roles:delete_role:1")
 async def _security_roles_delete_role(args: Dict[str, Any]):
   name = args["name"]
-  await exec_query("DELETE FROM auth_roles_members WHERE roles_name = ?;", (name,))
-  rc = await exec_query("DELETE FROM auth_roles WHERE element_name = ?;", (name,))
+  sql = """
+    DECLARE @mask BIGINT;
+    SELECT @mask = element_mask FROM system_roles WHERE element_name = ?;
+    UPDATE users_roles SET element_roles = element_roles & ~@mask;
+    DELETE FROM system_roles WHERE element_name = ?;
+  """
+  rc = await exec_query(sql, (name, name))
   return rc
 
 
@@ -428,10 +433,11 @@ async def _security_roles_delete_role(args: Dict[str, Any]):
 def _security_roles_get_members(args: Dict[str, Any]):
   role = args["role"]
   sql = """
-    SELECT arm.users_guid AS guid, au.element_display AS display_name
-    FROM auth_roles_members arm
-    JOIN account_users au ON au.element_guid = arm.users_guid
-    WHERE arm.roles_name = ?
+    SELECT au.element_guid AS guid, au.element_display AS display_name
+    FROM account_users au
+    JOIN users_roles ur ON au.element_guid = ur.users_guid
+    JOIN system_roles sr ON sr.element_name = ?
+    WHERE (ur.element_roles & sr.element_mask) > 0
     ORDER BY au.element_display
     FOR JSON PATH;
   """
@@ -444,9 +450,9 @@ def _security_roles_get_non_members(args: Dict[str, Any]):
   sql = """
     SELECT au.element_guid AS guid, au.element_display AS display_name
     FROM account_users au
-    WHERE au.element_guid NOT IN (
-      SELECT users_guid FROM auth_roles_members WHERE roles_name = ?
-    )
+    LEFT JOIN users_roles ur ON au.element_guid = ur.users_guid
+    JOIN system_roles sr ON sr.element_name = ?
+    WHERE (ISNULL(ur.element_roles, 0) & sr.element_mask) = 0
     ORDER BY au.element_display
     FOR JSON PATH;
   """
@@ -457,13 +463,24 @@ def _security_roles_get_non_members(args: Dict[str, Any]):
 def _security_roles_add_member(args: Dict[str, Any]):
   role = args["role"]
   user_guid = args["user_guid"]
-  sql = "INSERT INTO auth_roles_members (roles_name, users_guid) VALUES (?, ?);"
-  return ("exec", sql, (role, user_guid))
+  sql = """
+    MERGE users_roles AS ur
+    USING (SELECT ? AS users_guid, element_mask FROM system_roles WHERE element_name = ?) AS src
+    ON ur.users_guid = src.users_guid
+    WHEN MATCHED THEN UPDATE SET element_roles = ur.element_roles | src.element_mask
+    WHEN NOT MATCHED THEN INSERT (users_guid, element_roles) VALUES (src.users_guid, src.element_mask);
+  """
+  return ("exec", sql, (user_guid, role))
 
 
 @register("db:security:roles:remove_role_member:1")
 def _security_roles_remove_member(args: Dict[str, Any]):
   role = args["role"]
   user_guid = args["user_guid"]
-  sql = "DELETE FROM auth_roles_members WHERE roles_name = ? AND users_guid = ?;"
-  return ("exec", sql, (role, user_guid))
+  sql = """
+    DECLARE @mask BIGINT;
+    SELECT @mask = element_mask FROM system_roles WHERE element_name = ?;
+    UPDATE users_roles SET element_roles = element_roles & ~@mask WHERE users_guid = ?;
+    DELETE FROM users_roles WHERE users_guid = ? AND element_roles = 0;
+  """
+  return ("exec", sql, (role, user_guid, user_guid))
