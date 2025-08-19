@@ -47,23 +47,30 @@ export interface StorageFilesUploadFiles1 {
 export interface SecurityRolesDeleteRole1 {
   name: string;
 }
-export interface SecurityRolesRoleMemberUpdate1 {
+export interface AdminUsersSetCredits1 {
+  userGuid: string;
+  credits: number;
+}
+export interface AdminRolesMembers1 {
+  members: AdminRolesUserItem1[];
+  nonMembers: AdminRolesUserItem1[];
+}
+export interface AdminRolesRoleMemberUpdate1 {
   role: string;
   userGuid: string;
 }
-export interface SecurityRolesRoleMembers1 {
-  members: SecurityRolesUserItem1[];
-  nonMembers: SecurityRolesUserItem1[];
+export interface AdminRolesUserItem1 {
+  guid: string;
+  displayName: string;
 }
-export interface SecurityRolesRoles1 {
-  roles: string[];
+export interface UsersProvidersSetProvider1 {
+  provider: string;
 }
-export interface SecurityRolesUpsertRole1 {
+export interface UsersProfileAuthProvider1 {
   name: string;
-  bit: number;
-  display: any;
+  display: string;
 }
-export interface SecurityRolesUserItem1 {
+export interface UsersProfileProfile1 {
   guid: string;
   displayName: string;
 }
@@ -114,20 +121,19 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
   version: string;
 }
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
+export interface SecurityRolesDeleteRole1 {
   name: string;
-  icon: string | null;
 }
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
+export interface SecurityRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SecurityRolesRoleMembers1 {
+  members: SecurityRolesUserItem1[];
+  nonMembers: SecurityRolesUserItem1[];
+}
+export interface SecurityRolesRoles1 {
+  roles: string[];
 }
 export interface AuthMicrosoftOauthLogin1 {
   sessionToken: string;
@@ -137,33 +143,15 @@ export interface AuthMicrosoftOauthLogin1 {
 }
 export interface UsersProfileAuthProvider1 {
   name: string;
-  display: string;
+  bit: number;
+  display: any;
 }
-export interface UsersProfileProfile1 {
+export interface SecurityRolesUserItem1 {
   guid: string;
-  display_name: string;
-  email: string;
-  display_email: boolean;
-  credits: number;
-  profile_image: string | null;
-  default_provider: string;
-  auth_providers: UsersProfileAuthProvider1[];
+  displayName: string;
 }
-export interface UsersProfileRoles1 {
-  roles: number;
-}
-export interface UsersProfileSetDisplay1 {
-  display_name: string;
-}
-export interface UsersProfileSetOptin1 {
-  display_email: boolean;
-}
-export interface UsersProfileSetProfileImage1 {
-  image_b64: string;
-  provider: string;
-}
-export interface UsersProvidersSetProvider1 {
-  provider: string;
+export interface StorageFilesDeleteFiles1 {
+  files: string[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
@@ -188,6 +176,18 @@ export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
             /* ignore token parsing errors */
         }
     }
-    const response = await axios.post<RPCResponse>('/rpc', request, { headers });
-    return response.data.payload as T;
+    try {
+        const response = await axios.post<RPCResponse>('/rpc', request, { headers });
+        return response.data.payload as T;
+    } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('authTokens');
+            }
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('sessionExpired'));
+            }
+        }
+        throw err;
+    }
 }
