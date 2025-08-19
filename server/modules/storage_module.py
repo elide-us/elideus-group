@@ -23,13 +23,15 @@ class StorageModule(BaseModule):
     if not res.rows:
       raise ValueError("Missing config value for key: AzureBlobContainerName")
     self.container = res.rows[0]["value"]
+    logging.debug("[StorageModule] Using container %s", self.container)
 
     bsc = BlobServiceClient.from_connection_string(dsn)
     self.client = bsc.get_container_client(self.container)
     try:
+      logging.debug("[StorageModule] Attempting to create container %s", self.container)
       await self.client.create_container()
     except ResourceExistsError:
-      pass
+      logging.debug("[StorageModule] Container %s already exists", self.container)
     logging.info("Storage module loaded container %s", self.container)
 
     self.mark_ready()
@@ -41,6 +43,7 @@ class StorageModule(BaseModule):
   async def write_buffer(self, buffer: io.BytesIO, user_guid: str, filename: str, content_type: str | None = None):
     if not self.client:
       raise RuntimeError("Storage client not initialized")
+    logging.debug("[StorageModule] write_buffer user=%s filename=%s ct=%s", user_guid, filename, content_type)
     safe = filename.replace(" ", "_")
     buffer.seek(0)
     blob_name = f"{user_guid}/{safe}"
@@ -48,23 +51,29 @@ class StorageModule(BaseModule):
     if content_type:
       from azure.storage.blob import ContentSettings
       kwargs["content_settings"] = ContentSettings(content_type=content_type)
-    await self.client.upload_blob(**kwargs)
-    logging.info("Uploaded blob %s", blob_name)
+    try:
+      await self.client.upload_blob(**kwargs)
+      logging.info("Uploaded blob %s", blob_name)
+    except Exception as e:
+      logging.error("[StorageModule] Failed to upload blob %s: %s", blob_name, e)
+      raise
 
   async def user_folder_exists(self, user_guid: str) -> bool:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     prefix = f"{user_guid}/"
-    logging.debug("Checking folder existence for %s", user_guid)
+    logging.debug("[StorageModule] Checking folder existence prefix=%s", prefix)
     async for _ in self.client.list_blobs(name_starts_with=prefix):
+      logging.debug("[StorageModule] Folder exists for %s", user_guid)
       return True
+    logging.debug("[StorageModule] Folder does not exist for %s", user_guid)
     return False
 
   async def get_user_folder_size(self, user_guid: str) -> int:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     prefix = f"{user_guid}/"
-    logging.debug("Calculating folder size for %s", user_guid)
+    logging.debug("[StorageModule] Calculating folder size prefix=%s", prefix)
     size = 0
     async for blob in self.client.list_blobs(name_starts_with=prefix):
       try:
@@ -72,12 +81,15 @@ class StorageModule(BaseModule):
       except AttributeError:
         sz = getattr(blob, "get", lambda k: None)("size")
         size += sz if sz else 0
+    logging.debug("[StorageModule] Folder size for %s: %d", user_guid, size)
     return size
 
   async def ensure_user_folder(self, user_guid: str) -> None:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
+    logging.debug("[StorageModule] Ensuring folder for %s", user_guid)
     if await self.user_folder_exists(user_guid):
+      logging.debug("[StorageModule] Folder already exists for %s", user_guid)
       return
     data = io.BytesIO(b"")
     await self.client.upload_blob(
@@ -91,6 +103,7 @@ class StorageModule(BaseModule):
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     prefix = f"{user_guid}/"
+    logging.debug("[StorageModule] Listing files with prefix=%s", prefix)
     files: list[dict[str, str | None]] = []
     async for blob in self.client.list_blobs(name_starts_with=prefix):
       name = getattr(blob, "name", getattr(blob, "get", lambda k: None)("name"))
@@ -104,12 +117,18 @@ class StorageModule(BaseModule):
         ct = getattr(blob.content_settings, "content_type", None)
       url = f"{self.client.url}/{name}"
       files.append({"name": short, "url": url, "content_type": ct})
+    logging.debug("[StorageModule] Found %d files for %s", len(files), user_guid)
     return files
 
   async def delete_user_file(self, user_guid: str, filename: str) -> None:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
     name = f"{user_guid}/{filename}"
-    await self.client.delete_blob(name)
-    logging.info("Deleted blob %s", name)
+    logging.debug("[StorageModule] Deleting blob %s", name)
+    try:
+      await self.client.delete_blob(name)
+      logging.info("Deleted blob %s", name)
+    except Exception as e:
+      logging.error("[StorageModule] Failed to delete blob %s: %s", name, e)
+      raise
 
