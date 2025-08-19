@@ -48,6 +48,9 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
     roles, mask = await _auth.get_user_roles(auth_ctx.user_guid)
     auth_ctx.roles = roles
     auth_ctx.role_mask = mask
+    rpc_request.user_guid = auth_ctx.user_guid
+    rpc_request.roles = roles
+    rpc_request.role_mask = mask
   else:
     if domain not in ('public', 'auth'):
       raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
@@ -55,6 +58,12 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
   return rpc_request, auth_ctx
 
 async def get_rpcrequest_from_request(request):
-  rpc_request, auth_ctx = await _process_rpcrequest(request)
+  if getattr(request.state, 'rpc_request', None) and getattr(request.state, 'auth_ctx', None):
+    rpc_request = request.state.rpc_request
+    auth_ctx = request.state.auth_ctx
+  else:
+    rpc_request, auth_ctx = await _process_rpcrequest(request)
+    request.state.rpc_request = rpc_request
+    request.state.auth_ctx = auth_ctx
   parts = rpc_request.op.split(':')
   return rpc_request, auth_ctx, parts

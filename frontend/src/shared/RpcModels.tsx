@@ -11,12 +11,67 @@ export interface RPCRequest {
   payload: any | null;
   version: number;
   timestamp: string | null;
+  user_guid: string | null;
+  roles: string[];
+  role_mask: number;
 }
 export interface RPCResponse {
   op: string;
   payload: any;
   version: number;
   timestamp: string | null;
+}
+export interface SecurityRolesDeleteRole1 {
+  name: string;
+}
+export interface SecurityRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SecurityRolesRoleMembers1 {
+  members: SecurityRolesUserItem1[];
+  nonMembers: SecurityRolesUserItem1[];
+}
+export interface SecurityRolesRoles1 {
+  roles: string[];
+}
+export interface SecurityRolesUpsertRole1 {
+  name: string;
+  bit: number;
+  display: any;
+}
+export interface SecurityRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface StorageFilesDeleteFiles1 {
+  files: string[];
+}
+export interface StorageFilesFileItem1 {
+  name: string;
+  url: string;
+  content_type: string | null;
+}
+export interface StorageFilesFiles1 {
+  files: StorageFilesFileItem1[];
+}
+export interface StorageFilesSetGallery1 {
+  name: string;
+  gallery: boolean;
+}
+export interface StorageFilesUploadFile1 {
+  name: string;
+  content_b64: string;
+  content_type: string | null;
+}
+export interface StorageFilesUploadFiles1 {
+  files: StorageFilesUploadFile1[];
 }
 export interface PublicVarsFfmpegVersion1 {
   ffmpeg_version: string;
@@ -48,38 +103,6 @@ export interface PublicLinksNavBarRoute1 {
 export interface PublicLinksNavBarRoutes1 {
   routes: PublicLinksNavBarRoute1[];
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
-export interface SecurityRolesDeleteRole1 {
-  name: string;
-}
-export interface SecurityRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface SecurityRolesRoleMembers1 {
-  members: SecurityRolesUserItem1[];
-  nonMembers: SecurityRolesUserItem1[];
-}
-export interface SecurityRolesRoles1 {
-  roles: string[];
-}
-export interface SecurityRolesUpsertRole1 {
-  name: string;
-  bit: number;
-  display: any;
-}
-export interface SecurityRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface UsersProvidersSetProvider1 {
-  provider: string;
-}
 export interface UsersProfileAuthProvider1 {
   name: string;
   display: string;
@@ -94,11 +117,40 @@ export interface UsersProfileProfile1 {
   default_provider: string;
   auth_providers: UsersProfileAuthProvider1[];
 }
+export interface UsersProfileRoles1 {
+  roles: number;
+}
 export interface UsersProfileSetDisplay1 {
   display_name: string;
 }
 export interface UsersProfileSetOptin1 {
   display_email: boolean;
+}
+export interface UsersProfileSetProfileImage1 {
+  image_b64: string;
+  provider: string;
+}
+export interface UsersProvidersSetProvider1 {
+  provider: string;
+}
+export interface AdminRolesMembers1 {
+  members: AdminRolesUserItem1[];
+  nonMembers: AdminRolesUserItem1[];
+}
+export interface AdminRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface AdminRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
+export interface AdminUsersGuid1 {
+  userGuid: string;
+}
+export interface AdminUsersSetCredits1 {
+  userGuid: string;
+  credits: number;
 }
 export interface SystemRoutesDeleteRoute1 {
   path: string;
@@ -113,32 +165,16 @@ export interface SystemRoutesRouteItem1 {
   sequence: number;
   required_roles: string[];
 }
-export interface AdminUsersGuid1 {
-  userGuid: string;
-}
-export interface AdminUsersSetCredits1 {
-  userGuid: string;
-  credits: number;
-}
-export interface AdminRolesMembers1 {
-  members: AdminRolesUserItem1[];
-  nonMembers: AdminRolesUserItem1[];
-}
-export interface AdminRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface AdminRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
     const request: RPCRequest = {
         op,
         payload,
         version: 1,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        user_guid: null,
+        roles: [],
+        role_mask: 0
     };
     const headers: Record<string, string> = {};
     if (typeof localStorage !== 'undefined') {
