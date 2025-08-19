@@ -3,7 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
-from server.modules.authz_module import AuthzModule
+from server.modules.auth_module import AuthModule
 from .models import (
   SystemRoutesRouteItem1,
   SystemRoutesList1,
@@ -16,12 +16,12 @@ async def system_routes_get_routes_v1(request: Request):
   if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
     raise HTTPException(status_code=403, detail="Forbidden")
   db: DbModule = request.app.state.db
-  authz: AuthzModule = request.app.state.authz
+  auth: AuthModule = request.app.state.auth
   res = await db.run(rpc_request.op, {})
   routes = []
   for row in res.rows:
     mask = int(row.get("element_roles", 0))
-    roles = authz.mask_to_names(mask)
+    roles = auth.mask_to_names(mask)
     item = SystemRoutesRouteItem1(
       path=row.get("element_path", ""),
       name=row.get("element_name", ""),
@@ -44,8 +44,8 @@ async def system_routes_upsert_route_v1(request: Request):
     raise HTTPException(status_code=403, detail="Forbidden")
   payload = SystemRoutesRouteItem1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
-  authz: AuthzModule = request.app.state.authz
-  mask = authz.names_to_mask(payload.required_roles)
+  auth: AuthModule = request.app.state.auth
+  mask = auth.names_to_mask(payload.required_roles)
   await db.run(rpc_request.op, {
     "path": payload.path,
     "name": payload.name,

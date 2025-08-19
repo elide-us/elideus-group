@@ -103,11 +103,7 @@ async def auth_session_get_token_v1(request: Request):
     {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
   )
 
-  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
-  role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
-  authz = request.app.state.authz
-  roles = authz.mask_to_names(role_mask)
-
+  roles, _ = await auth.get_user_roles(user_guid)
   session_token, session_exp = auth.make_session_token(user_guid, rotation_token, roles, provider)
 
   fingerprint = body.get("fingerprint")
@@ -152,11 +148,7 @@ async def auth_session_refresh_token_v1(request: Request):
   if not stored.rows or stored.rows[0].get("rotkey") != rotation_token:
     raise HTTPException(status_code=401, detail="Invalid rotation token")
 
-  roles_res = await db.run("urn:users:profile:get_roles:1", {"guid": user_guid})
-  role_mask = int(roles_res.rows[0].get("element_roles", 0)) if roles_res.rows else 0
-  authz = request.app.state.authz
-  roles = authz.mask_to_names(role_mask)
-
+  roles, _ = await auth.get_user_roles(user_guid)
   session_token, _ = auth.make_session_token(user_guid, rotation_token, roles, "microsoft")
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 

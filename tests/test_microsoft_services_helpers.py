@@ -35,19 +35,15 @@ class DummyAuth:
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
   def make_session_token(self, guid, rot, roles, provider):
     return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
-
-
-class DummyAuthz:
-  def mask_to_names(self, mask):
-    return []
+  async def get_user_roles(self, guid, refresh=False):
+    return [], 0
 
 
 def test_create_session_handles_missing_roles():
   db = DummyDb()
   auth = DummyAuth()
-  authz = DummyAuthz()
   token, exp = asyncio.run(
-    create_session(auth, authz, db, str(uuid.uuid4()), "microsoft", None, None, None)
+    create_session(auth, db, str(uuid.uuid4()), "microsoft", None, None, None)
   )
   assert token == "sess"
   ops = [op for op, _ in db.calls]

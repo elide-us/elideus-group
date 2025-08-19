@@ -21,16 +21,18 @@ class DummyDb:
       return DBRes(self.non_members, len(self.non_members))
     return DBRes()
 
-class DummyAuthz:
+class DummyAuth:
   def __init__(self):
     self.loaded = False
-  async def load_roles(self):
+  async def refresh_role_cache(self):
     self.loaded = True
+  def get_role_names(self, exclude_registered=False):
+    return ["ROLE_SECURITY_ADMIN"]
 
 class DummyState:
-  def __init__(self, db, authz):
+  def __init__(self, db, auth):
     self.db = db
-    self.authz = authz
+    self.auth = auth
 
 class DummyApp:
   def __init__(self, state):
@@ -55,14 +57,13 @@ async def _stub(request):
 helpers.get_rpcrequest_from_request = _stub
 sys.modules["rpc.helpers"] = helpers
 
-authz_module_pkg = types.ModuleType("server.modules.authz_module")
-authz_module_pkg.ROLE_NAMES = ["ROLE_SECURITY_ADMIN"]
-class AuthzModule: ...
-authz_module_pkg.AuthzModule = AuthzModule
+auth_module_pkg = types.ModuleType("server.modules.auth_module")
+class AuthModule: ...
+auth_module_pkg.AuthModule = AuthModule
 modules_pkg = types.ModuleType("server.modules")
-modules_pkg.authz_module = authz_module_pkg
+modules_pkg.auth_module = auth_module_pkg
 sys.modules.setdefault("server.modules", modules_pkg)
-sys.modules["server.modules.authz_module"] = authz_module_pkg
+sys.modules["server.modules.auth_module"] = auth_module_pkg
 
 db_module_pkg = types.ModuleType("server.modules.db_module")
 class DbModule: ...
@@ -86,7 +87,7 @@ def test_permission_required():
   helpers.get_rpcrequest_from_request = fake_get
   svc_mod.get_rpcrequest_from_request = fake_get
   db = DummyDb()
-  req = DummyRequest(DummyState(db, DummyAuthz()))
+  req = DummyRequest(DummyState(db, DummyAuth()))
   with pytest.raises(HTTPException) as exc:
     asyncio.run(security_roles_upsert_role_v1(req))
   assert exc.value.status_code == 403
@@ -99,20 +100,20 @@ def test_upsert_role_calls_db_and_loads_roles():
   helpers.get_rpcrequest_from_request = fake_get
   svc_mod.get_rpcrequest_from_request = fake_get
   db = DummyDb()
-  authz = DummyAuthz()
-  req = DummyRequest(DummyState(db, authz))
+  auth = DummyAuth()
+  req = DummyRequest(DummyState(db, auth))
   resp = asyncio.run(security_roles_upsert_role_v1(req))
   assert isinstance(resp, RPCResponse)
   assert ("db:security:roles:upsert_role:1", {"name": "ROLE_NEW", "mask": 4, "display": "New"}) in db.calls
-  assert authz.loaded
+  assert auth.loaded
 
 
 def test_add_and_remove_member():
   members = [{"guid": "u1", "display_name": "User 1"}]
   non_members = [{"guid": "u2", "display_name": "User 2"}]
   db = DummyDb(members, non_members)
-  authz = DummyAuthz()
-  state = DummyState(db, authz)
+  auth = DummyAuth()
+  state = DummyState(db, auth)
   req = DummyRequest(state)
 
   async def fake_get_add(request):
