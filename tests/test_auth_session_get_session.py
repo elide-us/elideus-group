@@ -37,7 +37,8 @@ class DummyApp:
 class DummyRequest:
   def __init__(self):
     self.app = DummyApp()
-    self.headers = {"authorization": "Bearer tok"}
+    self.headers = {"authorization": "Bearer tok", "user-agent": "ua"}
+    self.client = SimpleNamespace(host="127.0.0.1")
 
 
 def test_get_session(monkeypatch):
@@ -72,4 +73,6 @@ def test_get_session(monkeypatch):
   req = DummyRequest()
   resp = asyncio.run(auth_session_get_session_v1(req))
   assert isinstance(resp, RPCResponse)
-  assert any(op == "db:auth:session:get_by_access_token:1" for op, _ in req.app.state.db.calls)
+  calls = [op for op, _ in req.app.state.db.calls]
+  assert "db:auth:session:get_by_access_token:1" in calls
+  assert "db:auth:session:update_session:1" in calls

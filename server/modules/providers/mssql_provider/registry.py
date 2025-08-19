@@ -341,6 +341,18 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
     """
     return ("json_one", sql, (token,))
 
+@register("db:auth:session:update_session:1")
+def _auth_session_update_session(args: Dict[str, Any]):
+    token = args["access_token"]
+    ip_address = args.get("ip_address")
+    user_agent = args.get("user_agent")
+    sql = """
+      UPDATE sessions_devices
+      SET element_ip_last_seen = ?, element_user_agent = ?
+      WHERE element_token = ?;
+    """
+    return ("exec", sql, (ip_address, user_agent, token))
+
 # -------------------- SYSTEM CONFIG --------------------
 
 @register("db:system:config:get_config:1")
