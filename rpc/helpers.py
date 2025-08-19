@@ -51,6 +51,7 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
     rpc_request.user_guid = auth_ctx.user_guid
     rpc_request.roles = roles
     rpc_request.role_mask = mask
+    logging.debug("[RPC] Resolved roles for %s: %s (mask=%#018x)", auth_ctx.user_guid, roles, mask)
   else:
     if domain not in ('public', 'auth'):
       raise HTTPException(status_code=401, detail='Missing or invalid authorization header')

@@ -195,7 +195,7 @@ class AuthModule(BaseModule):
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
-    logging.debug("[AuthModule] Roles for %s: %s", guid, names)
+    logging.debug("[AuthModule] Roles for %s: %s (mask=%#018x)", guid, names, mask)
     return names, mask
 
   async def refresh_user_roles(self, guid: str):
