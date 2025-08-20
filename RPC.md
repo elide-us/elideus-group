@@ -33,7 +33,7 @@ All Support domain calls require `ROLE_SUPPORT`.
 
 ## Users Domain
 
-All Users domain calls require `ROLE_USERS_ENABLED`.
+All Users domain calls require `ROLE_REGISTERED`.
 
 ### `profile`
 
@@ -93,7 +93,7 @@ User focused calls used by the React application.
 
 ## Storage Domain
 
-Calls for user storage management. All Storage domain calls require `ROLE_STORAGE_ENABLED`.
+Calls for user storage management. All Storage domain calls require `ROLE_STORAGE`.
 
 ### `files`
 

@@ -1,6 +1,6 @@
 """Storage namespace for file handling operations.
 
-Requires ROLE_STORAGE_ENABLED.
+Requires ROLE_STORAGE.
 """
 
 from .files.handler import handle_files_request

@@ -1,6 +1,6 @@
 """User namespace for profiles and authentication providers.
 
-All subdomains require ROLE_USERS_ENABLED.
+All subdomains require ROLE_REGISTERED.
 """
 
 from .profile.handler import handle_profile_request

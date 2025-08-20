@@ -10,5 +10,4 @@ export const fetchProfile = (payload: any = null): Promise<any> => rpcCall('urn:
 export const fetchSetDisplay = (payload: any = null): Promise<any> => rpcCall('urn:users:profile:set_display:1', payload);
 export const fetchSetOptin = (payload: any = null): Promise<any> => rpcCall('urn:users:profile:set_optin:1', payload);
 export const fetchRoles = (payload: any = null): Promise<any> => rpcCall('urn:users:profile:get_roles:1', payload);
-export const fetchSetRoles = (payload: any = null): Promise<any> => rpcCall('urn:users:profile:set_roles:1', payload);
 export const fetchSetProfileImage = (payload: any = null): Promise<any> => rpcCall('urn:users:profile:set_profile_image:1', payload);

@@ -1,6 +1,6 @@
 """File storage RPC namespace.
 
-Requires ROLE_STORAGE_ENABLED.
+Requires ROLE_STORAGE.
 """
 
 from .services import (
