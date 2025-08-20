@@ -9,6 +9,7 @@ import Gallery from "./Gallery";
 import LoginPage from "./LoginPage";
 import UserPage from "./UserPage";
 import SystemRoutesPage from "./SystemRoutesPage";
+import SystemRolesPage from "./SystemRolesPage";
 import FileManager from "./FileManager";
 import SystemConfigPage from "./SystemConfigPage";
 
@@ -36,6 +37,7 @@ function App(): JSX.Element {
                                                         <Route path="/userpage" element={<UserPage />} />
                                                         <Route path="/system-routes" element={<SystemRoutesPage />} />
                                                         <Route path="/system-config" element={<SystemConfigPage />} />
+                                                        <Route path="/system-roles" element={<SystemRolesPage />} />
                                                         <Route path="/file-manager" element={<FileManager />} />
 						</Routes>
 					</Container>

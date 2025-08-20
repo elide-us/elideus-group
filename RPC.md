@@ -124,6 +124,14 @@ These calls expose system administration functionality. All System domain calls 
 | `urn:system:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:system:routes:delete_route:1` | Delete a route definition.           |
 
+### `roles`
+
+| Operation                          | Description                          |
+| ---------------------------------- | ------------------------------------ |
+| `urn:system:roles:get_roles:1`   | List system roles.                   |
+| `urn:system:roles:upsert_role:1` | Create or update a system role.      |
+| `urn:system:roles:delete_role:1` | Delete a system role.                |
+
 ## Service Domain
 
 All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
