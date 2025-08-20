@@ -11,7 +11,7 @@ from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 
-from . import DISPATCHERS, HANDLERS
+from . import HANDLERS
 
 REQUIRED_ROLE_MASK = 0x4000000000000000  # ROLE_SERVICE_ADMIN
 
