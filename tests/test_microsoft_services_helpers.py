@@ -1,10 +1,68 @@
 import asyncio, logging, uuid
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+import asyncio
+import importlib.util
+import pathlib
+import sys
+import types
+import uuid
+import logging
 
 import pytest
+from types import SimpleNamespace
 
-from rpc.auth.microsoft.services import extract_identifiers, lookup_user, create_session
+# stub rpc and server packages
+root_path = pathlib.Path(__file__).resolve().parent.parent
+rpc_pkg = types.ModuleType("rpc")
+rpc_pkg.__path__ = [str(root_path / "rpc")]
+sys.modules["rpc"] = rpc_pkg
+
+spec_models = importlib.util.spec_from_file_location(
+  "rpc.models", root_path / "rpc/models.py"
+)
+models_mod = importlib.util.module_from_spec(spec_models)
+spec_models.loader.exec_module(models_mod)
+sys.modules["rpc.models"] = models_mod
+
+helpers_stub = types.ModuleType("rpc.helpers")
+async def _stub(request):
+  raise NotImplementedError
+helpers_stub.unbox_request = _stub
+sys.modules["rpc.helpers"] = helpers_stub
+
+server_pkg = types.ModuleType("server")
+sys.modules["server"] = server_pkg
+modules_pkg = types.ModuleType("server.modules")
+sys.modules["server.modules"] = modules_pkg
+auth_pkg = types.ModuleType("server.modules.auth_module")
+class AuthModule: ...
+auth_pkg.AuthModule = AuthModule
+modules_pkg.auth_module = auth_pkg
+sys.modules["server.modules.auth_module"] = auth_pkg
+db_pkg = types.ModuleType("server.modules.db_module")
+class DbModule: ...
+db_pkg.DbModule = DbModule
+modules_pkg.db_module = db_pkg
+sys.modules["server.modules.db_module"] = db_pkg
+
+auth_ns = types.ModuleType("rpc.auth")
+auth_ns.__path__ = [str(root_path / "rpc/auth")]
+sys.modules["rpc.auth"] = auth_ns
+ms_ns = types.ModuleType("rpc.auth.microsoft")
+ms_ns.__path__ = [str(root_path / "rpc/auth/microsoft")]
+sys.modules["rpc.auth.microsoft"] = ms_ns
+
+spec_services = importlib.util.spec_from_file_location(
+  "rpc.auth.microsoft.services", root_path / "rpc/auth/microsoft/services.py"
+)
+services_mod = importlib.util.module_from_spec(spec_services)
+sys.modules["rpc.auth.microsoft.services"] = services_mod
+spec_services.loader.exec_module(services_mod)
+
+extract_identifiers = services_mod.extract_identifiers
+lookup_user = services_mod.lookup_user
+create_session = services_mod.create_session
 
 
 def test_extract_identifiers_bad_base(caplog):
