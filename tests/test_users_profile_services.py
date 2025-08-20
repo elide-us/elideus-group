@@ -139,5 +139,6 @@ def test_missing_user_guid_raises():
   svc_mod.get_rpcrequest_from_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
-  with pytest.raises(HTTPException):
+  with pytest.raises(HTTPException) as exc:
     asyncio.run(users_profile_get_roles_v1(req))
+  assert exc.value.status_code == 400
