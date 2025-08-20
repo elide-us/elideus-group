@@ -16,7 +16,7 @@ _helpers_spec = importlib.util.spec_from_file_location(
 _helpers_mod = importlib.util.module_from_spec(_helpers_spec)
 _helpers_spec.loader.exec_module(_helpers_mod)
 sys.modules["rpc.helpers"] = _helpers_mod
-get_rpcrequest_from_request = _helpers_mod.get_rpcrequest_from_request
+unbox_request = _helpers_mod.unbox_request
 
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
@@ -29,7 +29,7 @@ from .models import (
 
 
 async def public_links_get_home_links_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   links = [PublicLinksLinkItem1(**row) for row in res.rows]
@@ -41,7 +41,7 @@ async def public_links_get_home_links_v1(request: Request):
   )
 
 async def public_links_get_navbar_routes_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   db: DbModule = request.app.state.db
   res = await db.run("urn:public:links:get_navbar_routes:1", {"role_mask": auth_ctx.role_mask})
   routes = [PublicLinksNavBarRoute1(**row) for row in res.rows]

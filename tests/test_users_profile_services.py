@@ -49,7 +49,7 @@ real_helpers_spec.loader.exec_module(real_helpers)
 helpers_stub = types.ModuleType("rpc.helpers")
 async def _stub(request):
   raise NotImplementedError
-helpers_stub.get_rpcrequest_from_request = _stub
+helpers_stub.unbox_request = _stub
 sys.modules["rpc.helpers"] = helpers_stub
 
 # import services with stubbed helpers
@@ -101,7 +101,7 @@ def test_get_roles_service_returns_mask():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:users:profile:get_roles:1", payload=None, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.get_rpcrequest_from_request = fake_get
+  svc_mod.unbox_request = fake_get
   db = DummyDb(roles=5)
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_get_roles_v1(req))
@@ -113,7 +113,7 @@ def test_set_roles_service_calls_db():
   async def fake_set(request):
     rpc = RPCRequest(op="urn:users:profile:set_roles:1", payload={"roles": 7}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.get_rpcrequest_from_request = fake_set
+  svc_mod.unbox_request = fake_set
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_set_roles_v1(req))
@@ -124,7 +124,7 @@ def test_set_profile_image_calls_db():
   async def fake_img(request):
     rpc = RPCRequest(op="urn:users:profile:set_profile_image:1", payload={"image_b64": "abc", "provider": "microsoft"}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.get_rpcrequest_from_request = fake_img
+  svc_mod.unbox_request = fake_img
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
@@ -136,7 +136,7 @@ def test_missing_user_guid_raises():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:users:profile:get_roles:1", payload=None, version=1)
     return rpc, SimpleNamespace(user_guid=None), None
-  svc_mod.get_rpcrequest_from_request = fake_get
+  svc_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   with pytest.raises(HTTPException) as exc:

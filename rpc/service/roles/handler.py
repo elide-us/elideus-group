@@ -1,6 +1,6 @@
-"""Security roles RPC handler.
+"""Service roles RPC handler.
 
-Dispatches role management operations requiring ROLE_SECURITY_ADMIN.
+Dispatches role management operations requiring ROLE_SERVICE_ADMIN.
 """
 
 from fastapi import HTTPException, Request
