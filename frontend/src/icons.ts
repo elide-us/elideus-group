@@ -31,7 +31,7 @@ export const iconMap: Record<string, ElementType> = {
     roles: AssignmentIndIcon,
     config: PermDataSettingIcon,
     groups: GroupsIcon,
-    admin: PersonIcon,
+    support: PersonIcon,
     person: PersonIcon,
 };
 

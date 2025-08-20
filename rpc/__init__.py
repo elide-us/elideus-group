@@ -4,7 +4,7 @@ Exports handlers for each RPC domain with role-based access.
 The auth and public domains are exempt from role checks.
 """
 
-from .admin.handler import handle_admin_request
+from .support.handler import handle_support_request
 from .auth.handler import handle_auth_request
 from .moderation.handler import handle_moderation_request
 from .public.handler import handle_public_request
@@ -15,7 +15,7 @@ from .users.handler import handle_users_request
 
 
 HANDLERS: dict[str, callable] = {
-  "admin": handle_admin_request,
+  "support": handle_support_request,
   "auth": handle_auth_request,
   "moderation": handle_moderation_request,
   "public": handle_public_request,

@@ -42,18 +42,18 @@ def _load_module(path, name):
   rpc_pkg = types.ModuleType("rpc")
   rpc_pkg.__path__ = [str(pkg_root)]
   sys.modules["rpc"] = rpc_pkg
-  orig_rpc_admin = sys.modules.get("rpc.admin")
-  rpc_admin_pkg = types.ModuleType("rpc.admin")
-  rpc_admin_pkg.__path__ = [str(pkg_root / "admin")]
-  sys.modules["rpc.admin"] = rpc_admin_pkg
-  orig_rpc_admin_roles = sys.modules.get("rpc.admin.roles")
-  rpc_admin_roles_pkg = types.ModuleType("rpc.admin.roles")
-  rpc_admin_roles_pkg.__path__ = [str(pkg_root / "admin/roles")]
-  sys.modules["rpc.admin.roles"] = rpc_admin_roles_pkg
-  orig_rpc_admin_users = sys.modules.get("rpc.admin.users")
-  rpc_admin_users_pkg = types.ModuleType("rpc.admin.users")
-  rpc_admin_users_pkg.__path__ = [str(pkg_root / "admin/users")]
-  sys.modules["rpc.admin.users"] = rpc_admin_users_pkg
+  orig_rpc_support = sys.modules.get("rpc.support")
+  rpc_support_pkg = types.ModuleType("rpc.support")
+  rpc_support_pkg.__path__ = [str(pkg_root / "support")]
+  sys.modules["rpc.support"] = rpc_support_pkg
+  orig_rpc_support_roles = sys.modules.get("rpc.support.roles")
+  rpc_support_roles_pkg = types.ModuleType("rpc.support.roles")
+  rpc_support_roles_pkg.__path__ = [str(pkg_root / "support/roles")]
+  sys.modules["rpc.support.roles"] = rpc_support_roles_pkg
+  orig_rpc_support_users = sys.modules.get("rpc.support.users")
+  rpc_support_users_pkg = types.ModuleType("rpc.support.users")
+  rpc_support_users_pkg.__path__ = [str(pkg_root / "support/users")]
+  sys.modules["rpc.support.users"] = rpc_support_users_pkg
 
   spec = importlib.util.spec_from_file_location(name, path)
   mod = importlib.util.module_from_spec(spec)
@@ -70,18 +70,18 @@ def _load_module(path, name):
     sys.modules["rpc"] = orig_rpc
   else:
     del sys.modules["rpc"]
-  if orig_rpc_admin is not None:
-    sys.modules["rpc.admin"] = orig_rpc_admin
+  if orig_rpc_support is not None:
+    sys.modules["rpc.support"] = orig_rpc_support
   else:
-    del sys.modules["rpc.admin"]
-  if orig_rpc_admin_roles is not None:
-    sys.modules["rpc.admin.roles"] = orig_rpc_admin_roles
+    del sys.modules["rpc.support"]
+  if orig_rpc_support_roles is not None:
+    sys.modules["rpc.support.roles"] = orig_rpc_support_roles
   else:
-    del sys.modules["rpc.admin.roles"]
-  if orig_rpc_admin_users is not None:
-    sys.modules["rpc.admin.users"] = orig_rpc_admin_users
+    del sys.modules["rpc.support.roles"]
+  if orig_rpc_support_users is not None:
+    sys.modules["rpc.support.users"] = orig_rpc_support_users
   else:
-    del sys.modules["rpc.admin.users"]
+    del sys.modules["rpc.support.users"]
   return mod
 
 
@@ -145,11 +145,11 @@ class DummyRequest:
     self.headers = {}
 
 
-def test_admin_roles_no_permission_required():
-  roles_mod = _load_module("rpc/admin/roles/services.py", "admin_roles_services")
+def test_support_roles_no_permission_required():
+  roles_mod = _load_module("rpc/support/roles/services.py", "support_roles_services")
 
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:admin:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
+    rpc = RPCRequest(op="urn:support:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=[]), None
 
   orig = helpers.unbox_request
@@ -157,14 +157,14 @@ def test_admin_roles_no_permission_required():
   roles_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
-  resp = asyncio.run(roles_mod.admin_roles_add_member_v1(req))
+  resp = asyncio.run(roles_mod.support_roles_add_member_v1(req))
   assert resp is not None
   helpers.unbox_request = orig
   roles_mod.unbox_request = orig
 
 
-def test_admin_roles_add_and_remove_member():
-  roles_mod = _load_module("rpc/admin/roles/services.py", "admin_roles_services")
+def test_support_roles_add_and_remove_member():
+  roles_mod = _load_module("rpc/support/roles/services.py", "support_roles_services")
 
   members = [{"guid": "u1", "display_name": "User 1"}]
   non_members = [{"guid": "u2", "display_name": "User 2"}]
@@ -172,13 +172,13 @@ def test_admin_roles_add_and_remove_member():
   req = DummyRequest(DummyState(db))
 
   async def fake_get_add(request):
-    rpc = RPCRequest(op="urn:admin:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u2"}, version=1)
+    rpc = RPCRequest(op="urn:support:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u2"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.unbox_request
   helpers.unbox_request = fake_get_add
   roles_mod.unbox_request = fake_get_add
-  resp = asyncio.run(roles_mod.admin_roles_add_member_v1(req))
+  resp = asyncio.run(roles_mod.support_roles_add_member_v1(req))
   assert any(op == "db:security:roles:add_role_member:1" for op, _ in db.calls)
   assert resp.payload["members"] == [
     {"guid": "u1", "displayName": "User 1"},
@@ -188,12 +188,12 @@ def test_admin_roles_add_and_remove_member():
   db.calls.clear()
 
   async def fake_get_remove(request):
-    rpc = RPCRequest(op="urn:admin:roles:remove_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
+    rpc = RPCRequest(op="urn:support:roles:remove_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   helpers.unbox_request = fake_get_remove
   roles_mod.unbox_request = fake_get_remove
-  resp2 = asyncio.run(roles_mod.admin_roles_remove_member_v1(req))
+  resp2 = asyncio.run(roles_mod.support_roles_remove_member_v1(req))
   assert any(op == "db:security:roles:remove_role_member:1" for op, _ in db.calls)
   assert resp2.payload["nonMembers"] == [
     {"guid": "u1", "displayName": "User 1"},
@@ -203,11 +203,11 @@ def test_admin_roles_add_and_remove_member():
   roles_mod.unbox_request = orig
 
 
-def test_admin_users_no_permission_required():
-  users_mod = _load_module("rpc/admin/users/services.py", "admin_users_services")
+def test_support_users_no_permission_required():
+  users_mod = _load_module("rpc/support/users/services.py", "support_users_services")
 
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "u1", "credits": 5}, version=1)
+    rpc = RPCRequest(op="urn:support:users:set_credits:1", payload={"userGuid": "u1", "credits": 5}, version=1)
     return rpc, SimpleNamespace(roles=[]), None
 
   orig = helpers.unbox_request
@@ -215,14 +215,14 @@ def test_admin_users_no_permission_required():
   users_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
-  resp = asyncio.run(users_mod.admin_users_set_credits_v1(req))
+  resp = asyncio.run(users_mod.support_users_set_credits_v1(req))
   assert resp is not None
   helpers.unbox_request = orig
   users_mod.unbox_request = orig
 
 
-def test_admin_users_calls_db():
-  users_mod = _load_module("rpc/admin/users/services.py", "admin_users_services")
+def test_support_users_calls_db():
+  users_mod = _load_module("rpc/support/users/services.py", "support_users_services")
 
   profile = {
     "guid": "u1",
@@ -238,33 +238,33 @@ def test_admin_users_calls_db():
   req = DummyRequest(DummyState(db))
 
   async def fake_get_set(request):
-    rpc = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "u1", "credits": 20}, version=1)
+    rpc = RPCRequest(op="urn:support:users:set_credits:1", payload={"userGuid": "u1", "credits": 20}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.unbox_request
   helpers.unbox_request = fake_get_set
   users_mod.unbox_request = fake_get_set
-  resp = asyncio.run(users_mod.admin_users_set_credits_v1(req))
-  assert ("db:admin:users:set_credits:1", {"guid": "u1", "credits": 20}) in db.calls
+  resp = asyncio.run(users_mod.support_users_set_credits_v1(req))
+  assert ("db:support:users:set_credits:1", {"guid": "u1", "credits": 20}) in db.calls
   assert isinstance(resp, RPCResponse)
 
   db.calls.clear()
 
   async def fake_get_profile(request):
-    rpc = RPCRequest(op="urn:admin:users:get_profile:1", payload={"userGuid": "u1"}, version=1)
+    rpc = RPCRequest(op="urn:support:users:get_profile:1", payload={"userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   helpers.unbox_request = fake_get_profile
   users_mod.unbox_request = fake_get_profile
-  resp2 = asyncio.run(users_mod.admin_users_get_profile_v1(req))
+  resp2 = asyncio.run(users_mod.support_users_get_profile_v1(req))
   assert any(op == "db:users:profile:get_profile:1" for op, _ in db.calls)
   assert resp2.payload["guid"] == "u1"
   helpers.unbox_request = orig
   users_mod.unbox_request = orig
 
 
-def test_admin_enable_storage_creates_folder():
-  users_mod = _load_module("rpc/admin/users/services.py", "admin_users_services")
+def test_support_enable_storage_creates_folder():
+  users_mod = _load_module("rpc/support/users/services.py", "support_users_services")
 
   class DummyStorage:
     def __init__(self):
@@ -279,14 +279,14 @@ def test_admin_enable_storage_creates_folder():
   req = DummyRequest(DummyState(db, storage))
 
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:admin:users:enable_storage:1", payload={"userGuid": "u1"}, version=1)
+    rpc = RPCRequest(op="urn:support:users:enable_storage:1", payload={"userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.unbox_request
   helpers.unbox_request = fake_get
   users_mod.unbox_request = fake_get
-  resp = asyncio.run(users_mod.admin_users_enable_storage_v1(req))
-  assert ("db:admin:users:enable_storage:1", {"guid": "u1"}) in db.calls
+  resp = asyncio.run(users_mod.support_users_enable_storage_v1(req))
+  assert ("db:support:users:enable_storage:1", {"guid": "u1"}) in db.calls
   assert storage.called and storage.guid == "u1"
   assert isinstance(resp, RPCResponse)
   helpers.unbox_request = orig
