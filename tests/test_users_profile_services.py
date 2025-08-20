@@ -5,6 +5,9 @@ import sys
 import types
 from types import SimpleNamespace
 
+import pytest
+from fastapi import HTTPException
+
 # stub rpc package
 pkg = types.ModuleType("rpc")
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "rpc")]
@@ -127,3 +130,14 @@ def test_set_profile_image_calls_db():
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
   assert ("urn:users:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
   assert resp.payload["image_b64"] == "abc"
+
+
+def test_missing_user_guid_raises():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:profile:get_roles:1", payload=None, version=1)
+    return rpc, SimpleNamespace(user_guid=None), None
+  svc_mod.get_rpcrequest_from_request = fake_get
+  db = DummyDb()
+  req = DummyRequest(DummyState(db))
+  with pytest.raises(HTTPException):
+    asyncio.run(users_profile_get_roles_v1(req))
