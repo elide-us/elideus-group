@@ -1,7 +1,57 @@
 from uuid import uuid4
-from server.modules.providers.mssql_provider.registry import get_handler as get_mssql_handler
-from server.modules.providers.mssql_provider import db_helpers
 import asyncio
+import importlib.util
+import pathlib
+import sys
+import types
+
+# stub server package
+root_path = pathlib.Path(__file__).resolve().parent.parent
+server_pkg = types.ModuleType("server")
+server_pkg.__path__ = [str(root_path / "server")]
+sys.modules.setdefault("server", server_pkg)
+modules_pkg = types.ModuleType("server.modules")
+modules_pkg.__path__ = [str(root_path / "server/modules")]
+sys.modules.setdefault("server.modules", modules_pkg)
+providers_pkg = types.ModuleType("server.modules.providers")
+providers_pkg.__path__ = [str(root_path / "server/modules/providers")]
+sys.modules.setdefault("server.modules.providers", providers_pkg)
+mssql_pkg = types.ModuleType("server.modules.providers.mssql_provider")
+mssql_pkg.__path__ = [str(root_path / "server/modules/providers/mssql_provider")]
+sys.modules.setdefault("server.modules.providers.mssql_provider", mssql_pkg)
+
+spec_logic = importlib.util.spec_from_file_location(
+  "server.modules.providers.mssql_provider.logic",
+  root_path / "server/modules/providers/mssql_provider/logic.py",
+)
+logic_mod = importlib.util.module_from_spec(spec_logic)
+sys.modules["server.modules.providers.mssql_provider.logic"] = logic_mod
+spec_logic.loader.exec_module(logic_mod)
+
+spec_models = importlib.util.spec_from_file_location(
+  "server.modules.providers.models",
+  root_path / "server/modules/providers/models.py",
+)
+models_mod = importlib.util.module_from_spec(spec_models)
+sys.modules["server.modules.providers.models"] = models_mod
+spec_models.loader.exec_module(models_mod)
+
+spec_db_helpers = importlib.util.spec_from_file_location(
+  "server.modules.providers.mssql_provider.db_helpers",
+  root_path / "server/modules/providers/mssql_provider/db_helpers.py",
+)
+db_helpers = importlib.util.module_from_spec(spec_db_helpers)
+sys.modules["server.modules.providers.mssql_provider.db_helpers"] = db_helpers
+spec_db_helpers.loader.exec_module(db_helpers)
+
+spec_registry = importlib.util.spec_from_file_location(
+  "server.modules.providers.mssql_provider.registry",
+  root_path / "server/modules/providers/mssql_provider/registry.py",
+)
+registry_mod = importlib.util.module_from_spec(spec_registry)
+sys.modules["server.modules.providers.mssql_provider.registry"] = registry_mod
+spec_registry.loader.exec_module(registry_mod)
+get_mssql_handler = registry_mod.get_handler
 
 def test_mssql_get_by_provider_identifier_uses_user_view():
   handler = get_mssql_handler("urn:users:providers:get_by_provider_identifier:1")

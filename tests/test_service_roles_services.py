@@ -1,18 +1,67 @@
 import asyncio
 import importlib.util
+import pathlib
 import types
 from types import SimpleNamespace
 import sys
 
 import pytest
 
-from rpc.models import RPCRequest, RPCResponse
-import rpc.handler as handler_mod
-import rpc.service as service_pkg
-import rpc.service.handler as service_handler
-import rpc.helpers as helpers
+# stub rpc package and load required modules
+root_path = pathlib.Path(__file__).resolve().parent.parent
+rpc_pkg = types.ModuleType("rpc")
+rpc_pkg.__path__ = [str(root_path / "rpc")]
+rpc_pkg.HANDLERS = {}
+sys.modules["rpc"] = rpc_pkg
 
+spec_models = importlib.util.spec_from_file_location(
+  "rpc.models", root_path / "rpc/models.py"
+)
+models_mod = importlib.util.module_from_spec(spec_models)
+spec_models.loader.exec_module(models_mod)
+RPCRequest = models_mod.RPCRequest
+RPCResponse = models_mod.RPCResponse
+sys.modules["rpc.models"] = models_mod
+
+spec_helpers = importlib.util.spec_from_file_location(
+  "rpc.helpers", root_path / "rpc/helpers.py"
+)
+helpers = importlib.util.module_from_spec(spec_helpers)
+spec_helpers.loader.exec_module(helpers)
+sys.modules["rpc.helpers"] = helpers
+
+service_pkg = types.ModuleType("rpc.service")
+service_pkg.__path__ = [str(root_path / "rpc/service")]
+service_pkg.HANDLERS = {}
+service_pkg.DISPATCHERS = {}
+sys.modules["rpc.service"] = service_pkg
+
+spec_service_handler = importlib.util.spec_from_file_location(
+  "rpc.service.handler", root_path / "rpc/service/handler.py"
+)
+service_handler = importlib.util.module_from_spec(spec_service_handler)
+sys.modules["rpc.service.handler"] = service_handler
+spec_service_handler.loader.exec_module(service_handler)
+rpc_pkg.HANDLERS["service"] = service_handler.handle_service_request
+
+spec_rpc_handler = importlib.util.spec_from_file_location(
+  "rpc.handler", root_path / "rpc/handler.py"
+)
+handler_mod = importlib.util.module_from_spec(spec_rpc_handler)
+sys.modules["rpc.handler"] = handler_mod
+spec_rpc_handler.loader.exec_module(handler_mod)
 handle_rpc_request = handler_mod.handle_rpc_request
+
+# stub server modules needed by service handler
+server_pkg = types.ModuleType("server")
+sys.modules.setdefault("server", server_pkg)
+modules_stub = types.ModuleType("server.modules")
+sys.modules.setdefault("server.modules", modules_stub)
+auth_module_stub = types.ModuleType("server.modules.auth_module")
+class AuthModule: ...
+auth_module_stub.AuthModule = AuthModule
+modules_stub.auth_module = auth_module_stub
+sys.modules["server.modules.auth_module"] = auth_module_stub
 
 
 class DBRes:
@@ -76,26 +125,25 @@ class DummyRequest:
 
 
 # Stub server modules for services
-auth_module_pkg = types.ModuleType("server.modules.auth_module")
-class AuthModule: ...
-auth_module_pkg.AuthModule = AuthModule
-modules_pkg = types.ModuleType("server.modules")
-modules_pkg.auth_module = auth_module_pkg
-sys_modules = sys.modules
-sys_modules.setdefault("server.modules", modules_pkg)
-sys_modules["server.modules.auth_module"] = auth_module_pkg
+modules_pkg = sys.modules["server.modules"]
+auth_module_pkg = sys.modules["server.modules.auth_module"]
 
 db_module_pkg = types.ModuleType("server.modules.db_module")
 class DbModule: ...
 db_module_pkg.DbModule = DbModule
 modules_pkg.db_module = db_module_pkg
-sys_modules["server.modules.db_module"] = db_module_pkg
+sys.modules["server.modules.db_module"] = db_module_pkg
 
 # Import services after stubbing
+roles_pkg = types.ModuleType("rpc.service.roles")
+roles_pkg.__path__ = [str(root_path / "rpc/service/roles")]
+sys.modules.setdefault("rpc.service.roles", roles_pkg)
+
 svc_spec = importlib.util.spec_from_file_location(
   "rpc.service.roles.services", "rpc/service/roles/services.py"
 )
 svc_mod = importlib.util.module_from_spec(svc_spec)
+sys.modules["rpc.service.roles.services"] = svc_mod
 svc_spec.loader.exec_module(svc_mod)
 
 service_roles_upsert_role_v1 = svc_mod.service_roles_upsert_role_v1
@@ -107,7 +155,7 @@ def test_get_roles_allows_system_admin():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:service:roles:get_roles:1", payload=None, version=1)
     auth = SimpleNamespace(user_guid="u1")
-    request.app.state.auth.user_roles["u1"] = 0x2000000000000000
+    request.app.state.auth.user_roles["u1"] = 0x4000000000000000
     parts = rpc.op.split(":")
     return rpc, auth, parts
 

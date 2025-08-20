@@ -1,11 +1,54 @@
 import asyncio
+import importlib.util
+import pathlib
+import sys
+import types
 import pytest
 from fastapi import FastAPI, HTTPException, status
 from datetime import datetime, timedelta, timezone
 
-from server.modules.auth_module import AuthModule
-import server.modules.providers as providers
-from server.modules.providers.microsoft import MicrosoftAuthProvider
+# stub server package to avoid importing server.__init__
+root_path = pathlib.Path(__file__).resolve().parent.parent
+server_pkg = types.ModuleType("server")
+server_pkg.__path__ = [str(root_path / "server")]
+sys.modules.setdefault("server", server_pkg)
+modules_pkg = types.ModuleType("server.modules")
+modules_pkg.__path__ = [str(root_path / "server/modules")]
+class BaseModule:
+  def __init__(self, app):
+    self.app = app
+  async def startup(self):
+    pass
+  async def shutdown(self):
+    pass
+  def mark_ready(self):
+    pass
+  async def on_ready(self):
+    pass
+modules_pkg.BaseModule = BaseModule
+sys.modules.setdefault("server.modules", modules_pkg)
+
+spec_auth = importlib.util.spec_from_file_location(
+  "server.modules.auth_module", root_path / "server/modules/auth_module.py"
+)
+auth_module = importlib.util.module_from_spec(spec_auth)
+spec_auth.loader.exec_module(auth_module)
+AuthModule = auth_module.AuthModule
+
+spec_providers = importlib.util.spec_from_file_location(
+  "server.modules.providers", root_path / "server/modules/providers/__init__.py"
+)
+providers = importlib.util.module_from_spec(spec_providers)
+spec_providers.loader.exec_module(providers)
+sys.modules["server.modules.providers"] = providers
+
+spec_ms = importlib.util.spec_from_file_location(
+  "server.modules.providers.microsoft", root_path / "server/modules/providers/microsoft.py"
+)
+ms_provider = importlib.util.module_from_spec(spec_ms)
+spec_ms.loader.exec_module(ms_provider)
+sys.modules["server.modules.providers.microsoft"] = ms_provider
+MicrosoftAuthProvider = ms_provider.MicrosoftAuthProvider
 
 
 def test_verify_id_token_refreshes_jwks(monkeypatch):

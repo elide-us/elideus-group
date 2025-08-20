@@ -6,9 +6,19 @@ import types
 from types import SimpleNamespace
 
 # stub rpc package
+root_path = pathlib.Path(__file__).resolve().parent.parent
 pkg = types.ModuleType("rpc")
-pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "rpc")]
-sys.modules.setdefault("rpc", pkg)
+pkg.__path__ = [str(root_path / "rpc")]
+sys.modules["rpc"] = pkg
+
+# ensure nested rpc packages exist for relative imports
+storage_pkg = types.ModuleType("rpc.storage")
+storage_pkg.__path__ = [str(root_path / "rpc" / "storage")]
+sys.modules["rpc.storage"] = storage_pkg
+
+files_pkg = types.ModuleType("rpc.storage.files")
+files_pkg.__path__ = [str(root_path / "rpc" / "storage" / "files")]
+sys.modules["rpc.storage.files"] = files_pkg
 
 spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
 models = importlib.util.module_from_spec(spec)
@@ -65,8 +75,11 @@ helpers_stub.unbox_request = _stub
 sys.modules["rpc.helpers"] = helpers_stub
 
 # import services with stubbed helpers
-svc_spec = importlib.util.spec_from_file_location("rpc.storage.files.services", "rpc/storage/files/services.py")
+svc_spec = importlib.util.spec_from_file_location(
+  "rpc.storage.files.services", "rpc/storage/files/services.py"
+)
 svc_mod = importlib.util.module_from_spec(svc_spec)
+sys.modules["rpc.storage.files.services"] = svc_mod
 svc_spec.loader.exec_module(svc_mod)
 
 # restore real helpers for other tests
