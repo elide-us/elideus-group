@@ -53,10 +53,10 @@ def test_lookup_with_home_account_id(monkeypatch):
   RPCResponse = models.RPCResponse
 
   helpers = types.ModuleType("rpc.helpers")
-  async def fake_get_rpcrequest_from_request(request):
+  async def fake_unbox_request(request):
     rpc = RPCRequest(op="urn:auth:microsoft:oauth_login:1", payload={"idToken": "id", "accessToken": "acc"}, version=1)
     return rpc, None, None
-  helpers.get_rpcrequest_from_request = fake_get_rpcrequest_from_request
+  helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers
 
   sys.modules.setdefault("rpc", types.ModuleType("rpc"))

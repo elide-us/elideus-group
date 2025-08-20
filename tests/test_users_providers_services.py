@@ -49,7 +49,7 @@ real_helpers_spec.loader.exec_module(real_helpers)
 helpers_stub = types.ModuleType("rpc.helpers")
 async def _stub(request):
   raise NotImplementedError
-helpers_stub.get_rpcrequest_from_request = _stub
+helpers_stub.unbox_request = _stub
 sys.modules["rpc.helpers"] = helpers_stub
 
 # import services with stubbed helpers
@@ -92,7 +92,7 @@ def test_set_provider_calls_db():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft"}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.get_rpcrequest_from_request = fake_get
+  svc_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_providers_set_provider_v1(req))
@@ -105,7 +105,7 @@ def test_set_provider_missing_provider_raises():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.get_rpcrequest_from_request = fake_get
+  svc_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   with pytest.raises(HTTPException) as exc:
