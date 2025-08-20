@@ -26,3 +26,4 @@ async def handle_moderation_request(parts: list[str], request: Request) -> RPCRe
   if not handler:
     raise HTTPException(status_code=404, detail='Unknown RPC subdomain')
   return await handler(parts[1:], request)
+
