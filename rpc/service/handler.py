@@ -1,8 +1,7 @@
 """Service RPC namespace.
 
 Handles service operations requiring ROLE_SERVICE_ADMIN.
-Role management subdomain operations require ROLE_ACCOUNT_ADMIN,
-with ROLE_SYSTEM_ADMIN permitted to fetch role definitions.
+
 """
 
 from fastapi import HTTPException, Request

@@ -4,6 +4,13 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+"""
+This is an internal domain class, when a user makes a request 
+through the front end, we unpack the bearer token and get the
+user GUID, we then look up their security details in the DB
+and populate the below data structure which shepherds the 
+request internallly until a response is generated.
+"""
 class RPCRequest(BaseModel):
   op: str
   payload: Optional[dict[str, Any]] = None
@@ -28,6 +35,10 @@ class RPCRequest(BaseModel):
   )
 
 
+"""
+This is the internal RPC response class and contains the main 
+payload to be packaged into the server response object.
+"""
 class RPCResponse(BaseModel):
   op: str
   payload: Any
