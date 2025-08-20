@@ -15,12 +15,7 @@ from .models import (
 
 
 async def security_roles_get_roles_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if (
-    "ROLE_SECURITY_ADMIN" not in auth_ctx.roles
-    and "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles
-  ):
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   auth: AuthModule = request.app.state.auth
   payload = SecurityRolesRoles1(roles=list(auth.get_role_names(exclude_registered=True)))
   return RPCResponse(
@@ -30,9 +25,7 @@ async def security_roles_get_roles_v1(request: Request):
   )
 
 async def security_roles_upsert_role_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   data = SecurityRolesUpsertRole1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:upsert_role:1", {
@@ -50,9 +43,7 @@ async def security_roles_upsert_role_v1(request: Request):
 
 
 async def security_roles_delete_role_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   data = SecurityRolesDeleteRole1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:delete_role:1", {"name": data.name})
@@ -86,9 +77,7 @@ async def _fetch_role_members(db: DbModule, role: str) -> SecurityRolesRoleMembe
 
 
 async def security_roles_get_role_members_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   payload = rpc_request.payload or {}
   role = payload.get("role")
   if not role:
@@ -103,9 +92,7 @@ async def security_roles_get_role_members_v1(request: Request):
 
 
 async def security_roles_add_role_member_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   data = SecurityRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:add_role_member:1", {
@@ -121,9 +108,7 @@ async def security_roles_add_role_member_v1(request: Request):
 
 
 async def security_roles_remove_role_member_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if "ROLE_SECURITY_ADMIN" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Forbidden")
+  rpc_request, _, _ = await get_rpcrequest_from_request(request)
   data = SecurityRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:remove_role_member:1", {

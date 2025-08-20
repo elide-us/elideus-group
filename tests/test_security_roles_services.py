@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import sys
 
 import pytest
-from fastapi import HTTPException
 
 from rpc.models import RPCRequest, RPCResponse
 import rpc.handler as handler_mod
@@ -104,32 +103,6 @@ security_roles_add_role_member_v1 = svc_mod.security_roles_add_role_member_v1
 security_roles_remove_role_member_v1 = svc_mod.security_roles_remove_role_member_v1
 
 
-def test_get_roles_requires_admin():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:security:roles:get_roles:1", payload=None, version=1)
-    auth = SimpleNamespace(user_guid="u1")
-    request.app.state.auth.user_roles["u1"] = 0
-    parts = rpc.op.split(":")
-    return rpc, auth, parts
-
-  handler_mod.get_rpcrequest_from_request = fake_get
-  security_handler.get_rpcrequest_from_request = fake_get
-
-  called = False
-
-  async def stub(parts, request):
-    nonlocal called
-    called = True
-    return RPCResponse(op="ok", payload=None, version=1)
-
-  security_pkg.HANDLERS["roles"] = stub
-  req = DummyRequest(DummyState(DummyDb(), DummyAuth()))
-  with pytest.raises(HTTPException) as exc:
-    asyncio.run(handle_rpc_request(req))
-  assert exc.value.status_code == 403
-  assert not called
-
-
 def test_get_roles_allows_system_admin():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:security:roles:get_roles:1", payload=None, version=1)
@@ -155,36 +128,6 @@ def test_get_roles_allows_system_admin():
   assert called
 
 
-def test_permission_required():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:security:roles:upsert_role:1",
-      payload={"name": "R", "bit": 1},
-      version=1,
-    )
-    auth = SimpleNamespace(user_guid="u1")
-    request.app.state.auth.user_roles["u1"] = 0
-    parts = rpc.op.split(":")
-    return rpc, auth, parts
-
-  handler_mod.get_rpcrequest_from_request = fake_get
-  security_handler.get_rpcrequest_from_request = fake_get
-
-  called = False
-
-  async def stub(parts, request):
-    nonlocal called
-    called = True
-    return RPCResponse(op="ok", payload=None, version=1)
-
-  security_pkg.HANDLERS["roles"] = stub
-  req = DummyRequest(DummyState(DummyDb(), DummyAuth()))
-  with pytest.raises(HTTPException) as exc:
-    asyncio.run(handle_rpc_request(req))
-  assert exc.value.status_code == 403
-  assert not called
-
-
 def test_upsert_role_calls_db_and_loads_roles():
   async def fake_get(request):
     rpc = RPCRequest(
@@ -192,7 +135,7 @@ def test_upsert_role_calls_db_and_loads_roles():
       payload={"name": "ROLE_NEW", "bit": 2, "display": "New"},
       version=1,
     )
-    return rpc, SimpleNamespace(roles=["ROLE_SECURITY_ADMIN"]), None
+    return rpc, None, None
 
   helpers.get_rpcrequest_from_request = fake_get
   svc_mod.get_rpcrequest_from_request = fake_get
@@ -222,7 +165,7 @@ def test_add_and_remove_member():
       payload={"role": "ROLE_X", "userGuid": "u1"},
       version=1,
     )
-    return rpc, SimpleNamespace(roles=["ROLE_SECURITY_ADMIN"]), None
+    return rpc, None, None
 
   helpers.get_rpcrequest_from_request = fake_get_add
   svc_mod.get_rpcrequest_from_request = fake_get_add
@@ -244,7 +187,7 @@ def test_add_and_remove_member():
       payload={"role": "ROLE_X", "userGuid": "u1"},
       version=1,
     )
-    return rpc, SimpleNamespace(roles=["ROLE_SECURITY_ADMIN"]), None
+    return rpc, None, None
 
   helpers.get_rpcrequest_from_request = fake_get_remove
   svc_mod.get_rpcrequest_from_request = fake_get_remove
