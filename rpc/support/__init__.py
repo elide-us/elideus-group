@@ -1,4 +1,4 @@
-"""Administrative namespace for user and role management.
+"""Support namespace for user and role management.
 
 Requires ROLE_SUPPORT.
 """

@@ -4,33 +4,33 @@ from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
-  AdminRolesMembers1,
-  AdminRolesRoleMemberUpdate1,
-  AdminRolesUserItem1,
+  SupportRolesMembers1,
+  SupportRolesRoleMemberUpdate1,
+  SupportRolesUserItem1,
 )
 
 
-async def fetch_role_members(db: DbModule, role: str) -> AdminRolesMembers1:
+async def fetch_role_members(db: DbModule, role: str) -> SupportRolesMembers1:
   mem_res = await db.run("db:security:roles:get_role_members:1", {"role": role})
   non_res = await db.run("db:security:roles:get_role_non_members:1", {"role": role})
   members = [
-    AdminRolesUserItem1(
+    SupportRolesUserItem1(
       guid=r.get("guid", ""),
       displayName=r.get("display_name", ""),
     )
     for r in mem_res.rows
   ]
   non_members = [
-    AdminRolesUserItem1(
+    SupportRolesUserItem1(
       guid=r.get("guid", ""),
       displayName=r.get("display_name", ""),
     )
     for r in non_res.rows
   ]
-  return AdminRolesMembers1(members=members, nonMembers=non_members)
+  return SupportRolesMembers1(members=members, nonMembers=non_members)
 
 
-async def admin_roles_get_members_v1(request: Request):
+async def support_roles_get_members_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   role = payload.get("role")
@@ -45,7 +45,7 @@ async def admin_roles_get_members_v1(request: Request):
   )
 
 
-async def add_role_member(db: DbModule, role: str, user_guid: str) -> AdminRolesMembers1:
+async def add_role_member(db: DbModule, role: str, user_guid: str) -> SupportRolesMembers1:
   await db.run(
     "db:security:roles:add_role_member:1",
     {"role": role, "user_guid": user_guid},
@@ -53,9 +53,9 @@ async def add_role_member(db: DbModule, role: str, user_guid: str) -> AdminRoles
   return await fetch_role_members(db, role)
 
 
-async def admin_roles_add_member_v1(request: Request):
+async def support_roles_add_member_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = AdminRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
+  data = SupportRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   members = await add_role_member(db, data.role, data.userGuid)
   return RPCResponse(
@@ -65,7 +65,7 @@ async def admin_roles_add_member_v1(request: Request):
   )
 
 
-async def remove_role_member(db: DbModule, role: str, user_guid: str) -> AdminRolesMembers1:
+async def remove_role_member(db: DbModule, role: str, user_guid: str) -> SupportRolesMembers1:
   await db.run(
     "db:security:roles:remove_role_member:1",
     {"role": role, "user_guid": user_guid},
@@ -73,9 +73,9 @@ async def remove_role_member(db: DbModule, role: str, user_guid: str) -> AdminRo
   return await fetch_role_members(db, role)
 
 
-async def admin_roles_remove_member_v1(request: Request):
+async def support_roles_remove_member_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = AdminRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
+  data = SupportRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   members = await remove_role_member(db, data.role, data.userGuid)
   return RPCResponse(

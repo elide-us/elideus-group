@@ -1,6 +1,6 @@
-"""Admin RPC namespace.
+"""Support RPC namespace.
 
-Handles administrative operations requiring ROLE_SUPPORT.
+Handles support operations requiring ROLE_SUPPORT.
 Auth and public domains are exempt from role checks.
 """
 
@@ -15,7 +15,7 @@ from . import HANDLERS
 REQUIRED_ROLE_MASK = 0x0400000000000000  # ROLE_SUPPORT
 
 
-async def handle_admin_request(parts: list[str], request: Request) -> RPCResponse:
+async def handle_support_request(parts: list[str], request: Request) -> RPCResponse:
   _, auth_ctx, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
   if not await auth.user_has_role(auth_ctx.user_guid, REQUIRED_ROLE_MASK):
