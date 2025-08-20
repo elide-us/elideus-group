@@ -11,27 +11,24 @@ flags.
 |----:|----------------------:|---------------------------|------|
 | 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | The configuration of the service, such as API keys |
 | 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | Access to system configuration features |
-| 60  | `0x1000000000000000`  | `ROLE_SECURITY_ADMIN`     | Manage security role definitions and user assignments |
-| 59  | `0x0800000000000000`  | `ROLE_MODERATION_SUPPORT` | Access to moderation tools |
-| 58  | `0x0400000000000000`  | `ROLE_ADMIN_SUPPORT`      | Access to support utilities |
+| 60  | `0x1000000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Manage security role definitions and user assignments |
+| 59  | `0x0800000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools |
+| 58  | `0x0400000000000000`  | `ROLE_SUPPORT`            | Access to support utilities |
 | 57  | `0x0200000000000000`  | *(reserved)*              | |
 | 56  | `0x0100000000000000`  | *(reserved)*              | |
 | ... | ...                   |                           | |
-| 4   | `0x0000000000000010`  | `ROLE_API_ENABLED`        | Allows the user to post content to social media sites |
-| 3   | `0x0000000000000008`  | `ROLE_SOCIAL_ENABLED`     | Allows the user to create tokens to interact with the system via API |
-| 2   | `0x0000000000000004`  | `ROLE_DISCORD_ENABLED`    | Allows the user to interact with the system via Discord |
-| 1   | `0x0000000000000002`  | `ROLE_STORAGE_ENABLED`    | Allows access to the storage domain |
-| 0   | `0x0000000000000001`  | `ROLE_USERS_ENABLED`      | Grants access to profile and provider management |
+| 6   | `0x0000000000000040`  | `ROLE_DISCORD_BOT`        | Allows the user to interact with the system via Discord |
+| 5   | `0x0000000000000020`  | `ROLE_LUMAAI_VIDEO`       | Allows the user to generate videos with LumaLabs AI |
+| 4   | `0x0000000000000010`  | `ROLE_OPENAI_TEXT`        | Allows the user to generate text with OpenAI |
+| 3   | `0x0000000000000008`  | `ROLE_OPENAI_TTS`         | Allows the user to generate TTS with OpenAI |
+| 2   | `0x0000000000000004`  | `ROLE_OPENAI_IMAGE`       | Allows the user to generate images with OpenAI |
+| 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain |
+| 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Grants access to profile and provider management |
 
 ## Role Macros
 
-`ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATION_SUPPORT | ROLE_ADMIN_SUPPORT`
-`ROLE_SERVICE_AGENT = ROLE_MODERATION_SUPPORT | ROLE_ADMIN_SUPPORT`
-
-`ROLE_USER_UNRESTRICTED = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED | ROLE_DISCORD_ENABLED | ROLE_SOCIAL_ENABLED | ROLE_API_ENABLED`
-`ROLE_USER_RESTRICTED = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED`
-`ROLE_USER_ABSTRACT = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED | ROLE_API_ENABLED`
-`ROLE_USER_INTERACTIVE = ROLE_USERS_ENABLED | ROLE_STORAGE_ENABLED | ROLE_DISCORD_ENABLED | ROLE_SOCIAL_ENABLED`
+`ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATION | ROLE_SUPPORT`
+`ROLE_SERVICE_AGENT = ROLE_MODERATION | ROLE_SUPPORT`
 
 ## Authentication Domains
 
