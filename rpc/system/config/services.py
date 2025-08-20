@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 import logging
 
 from rpc.helpers import get_rpcrequest_from_request
@@ -18,12 +18,6 @@ async def system_config_get_configs_v1(request: Request):
     auth_ctx.user_guid,
     auth_ctx.roles,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_config_get_configs_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, {})
   items = []
@@ -53,12 +47,6 @@ async def system_config_upsert_config_v1(request: Request):
     auth_ctx.roles,
     rpc_request.payload,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_config_upsert_config_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   payload = SystemConfigConfigItem1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run(rpc_request.op, {"key": payload.key, "value": payload.value})
@@ -81,12 +69,6 @@ async def system_config_delete_config_v1(request: Request):
     auth_ctx.roles,
     rpc_request.payload,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_config_delete_config_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   payload = SystemConfigDeleteConfig1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run(rpc_request.op, {"key": payload.key})
