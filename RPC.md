@@ -12,7 +12,7 @@ Each RPC domain has an aligned security role. Other than Auth and Public, all ot
 
 ## Admin Domain
 
-All Admin domain calls require `ROLE_ADMIN_SUPPORT`.
+All Admin domain calls require `ROLE_SUPPORT`.
 
 ### `roles`
 
@@ -126,7 +126,9 @@ These calls expose system administration functionality. All System domain calls 
 
 ## Service Domain
 
-All Service domain calls require `ROLE_SERVICE_ADMIN`.
+All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
+operations require `ROLE_ACCOUNT_ADMIN`. `urn:service:roles:get_roles:1`
+may also be called by users with `ROLE_SYSTEM_ADMIN`.
 
 ### `general`
 
@@ -134,31 +136,20 @@ All Service domain calls require `ROLE_SERVICE_ADMIN`.
 | --------------------------------- | ----------------------------------- |
 | `urn:service:health_check:1`     | Placeholder service health check.  |
 
-## Security Domain
-
-All Security domain calls require `ROLE_SECURITY_ADMIN`.
-`urn:security:roles:get_roles:1` may also be called by users with `ROLE_SYSTEM_ADMIN`.
-
 ### `roles`
 
 | Operation                               | Description                                  |
 | --------------------------------------- | -------------------------------------------- |
-| `urn:security:roles:get_roles:1`        | List all role names and their bit positions. |
-| `urn:security:roles:get_role_members:1` | Get members and non-members for a role.      |
-| `urn:security:roles:add_role_member:1`  | Add members to a role.                       |
-| `urn:security:roles:remove_role_member:1` | Remove members from a role.                |
-| `urn:security:roles:upsert_role:1`      | Create or update a role definition.          |
-| `urn:security:roles:delete_role:1`      | Delete a role.                               |
-
-### `audit`
-
-| Operation                         | Description                         |
-| --------------------------------- | ----------------------------------- |
-| `urn:security:audit_log:1`       | Placeholder audit log retrieval.    |
+| `urn:service:roles:get_roles:1`         | List all role names and their bit positions. |
+| `urn:service:roles:get_role_members:1`  | Get members and non-members for a role.      |
+| `urn:service:roles:add_role_member:1`   | Add members to a role.                       |
+| `urn:service:roles:remove_role_member:1` | Remove members from a role.                 |
+| `urn:service:roles:upsert_role:1`       | Create or update a role definition.          |
+| `urn:service:roles:delete_role:1`       | Delete a role.                               |
 
 ## Moderation Domain
 
-All Moderation domain calls require `ROLE_MODERATION_SUPPORT`.
+All Moderation domain calls require `ROLE_MODERATOR`.
 
 ### `content`
 

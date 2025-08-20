@@ -8,7 +8,6 @@ from .admin.handler import handle_admin_request
 from .auth.handler import handle_auth_request
 from .moderation.handler import handle_moderation_request
 from .public.handler import handle_public_request
-from .security.handler import handle_security_request
 from .service.handler import handle_service_request
 from .storage.handler import handle_storage_request
 from .system.handler import handle_system_request
@@ -20,7 +19,6 @@ HANDLERS: dict[str, callable] = {
   "auth": handle_auth_request,
   "moderation": handle_moderation_request,
   "public": handle_public_request,
-  "security": handle_security_request,
   "service": handle_service_request,
   "storage": handle_storage_request,
   "system": handle_system_request,

@@ -1,6 +1,6 @@
 """Administrative namespace for user and role management.
 
-Requires ROLE_ADMIN_SUPPORT.
+Requires ROLE_SUPPORT.
 """
 
 from .roles.handler import handle_roles_request

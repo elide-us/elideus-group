@@ -1,6 +1,6 @@
 """Moderation namespace for reviewing user content.
 
-Requires ROLE_MODERATION_SUPPORT.
+Requires ROLE_MODERATOR.
 """
 
 from .content.handler import handle_content_request

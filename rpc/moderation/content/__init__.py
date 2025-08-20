@@ -1,6 +1,6 @@
 """Content moderation RPC namespace.
 
-Requires ROLE_MODERATION_SUPPORT.
+Requires ROLE_MODERATOR.
 """
 
 from .services import (

@@ -173,7 +173,7 @@ def test_admin_roles_add_and_remove_member():
 
   async def fake_get_add(request):
     rpc = RPCRequest(op="urn:admin:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u2"}, version=1)
-    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.get_rpcrequest_from_request
   helpers.get_rpcrequest_from_request = fake_get_add
@@ -189,7 +189,7 @@ def test_admin_roles_add_and_remove_member():
 
   async def fake_get_remove(request):
     rpc = RPCRequest(op="urn:admin:roles:remove_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
-    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   helpers.get_rpcrequest_from_request = fake_get_remove
   roles_mod.get_rpcrequest_from_request = fake_get_remove
@@ -239,7 +239,7 @@ def test_admin_users_calls_db():
 
   async def fake_get_set(request):
     rpc = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "u1", "credits": 20}, version=1)
-    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.get_rpcrequest_from_request
   helpers.get_rpcrequest_from_request = fake_get_set
@@ -252,7 +252,7 @@ def test_admin_users_calls_db():
 
   async def fake_get_profile(request):
     rpc = RPCRequest(op="urn:admin:users:get_profile:1", payload={"userGuid": "u1"}, version=1)
-    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   helpers.get_rpcrequest_from_request = fake_get_profile
   users_mod.get_rpcrequest_from_request = fake_get_profile
@@ -280,7 +280,7 @@ def test_admin_enable_storage_creates_folder():
 
   async def fake_get(request):
     rpc = RPCRequest(op="urn:admin:users:enable_storage:1", payload={"userGuid": "u1"}, version=1)
-    return rpc, SimpleNamespace(roles=["ROLE_ADMIN_SUPPORT"]), None
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
   orig = helpers.get_rpcrequest_from_request
   helpers.get_rpcrequest_from_request = fake_get
