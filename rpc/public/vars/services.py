@@ -14,7 +14,7 @@ _helpers_spec = importlib.util.spec_from_file_location(
 _helpers_mod = importlib.util.module_from_spec(_helpers_spec)
 _helpers_spec.loader.exec_module(_helpers_mod)
 sys.modules["rpc.helpers"] = _helpers_mod
-get_rpcrequest_from_request = _helpers_mod.get_rpcrequest_from_request
+unbox_request = _helpers_mod.unbox_request
 
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
@@ -43,7 +43,7 @@ async def _run_command(*cmd: str):
 
 
 async def public_vars_get_version_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   version = res.rows[0].get("version") if res.rows else ""
@@ -55,7 +55,7 @@ async def public_vars_get_version_v1(request: Request):
   )
 
 async def public_vars_get_hostname_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   hostname = res.rows[0].get("hostname") if res.rows else ""
@@ -67,7 +67,7 @@ async def public_vars_get_hostname_v1(request: Request):
   )
 
 async def public_vars_get_repo_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, rpc_request.payload or {})
   repo = res.rows[0].get("repo") if res.rows else ""
@@ -79,7 +79,7 @@ async def public_vars_get_repo_v1(request: Request):
   )
 
 async def public_vars_get_ffmpeg_version_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   try:
     stdout, stderr = await _run_command("ffmpeg", "-version")
     if stdout:
@@ -99,7 +99,7 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
   )
 
 async def public_vars_get_odbc_version_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   system = __import__("platform").system()
   try:
     if system == "Windows":

@@ -18,7 +18,7 @@ sys.modules["rpc.models"] = models
 helpers = types.ModuleType("rpc.helpers")
 async def _stub(request):
   raise NotImplementedError
-helpers.get_rpcrequest_from_request = _stub
+helpers.unbox_request = _stub
 helpers.bit_to_mask = lambda b: 1 << b
 sys.modules["rpc.helpers"] = helpers
 
@@ -152,15 +152,15 @@ def test_admin_roles_no_permission_required():
     rpc = RPCRequest(op="urn:admin:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=[]), None
 
-  orig = helpers.get_rpcrequest_from_request
-  helpers.get_rpcrequest_from_request = fake_get
-  roles_mod.get_rpcrequest_from_request = fake_get
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get
+  roles_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(roles_mod.admin_roles_add_member_v1(req))
   assert resp is not None
-  helpers.get_rpcrequest_from_request = orig
-  roles_mod.get_rpcrequest_from_request = orig
+  helpers.unbox_request = orig
+  roles_mod.unbox_request = orig
 
 
 def test_admin_roles_add_and_remove_member():
@@ -175,9 +175,9 @@ def test_admin_roles_add_and_remove_member():
     rpc = RPCRequest(op="urn:admin:roles:add_member:1", payload={"role": "ROLE_X", "userGuid": "u2"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
-  orig = helpers.get_rpcrequest_from_request
-  helpers.get_rpcrequest_from_request = fake_get_add
-  roles_mod.get_rpcrequest_from_request = fake_get_add
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get_add
+  roles_mod.unbox_request = fake_get_add
   resp = asyncio.run(roles_mod.admin_roles_add_member_v1(req))
   assert any(op == "db:security:roles:add_role_member:1" for op, _ in db.calls)
   assert resp.payload["members"] == [
@@ -191,16 +191,16 @@ def test_admin_roles_add_and_remove_member():
     rpc = RPCRequest(op="urn:admin:roles:remove_member:1", payload={"role": "ROLE_X", "userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
-  helpers.get_rpcrequest_from_request = fake_get_remove
-  roles_mod.get_rpcrequest_from_request = fake_get_remove
+  helpers.unbox_request = fake_get_remove
+  roles_mod.unbox_request = fake_get_remove
   resp2 = asyncio.run(roles_mod.admin_roles_remove_member_v1(req))
   assert any(op == "db:security:roles:remove_role_member:1" for op, _ in db.calls)
   assert resp2.payload["nonMembers"] == [
     {"guid": "u1", "displayName": "User 1"},
     {"guid": "u2", "displayName": "User 2"},
   ]
-  helpers.get_rpcrequest_from_request = orig
-  roles_mod.get_rpcrequest_from_request = orig
+  helpers.unbox_request = orig
+  roles_mod.unbox_request = orig
 
 
 def test_admin_users_no_permission_required():
@@ -210,15 +210,15 @@ def test_admin_users_no_permission_required():
     rpc = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "u1", "credits": 5}, version=1)
     return rpc, SimpleNamespace(roles=[]), None
 
-  orig = helpers.get_rpcrequest_from_request
-  helpers.get_rpcrequest_from_request = fake_get
-  users_mod.get_rpcrequest_from_request = fake_get
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get
+  users_mod.unbox_request = fake_get
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_mod.admin_users_set_credits_v1(req))
   assert resp is not None
-  helpers.get_rpcrequest_from_request = orig
-  users_mod.get_rpcrequest_from_request = orig
+  helpers.unbox_request = orig
+  users_mod.unbox_request = orig
 
 
 def test_admin_users_calls_db():
@@ -241,9 +241,9 @@ def test_admin_users_calls_db():
     rpc = RPCRequest(op="urn:admin:users:set_credits:1", payload={"userGuid": "u1", "credits": 20}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
-  orig = helpers.get_rpcrequest_from_request
-  helpers.get_rpcrequest_from_request = fake_get_set
-  users_mod.get_rpcrequest_from_request = fake_get_set
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get_set
+  users_mod.unbox_request = fake_get_set
   resp = asyncio.run(users_mod.admin_users_set_credits_v1(req))
   assert ("db:admin:users:set_credits:1", {"guid": "u1", "credits": 20}) in db.calls
   assert isinstance(resp, RPCResponse)
@@ -254,13 +254,13 @@ def test_admin_users_calls_db():
     rpc = RPCRequest(op="urn:admin:users:get_profile:1", payload={"userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
-  helpers.get_rpcrequest_from_request = fake_get_profile
-  users_mod.get_rpcrequest_from_request = fake_get_profile
+  helpers.unbox_request = fake_get_profile
+  users_mod.unbox_request = fake_get_profile
   resp2 = asyncio.run(users_mod.admin_users_get_profile_v1(req))
   assert any(op == "db:users:profile:get_profile:1" for op, _ in db.calls)
   assert resp2.payload["guid"] == "u1"
-  helpers.get_rpcrequest_from_request = orig
-  users_mod.get_rpcrequest_from_request = orig
+  helpers.unbox_request = orig
+  users_mod.unbox_request = orig
 
 
 def test_admin_enable_storage_creates_folder():
@@ -282,13 +282,13 @@ def test_admin_enable_storage_creates_folder():
     rpc = RPCRequest(op="urn:admin:users:enable_storage:1", payload={"userGuid": "u1"}, version=1)
     return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
 
-  orig = helpers.get_rpcrequest_from_request
-  helpers.get_rpcrequest_from_request = fake_get
-  users_mod.get_rpcrequest_from_request = fake_get
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get
+  users_mod.unbox_request = fake_get
   resp = asyncio.run(users_mod.admin_users_enable_storage_v1(req))
   assert ("db:admin:users:enable_storage:1", {"guid": "u1"}) in db.calls
   assert storage.called and storage.guid == "u1"
   assert isinstance(resp, RPCResponse)
-  helpers.get_rpcrequest_from_request = orig
-  users_mod.get_rpcrequest_from_request = orig
+  helpers.unbox_request = orig
+  users_mod.unbox_request = orig
 

@@ -61,7 +61,7 @@ real_helpers_spec.loader.exec_module(real_helpers)
 helpers_stub = types.ModuleType("rpc.helpers")
 async def _stub(request):
   raise NotImplementedError
-helpers_stub.get_rpcrequest_from_request = _stub
+helpers_stub.unbox_request = _stub
 sys.modules["rpc.helpers"] = helpers_stub
 
 # import services with stubbed helpers
@@ -102,7 +102,7 @@ def test_get_files_returns_list():
     rpc = RPCRequest(op="urn:storage:files:get_files:1", payload=None, version=1)
     auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
-  svc_mod.get_rpcrequest_from_request = fake_get
+  svc_mod.unbox_request = fake_get
   storage = StorageModule()
   storage.files = [{"name": "a.txt", "url": "http://x/a.txt", "content_type": "text/plain"}]
   req = DummyRequest(storage)
@@ -120,7 +120,7 @@ def test_upload_files_calls_storage():
     )
     auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
-  svc_mod.get_rpcrequest_from_request = fake_up
+  svc_mod.unbox_request = fake_up
   storage = StorageModule()
   req = DummyRequest(storage)
   resp = asyncio.run(storage_files_upload_files_v1(req))
@@ -137,7 +137,7 @@ def test_delete_files_calls_storage():
     )
     auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
-  svc_mod.get_rpcrequest_from_request = fake_del
+  svc_mod.unbox_request = fake_del
   storage = StorageModule()
   req = DummyRequest(storage)
   resp = asyncio.run(storage_files_delete_files_v1(req))
@@ -155,7 +155,7 @@ def test_set_gallery_validates_file():
     )
     auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE_ENABLED"], role_mask=0x2)
     return rpc, auth, None
-  svc_mod.get_rpcrequest_from_request = fake_set
+  svc_mod.unbox_request = fake_set
   storage = StorageModule()
   storage.files = [{"name": "a.txt", "url": "http://x/a.txt"}]
   req = DummyRequest(storage)

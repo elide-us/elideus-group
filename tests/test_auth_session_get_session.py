@@ -50,10 +50,10 @@ def test_get_session(monkeypatch):
   RPCResponse = models.RPCResponse
 
   helpers = types.ModuleType("rpc.helpers")
-  async def fake_get_rpcrequest_from_request(request):
+  async def fake_unbox_request(request):
     rpc = RPCRequest(op="urn:auth:session:get_session:1", payload=None, version=1)
     return rpc, SimpleNamespace(), None
-  helpers.get_rpcrequest_from_request = fake_get_rpcrequest_from_request
+  helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers
 
   sys.modules.setdefault("server", types.ModuleType("server"))

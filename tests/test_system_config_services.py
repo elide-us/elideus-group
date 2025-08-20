@@ -63,7 +63,7 @@ async def fake_get(request: Request):
   auth_ctx = SimpleNamespace(user_guid='u1', roles=[])
   return rpc_req, auth_ctx, None
 
-svc.get_rpcrequest_from_request = fake_get
+svc.unbox_request = fake_get
 
 class DummyDb:
   def __init__(self):
