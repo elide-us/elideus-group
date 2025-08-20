@@ -18,7 +18,13 @@ DOMAIN_ROLE_MAP: dict[str, dict[str, list[str]]] = {
   },
   "moderation": {"": ["ROLE_MODERATION_SUPPORT"]},
   "service": {"": ["ROLE_SERVICE_ADMIN"]},
-  "storage": {"": ["ROLE_STORAGE_ENABLED"]},
+  "storage": {
+    "": ["ROLE_STORAGE_ENABLED"],
+    "files:get_files": ["ROLE_STORAGE_ENABLED"],
+    "files:upload_files": ["ROLE_STORAGE_ENABLED"],
+    "files:delete_files": ["ROLE_STORAGE_ENABLED"],
+    "files:set_gallery": ["ROLE_STORAGE_ENABLED"],
+  },
   "system": {"": ["ROLE_SYSTEM_ADMIN"]},
   "users": {"": ["ROLE_USERS_ENABLED"]},
 }
