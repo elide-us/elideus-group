@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 import logging
 
 from rpc.helpers import get_rpcrequest_from_request
@@ -19,12 +19,6 @@ async def system_routes_get_routes_v1(request: Request):
     auth_ctx.user_guid,
     auth_ctx.roles,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_routes_get_routes_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
   res = await db.run(rpc_request.op, {})
@@ -60,12 +54,6 @@ async def system_routes_upsert_route_v1(request: Request):
     auth_ctx.roles,
     rpc_request.payload,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_routes_upsert_route_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   payload = SystemRoutesRouteItem1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
@@ -96,12 +84,6 @@ async def system_routes_delete_route_v1(request: Request):
     auth_ctx.roles,
     rpc_request.payload,
   )
-  if "ROLE_SYSTEM_ADMIN" not in auth_ctx.roles:
-    logging.debug(
-      "[system_routes_delete_route_v1] forbidden for user=%s",
-      auth_ctx.user_guid,
-    )
-    raise HTTPException(status_code=403, detail="Forbidden")
   payload = SystemRoutesDeleteRoute1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run(rpc_request.op, {"path": payload.path})

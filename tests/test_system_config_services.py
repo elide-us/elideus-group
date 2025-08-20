@@ -60,7 +60,7 @@ async def fake_get(request: Request):
   op = body.get('op')
   payload = body.get('payload')
   rpc_req = SimpleNamespace(op=op, payload=payload, version=1)
-  auth_ctx = SimpleNamespace(user_guid='u1', roles=['ROLE_SYSTEM_ADMIN'])
+  auth_ctx = SimpleNamespace(user_guid='u1', roles=[])
   return rpc_req, auth_ctx, None
 
 svc.get_rpcrequest_from_request = fake_get
