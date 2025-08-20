@@ -15,20 +15,16 @@ from .models import (
 """User profile service helpers.
 
 `auth_ctx.user_guid` is populated for authenticated RPC requests. These
-functions assume this GUID exists, but `_require_user_guid` raises a
-401 error if these services are invoked internally without authentication.
+functions assume this GUID exists, and raise a validation error if the
+GUID is missing.
 """
-
-
-def _require_user_guid(auth_ctx):
-  if auth_ctx.user_guid is None:
-    raise HTTPException(status_code=401, detail="Unauthorized")
-  return auth_ctx.user_guid
 
 
 async def users_profile_get_profile_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, {"guid": user_guid})
@@ -49,7 +45,9 @@ async def users_profile_get_profile_v1(request: Request):
 
 async def users_profile_set_display_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetDisplay1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
@@ -65,7 +63,9 @@ async def users_profile_set_display_v1(request: Request):
 
 async def users_profile_set_optin_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetOptin1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
@@ -81,7 +81,9 @@ async def users_profile_set_optin_v1(request: Request):
 
 async def users_profile_get_roles_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   db: DbModule = request.app.state.db
   res = await db.run(rpc_request.op, {"guid": user_guid})
@@ -95,7 +97,9 @@ async def users_profile_get_roles_v1(request: Request):
 
 async def users_profile_set_roles_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileRoles1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
@@ -108,7 +112,9 @@ async def users_profile_set_roles_v1(request: Request):
 
 async def users_profile_set_profile_image_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  user_guid = _require_user_guid(auth_ctx)
+  user_guid = auth_ctx.user_guid
+  if user_guid is None:
+    raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetProfileImage1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
