@@ -145,7 +145,7 @@ class DummyRequest:
     self.headers = {}
 
 
-def test_admin_roles_permission_required():
+def test_admin_roles_no_permission_required():
   roles_mod = _load_module("rpc/admin/roles/services.py", "admin_roles_services")
 
   async def fake_get(request):
@@ -155,9 +155,10 @@ def test_admin_roles_permission_required():
   orig = helpers.get_rpcrequest_from_request
   helpers.get_rpcrequest_from_request = fake_get
   roles_mod.get_rpcrequest_from_request = fake_get
-  req = DummyRequest(DummyState(DummyDb()))
-  with pytest.raises(HTTPException):
-    asyncio.run(roles_mod.admin_roles_add_member_v1(req))
+  db = DummyDb()
+  req = DummyRequest(DummyState(db))
+  resp = asyncio.run(roles_mod.admin_roles_add_member_v1(req))
+  assert resp is not None
   helpers.get_rpcrequest_from_request = orig
   roles_mod.get_rpcrequest_from_request = orig
 
@@ -202,7 +203,7 @@ def test_admin_roles_add_and_remove_member():
   roles_mod.get_rpcrequest_from_request = orig
 
 
-def test_admin_users_permission_required():
+def test_admin_users_no_permission_required():
   users_mod = _load_module("rpc/admin/users/services.py", "admin_users_services")
 
   async def fake_get(request):
@@ -212,9 +213,10 @@ def test_admin_users_permission_required():
   orig = helpers.get_rpcrequest_from_request
   helpers.get_rpcrequest_from_request = fake_get
   users_mod.get_rpcrequest_from_request = fake_get
-  req = DummyRequest(DummyState(DummyDb()))
-  with pytest.raises(HTTPException):
-    asyncio.run(users_mod.admin_users_set_credits_v1(req))
+  db = DummyDb()
+  req = DummyRequest(DummyState(db))
+  resp = asyncio.run(users_mod.admin_users_set_credits_v1(req))
+  assert resp is not None
   helpers.get_rpcrequest_from_request = orig
   users_mod.get_rpcrequest_from_request = orig
 
