@@ -25,6 +25,10 @@ flags.
 | 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain |
 | 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Grants access to profile and provider management |
 
+The two lowest bits represent the base user roles: `ROLE_REGISTERED`
+for profile and provider access and `ROLE_STORAGE` for the storage
+domain.
+
 ## Role Macros
 
 `ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT`

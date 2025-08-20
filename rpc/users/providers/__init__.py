@@ -1,7 +1,7 @@
 """Users providers RPC namespace.
 
 Manage authentication providers for a user. Requires
-ROLE_USERS_ENABLED.
+ROLE_REGISTERED.
 """
 
 from .services import (

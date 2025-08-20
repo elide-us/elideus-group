@@ -61,7 +61,6 @@ svc_spec.loader.exec_module(svc_mod)
 sys.modules["rpc.helpers"] = real_helpers
 
 users_profile_get_roles_v1 = svc_mod.users_profile_get_roles_v1
-users_profile_set_roles_v1 = svc_mod.users_profile_set_roles_v1
 users_profile_set_profile_image_v1 = svc_mod.users_profile_set_profile_image_v1
 
 class DBRes:
@@ -77,9 +76,6 @@ class DummyDb:
     self.calls.append((op, args))
     if op == "urn:users:profile:get_roles:1":
       return DBRes([{"element_roles": self.roles}], 1)
-    if op == "urn:users:profile:set_roles:1":
-      self.roles = args["roles"]
-      return DBRes([], 1)
     if op == "urn:users:profile:set_profile_image:1":
       return DBRes([], 1)
     return DBRes()
@@ -108,17 +104,6 @@ def test_get_roles_service_returns_mask():
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
   assert ("urn:users:profile:get_roles:1", {"guid": "u1"}) in db.calls
-
-def test_set_roles_service_calls_db():
-  async def fake_set(request):
-    rpc = RPCRequest(op="urn:users:profile:set_roles:1", payload={"roles": 7}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_set
-  db = DummyDb()
-  req = DummyRequest(DummyState(db))
-  resp = asyncio.run(users_profile_set_roles_v1(req))
-  assert ("urn:users:profile:set_roles:1", {"guid": "u1", "roles": 7}) in db.calls
-  assert resp.payload["roles"] == 7
 
 def test_set_profile_image_calls_db():
   async def fake_img(request):

@@ -95,21 +95,6 @@ async def users_profile_get_roles_v1(request: Request):
     version=rpc_request.version,
   )
 
-async def users_profile_set_roles_v1(request: Request):
-  rpc_request, auth_ctx, _ = await unbox_request(request)
-  user_guid = auth_ctx.user_guid
-  if user_guid is None:
-    raise HTTPException(status_code=400, detail="Missing user GUID")
-
-  payload = UsersProfileRoles1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run(rpc_request.op, {"guid": user_guid, "roles": payload.roles})
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=payload.model_dump(),
-    version=rpc_request.version,
-  )
-
 async def users_profile_set_profile_image_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid

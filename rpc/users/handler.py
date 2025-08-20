@@ -1,6 +1,6 @@
 """Users RPC namespace.
 
-Manages user operations requiring ROLE_USERS_ENABLED.
+Manages user operations requiring ROLE_REGISTERED.
 Auth and public domains are exempt from role checks.
 """
 
@@ -12,7 +12,7 @@ from server.modules.auth_module import AuthModule
 
 from . import HANDLERS
 
-REQUIRED_ROLE_MASK = 0x0000000000000001  # ROLE_USERS_ENABLED
+REQUIRED_ROLE_MASK = 0x0000000000000001  # ROLE_REGISTERED
 
 
 async def handle_users_request(parts: list[str], request: Request) -> RPCResponse:

@@ -1,6 +1,6 @@
 """Users profile RPC namespace.
 
-Requires ROLE_USERS_ENABLED.
+Requires ROLE_REGISTERED.
 """
 
 from .services import (
@@ -8,7 +8,6 @@ from .services import (
   users_profile_set_display_v1,
   users_profile_set_optin_v1,
   users_profile_get_roles_v1,
-  users_profile_set_roles_v1,
   users_profile_set_profile_image_v1
 )
 
@@ -18,7 +17,6 @@ DISPATCHERS: dict[tuple[str, str], callable] = {
   ("set_display", "1"): users_profile_set_display_v1,
   ("set_optin", "1"): users_profile_set_optin_v1,
   ("get_roles", "1"): users_profile_get_roles_v1,
-  ("set_roles", "1"): users_profile_set_roles_v1,
   ("set_profile_image", "1"): users_profile_set_profile_image_v1
 }
 

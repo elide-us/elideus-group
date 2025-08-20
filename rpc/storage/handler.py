@@ -1,6 +1,6 @@
 """Storage RPC namespace.
 
-Provides storage operations requiring ROLE_STORAGE_ENABLED.
+Provides storage operations requiring ROLE_STORAGE.
 Auth and public domains are exempt from role checks.
 """
 
@@ -12,7 +12,7 @@ from server.modules.auth_module import AuthModule
 
 from . import HANDLERS
 
-REQUIRED_ROLE_MASK = 0x0000000000000002  # ROLE_STORAGE_ENABLED
+REQUIRED_ROLE_MASK = 0x0000000000000002  # ROLE_STORAGE
 
 
 async def handle_storage_request(parts: list[str], request: Request) -> RPCResponse:

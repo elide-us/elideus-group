@@ -1,6 +1,6 @@
 """Users providers RPC handler.
 
-Dispatches provider management operations. Requires ROLE_USERS_ENABLED.
+Dispatches provider management operations. Requires ROLE_REGISTERED.
 """
 
 from fastapi import HTTPException, Request

@@ -1,6 +1,6 @@
 """Storage files RPC handler.
 
-Dispatches file operations requiring ROLE_STORAGE_ENABLED.
+Dispatches file operations requiring ROLE_STORAGE.
 """
 
 from fastapi import HTTPException, Request
