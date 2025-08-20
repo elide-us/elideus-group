@@ -2,7 +2,7 @@ from fastapi import HTTPException, Request
 from importlib import import_module
 import gc
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.users.profile.models import UsersProfileProfile1
 from server.modules.db_module import DbModule
 from server.modules.storage_module import StorageModule
@@ -39,7 +39,7 @@ async def enable_storage(db: DbModule, storage: StorageModule, guid: str) -> Non
 
 
 async def admin_users_get_profile_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminUsersGuid1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   profile = await get_profile(db, data.userGuid)
@@ -52,7 +52,7 @@ async def admin_users_get_profile_v1(request: Request):
 
 
 async def admin_users_set_credits_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminUsersSetCredits1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await set_credits(db, data.userGuid, data.credits)
@@ -65,7 +65,7 @@ async def admin_users_set_credits_v1(request: Request):
 
 
 async def admin_users_reset_display_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminUsersGuid1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await reset_display(db, data.userGuid)
@@ -78,7 +78,7 @@ async def admin_users_reset_display_v1(request: Request):
 
 
 async def admin_users_enable_storage_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminUsersGuid1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   storage: StorageModule = request.app.state.storage

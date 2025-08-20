@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request, bit_to_mask
+from rpc.helpers import unbox_request, bit_to_mask
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
@@ -15,7 +15,7 @@ from .models import (
 
 
 async def security_roles_get_roles_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
   payload = SecurityRolesRoles1(roles=list(auth.get_role_names(exclude_registered=True)))
   return RPCResponse(
@@ -25,7 +25,7 @@ async def security_roles_get_roles_v1(request: Request):
   )
 
 async def security_roles_upsert_role_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = SecurityRolesUpsertRole1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:upsert_role:1", {
@@ -43,7 +43,7 @@ async def security_roles_upsert_role_v1(request: Request):
 
 
 async def security_roles_delete_role_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = SecurityRolesDeleteRole1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:delete_role:1", {"name": data.name})
@@ -77,7 +77,7 @@ async def _fetch_role_members(db: DbModule, role: str) -> SecurityRolesRoleMembe
 
 
 async def security_roles_get_role_members_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   role = payload.get("role")
   if not role:
@@ -92,7 +92,7 @@ async def security_roles_get_role_members_v1(request: Request):
 
 
 async def security_roles_add_role_member_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = SecurityRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:add_role_member:1", {
@@ -108,7 +108,7 @@ async def security_roles_add_role_member_v1(request: Request):
 
 
 async def security_roles_remove_role_member_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = SecurityRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.run("db:security:roles:remove_role_member:1", {

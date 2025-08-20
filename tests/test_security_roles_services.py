@@ -111,8 +111,8 @@ def test_get_roles_allows_system_admin():
     parts = rpc.op.split(":")
     return rpc, auth, parts
 
-  handler_mod.get_rpcrequest_from_request = fake_get
-  security_handler.get_rpcrequest_from_request = fake_get
+  handler_mod.unbox_request = fake_get
+  security_handler.unbox_request = fake_get
 
   called = False
 
@@ -137,7 +137,7 @@ def test_upsert_role_calls_db_and_loads_roles():
     )
     return rpc, None, None
 
-  helpers.get_rpcrequest_from_request = fake_get
+  helpers.unbox_request = fake_get
   svc_mod.get_rpcrequest_from_request = fake_get
   db = DummyDb()
   auth = DummyAuth()
@@ -167,7 +167,7 @@ def test_add_and_remove_member():
     )
     return rpc, None, None
 
-  helpers.get_rpcrequest_from_request = fake_get_add
+  helpers.unbox_request = fake_get_add
   svc_mod.get_rpcrequest_from_request = fake_get_add
   resp = asyncio.run(security_roles_add_role_member_v1(req))
   assert any(op == "db:security:roles:add_role_member:1" for op, _ in db.calls)
@@ -189,7 +189,7 @@ def test_add_and_remove_member():
     )
     return rpc, None, None
 
-  helpers.get_rpcrequest_from_request = fake_get_remove
+  helpers.unbox_request = fake_get_remove
   svc_mod.get_rpcrequest_from_request = fake_get_remove
   resp2 = asyncio.run(security_roles_remove_role_member_v1(req))
   assert any(op == "db:security:roles:remove_role_member:1" for op, _ in db.calls)

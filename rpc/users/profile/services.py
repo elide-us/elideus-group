@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
@@ -21,7 +21,7 @@ GUID is missing.
 
 
 async def users_profile_get_profile_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
@@ -44,7 +44,7 @@ async def users_profile_get_profile_v1(request: Request):
   )
 
 async def users_profile_set_display_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
@@ -62,7 +62,7 @@ async def users_profile_set_display_v1(request: Request):
   )
 
 async def users_profile_set_optin_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
@@ -80,7 +80,7 @@ async def users_profile_set_optin_v1(request: Request):
   )
 
 async def users_profile_get_roles_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
@@ -96,7 +96,7 @@ async def users_profile_get_roles_v1(request: Request):
   )
 
 async def users_profile_set_roles_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
@@ -111,7 +111,7 @@ async def users_profile_set_roles_v1(request: Request):
   )
 
 async def users_profile_set_profile_image_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   user_guid = auth_ctx.user_guid
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")

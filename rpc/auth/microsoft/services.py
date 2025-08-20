@@ -3,7 +3,7 @@ import base64, logging, uuid
 
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
@@ -106,7 +106,7 @@ async def create_session(
 
 
 async def auth_microsoft_oauth_login_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   req_payload = rpc_request.payload or {}
 
   provider = req_payload.get("provider", "microsoft")

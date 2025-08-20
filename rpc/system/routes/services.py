@@ -1,7 +1,7 @@
 from fastapi import Request
 import logging
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
@@ -13,7 +13,7 @@ from .models import (
 
 
 async def system_routes_get_routes_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_routes_get_routes_v1] user=%s roles=%s",
     auth_ctx.user_guid,
@@ -47,7 +47,7 @@ async def system_routes_get_routes_v1(request: Request):
 
 
 async def system_routes_upsert_route_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_routes_upsert_route_v1] user=%s roles=%s payload=%s",
     auth_ctx.user_guid,
@@ -77,7 +77,7 @@ async def system_routes_upsert_route_v1(request: Request):
 
 
 async def system_routes_delete_route_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_routes_delete_route_v1] user=%s roles=%s payload=%s",
     auth_ctx.user_guid,

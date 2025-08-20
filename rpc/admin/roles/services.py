@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
@@ -31,7 +31,7 @@ async def fetch_role_members(db: DbModule, role: str) -> AdminRolesMembers1:
 
 
 async def admin_roles_get_members_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   role = payload.get("role")
   if not role:
@@ -54,7 +54,7 @@ async def add_role_member(db: DbModule, role: str, user_guid: str) -> AdminRoles
 
 
 async def admin_roles_add_member_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   members = await add_role_member(db, data.role, data.userGuid)
@@ -74,7 +74,7 @@ async def remove_role_member(db: DbModule, role: str, user_guid: str) -> AdminRo
 
 
 async def admin_roles_remove_member_v1(request: Request):
-  rpc_request, _, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _, _ = await unbox_request(request)
   data = AdminRolesRoleMemberUpdate1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   members = await remove_role_member(db, data.role, data.userGuid)

@@ -58,7 +58,7 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
 
   return rpc_request, auth_ctx
 
-async def get_rpcrequest_from_request(request):
+async def unbox_request(request):
   if getattr(request.state, 'rpc_request', None) and getattr(request.state, 'auth_ctx', None):
     rpc_request = request.state.rpc_request
     auth_ctx = request.state.auth_ctx

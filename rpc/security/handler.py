@@ -6,7 +6,7 @@ Auth and public domains are exempt from role checks.
 
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 
@@ -17,7 +17,7 @@ SYSTEM_ADMIN_MASK = 0x2000000000000000  # ROLE_SYSTEM_ADMIN
 
 
 async def handle_security_request(parts: list[str], request: Request) -> RPCResponse:
-  _, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  _, auth_ctx, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
 
   subdomain = parts[0]

@@ -5,7 +5,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 import uuid
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
@@ -154,7 +154,7 @@ async def auth_session_refresh_token_v1(request: Request):
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 
 async def auth_session_invalidate_token_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   rotation_token = auth_ctx.claims.get("session")
   if not rotation_token or not auth_ctx.user_guid:
     raise HTTPException(status_code=401, detail="Missing or invalid session token")
@@ -169,7 +169,7 @@ async def auth_session_invalidate_token_v1(request: Request):
 
 
 async def auth_session_get_session_v1(request: Request):
-  rpc_request, _auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, _auth_ctx, _ = await unbox_request(request)
   header = request.headers.get("authorization")
   if not header or not header.lower().startswith("bearer "):
     raise HTTPException(status_code=401, detail="Missing or invalid authorization header")

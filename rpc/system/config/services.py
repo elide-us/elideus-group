@@ -1,7 +1,7 @@
 from fastapi import Request
 import logging
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
@@ -12,7 +12,7 @@ from .models import (
 
 
 async def system_config_get_configs_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_config_get_configs_v1] user=%s roles=%s",
     auth_ctx.user_guid,
@@ -40,7 +40,7 @@ async def system_config_get_configs_v1(request: Request):
 
 
 async def system_config_upsert_config_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_config_upsert_config_v1] user=%s roles=%s payload=%s",
     auth_ctx.user_guid,
@@ -62,7 +62,7 @@ async def system_config_upsert_config_v1(request: Request):
 
 
 async def system_config_delete_config_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   logging.debug(
     "[system_config_delete_config_v1] user=%s roles=%s payload=%s",
     auth_ctx.user_guid,

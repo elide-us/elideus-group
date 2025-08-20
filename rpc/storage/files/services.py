@@ -3,7 +3,7 @@ import io
 
 from fastapi import HTTPException, Request
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.storage_module import StorageModule
 
@@ -17,7 +17,7 @@ from .models import (
 
 
 async def storage_files_get_files_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   storage: StorageModule = request.app.state.storage
   files = await storage.list_user_files(auth_ctx.user_guid)
   payload = StorageFilesFiles1(files=[StorageFilesFileItem1(**f) for f in files])
@@ -29,7 +29,7 @@ async def storage_files_get_files_v1(request: Request):
 
 
 async def storage_files_upload_files_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   data = StorageFilesUploadFiles1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.ensure_user_folder(auth_ctx.user_guid)
@@ -44,7 +44,7 @@ async def storage_files_upload_files_v1(request: Request):
 
 
 async def storage_files_delete_files_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   data = StorageFilesDeleteFiles1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   for name in data.files:
@@ -57,7 +57,7 @@ async def storage_files_delete_files_v1(request: Request):
 
 
 async def storage_files_set_gallery_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   data = StorageFilesSetGallery1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   files = await storage.list_user_files(auth_ctx.user_guid)

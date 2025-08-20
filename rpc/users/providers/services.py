@@ -1,14 +1,14 @@
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
-from rpc.helpers import get_rpcrequest_from_request
+from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import UsersProvidersSetProvider1
 
 
 async def users_providers_set_provider_v1(request: Request):
-  rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   try:
     payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
