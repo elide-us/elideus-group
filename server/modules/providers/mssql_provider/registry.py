@@ -397,6 +397,7 @@ def _auth_session_update_session(args: Dict[str, Any]):
 # -------------------- SYSTEM CONFIG --------------------
 
 @register("db:system:config:get_config:1")
+@register("urn:system:config:get_config:1")
 def _config_get(args: Dict[str, Any]):
   key = args["key"]
   sql = """
@@ -408,6 +409,7 @@ def _config_get(args: Dict[str, Any]):
   return ("json_one", sql, (key,))
 
 @register("db:system:config:upsert_config:1")
+@register("urn:system:config:upsert_config:1")
 async def _config_set(args: Dict[str, Any]):
   key = args["key"]
   value = args["value"]
@@ -423,9 +425,10 @@ async def _config_set(args: Dict[str, Any]):
   return rc
 
 @register("db:system:config:get_configs:1")
+@register("urn:system:config:get_configs:1")
 def _config_list(_: Dict[str, Any]):
   sql = """
-    SELECT element_key AS [key], element_value AS value
+    SELECT element_key, element_value
     FROM system_config
     ORDER BY element_key
     FOR JSON PATH;
@@ -433,6 +436,7 @@ def _config_list(_: Dict[str, Any]):
   return ("json_many", sql, ())
 
 @register("db:system:config:delete_config:1")
+@register("urn:system:config:delete_config:1")
 def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
