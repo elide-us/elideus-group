@@ -3,7 +3,6 @@
 Requires ROLE_SERVICE_ADMIN.
 """
 
-from .services import service_health_check_v1
 from .roles.handler import handle_roles_request
 
 HANDLERS: dict[str, callable] = {
