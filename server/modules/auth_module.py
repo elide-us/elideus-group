@@ -198,6 +198,23 @@ class AuthModule(BaseModule):
     logging.debug("[AuthModule] Roles for %s: %s (mask=%#018x)", guid, names, mask)
     return names, mask
 
+  async def user_has_role(self, guid: str, required_mask: int) -> bool:
+    """Check if a user possesses a required role mask.
+
+    Args:
+      guid: The user's GUID.
+      required_mask: Bitmask representing required roles.
+
+    Returns:
+      True if the user has at least one of the required roles, otherwise False.
+    """
+    if not required_mask:
+      return True
+    if not guid:
+      return False
+    _, mask = await self.get_user_roles(guid)
+    return bool(mask & required_mask)
+
   async def refresh_user_roles(self, guid: str):
     logging.debug("[AuthModule] Refreshing user roles for %s", guid)
     await self.get_user_roles(guid, refresh=True)

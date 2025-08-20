@@ -10,6 +10,8 @@ from rpc.models import RPCResponse
 
 from . import HANDLERS
 
+REQUIRED_ROLE_MASK = 0
+
 
 async def handle_public_request(parts: list[str], request: Request) -> RPCResponse:
   subdomain = parts[0]
