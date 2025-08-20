@@ -1,4 +1,5 @@
 from fastapi import HTTPException, Request
+from pydantic import ValidationError
 
 from rpc.helpers import get_rpcrequest_from_request
 from rpc.models import RPCResponse
@@ -8,10 +9,10 @@ from .models import UsersProvidersSetProvider1
 
 async def users_providers_set_provider_v1(request: Request):
   rpc_request, auth_ctx, _ = await get_rpcrequest_from_request(request)
-  if not auth_ctx.user_guid:
-    raise HTTPException(status_code=401, detail="Unauthorized")
-
-  payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
+  try:
+    payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
+  except ValidationError as e:
+    raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   await db.run(rpc_request.op, {
     "guid": auth_ctx.user_guid,
