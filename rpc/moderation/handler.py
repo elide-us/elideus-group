@@ -1,6 +1,6 @@
 """Moderation RPC namespace.
 
-Handles moderation operations requiring ROLE_MODERATION_SUPPORT.
+Handles moderation operations requiring ROLE_MODERATOR.
 Auth and public domains are exempt from role checks.
 """
 
@@ -12,7 +12,7 @@ from server.modules.auth_module import AuthModule
 
 from . import HANDLERS
 
-REQUIRED_ROLE_MASK = 0x0800000000000000  # ROLE_MODERATION_SUPPORT
+REQUIRED_ROLE_MASK = 0x0800000000000000  # ROLE_MODERATOR
 
 
 async def handle_moderation_request(parts: list[str], request: Request) -> RPCResponse:

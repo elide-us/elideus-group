@@ -1,6 +1,6 @@
 """Admin RPC namespace.
 
-Handles administrative operations requiring ROLE_ADMIN_SUPPORT.
+Handles administrative operations requiring ROLE_SUPPORT.
 Auth and public domains are exempt from role checks.
 """
 
@@ -12,7 +12,7 @@ from server.modules.auth_module import AuthModule
 
 from . import HANDLERS
 
-REQUIRED_ROLE_MASK = 0x0400000000000000  # ROLE_ADMIN_SUPPORT
+REQUIRED_ROLE_MASK = 0x0400000000000000  # ROLE_SUPPORT
 
 
 async def handle_admin_request(parts: list[str], request: Request) -> RPCResponse:

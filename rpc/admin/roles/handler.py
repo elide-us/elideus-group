@@ -1,6 +1,6 @@
 """Admin roles RPC handler.
 
-Dispatches role membership operations requiring ROLE_ADMIN_SUPPORT.
+Dispatches role membership operations requiring ROLE_SUPPORT.
 """
 
 from fastapi import HTTPException, Request

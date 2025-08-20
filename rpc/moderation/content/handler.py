@@ -1,6 +1,6 @@
 """Moderation content RPC handler.
 
-Dispatches content review operations requiring ROLE_MODERATION_SUPPORT.
+Dispatches content review operations requiring ROLE_MODERATOR.
 """
 
 from fastapi import HTTPException, Request

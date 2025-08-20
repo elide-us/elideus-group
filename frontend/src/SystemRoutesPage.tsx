@@ -24,14 +24,14 @@ import {
 import type {
 	SystemRoutesRouteItem1,
 	SystemRoutesList1,
-	SecurityRolesRoles1,
+        ServiceRolesRoles1,
 } from "./shared/RpcModels";
 import {
 	fetchRoutes,
 	fetchUpsertRoute,
 	fetchDeleteRoute,
 } from "./rpc/system/routes";
-import { fetchRoles } from "./rpc/security/roles";
+import { fetchRoles } from "./rpc/service/roles";
 
 const MAX_HEIGHT = 120;
 
@@ -69,7 +69,7 @@ const SystemRoutesPage = (): JSX.Element => {
 						}
 				}
 				try {
-						const roles: SecurityRolesRoles1 = await fetchRoles();
+                                                const roles: ServiceRolesRoles1 = await fetchRoles();
 						setRoleNames(roles.roles);
 						console.debug("[SystemRoutesPage] loaded roles");
 				} catch (e: any) {
