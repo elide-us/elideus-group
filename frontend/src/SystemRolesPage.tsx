@@ -31,9 +31,11 @@ const bitToMask = (bit: number): string =>
   bit === 63 ? HIGH_BIT_MASK : (1n << BigInt(bit)).toString();
 
 const nextMask = (roles: SystemRolesRoleItem1[]): string => {
-  const bits = roles.map((r) => maskToBit(BigInt(r.mask)));
-  const nextBit = bits.length === 0 ? 63 : Math.min(...bits) - 1;
-  return bitToMask(nextBit < 0 ? 0 : nextBit);
+  const used = new Set(roles.map((r) => maskToBit(BigInt(r.mask))));
+  for (let bit = 0; bit < 64; bit++) {
+    if (!used.has(bit)) return bitToMask(bit);
+  }
+  return bitToMask(0);
 };
 
 const SystemRolesPage = (): JSX.Element => {
