@@ -32,8 +32,15 @@ class GoogleAuthProvider(AuthProvider):
     logging.debug("[GoogleAuthProvider] Creating provider with api_id=%s", api_id)
     config = await _fetch_openid_config()
     jwks_uri = config["jwks_uri"]
+    userinfo_endpoint = config.get("userinfo_endpoint")
+    logging.debug(
+      "[GoogleAuthProvider] jwks_uri=%s userinfo_endpoint=%s jwks_expiry=%s",
+      jwks_uri,
+      userinfo_endpoint,
+      jwks_expiry,
+    )
     provider = cls(api_id=api_id, jwks_uri=jwks_uri, jwks_expiry=jwks_expiry)
-    provider.userinfo_endpoint = config.get("userinfo_endpoint")
+    provider.userinfo_endpoint = userinfo_endpoint
     return provider
 
   async def fetch_user_profile(self, access_token: str) -> Dict[str, Any]:

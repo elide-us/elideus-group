@@ -5,6 +5,7 @@ import type { UsersProfileProfile1 } from './shared/RpcModels';
 import { fetchProfile, fetchSetDisplay, fetchSetOptin } from './rpc/users/profile';
 import { fetchSetProvider, fetchLinkProvider, fetchUnlinkProvider } from './rpc/users/providers';
 import googleConfig from './config/google';
+import logging from './logging';
 
 declare global {
 interface Window {
@@ -86,7 +87,7 @@ const UserPage = (): JSX.Element => {
                         if (profile) setProfile({ ...profile, display_name: displayName, display_email: displayEmail, default_provider: provider });
                         setDirty(false);
                 } catch (err) {
-                        console.error('Failed to update profile', err);
+logging.error('Failed to update profile', err);
                 }
         };
 
@@ -102,7 +103,7 @@ const UserPage = (): JSX.Element => {
                         }
                         if (updated.length === 0) clearUserData();
                 } catch (err) {
-                        console.error('Failed to unlink provider', err);
+logging.error('Failed to unlink provider', err);
                 }
         };
 
@@ -110,26 +111,35 @@ const UserPage = (): JSX.Element => {
                 if (name !== 'microsoft' && name !== 'google') return;
                 try {
                         if (name === 'google') {
-                                if (!window.google) throw new Error('Google API not loaded');
-                                const accessToken = await new Promise<string>((resolve) => {
-                                        const client = window.google.accounts.oauth2.initTokenClient({
-                                                client_id: googleConfig.clientId,
-                                                scope: googleConfig.scope,
-                                                callback: (resp: any) => resolve(resp.access_token),
-                                        });
-                                        client.requestAccessToken({ prompt: 'consent' });
-                                });
-                                const idToken = await new Promise<string>((resolve) => {
-                                        window.google.accounts.id.initialize({
-                                                client_id: googleConfig.clientId,
-                                                callback: (resp: any) => resolve(resp.credential),
-                                        });
-                                        window.google.accounts.id.prompt();
-                                });
-                                await fetchLinkProvider({ provider: name, id_token: idToken, access_token: accessToken });
-                        } else {
-                                await fetchLinkProvider({ provider: name });
-                        }
+                               if (!window.google) throw new Error('Google API not loaded');
+                               const accessToken = await new Promise<string>((resolve) => {
+                                       const tokenClientConfig = {
+                                               client_id: googleConfig.clientId,
+                                               scope: googleConfig.scope,
+                                               callback: (resp: any) => resolve(resp.access_token),
+                                       };
+logging.debug('[UserPage] initTokenClient config', tokenClientConfig);
+                                       const client = window.google.accounts.oauth2.initTokenClient(tokenClientConfig);
+                                       const requestOpts = { prompt: 'consent' };
+logging.debug('[UserPage] requestAccessToken opts', requestOpts);
+                                       client.requestAccessToken(requestOpts);
+                               });
+logging.debug('[UserPage] accessToken received', accessToken);
+                               const idToken = await new Promise<string>((resolve) => {
+                                       const idInitConfig = {
+                                               client_id: googleConfig.clientId,
+                                               callback: (resp: any) => resolve(resp.credential),
+                                       };
+logging.debug('[UserPage] id.initialize config', idInitConfig);
+                                       window.google.accounts.id.initialize(idInitConfig);
+logging.debug('[UserPage] id.prompt called');
+                                       window.google.accounts.id.prompt();
+                               });
+logging.debug('[UserPage] idToken received', idToken);
+                               await fetchLinkProvider({ provider: name, id_token: idToken, access_token: accessToken });
+                       } else {
+                               await fetchLinkProvider({ provider: name });
+                       }
                         const updated = [...providers, name];
                         setProviders(updated);
                         if (profile) {
@@ -137,7 +147,7 @@ const UserPage = (): JSX.Element => {
                                 setProfile({ ...profile, auth_providers: authProviders });
                         }
                 } catch (err) {
-                        console.error('Link provider not implemented', err);
+logging.error('Link provider not implemented', err);
                 }
         };
 
