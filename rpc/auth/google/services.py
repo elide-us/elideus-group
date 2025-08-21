@@ -124,6 +124,10 @@ async def auth_google_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  providers = getattr(auth, "providers", {})
+  google_provider = providers.get("google") if isinstance(providers, dict) else None
+  if google_provider:
+    logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", google_provider.audience)
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token

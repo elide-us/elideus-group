@@ -6,6 +6,7 @@ from typing import Any, Dict, Protocol
 import aiohttp
 from fastapi import HTTPException, status
 from jose import jwt
+import logging
 
 from .models import DBResult
 
@@ -28,24 +29,31 @@ class AuthProvider:
     self._jwks_fetched_at: datetime | None = None
 
   async def fetch_jwks(self):
+    logging.debug("[AuthProvider] Fetching JWKS from %s", self.jwks_uri)
     async with aiohttp.ClientSession() as session:
       async with session.get(self.jwks_uri) as response:
         if response.status != 200:
           raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to fetch JWKS.")
         self._jwks = await response.json()
         self._jwks_fetched_at = datetime.now(timezone.utc)
+        logging.debug("[AuthProvider] JWKS fetched")
 
   async def _get_jwks(self) -> Dict[str, Any]:
     now = datetime.now(timezone.utc)
     if not self._jwks or not self._jwks_fetched_at or now - self._jwks_fetched_at > self.jwks_expiry:
+      logging.debug("[AuthProvider] JWKS cache miss or expired")
       await self.fetch_jwks()
+    else:
+      logging.debug("[AuthProvider] Using cached JWKS")
     return self._jwks
 
   async def verify_id_token(self, id_token: str) -> Dict[str, Any]:
+    logging.debug("[AuthProvider] Verifying ID token %s", id_token[:40])
     jwks = await self._get_jwks()
     try:
       unverified_header = jwt.get_unverified_header(id_token)
     except Exception:
+      logging.debug("[AuthProvider] Failed to parse token header")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ID token.")
     rsa_key = next(({
       "kty": key["kty"],
@@ -58,12 +66,16 @@ class AuthProvider:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header.")
     try:
       payload = jwt.decode(id_token, rsa_key, algorithms=[self.algorithm], audience=self.audience, issuer=self.issuer)
+      logging.debug("[AuthProvider] ID token verified for audience=%s", self.audience)
       return payload
     except jwt.ExpiredSignatureError:
+      logging.debug("[AuthProvider] ID token expired")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired.")
     except jwt.JWTClaimsError:
+      logging.debug("[AuthProvider] ID token claims error")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect claims. Please check the audience and issuer.")
     except Exception:
+      logging.debug("[AuthProvider] ID token validation failed")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token validation failed.")
 
   async def fetch_user_profile(self, access_token: str) -> Dict[str, Any]:

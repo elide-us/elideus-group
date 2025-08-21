@@ -3,6 +3,7 @@
 from importlib import import_module
 from typing import Any, Dict, cast, Awaitable, Callable
 from fastapi import FastAPI
+import logging
 
 from . import BaseModule
 from .env_module import EnvModule
@@ -85,6 +86,8 @@ class DbModule(BaseModule):
 
   async def get_google_api_id(self) -> str:
     res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
-    if not res.rows:
+    value = res.rows[0]["value"] if res.rows else None
+    logging.debug("[DbModule] GoogleApiId=%s", value)
+    if not value:
       raise ValueError("Missing config value for key: GoogleApiId")
-    return res.rows[0]["value"]
+    return value
