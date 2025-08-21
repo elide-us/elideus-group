@@ -3,15 +3,16 @@ import { Box, Typography, FormControlLabel, Switch, Avatar, TextField, Button, S
 import UserContext from './shared/UserContext';
 import type { UsersProfileProfile1 } from './shared/RpcModels';
 import { fetchProfile, fetchSetDisplay, fetchSetOptin } from './rpc/users/profile';
-import { fetchSetProvider } from './rpc/users/providers';
+import { fetchSetProvider, fetchLinkProvider, fetchUnlinkProvider } from './rpc/users/providers';
 
 const UserPage = (): JSX.Element => {
-        const { userData, setUserData } = useContext(UserContext);
+        const { userData, setUserData, clearUserData } = useContext(UserContext);
         const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
         const [displayEmail, setDisplayEmail] = useState(false);
         const [displayName, setDisplayName] = useState('');
         const [provider, setProvider] = useState('microsoft');
         const [dirty, setDirty] = useState(false);
+        const [providers, setProviders] = useState<string[]>([]);
 
 	const normalizeGuid = (guid: unknown): string => {
 		if (typeof guid === 'string') return guid;
@@ -35,9 +36,10 @@ const UserPage = (): JSX.Element => {
 				const res: any = await fetchProfile();
 				const profileData: UsersProfileProfile1 = { ...res, guid: normalizeGuid(res.guid) };
 				setProfile(profileData);
-				setDisplayName(profileData.display_name);
-				setDisplayEmail(profileData.display_email);
-				setProvider(profileData.default_provider);
+                                setDisplayName(profileData.display_name);
+                                setDisplayEmail(profileData.display_email);
+                                setProvider(profileData.default_provider);
+                                setProviders(profileData.auth_providers?.map(p => p.name) ?? []);
 			} catch {
 				setProfile(null);
 			}
@@ -81,6 +83,37 @@ const UserPage = (): JSX.Element => {
                 }
         };
 
+        const handleUnlink = async (name: string): Promise<void> => {
+                if (providers.length <= 1 && !window.confirm('This will delete your account. Continue?')) return;
+                try {
+                        await fetchUnlinkProvider({ provider: name });
+                        const updated = providers.filter(p => p !== name);
+                        setProviders(updated);
+                        if (profile) {
+                                const authProviders = profile.auth_providers?.filter(p => p.name !== name) ?? [];
+                                setProfile({ ...profile, auth_providers: authProviders });
+                        }
+                        if (updated.length === 0) clearUserData();
+                } catch (err) {
+                        console.error('Failed to unlink provider', err);
+                }
+        };
+
+        const handleLink = async (name: string): Promise<void> => {
+                try {
+                        await fetchLinkProvider({ provider: name });
+                } catch (err) {
+                        console.error('Link provider not implemented', err);
+                }
+        };
+
+        const allProviders = [
+                { name: 'microsoft', display: 'Microsoft' },
+                { name: 'google', display: 'Google' },
+                { name: 'discord', display: 'Discord' },
+                { name: 'apple', display: 'Apple' }
+        ];
+
         return (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <Box sx={{ maxWidth: 400, width: '100%' }}>
@@ -107,11 +140,24 @@ const UserPage = (): JSX.Element => {
                                                         <Typography>Email: {profile.email}</Typography>
 
                                                         <RadioGroup value={provider} onChange={handleProviderChange} sx={{ alignItems: 'flex-end' }}>
-                                                                <FormControlLabel value='microsoft' control={<Radio />} label='Microsoft' />
-                                                                <FormControlLabel value='google' control={<Radio />} label='Google' disabled />
-                                                                <FormControlLabel value='discord' control={<Radio />} label='Discord' disabled />
-                                                                <FormControlLabel value='apple' control={<Radio />} label='Apple' disabled />
+                                                                {allProviders.filter(p => providers.includes(p.name)).map(p => (
+                                                                        <FormControlLabel key={p.name} value={p.name} control={<Radio />} label={p.display} />
+                                                                ))}
                                                         </RadioGroup>
+
+                                                        {allProviders.map(p => {
+                                                                const linked = providers.includes(p.name);
+                                                                return (
+                                                                        <Stack key={p.name} direction='row' spacing={1} sx={{ justifyContent: 'flex-end', width: '100%' }}>
+                                                                                <Typography>{p.display}</Typography>
+                                                                                {linked ? (
+                                                                                        <Button variant='outlined' onClick={() => handleUnlink(p.name)}>{providers.length === 1 ? 'Delete' : 'Unlink'}</Button>
+                                                                                ) : (
+                                                                                        <Button variant='contained' disabled onClick={() => handleLink(p.name)}>Link</Button>
+                                                                                )}
+                                                                        </Stack>
+                                                                );
+                                                        })}
 
                                                         <FormControlLabel
                                                                 control={<Switch checked={displayEmail} onChange={handleToggle} />}

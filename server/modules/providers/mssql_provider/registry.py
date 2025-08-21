@@ -96,6 +96,65 @@ async def _users_insert(args: Dict[str, Any]):
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
     return await fetch_rows(sel[1], sel[2], one=True)
 
+@register("urn:users:providers:link_provider:1")
+async def _users_link_provider(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    provider = args["provider"]
+    identifier = str(UUID(args["provider_identifier"]))
+    res = await fetch_json(
+      "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+      (provider,)
+    )
+    if not res.rows:
+      raise ValueError(f"Unknown auth provider: {provider}")
+    ap_recid = res.rows[0]["recid"]
+    rc = await exec_query(
+      "INSERT INTO users_auth (users_guid, providers_recid, element_identifier) VALUES (?, ?, ?);",
+      (guid, ap_recid, identifier)
+    )
+    return rc
+
+@register("urn:users:providers:unlink_provider:1")
+async def _users_unlink_provider(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    provider = args["provider"]
+    async with transaction() as cur:
+      await cur.execute(
+        """
+        DELETE ua FROM users_auth ua
+        JOIN auth_providers ap ON ap.recid = ua.providers_recid
+        WHERE ua.users_guid = ? AND ap.element_name = ?;
+        """,
+        (guid, provider)
+      )
+      await cur.execute(
+        "SELECT COUNT(*) AS cnt FROM users_auth WHERE users_guid = ?;",
+        (guid,)
+      )
+      row = await cur.fetchone()
+      cnt = row["cnt"] if row else 0
+      if cnt == 0:
+        await cur.execute(
+          "UPDATE users_roles SET element_roles = 0 WHERE users_guid = ?;",
+          (guid,)
+        )
+        await cur.execute(
+          "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
+          (guid,)
+        )
+    return {"rows": [], "rowcount": 1}
+
+@register("urn:users:providers:get_user_by_email:1")
+def _users_get_user_by_email(args: Dict[str, Any]):
+    email = args["email"]
+    sql = """
+      SELECT TOP 1
+        element_guid AS guid
+      FROM account_users
+      WHERE element_email = ?;
+    """
+    return ("row_one", sql, (email,))
+
 @register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
     guid = str(args["guid"])
