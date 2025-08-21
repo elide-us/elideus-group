@@ -1,5 +1,5 @@
 export const googleConfig = {
-	clientId: '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',
+	clientId: '295304659309-vkbjt5572fg3vjlqbj3qkkfgal83pcrj.apps.googleusercontent.com',
 	scope: 'openid profile email',
 };
 export default googleConfig;
