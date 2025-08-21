@@ -1,8 +1,8 @@
 import { useState, ReactNode, useEffect } from 'react';
 import { PublicClientApplication } from '@azure/msal-browser';
-import UserContext from './UserContext';
+import UserContext, { AuthTokens } from './UserContext';
 import { msalConfig, loginRequest } from '../config/msal';
-import { fetchOauthLogin } from '../rpc/auth/microsoft';
+import { fetchOauthLogin as fetchMicrosoftOauthLogin } from '../rpc/auth/microsoft';
 import type { AuthMicrosoftOauthLogin1 } from './RpcModels';
 
 interface UserContextProviderProps {
@@ -10,12 +10,12 @@ interface UserContextProviderProps {
 }
 
 const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Element => {
-		const [userData, setUserDataState] = useState<AuthMicrosoftOauthLogin1 | null>(() => {
+		const [userData, setUserDataState] = useState<AuthTokens | null>(() => {
 				if (typeof localStorage !== 'undefined') {
 						try {
 								const raw = localStorage.getItem('authTokens');
 								if (raw) {
-										return JSON.parse(raw) as AuthMicrosoftOauthLogin1;
+										return JSON.parse(raw) as AuthTokens;
 								}
 						} catch {
 								/* ignore */
@@ -24,7 +24,7 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
 				return null;
 		});
 
-		const setUserData = (data: AuthMicrosoftOauthLogin1) => {
+const setUserData = (data: AuthTokens) => {
 				setUserDataState(data);
 				if (typeof localStorage !== 'undefined') {
 						localStorage.setItem('authTokens', JSON.stringify(data));
@@ -39,28 +39,29 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
                 };
 
                 useEffect(() => {
-                                const msal = new PublicClientApplication(msalConfig);
-				const init = async () => {
-						try {
-								await msal.initialize();
-								const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
-								if (!account) return;
-								const result = await msal.acquireTokenSilent({
-										...loginRequest,
-										account
-								});
-								const data = await fetchOauthLogin({
-										idToken: result.idToken,
-										accessToken: result.accessToken,
-										provider: 'microsoft'
-								}) as AuthMicrosoftOauthLogin1;
-								setUserData(data);
-						} catch {
-								/* silent token acquisition failed */
-						}
-				};
-                                void init();
-                }, []);
+if (userData && userData.provider !== 'microsoft') return;
+const msal = new PublicClientApplication(msalConfig);
+const init = async () => {
+try {
+await msal.initialize();
+const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
+if (!account) return;
+const result = await msal.acquireTokenSilent({
+...loginRequest,
+account
+});
+const data = await fetchMicrosoftOauthLogin({
+idToken: result.idToken,
+accessToken: result.accessToken,
+provider: 'microsoft'
+}) as AuthMicrosoftOauthLogin1;
+setUserData({ provider: 'microsoft', ...data });
+} catch {
+/* silent token acquisition failed */
+}
+};
+void init();
+}, [userData]);
 
                useEffect(() => {
                                const handler = () => {
