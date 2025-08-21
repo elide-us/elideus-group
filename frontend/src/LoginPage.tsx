@@ -9,6 +9,7 @@ import Notification from './Notification';
 import { fetchOauthLogin as fetchMicrosoftOauthLogin } from './rpc/auth/microsoft';
 import { fetchOauthLogin as fetchGoogleOauthLogin } from './rpc/auth/google';
 import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from './shared/RpcModels';
+import logging from './logging';
 
 declare global {
 interface Window {
@@ -53,20 +54,29 @@ const handleGoogleLogin = async (): Promise<void> => {
 try {
 if (!window.google) throw new Error('Google API not loaded');
 const accessToken = await new Promise<string>((resolve) => {
-const client = window.google.accounts.oauth2.initTokenClient({
+const tokenClientConfig = {
 client_id: googleConfig.clientId,
 scope: googleConfig.scope,
 callback: (resp: any) => resolve(resp.access_token),
+};
+logging.debug('[LoginPage] initTokenClient config', tokenClientConfig);
+const client = window.google.accounts.oauth2.initTokenClient(tokenClientConfig);
+const requestOpts = { prompt: 'consent' };
+logging.debug('[LoginPage] requestAccessToken opts', requestOpts);
+client.requestAccessToken(requestOpts);
 });
-client.requestAccessToken({ prompt: 'consent' });
-});
+logging.debug('[LoginPage] accessToken received', accessToken);
 const idToken = await new Promise<string>((resolve) => {
-window.google.accounts.id.initialize({
+const idInitConfig = {
 client_id: googleConfig.clientId,
 callback: (resp: any) => resolve(resp.credential),
-});
+};
+logging.debug('[LoginPage] id.initialize config', idInitConfig);
+window.google.accounts.id.initialize(idInitConfig);
+logging.debug('[LoginPage] id.prompt called');
 window.google.accounts.id.prompt();
 });
+logging.debug('[LoginPage] idToken received', idToken);
 const data = await fetchGoogleOauthLogin({
 idToken,
 accessToken,
