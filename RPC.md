@@ -61,6 +61,12 @@ Authentication and session management calls.
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `urn:auth:microsoft:oauth_login:1` | Validate Microsoft tokens, create a user record if necessary, and start a user session. Returns bearer and profile data. |
 
+### `google`
+
+| Operation                       | Description                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `urn:auth:google:oauth_login:1` | Validate Google tokens, create a user record if necessary, and start a user session. Returns bearer and profile data. |
+
 ### `session`
 
 | Operation                             | Description                                            |
