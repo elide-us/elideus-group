@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
+import uuid
 
 from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
@@ -13,6 +14,12 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 
+
+def normalize_provider_identifier(pid: str) -> str:
+  try:
+    return str(uuid.UUID(pid))
+  except ValueError:
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
 
 async def users_providers_set_provider_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
@@ -40,6 +47,7 @@ async def users_providers_link_provider_v1(request: Request):
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
   provider_uid, _, _ = await auth.handle_auth_login(payload.provider, payload.id_token, payload.access_token)
+  provider_uid = normalize_provider_identifier(provider_uid)
   res = await db.run(
     "urn:users:providers:get_by_provider_identifier:1",
     {"provider": payload.provider, "provider_identifier": provider_uid},
