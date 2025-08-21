@@ -86,13 +86,13 @@ setNotification({ open: true, severity: 'error', message: `Login failed: ${error
 				<Typography component='h1' variant='h5' align='center'>
 					Sign in
 				</Typography>
-				<Typography variant='body2' align='center' sx={{ mt: 2 }}>
-					Only OAuth providers are supported. Please sign in using one of the following services:
-					<br />
-					Microsoft, Discord, Google, or Apple.
-					<br />
-					<strong>Note:</strong> Email-only login is not available.
-				</Typography>
+                                <Typography variant='body2' align='center' sx={{ mt: 2 }}>
+                                        Only OAuth providers are supported. Please sign in using Microsoft or Google.
+                                        <br />
+                                        Discord and Apple support are coming soon.
+                                        <br />
+                                        <strong>Note:</strong> Email-only login is not available.
+                                </Typography>
 				<Stack spacing={2} sx={{ mt: 4 }}>
 					<Button variant='contained' fullWidth onClick={handleMicrosoftLogin}>
 						Sign in with Microsoft
