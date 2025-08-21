@@ -137,6 +137,13 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
+    res = await db.run(
+      "urn:users:providers:get_user_by_email:1",
+      {"email": profile["email"]},
+    )
+    if res.rows:
+      logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
+      raise HTTPException(status_code=409, detail="Email already registered")
     try:
       provider_uid = str(uuid.UUID(provider_uid))
     except ValueError:
