@@ -106,45 +106,46 @@ const UserPage = (): JSX.Element => {
                 }
         };
 
-	const handleLink = async (name: string): Promise<void> => {
-		try {
-		if (name === 'google') {
-		if (!window.google) throw new Error('Google API not loaded');
-const accessToken = await new Promise<string>((resolve) => {
-		const client = window.google.accounts.oauth2.initTokenClient({
-		client_id: googleConfig.clientId,
-		scope: googleConfig.scope,
-		callback: (resp: any) => resolve(resp.access_token),
-		});
-		client.requestAccessToken({ prompt: 'consent' });
-		});
-		const idToken = await new Promise<string>((resolve) => {
-		window.google.accounts.id.initialize({
-		client_id: googleConfig.clientId,
-		callback: (resp: any) => resolve(resp.credential),
-		});
-		window.google.accounts.id.prompt();
-		});
-		await fetchLinkProvider({ provider: name, id_token: idToken, access_token: accessToken });
-		} else {
-		await fetchLinkProvider({ provider: name });
-		}
-		const updated = [...providers, name];
-		setProviders(updated);
-		if (profile) {
-		const authProviders = [...(profile.auth_providers ?? []), { name, display: name.charAt(0).toUpperCase() + name.slice(1) }];
-		setProfile({ ...profile, auth_providers: authProviders });
-		}
-		} catch (err) {
-		console.error('Link provider not implemented', err);
-		}
-		};
+        const handleLink = async (name: string): Promise<void> => {
+                if (name !== 'microsoft' && name !== 'google') return;
+                try {
+                        if (name === 'google') {
+                                if (!window.google) throw new Error('Google API not loaded');
+                                const accessToken = await new Promise<string>((resolve) => {
+                                        const client = window.google.accounts.oauth2.initTokenClient({
+                                                client_id: googleConfig.clientId,
+                                                scope: googleConfig.scope,
+                                                callback: (resp: any) => resolve(resp.access_token),
+                                        });
+                                        client.requestAccessToken({ prompt: 'consent' });
+                                });
+                                const idToken = await new Promise<string>((resolve) => {
+                                        window.google.accounts.id.initialize({
+                                                client_id: googleConfig.clientId,
+                                                callback: (resp: any) => resolve(resp.credential),
+                                        });
+                                        window.google.accounts.id.prompt();
+                                });
+                                await fetchLinkProvider({ provider: name, id_token: idToken, access_token: accessToken });
+                        } else {
+                                await fetchLinkProvider({ provider: name });
+                        }
+                        const updated = [...providers, name];
+                        setProviders(updated);
+                        if (profile) {
+                                const authProviders = [...(profile.auth_providers ?? []), { name, display: name.charAt(0).toUpperCase() + name.slice(1) }];
+                                setProfile({ ...profile, auth_providers: authProviders });
+                        }
+                } catch (err) {
+                        console.error('Link provider not implemented', err);
+                }
+        };
 
         const allProviders = [
-                { name: 'microsoft', display: 'Microsoft' },
-                { name: 'google', display: 'Google' },
-                { name: 'discord', display: 'Discord' },
-                { name: 'apple', display: 'Apple' }
+                { name: 'microsoft', display: 'Microsoft', enabled: true },
+                { name: 'google', display: 'Google', enabled: true },
+                { name: 'discord', display: 'Discord', enabled: false },
+                { name: 'apple', display: 'Apple', enabled: false }
         ];
 
         return (
@@ -173,7 +174,7 @@ const accessToken = await new Promise<string>((resolve) => {
                                                         <Typography>Email: {profile.email}</Typography>
 
                                                         <RadioGroup value={provider} onChange={handleProviderChange} sx={{ alignItems: 'flex-end' }}>
-                                                                {allProviders.filter(p => providers.includes(p.name)).map(p => (
+                                                                {allProviders.filter(p => p.enabled && providers.includes(p.name)).map(p => (
                                                                         <FormControlLabel key={p.name} value={p.name} control={<Radio />} label={p.display} />
                                                                 ))}
                                                         </RadioGroup>
@@ -186,7 +187,7 @@ const accessToken = await new Promise<string>((resolve) => {
                                                                                 {linked ? (
                                                                                         <Button variant='outlined' onClick={() => handleUnlink(p.name)}>{providers.length === 1 ? 'Delete' : 'Unlink'}</Button>
                                                                                 ) : (
-<Button variant='contained' onClick={() => handleLink(p.name)}>Link</Button>
+                                                                                        <Button variant='contained' onClick={() => handleLink(p.name)} disabled={!p.enabled}>{p.enabled ? 'Link' : 'Link (Coming Soon)'}</Button>
                                                                                 )}
                                                                         </Stack>
                                                                 );

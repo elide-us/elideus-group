@@ -1,4 +1,4 @@
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { PublicClientApplication } from '@azure/msal-browser';
 import UserContext, { AuthTokens } from './UserContext';
 import { msalConfig, loginRequest } from '../config/msal';
@@ -24,44 +24,50 @@ const UserContextProvider = ({ children }: UserContextProviderProps): JSX.Elemen
 				return null;
 		});
 
-const setUserData = (data: AuthTokens) => {
-				setUserDataState(data);
-				if (typeof localStorage !== 'undefined') {
-						localStorage.setItem('authTokens', JSON.stringify(data));
-				}
-		};
+const setUserData = useCallback((data: AuthTokens) => {
+                                setUserDataState(data);
+                                if (typeof localStorage !== 'undefined') {
+                                                localStorage.setItem('authTokens', JSON.stringify(data));
+                                }
+                }, []);
 
-                const clearUserData = () => {
+                const clearUserData = useCallback(() => {
                                 setUserDataState(null);
                                 if (typeof localStorage !== 'undefined') {
                                                 localStorage.removeItem('authTokens');
                                 }
-                };
+                }, []);
 
+                const refreshed = useRef(false);
                 useEffect(() => {
-if (userData && userData.provider !== 'microsoft') return;
-const msal = new PublicClientApplication(msalConfig);
-const init = async () => {
-try {
-await msal.initialize();
-const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
-if (!account) return;
-const result = await msal.acquireTokenSilent({
-...loginRequest,
-account
-});
-const data = await fetchMicrosoftOauthLogin({
-idToken: result.idToken,
-accessToken: result.accessToken,
-provider: 'microsoft'
-}) as AuthMicrosoftOauthLogin1;
-setUserData({ provider: 'microsoft', ...data });
-} catch {
-/* silent token acquisition failed */
-}
-};
-void init();
-}, [userData]);
+                                if (!userData) {
+                                                refreshed.current = false;
+                                                return;
+                                }
+                                if (refreshed.current || userData.provider !== 'microsoft') return;
+                                refreshed.current = true;
+                                const msal = new PublicClientApplication(msalConfig);
+                                const init = async () => {
+                                                try {
+                                                                await msal.initialize();
+                                                                const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
+                                                                if (!account) return;
+                                                                const result = await msal.acquireTokenSilent({
+                                                                                ...loginRequest,
+                                                                                account
+                                                                });
+                                                                const data = await fetchMicrosoftOauthLogin({
+                                                                                idToken: result.idToken,
+                                                                                accessToken: result.accessToken,
+                                                                                provider: 'microsoft'
+                                                                }) as AuthMicrosoftOauthLogin1;
+                                                                setUserData({ provider: 'microsoft', ...data });
+                                                } catch {
+                                                                /* silent token acquisition failed */
+                                                }
+                                };
+                                void init();
+                }, [userData, setUserData]);
 
                useEffect(() => {
                                const handler = () => {
@@ -71,7 +77,7 @@ void init();
                                return () => {
                                                window.removeEventListener('sessionExpired', handler);
                                };
-               }, []);
+               }, [clearUserData]);
 
 		return (
 		<UserContext.Provider value={{ userData, setUserData, clearUserData }}>
