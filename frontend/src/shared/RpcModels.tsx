@@ -21,123 +21,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface ServiceRolesDeleteRole1 {
-  name: string;
-}
-export interface ServiceRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface ServiceRolesRoleMembers1 {
-  members: ServiceRolesUserItem1[];
-  nonMembers: ServiceRolesUserItem1[];
-}
-export interface ServiceRolesRoles1 {
-  roles: string[];
-}
-export interface ServiceRolesUpsertRole1 {
-  name: string;
-  bit: number;
-  display: any;
-}
-export interface ServiceRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
-export interface StorageFilesDeleteFiles1 {
-  files: string[];
-}
-export interface StorageFilesFileItem1 {
-  name: string;
-  url: string;
-  content_type: string | null;
-}
-export interface StorageFilesFiles1 {
-  files: StorageFilesFileItem1[];
-}
-export interface StorageFilesSetGallery1 {
-  name: string;
-  gallery: boolean;
-}
-export interface StorageFilesUploadFile1 {
-  name: string;
-  content_b64: string;
-  content_type: string | null;
-}
-export interface StorageFilesUploadFiles1 {
-  files: StorageFilesUploadFile1[];
-}
-export interface SupportRolesMembers1 {
-  members: SupportRolesUserItem1[];
-  nonMembers: SupportRolesUserItem1[];
-}
-export interface SupportRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface SupportRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface SupportUsersGuid1 {
-  userGuid: string;
-}
-export interface SupportUsersSetCredits1 {
-  userGuid: string;
-  credits: number;
-}
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-  hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
-}
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
-  name: string;
-  icon: string | null;
-}
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
-}
-export interface SystemRolesDeleteRole1 {
-  name: string;
-}
-export interface SystemRolesList1 {
-  roles: SystemRolesRoleItem1[];
-}
-export interface SystemRolesRoleItem1 {
-  name: string;
-  mask: string;
-  display: any;
-}
-export interface SystemRolesUpsertRole1 {
-  name: string;
-  mask: string;
-  display: any;
-}
 export interface SystemConfigConfigItem1 {
   key: string;
   value: string;
@@ -160,6 +43,22 @@ export interface SystemRoutesRouteItem1 {
   icon: string | null;
   sequence: number;
   required_roles: string[];
+}
+export interface SystemRolesDeleteRole1 {
+  name: string;
+}
+export interface SystemRolesList1 {
+  roles: SystemRolesRoleItem1[];
+}
+export interface SystemRolesRoleItem1 {
+  name: string;
+  mask: string;
+  display: any;
+}
+export interface SystemRolesUpsertRole1 {
+  name: string;
+  mask: string;
+  display: any;
 }
 export interface UsersProvidersSetProvider1 {
   provider: string;
@@ -190,6 +89,107 @@ export interface UsersProfileSetOptin1 {
 export interface UsersProfileSetProfileImage1 {
   image_b64: string;
   provider: string;
+}
+export interface SupportUsersGuid1 {
+  userGuid: string;
+}
+export interface SupportUsersSetCredits1 {
+  userGuid: string;
+  credits: number;
+}
+export interface SupportRolesMembers1 {
+  members: SupportRolesUserItem1[];
+  nonMembers: SupportRolesUserItem1[];
+}
+export interface SupportRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SupportRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
+export interface StorageFilesDeleteFiles1 {
+  files: string[];
+}
+export interface StorageFilesFileItem1 {
+  name: string;
+  url: string;
+  content_type: string | null;
+}
+export interface StorageFilesFiles1 {
+  files: StorageFilesFileItem1[];
+}
+export interface StorageFilesSetGallery1 {
+  name: string;
+  gallery: boolean;
+}
+export interface StorageFilesUploadFile1 {
+  name: string;
+  content_b64: string;
+  content_type: string | null;
+}
+export interface StorageFilesUploadFiles1 {
+  files: StorageFilesUploadFile1[];
+}
+export interface ServiceRolesDeleteRole1 {
+  name: string;
+}
+export interface ServiceRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface ServiceRolesRoleMembers1 {
+  members: ServiceRolesUserItem1[];
+  nonMembers: ServiceRolesUserItem1[];
+}
+export interface ServiceRolesRoles1 {
+  roles: string[];
+}
+export interface ServiceRolesUpsertRole1 {
+  name: string;
+  bit: number;
+  display: any;
+}
+export interface ServiceRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface PublicVarsHostname1 {
+  hostname: string;
+}
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
+}
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+  path: string;
+  name: string;
+  icon: string | null;
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
