@@ -9,6 +9,7 @@ from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
 from server.modules.providers import AuthProvider
 from server.modules.providers.microsoft import MicrosoftAuthProvider
+from server.modules.providers.google import GoogleAuthProvider
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -47,6 +48,17 @@ class AuthModule(BaseModule):
         await provider._get_jwks()
         self.providers["microsoft"] = provider
         logging.debug("[AuthModule] Microsoft provider ready")
+      if "google" in providers_cfg:
+        logging.debug("[AuthModule] Loading Google provider")
+        res = await self.db.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
+        if not res.rows:
+          raise ValueError("Missing config value for key: GoogleApiId")
+        google_api_id = res.rows[0]["value"]
+        logging.debug("[AuthModule] GoogleApiId=%s", google_api_id)
+        provider = await GoogleAuthProvider.create(api_id=google_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
+        await provider._get_jwks()
+        self.providers["google"] = provider
+        logging.debug("[AuthModule] Google provider ready")
       await self.load_roles()
       logging.info("Auth module loaded")
       self.mark_ready()
