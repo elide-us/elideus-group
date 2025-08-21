@@ -209,12 +209,18 @@ flowchart TD
     J --> A
 ```
 
----
-
 ## 8. Key Principles
 
 * Do not bypass or merge domains.
 * Do not expose security details.
 * Always key state off GUID.
 * Respect boundaries: provider (external), client (user-owned), server (enforced).
+
+## 9. Additional Documentation
+
+When required, refer to the following documents for additional details:
+
+- DATABASE.md - Contains details about the database schema and design concepts
+- RPC.md - Outlines the RPC namespace and associated security paradigms
+- SECURITY.md - Details the security model and how roles are used in the system
 
