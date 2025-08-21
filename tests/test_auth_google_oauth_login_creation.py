@@ -9,7 +9,7 @@ import uuid
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
     profile = {"email": "user@example.com", "username": "User"}
-    return "00000000-0000-0000-0000-000000000001", profile, {}
+    return "google-id", profile, {}
   def make_rotation_token(self, user_guid):
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
   def make_session_token(self, user_guid, rot, roles, provider):
@@ -111,3 +111,8 @@ def test_fetch_user_after_create(monkeypatch):
   calls = [op for op, _ in req.app.state.db.calls if op == "urn:users:providers:get_by_provider_identifier:1"]
   assert len(calls) == 2
   assert any(op == "db:auth:session:create_session:1" for op, _ in req.app.state.db.calls)
+  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
+  assert any(
+    op == "urn:users:providers:create_from_provider:1" and args["provider_identifier"] == expected
+    for op, args in req.app.state.db.calls
+  )

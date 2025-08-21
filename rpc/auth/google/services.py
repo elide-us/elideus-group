@@ -10,6 +10,12 @@ from server.modules.db_module import DbModule
 from .models import AuthGoogleOauthLogin1
 
 
+def normalize_provider_identifier(pid: str) -> str:
+  try:
+    return str(uuid.UUID(pid))
+  except ValueError:
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
+
 def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
   identifiers = []
   if provider_uid:
@@ -132,6 +138,7 @@ async def auth_google_oauth_login_v1(request: Request):
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
   )
+  provider_uid = normalize_provider_identifier(provider_uid)
   logging.debug(
     f"[auth_google_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
@@ -148,10 +155,6 @@ async def auth_google_oauth_login_v1(request: Request):
     if res.rows:
       logging.debug("[auth_google_oauth_login_v1] email already registered")
       raise HTTPException(status_code=409, detail="Email already registered")
-    try:
-      provider_uid = str(uuid.UUID(provider_uid))
-    except ValueError:
-      raise HTTPException(status_code=400, detail="Invalid provider identifier")
     res = await db.run(
       "urn:users:providers:create_from_provider:1",
       {

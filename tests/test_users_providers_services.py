@@ -4,6 +4,7 @@ import pathlib
 import sys
 import types
 from types import SimpleNamespace
+import uuid
 
 import pytest
 from fastapi import HTTPException
@@ -61,6 +62,7 @@ svc_spec.loader.exec_module(svc_mod)
 sys.modules["rpc.helpers"] = real_helpers
 
 users_providers_set_provider_v1 = svc_mod.users_providers_set_provider_v1
+users_providers_link_provider_v1 = svc_mod.users_providers_link_provider_v1
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -75,8 +77,10 @@ class DummyDb:
     return DBRes()
 
 class DummyState:
-  def __init__(self, db):
+  def __init__(self, db, auth=None):
     self.db = db
+    if auth is not None:
+      self.auth = auth
 
 class DummyApp:
   def __init__(self, state):
@@ -111,4 +115,22 @@ def test_set_provider_missing_provider_raises():
   with pytest.raises(HTTPException) as exc:
     asyncio.run(users_providers_set_provider_v1(req))
   assert exc.value.status_code == 400
+
+
+def test_link_provider_google_normalizes_identifier():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:providers:link_provider:1", payload={"provider": "google", "id_token": "id", "access_token": "acc"}, version=1)
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  class DummyAuth:
+    async def handle_auth_login(self, provider, id_token, access_token):
+      return "google-id", {}, {}
+
+  db = DummyDb()
+  auth = DummyAuth()
+  req = DummyRequest(DummyState(db, auth))
+  asyncio.run(users_providers_link_provider_v1(req))
+  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
+  assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
 
