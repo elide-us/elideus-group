@@ -76,3 +76,15 @@ class DbModule(BaseModule):
 
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
     return await run(op, args)
+
+  async def get_ms_api_id(self) -> str:
+    res = await self.run("db:system:config:get_config:1", {"key": "MsApiId"})
+    if not res.rows:
+      raise ValueError("Missing config value for key: MsApiId")
+    return res.rows[0]["value"]
+
+  async def get_google_api_id(self) -> str:
+    res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
+    if not res.rows:
+      raise ValueError("Missing config value for key: GoogleApiId")
+    return res.rows[0]["value"]
