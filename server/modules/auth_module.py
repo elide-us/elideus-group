@@ -39,10 +39,7 @@ class AuthModule(BaseModule):
     try:
       if "microsoft" in providers_cfg:
         logging.debug("[AuthModule] Loading Microsoft provider")
-        res = await self.db.run("db:system:config:get_config:1", {"key": "MsApiId"})
-        if not res.rows:
-          raise ValueError("Missing config value for key: MsApiId")
-        ms_api_id = res.rows[0]["value"]
+        ms_api_id = await self.db.get_ms_api_id()
         logging.debug("[AuthModule] MsApiId=%s", ms_api_id)
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider._get_jwks()
@@ -50,10 +47,7 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Microsoft provider ready")
       if "google" in providers_cfg:
         logging.debug("[AuthModule] Loading Google provider")
-        res = await self.db.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
-        if not res.rows:
-          raise ValueError("Missing config value for key: GoogleApiId")
-        google_api_id = res.rows[0]["value"]
+        google_api_id = await self.db.get_google_api_id()
         logging.debug("[AuthModule] GoogleApiId=%s", google_api_id)
         provider = await GoogleAuthProvider.create(api_id=google_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider._get_jwks()
