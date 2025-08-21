@@ -91,3 +91,17 @@ class DbModule(BaseModule):
     if not value:
       raise ValueError("Missing config value for key: GoogleApiId")
     return value
+
+  async def get_auth_providers(self) -> list[str]:
+    res = await self.run("db:system:config:get_config:1", {"key": "AuthProviders"})
+    value = res.rows[0]["value"] if res.rows else None
+    if value is None:
+      raise ValueError("Missing config value for key: AuthProviders")
+    return [p.strip() for p in value.split(',') if p.strip()]
+
+  async def get_jwks_cache_time(self) -> int:
+    res = await self.run("db:system:config:get_config:1", {"key": "JwksCacheTime"})
+    value = res.rows[0]["value"] if res.rows else None
+    if value is None:
+      raise ValueError("Missing config value for key: JwksCacheTime")
+    return int(value)

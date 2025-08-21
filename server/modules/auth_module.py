@@ -32,9 +32,9 @@ class AuthModule(BaseModule):
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
     self.jwt_secret = self.env.get("JWT_SECRET")
-    self.jwks_cache_minutes = int(self.env.get("JWKS_CACHE_MINUTES"))
+    self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
 
-    providers_cfg = [p.strip() for p in self.env.get("AUTH_PROVIDERS").split(",") if p.strip()]
+    providers_cfg = await self.db.get_auth_providers()
     logging.debug(f"[AuthModule] Provider configuration: {providers_cfg}")
     try:
       if "microsoft" in providers_cfg:

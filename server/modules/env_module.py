@@ -17,8 +17,6 @@ class EnvModule(BaseModule):
     if provider == "mssql":
       self._getenv("AZURE_SQL_CONNECTION_STRING", "MISSING_ENV_AZURE_SQL_CONNECTION_STRING")
     self._getenv("AZURE_BLOB_CONNECTION_STRING", "MISSING_ENV_AZURE_BLOB_CONNECTION_STRING")
-    self._getenv("AUTH_PROVIDERS", "microsoft")
-    self._getenv("JWKS_CACHE_MINUTES", "60")
     
     logging.info("Environment module loaded")
     self.mark_ready()
