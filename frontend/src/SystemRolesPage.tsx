@@ -18,7 +18,7 @@ import type {
 import {
   fetchRoles,
   fetchUpsertRole,
-  fetchDeleteRole,
+  fetchDele
 } from "./rpc/system/roles";
 import Notification from "./Notification";
 
