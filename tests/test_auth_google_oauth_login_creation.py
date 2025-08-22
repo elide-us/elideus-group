@@ -127,8 +127,6 @@ def test_fetch_user_after_create(monkeypatch):
   svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
-  monkeypatch.setenv("GOOGLE_CLIENT_ID", "gid")
-  monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "gsecret")
   req = DummyRequest()
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert isinstance(resp, RPCResponse)

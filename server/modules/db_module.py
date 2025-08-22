@@ -84,6 +84,14 @@ class DbModule(BaseModule):
       raise ValueError("Missing config value for key: MsApiId")
     return res.rows[0]["value"]
 
+  async def get_google_client_id(self) -> str:
+    res = await self.run("db:system:config:get_config:1", {"key": "GoogleClientId"})
+    value = res.rows[0]["value"] if res.rows else None
+    logging.debug("[DbModule] GoogleClientId=%s", value)
+    if not value:
+      raise ValueError("Missing config value for key: GoogleClientId")
+    return value
+
   async def get_google_api_id(self) -> str:
     res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
     value = res.rows[0]["value"] if res.rows else None
