@@ -115,8 +115,6 @@ def test_email_exists(monkeypatch):
   svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
-  monkeypatch.setenv("GOOGLE_CLIENT_ID", "gid")
-  monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "gsecret")
   req = DummyRequest()
   with pytest.raises(HTTPException) as exc:
     asyncio.run(auth_google_oauth_login_v1(req))

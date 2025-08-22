@@ -47,9 +47,9 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Microsoft provider ready")
       if "google" in providers_cfg:
         logging.debug("[AuthModule] Loading Google provider")
-        google_api_id = await self.db.get_google_api_id()
-        logging.debug("[AuthModule] GoogleApiId=%s", google_api_id)
-        provider = await GoogleAuthProvider.create(api_id=google_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
+        google_client_id = await self.db.get_google_client_id()
+        logging.debug("[AuthModule] GoogleClientId=%s", google_client_id)
+        provider = await GoogleAuthProvider.create(api_id=google_client_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider._get_jwks()
         self.providers["google"] = provider
         logging.debug("[AuthModule] Google provider ready")
