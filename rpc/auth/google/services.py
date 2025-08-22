@@ -28,6 +28,10 @@ async def exchange_code_for_tokens(
     "redirect_uri": redirect_uri,
     "grant_type": "authorization_code",
   }
+  logging.debug(
+    "[exchange_code_for_tokens] data=%s",
+    {k: v for k, v in data.items() if k != "client_secret"}
+  )
   logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
   async with aiohttp.ClientSession() as session:
     async with session.post(GOOGLE_TOKEN_ENDPOINT, data=data) as resp:
@@ -183,8 +187,8 @@ async def auth_google_oauth_login_v1(request: Request):
   if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]
-
   logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", client_id)
+  logging.debug("[auth_google_oauth_login_v1] redirect_uri=%s", redirect_uri)
 
   id_token, access_token = await exchange_code_for_tokens(
     code, client_id, client_secret, redirect_uri

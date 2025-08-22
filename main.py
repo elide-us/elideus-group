@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from server import lifespan, rpc_router, web_router, configure_root_logging
 
-configure_root_logging()
+configure_root_logging(True)
 
 app = FastAPI(lifespan=lifespan.lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
