@@ -93,13 +93,10 @@ class DbModule(BaseModule):
     return value
 
   async def get_google_api_secret(self) -> str:
-    # Note: legacy naming stores the Google OAuth client secret under
-    # the "GoogleApiId" key in system_config.
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
+    res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiSecret"})
     value = res.rows[0]["value"] if res.rows else None
-    logging.debug("[DbModule] GoogleApiSecret=%s", value)
     if not value:
-      raise ValueError("Missing config value for key: GoogleApiId")
+      raise ValueError("Missing config value for key: GoogleApiSecret")
     return value
 
   async def get_auth_providers(self) -> list[str]:
