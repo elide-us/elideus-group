@@ -396,7 +396,6 @@ async def _users_set_img(args: Dict[str, Any]):
 @register("db:auth:session:create_session:1")
 async def _auth_session_create_session(args: Dict[str, Any]):
     from uuid import uuid4
-    session_guid = str(uuid4())
     device_guid = str(uuid4())
     access_token = args["access_token"]
     expires = args["expires"]
@@ -406,16 +405,35 @@ async def _auth_session_create_session(args: Dict[str, Any]):
     user_guid = args["user_guid"]
 
     async with transaction() as cur:
-        await cur.execute("""
-          INSERT INTO users_sessions (element_guid, users_guid, element_created_at)
-          VALUES (?, ?, SYSDATETIMEOFFSET());
-        """, (session_guid, user_guid))
-        await cur.execute("""
+      await cur.execute(
+        "SELECT element_guid FROM users_sessions WHERE users_guid = ?;",
+        (user_guid,),
+      )
+      row = await cur.fetchone()
+      if row:
+        session_guid = row["element_guid"]
+        await cur.execute(
+          "UPDATE users_sessions SET element_created_at = SYSDATETIMEOFFSET() WHERE users_guid = ?;",
+          (user_guid,),
+        )
+      else:
+        session_guid = str(uuid4())
+        await cur.execute(
+          """
+            INSERT INTO users_sessions (element_guid, users_guid, element_created_at)
+            VALUES (?, ?, SYSDATETIMEOFFSET());
+          """,
+          (session_guid, user_guid),
+        )
+      await cur.execute(
+        """
           INSERT INTO sessions_devices (
             element_guid, sessions_guid, element_token, element_token_iat, element_token_exp,
             element_device_fingerprint, element_user_agent, element_ip_last_seen
           ) VALUES (?, ?, ?, SYSDATETIMEOFFSET(), ?, ?, ?, ?);
-        """, (device_guid, session_guid, access_token, expires, fingerprint, user_agent, ip_address))
+        """,
+        (device_guid, session_guid, access_token, expires, fingerprint, user_agent, ip_address),
+      )
 
     return {"rows": [{"session_guid": session_guid, "device_guid": device_guid}], "rowcount": 1}
 
