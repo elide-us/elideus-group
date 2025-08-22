@@ -121,13 +121,13 @@ def test_link_provider_google_normalizes_identifier():
   async def fake_get(request):
     rpc = RPCRequest(
       op="urn:users:providers:link_provider:1",
-      payload={"provider": "google", "code": "authcode", "code_verifier": "ver"},
+      payload={"provider": "google", "code": "authcode"},
       version=1,
     )
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
 
-  async def fake_exchange(code, client_id, client_secret, redirect_uri, code_verifier):
+  async def fake_exchange(code, client_id, client_secret, redirect_uri):
     return "id", "acc"
   svc_mod.exchange_code_for_tokens = fake_exchange
 

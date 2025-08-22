@@ -109,44 +109,24 @@ console.error('Failed to unlink provider', err);
 		const handleLink = async (name: string): Promise<void> => {
 				if (name !== 'microsoft' && name !== 'google') return;
 				try {
-					   if (name === 'google') {
-							   if (!window.google || !window.crypto) throw new Error('Google API not loaded');
-							   const base64UrlEncode = (buffer: ArrayBuffer): string => {
-									   const bytes = new Uint8Array(buffer);
-									   let binary = '';
-									   for (const b of bytes) binary += String.fromCharCode(b);
-									   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-							   };
-							   const generateVerifier = (): string => {
-									   const array = new Uint8Array(32);
-									   window.crypto.getRandomValues(array);
-									   return base64UrlEncode(array.buffer);
-							   };
-							   const pkceChallenge = async (verifier: string): Promise<string> => {
-									   const data = new TextEncoder().encode(verifier);
-									   const digest = await window.crypto.subtle.digest('SHA-256', data);
-									   return base64UrlEncode(digest);
-							   };
-							   const codeVerifier = generateVerifier();
-							   const codeChallenge = await pkceChallenge(codeVerifier);
-							   const code = await new Promise<string>((resolve) => {
-									   const codeClientConfig = {
-											   client_id: googleConfig.clientId,
-											   scope: googleConfig.scope,
-											   redirect_uri: googleConfig.redirectUri,
-											   code_challenge: codeChallenge,
-											   code_challenge_method: 'S256',
-											   callback: (resp: any) => resolve(resp.code),
-									   };
+                                if (name === 'google') {
+                                                if (!window.google) throw new Error('Google API not loaded');
+                                                const code = await new Promise<string>((resolve) => {
+                                                                const codeClientConfig = {
+                                                                                client_id: googleConfig.clientId,
+                                                                                scope: googleConfig.scope,
+                                                                                redirect_uri: googleConfig.redirectUri,
+                                                                                callback: (resp: any) => resolve(resp.code),
+                                                                };
 console.debug('[UserPage] initCodeClient config', codeClientConfig);
-									   const client = window.google.accounts.oauth2.initCodeClient(codeClientConfig);
-									   client.requestCode();
-							   });
+                                                                const client = window.google.accounts.oauth2.initCodeClient(codeClientConfig);
+                                                                client.requestCode();
+                                                });
 console.debug('[UserPage] authorization code received', code);
-							   await fetchLinkProvider({ provider: name, code, code_verifier: codeVerifier });
-					   } else {
-							   await fetchLinkProvider({ provider: name });
-					   }
+                                                await fetchLinkProvider({ provider: name, code });
+                                } else {
+                                                await fetchLinkProvider({ provider: name });
+                                }
 						const updated = [...providers, name];
 						setProviders(updated);
 						if (profile) {

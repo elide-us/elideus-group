@@ -65,7 +65,6 @@ async def users_providers_link_provider_v1(request: Request):
       client_id,
       client_secret,
       redirect_uri,
-      payload.code_verifier,
     )
   else:
     raise HTTPException(status_code=400, detail="Unsupported auth provider")
