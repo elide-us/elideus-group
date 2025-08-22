@@ -26,6 +26,7 @@ These items were previously implemented and are on the rebuild roadmap.
 - The project contains a startup.sh which will be executed by the environment on activation.
 - The project contains a dev.cmd script that supports `generate`, `start`, `fast`, and `test` subcommands for local development on Windows.
 - Environment variables are configured in .env for local work, but are set up as environment variables on the web app.
+- Set `VITE_GOOGLE_CLIENT_ID` to the Google OAuth client ID for your deployment. The origin must be authorized in the Google Cloud console.
 - The database provider can be selected with the `DATABASE_PROVIDER` environment variable. The architecture supports multiple providers; currently only `mssql` is implemented.
 - You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
 - Deploy the Azure Web App Container Quickstart configuration.
