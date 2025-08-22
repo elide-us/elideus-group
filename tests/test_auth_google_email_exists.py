@@ -28,6 +28,8 @@ class DummyDb:
       return DBRes([], 0)
     if op == "urn:users:providers:get_user_by_email:1":
       return DBRes([{ "guid": "existing-guid" }], 1)
+    if op == "urn:system:config:get_config:1":
+      return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
     return DBRes()
 
 class DummyState:
@@ -66,11 +68,17 @@ def test_email_exists(monkeypatch):
   sys.modules.setdefault("rpc.auth.google", rpc_auth_google)
   from pydantic import BaseModel
   models_mod = types.ModuleType("rpc.auth.google.models")
+  class AuthGoogleOauthLoginPayload1(BaseModel):
+    provider: str = "google"
+    code: str
+    code_verifier: str | None = None
+    fingerprint: str | None = None
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str
     display_name: str
     credits: int
     profile_image: str | None = None
+  models_mod.AuthGoogleOauthLoginPayload1 = AuthGoogleOauthLoginPayload1
   models_mod.AuthGoogleOauthLogin1 = AuthGoogleOauthLogin1
   sys.modules["rpc.auth.google.models"] = models_mod
 
@@ -91,8 +99,9 @@ def test_email_exists(monkeypatch):
   )
   svc_mod = importlib.util.module_from_spec(svc_spec)
   svc_spec.loader.exec_module(svc_mod)
-  async def fake_exchange(code, client_id, client_secret, redirect_uri):
+  async def fake_exchange(code, client_id, client_secret, redirect_uri, code_verifier=None):
     assert code == "auth-code"
+    assert redirect_uri == "http://localhost:8000/userpage"
     return "id", "acc"
   svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1

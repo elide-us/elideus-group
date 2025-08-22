@@ -40,51 +40,27 @@ export interface SupportRolesUserItem1 {
   guid: string;
   displayName: string;
 }
-export interface ServiceRolesDeleteRole1 {
-  name: string;
+export interface UsersProvidersCreateFromProvider1 {
+  provider: string;
+  provider_identifier: string;
+  provider_email: string;
+  provider_displayname: string;
+  provider_profile_image: any;
 }
-export interface ServiceRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
+export interface UsersProvidersGetByProviderIdentifier1 {
+  provider: string;
+  provider_identifier: string;
 }
-export interface ServiceRolesRoleMembers1 {
-  members: ServiceRolesUserItem1[];
-  nonMembers: ServiceRolesUserItem1[];
+export interface UsersProvidersLinkProvider1 {
+  provider: string;
+  id_token: string;
+  access_token: string;
 }
-export interface ServiceRolesRoles1 {
-  roles: string[];
+export interface UsersProvidersSetProvider1 {
+  provider: string;
 }
-export interface ServiceRolesUpsertRole1 {
-  name: string;
-  bit: number;
-  display: any;
-}
-export interface ServiceRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface StorageFilesDeleteFiles1 {
-  files: string[];
-}
-export interface StorageFilesFileItem1 {
-  name: string;
-  url: string;
-  content_type: string | null;
-}
-export interface StorageFilesFiles1 {
-  files: StorageFilesFileItem1[];
-}
-export interface StorageFilesSetGallery1 {
-  name: string;
-  gallery: boolean;
-}
-export interface StorageFilesUploadFile1 {
-  name: string;
-  content_b64: string;
-  content_type: string | null;
-}
-export interface StorageFilesUploadFiles1 {
-  files: StorageFilesUploadFile1[];
+export interface UsersProvidersUnlinkProvider1 {
+  provider: string;
 }
 export interface UsersProfileAuthProvider1 {
   name: string;
@@ -113,37 +89,58 @@ export interface UsersProfileSetProfileImage1 {
   image_b64: string;
   provider: string;
 }
-export interface UsersProvidersCreateFromProvider1 {
-  provider: string;
-  provider_identifier: string;
-  provider_email: string;
-  provider_displayname: string;
-  provider_profile_image: any;
+export interface ServiceRolesDeleteRole1 {
+  name: string;
 }
-export interface UsersProvidersGetByProviderIdentifier1 {
-  provider: string;
-  provider_identifier: string;
+export interface ServiceRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
 }
-export interface UsersProvidersLinkProvider1 {
-  provider: string;
-  id_token: string;
-  access_token: string;
+export interface ServiceRolesRoleMembers1 {
+  members: ServiceRolesUserItem1[];
+  nonMembers: ServiceRolesUserItem1[];
 }
-export interface UsersProvidersSetProvider1 {
-  provider: string;
+export interface ServiceRolesRoles1 {
+  roles: string[];
 }
-export interface UsersProvidersUnlinkProvider1 {
-  provider: string;
+export interface ServiceRolesUpsertRole1 {
+  name: string;
+  bit: number;
+  display: any;
 }
-export interface SystemConfigConfigItem1 {
-  key: string;
-  value: string;
+export interface ServiceRolesUserItem1 {
+  guid: string;
+  displayName: string;
 }
-export interface SystemConfigDeleteConfig1 {
-  key: string;
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
 }
-export interface SystemConfigList1 {
-  items: SystemConfigConfigItem1[];
+export interface PublicVarsHostname1 {
+  hostname: string;
+}
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
+}
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+  path: string;
+  name: string;
+  icon: string | null;
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
 }
 export interface SystemRoutesDeleteRoute1 {
   path: string;
@@ -174,6 +171,39 @@ export interface SystemRolesUpsertRole1 {
   mask: string;
   display: any;
 }
+export interface SystemConfigConfigItem1 {
+  key: string;
+  value: string;
+}
+export interface SystemConfigDeleteConfig1 {
+  key: string;
+}
+export interface SystemConfigList1 {
+  items: SystemConfigConfigItem1[];
+}
+export interface StorageFilesDeleteFiles1 {
+  files: string[];
+}
+export interface StorageFilesFileItem1 {
+  name: string;
+  url: string;
+  content_type: string | null;
+}
+export interface StorageFilesFiles1 {
+  files: StorageFilesFileItem1[];
+}
+export interface StorageFilesSetGallery1 {
+  name: string;
+  gallery: boolean;
+}
+export interface StorageFilesUploadFile1 {
+  name: string;
+  content_b64: string;
+  content_type: string | null;
+}
+export interface StorageFilesUploadFiles1 {
+  files: StorageFilesUploadFile1[];
+}
 export interface AuthMicrosoftOauthLogin1 {
   sessionToken: string;
   display_name: string;
@@ -186,35 +216,11 @@ export interface AuthGoogleOauthLogin1 {
   credits: number;
   profile_image: string | null;
 }
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
-  name: string;
-  icon: string | null;
-}
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
-}
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-  hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
+export interface AuthGoogleOauthLoginPayload1 {
+  provider: string;
+  code: string;
+  code_verifier: any;
+  fingerprint: any;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
