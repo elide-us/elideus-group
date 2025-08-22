@@ -47,7 +47,7 @@ class AuthProvider:
       logging.debug("[AuthProvider] Using cached JWKS")
     return self._jwks
 
-  async def verify_id_token(self, id_token: str) -> Dict[str, Any]:
+  async def verify_id_token(self, id_token: str, access_token: str | None = None) -> Dict[str, Any]:
     logging.debug("[AuthProvider] Verifying ID token %s", id_token[:40])
     jwks = await self._get_jwks()
     try:
@@ -65,7 +65,14 @@ class AuthProvider:
     if not rsa_key:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token header.")
     try:
-      payload = jwt.decode(id_token, rsa_key, algorithms=[self.algorithm], audience=self.audience, issuer=self.issuer)
+      decode_kwargs = {
+        "algorithms": [self.algorithm],
+        "audience": self.audience,
+        "issuer": self.issuer,
+      }
+      if access_token:
+        decode_kwargs["access_token"] = access_token
+      payload = jwt.decode(id_token, rsa_key, **decode_kwargs)
       logging.debug("[AuthProvider] ID token verified for audience=%s", self.audience)
       return payload
     except jwt.ExpiredSignatureError:

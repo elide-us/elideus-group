@@ -72,7 +72,7 @@ class AuthModule(BaseModule):
     if not id_token or not access_token:
       logging.error("[AuthModule] Missing credentials for provider %s", provider)
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing credentials")
-    payload = await strategy.verify_id_token(id_token)
+    payload = await strategy.verify_id_token(id_token, access_token)
     guid = strategy.extract_guid(payload)
     if not guid:
       logging.error("[AuthModule] Missing guid in token for provider %s", provider)

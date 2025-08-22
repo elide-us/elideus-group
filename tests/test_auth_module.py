@@ -80,7 +80,7 @@ def test_handle_auth_login_prefers_oid(monkeypatch):
   module = AuthModule(app)
 
   class FakeProvider:
-    async def verify_id_token(self, token):
+    async def verify_id_token(self, token, access_token):
       return {"oid": "oid123", "sub": "sub456"}
 
     async def fetch_user_profile(self, token):
@@ -103,7 +103,7 @@ def test_handle_auth_login_falls_back_to_sub(monkeypatch):
   module = AuthModule(app)
 
   class FakeProvider:
-    async def verify_id_token(self, token):
+    async def verify_id_token(self, token, access_token):
       return {"sub": "sub456"}
 
     async def fetch_user_profile(self, token):
@@ -127,7 +127,7 @@ def test_handle_auth_login_selects_provider():
     def __init__(self):
       self.called = False
 
-    async def verify_id_token(self, token):
+    async def verify_id_token(self, token, access_token):
       self.called = True
       return {"sub": "a"}
 
@@ -138,7 +138,7 @@ def test_handle_auth_login_selects_provider():
       return payload.get("sub")
 
   class ProviderB(ProviderA):
-    async def verify_id_token(self, token):
+    async def verify_id_token(self, token, access_token):
       self.called = True
       return {"sub": "b"}
 
