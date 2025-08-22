@@ -21,25 +21,6 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface SupportUsersGuid1 {
-  userGuid: string;
-}
-export interface SupportUsersSetCredits1 {
-  userGuid: string;
-  credits: number;
-}
-export interface SupportRolesMembers1 {
-  members: SupportRolesUserItem1[];
-  nonMembers: SupportRolesUserItem1[];
-}
-export interface SupportRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface SupportRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
 export interface UsersProvidersCreateFromProvider1 {
   provider: string;
   provider_identifier: string;
@@ -53,8 +34,8 @@ export interface UsersProvidersGetByProviderIdentifier1 {
 }
 export interface UsersProvidersLinkProvider1 {
   provider: string;
-  id_token: string;
-  access_token: string;
+  code: string;
+  code_verifier: any;
 }
 export interface UsersProvidersSetProvider1 {
   provider: string;
@@ -112,35 +93,15 @@ export interface ServiceRolesUserItem1 {
   guid: string;
   displayName: string;
 }
-export interface PublicVarsFfmpegVersion1 {
-  ffmpeg_version: string;
+export interface SystemConfigConfigItem1 {
+  key: string;
+  value: string;
 }
-export interface PublicVarsHostname1 {
-  hostname: string;
+export interface SystemConfigDeleteConfig1 {
+  key: string;
 }
-export interface PublicVarsOdbcVersion1 {
-  odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-  repo: string;
-}
-export interface PublicVarsVersion1 {
-  version: string;
-}
-export interface PublicLinksHomeLinks1 {
-  links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-  title: string;
-  url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-  path: string;
-  name: string;
-  icon: string | null;
-}
-export interface PublicLinksNavBarRoutes1 {
-  routes: PublicLinksNavBarRoute1[];
+export interface SystemConfigList1 {
+  items: SystemConfigConfigItem1[];
 }
 export interface SystemRoutesDeleteRoute1 {
   path: string;
@@ -171,15 +132,72 @@ export interface SystemRolesUpsertRole1 {
   mask: string;
   display: any;
 }
-export interface SystemConfigConfigItem1 {
-  key: string;
-  value: string;
+export interface SupportUsersGuid1 {
+  userGuid: string;
 }
-export interface SystemConfigDeleteConfig1 {
-  key: string;
+export interface SupportUsersSetCredits1 {
+  userGuid: string;
+  credits: number;
 }
-export interface SystemConfigList1 {
-  items: SystemConfigConfigItem1[];
+export interface SupportRolesMembers1 {
+  members: SupportRolesUserItem1[];
+  nonMembers: SupportRolesUserItem1[];
+}
+export interface SupportRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
+}
+export interface SupportRolesUserItem1 {
+  guid: string;
+  displayName: string;
+}
+export interface AuthMicrosoftOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface AuthGoogleOauthLogin1 {
+  sessionToken: string;
+  display_name: string;
+  credits: number;
+  profile_image: string | null;
+}
+export interface AuthGoogleOauthLoginPayload1 {
+  provider: string;
+  code: string;
+  code_verifier: any;
+  fingerprint: any;
+}
+export interface PublicLinksHomeLinks1 {
+  links: PublicLinksLinkItem1[];
+}
+export interface PublicLinksLinkItem1 {
+  title: string;
+  url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+  path: string;
+  name: string;
+  icon: string | null;
+}
+export interface PublicLinksNavBarRoutes1 {
+  routes: PublicLinksNavBarRoute1[];
+}
+export interface PublicVarsFfmpegVersion1 {
+  ffmpeg_version: string;
+}
+export interface PublicVarsHostname1 {
+  hostname: string;
+}
+export interface PublicVarsOdbcVersion1 {
+  odbc_version: string;
+}
+export interface PublicVarsRepo1 {
+  repo: string;
+}
+export interface PublicVarsVersion1 {
+  version: string;
 }
 export interface StorageFilesDeleteFiles1 {
   files: string[];
@@ -204,59 +222,41 @@ export interface StorageFilesUploadFile1 {
 export interface StorageFilesUploadFiles1 {
   files: StorageFilesUploadFile1[];
 }
-export interface AuthMicrosoftOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
-export interface AuthGoogleOauthLogin1 {
-  sessionToken: string;
-  display_name: string;
-  credits: number;
-  profile_image: string | null;
-}
-export interface AuthGoogleOauthLoginPayload1 {
-  provider: string;
-  code: string;
-  code_verifier: any;
-  fingerprint: any;
-}
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
-    const request: RPCRequest = {
-        op,
-        payload,
-        version: 1,
-        timestamp: new Date().toISOString(),
-        user_guid: null,
-        roles: [],
-        role_mask: 0
-    };
-    const headers: Record<string, string> = {};
-    if (typeof localStorage !== 'undefined') {
-        try {
-            const raw = localStorage.getItem('authTokens');
-            if (raw) {
-                const { sessionToken } = JSON.parse(raw);
-                if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
-            }
-        } catch {
-            /* ignore token parsing errors */
-        }
-    }
-    try {
-        const response = await axios.post<RPCResponse>('/rpc', request, { headers });
-        return response.data.payload as T;
-    } catch (err: any) {
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-            if (typeof localStorage !== 'undefined') {
-                localStorage.removeItem('authTokens');
-            }
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new Event('sessionExpired'));
-            }
-        }
-        throw err;
-    }
+	const request: RPCRequest = {
+		op,
+		payload,
+		version: 1,
+		timestamp: new Date().toISOString(),
+		user_guid: null,
+		roles: [],
+		role_mask: 0
+	};
+	const headers: Record<string, string> = {};
+	if (typeof localStorage !== 'undefined') {
+		try {
+			const raw = localStorage.getItem('authTokens');
+			if (raw) {
+				const { sessionToken } = JSON.parse(raw);
+				if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+			}
+		} catch {
+			/* ignore token parsing errors */
+		}
+	}
+	try {
+		const response = await axios.post<RPCResponse>('/rpc', request, { headers });
+		return response.data.payload as T;
+	} catch (err: any) {
+		if (axios.isAxiosError(err) && err.response?.status === 401) {
+			if (typeof localStorage !== 'undefined') {
+				localStorage.removeItem('authTokens');
+			}
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new Event('sessionExpired'));
+			}
+		}
+		throw err;
+	}
 }
