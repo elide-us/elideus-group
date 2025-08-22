@@ -3,12 +3,13 @@ import base64, logging, uuid, os
 import aiohttp
 
 from fastapi import HTTPException, Request
+from pydantic import ValidationError
 
 from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
-from .models import AuthGoogleOauthLogin1
+from .models import AuthGoogleOauthLogin1, AuthGoogleOauthLoginPayload1
 
 
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -18,7 +19,8 @@ async def exchange_code_for_tokens(
   code: str,
   client_id: str,
   client_secret: str,
-  redirect_uri: str = "postmessage",
+  redirect_uri: str = "http://localhost:8000/userpage",
+  code_verifier: str | None = None,
 ) -> tuple[str, str]:
   data = {
     "code": code,
@@ -27,6 +29,8 @@ async def exchange_code_for_tokens(
     "redirect_uri": redirect_uri,
     "grant_type": "authorization_code",
   }
+  if code_verifier:
+    data["code_verifier"] = code_verifier
   logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
   async with aiohttp.ClientSession() as session:
     async with session.post(GOOGLE_TOKEN_ENDPOINT, data=data) as resp:
@@ -148,16 +152,18 @@ async def create_session(
 
 async def auth_google_oauth_login_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  req_payload = rpc_request.payload or {}
+  try:
+    req_payload = AuthGoogleOauthLoginPayload1(**(rpc_request.payload or {}))
+  except ValidationError as e:
+    raise HTTPException(status_code=400, detail=str(e))
 
-  provider = req_payload.get("provider", "google")
-  code = req_payload.get("code")
+  provider = req_payload.provider
+  code = req_payload.code
+  code_verifier = req_payload.code_verifier
   logging.debug(f"[auth_google_oauth_login_v1] provider={provider}")
   logging.debug(
     f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
   )
-  if not code:
-    raise HTTPException(status_code=400, detail="Missing authorization code")
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
@@ -165,14 +171,15 @@ async def auth_google_oauth_login_v1(request: Request):
   google_provider = providers.get("google") if isinstance(providers, dict) else None
   client_id = google_provider.audience if google_provider else os.getenv("GOOGLE_CLIENT_ID")
   client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-  redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "postmessage")
+  res = await db.run("urn:system:config:get_config:1", {"key": "google_redirect_uri"})
+  redirect_uri = res.rows[0]["value"] if res.rows else "http://localhost:8000/userpage"
   if not client_id or not client_secret:
     raise HTTPException(status_code=500, detail="Google OAuth not configured")
   if google_provider:
     logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", google_provider.audience)
 
   id_token, access_token = await exchange_code_for_tokens(
-    code, client_id, client_secret, redirect_uri
+    code, client_id, client_secret, redirect_uri, code_verifier
   )
 
   provider_uid, profile, payload = await auth.handle_auth_login(
@@ -218,7 +225,7 @@ async def auth_google_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="Unable to create user")
 
   user_guid = user["guid"]
-  fingerprint = req_payload.get("fingerprint")
+  fingerprint = req_payload.fingerprint
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_token, session_exp = await create_session(
