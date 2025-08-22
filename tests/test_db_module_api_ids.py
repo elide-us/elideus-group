@@ -24,7 +24,7 @@ def test_get_google_api_secret():
 
   async def fake_run(op, args):
     assert op == "db:system:config:get_config:1"
-    assert args == {"key": "GoogleApiSecret"}
+    assert args == {"key": "GoogleApiId"}
     return DBResult(rows=[{"value": "gsecret"}], rowcount=1)
 
   db.run = fake_run
