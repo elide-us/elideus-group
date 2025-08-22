@@ -5,7 +5,6 @@ import type { UsersProfileProfile1 } from './shared/RpcModels';
 import { fetchProfile, fetchSetDisplay, fetchSetOptin } from './rpc/users/profile';
 import { fetchSetProvider, fetchLinkProvider, fetchUnlinkProvider } from './rpc/users/providers';
 import googleConfig from './config/google';
-import logging from './logging';
 
 declare global {
 interface Window {
@@ -87,7 +86,7 @@ const UserPage = (): JSX.Element => {
                         if (profile) setProfile({ ...profile, display_name: displayName, display_email: displayEmail, default_provider: provider });
                         setDirty(false);
                 } catch (err) {
-logging.error('Failed to update profile', err);
+console.error('Failed to update profile', err);
                 }
         };
 
@@ -103,7 +102,7 @@ logging.error('Failed to update profile', err);
                         }
                         if (updated.length === 0) clearUserData();
                 } catch (err) {
-logging.error('Failed to unlink provider', err);
+console.error('Failed to unlink provider', err);
                 }
         };
 
@@ -118,24 +117,24 @@ logging.error('Failed to unlink provider', err);
                                                scope: googleConfig.scope,
                                                callback: (resp: any) => resolve(resp.access_token),
                                        };
-logging.debug('[UserPage] initTokenClient config', tokenClientConfig);
+console.debug('[UserPage] initTokenClient config', tokenClientConfig);
                                        const client = window.google.accounts.oauth2.initTokenClient(tokenClientConfig);
                                        const requestOpts = { prompt: 'consent' };
-logging.debug('[UserPage] requestAccessToken opts', requestOpts);
+console.debug('[UserPage] requestAccessToken opts', requestOpts);
                                        client.requestAccessToken(requestOpts);
                                });
-logging.debug('[UserPage] accessToken received', accessToken);
+console.debug('[UserPage] accessToken received', accessToken);
                                const idToken = await new Promise<string>((resolve) => {
                                        const idInitConfig = {
                                                client_id: googleConfig.clientId,
                                                callback: (resp: any) => resolve(resp.credential),
                                        };
-logging.debug('[UserPage] id.initialize config', idInitConfig);
+console.debug('[UserPage] id.initialize config', idInitConfig);
                                        window.google.accounts.id.initialize(idInitConfig);
-logging.debug('[UserPage] id.prompt called');
+console.debug('[UserPage] id.prompt called');
                                        window.google.accounts.id.prompt();
                                });
-logging.debug('[UserPage] idToken received', idToken);
+console.debug('[UserPage] idToken received', idToken);
                                await fetchLinkProvider({ provider: name, id_token: idToken, access_token: accessToken });
                        } else {
                                await fetchLinkProvider({ provider: name });
@@ -147,7 +146,7 @@ logging.debug('[UserPage] idToken received', idToken);
                                 setProfile({ ...profile, auth_providers: authProviders });
                         }
                 } catch (err) {
-logging.error('Link provider not implemented', err);
+console.error('Link provider not implemented', err);
                 }
         };
 
