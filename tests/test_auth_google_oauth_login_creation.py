@@ -92,7 +92,6 @@ def test_fetch_user_after_create(monkeypatch):
   class AuthGoogleOauthLoginPayload1(BaseModel):
     provider: str = "google"
     code: str
-    code_verifier: str | None = None
     fingerprint: str | None = None
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str
@@ -120,7 +119,7 @@ def test_fetch_user_after_create(monkeypatch):
   )
   svc_mod = importlib.util.module_from_spec(svc_spec)
   svc_spec.loader.exec_module(svc_mod)
-  async def fake_exchange(code, client_id, client_secret, redirect_uri, code_verifier=None):
+  async def fake_exchange(code, client_id, client_secret, redirect_uri):
     assert code == "auth-code"
     assert redirect_uri == "http://localhost:8000/userpage"
     return "id", "acc"

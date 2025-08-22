@@ -20,7 +20,6 @@ async def exchange_code_for_tokens(
   client_id: str,
   client_secret: str,
   redirect_uri: str = "http://localhost:8000/userpage",
-  code_verifier: str | None = None,
 ) -> tuple[str, str]:
   data = {
     "code": code,
@@ -29,8 +28,6 @@ async def exchange_code_for_tokens(
     "redirect_uri": redirect_uri,
     "grant_type": "authorization_code",
   }
-  if code_verifier:
-    data["code_verifier"] = code_verifier
   logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
   async with aiohttp.ClientSession() as session:
     async with session.post(GOOGLE_TOKEN_ENDPOINT, data=data) as resp:
@@ -159,7 +156,6 @@ async def auth_google_oauth_login_v1(request: Request):
 
   provider = req_payload.provider
   code = req_payload.code
-  code_verifier = req_payload.code_verifier
   logging.debug(f"[auth_google_oauth_login_v1] provider={provider}")
   logging.debug(
     f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
@@ -191,7 +187,7 @@ async def auth_google_oauth_login_v1(request: Request):
   logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", client_id)
 
   id_token, access_token = await exchange_code_for_tokens(
-    code, client_id, client_secret, redirect_uri, code_verifier
+    code, client_id, client_secret, redirect_uri
   )
 
   provider_uid, profile, payload = await auth.handle_auth_login(

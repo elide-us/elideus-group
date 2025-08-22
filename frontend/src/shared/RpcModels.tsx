@@ -21,116 +21,28 @@ export interface RPCResponse {
   version: number;
   timestamp: string | null;
 }
-export interface UsersProvidersCreateFromProvider1 {
-  provider: string;
-  provider_identifier: string;
-  provider_email: string;
-  provider_displayname: string;
-  provider_profile_image: any;
+export interface StorageFilesDeleteFiles1 {
+  files: string[];
 }
-export interface UsersProvidersGetByProviderIdentifier1 {
-  provider: string;
-  provider_identifier: string;
-}
-export interface UsersProvidersLinkProvider1 {
-  provider: string;
-  code: string;
-  code_verifier: any;
-}
-export interface UsersProvidersSetProvider1 {
-  provider: string;
-}
-export interface UsersProvidersUnlinkProvider1 {
-  provider: string;
-}
-export interface UsersProfileAuthProvider1 {
+export interface StorageFilesFileItem1 {
   name: string;
-  display: string;
+  url: string;
+  content_type: string | null;
 }
-export interface UsersProfileProfile1 {
-  guid: string;
-  display_name: string;
-  email: string;
-  display_email: boolean;
-  credits: number;
-  profile_image: string | null;
-  default_provider: string;
-  auth_providers: UsersProfileAuthProvider1[];
+export interface StorageFilesFiles1 {
+  files: StorageFilesFileItem1[];
 }
-export interface UsersProfileRoles1 {
-  roles: number;
-}
-export interface UsersProfileSetDisplay1 {
-  display_name: string;
-}
-export interface UsersProfileSetOptin1 {
-  display_email: boolean;
-}
-export interface UsersProfileSetProfileImage1 {
-  image_b64: string;
-  provider: string;
-}
-export interface ServiceRolesDeleteRole1 {
+export interface StorageFilesSetGallery1 {
   name: string;
+  gallery: boolean;
 }
-export interface ServiceRolesRoleMemberUpdate1 {
-  role: string;
-  userGuid: string;
-}
-export interface ServiceRolesRoleMembers1 {
-  members: ServiceRolesUserItem1[];
-  nonMembers: ServiceRolesUserItem1[];
-}
-export interface ServiceRolesRoles1 {
-  roles: string[];
-}
-export interface ServiceRolesUpsertRole1 {
+export interface StorageFilesUploadFile1 {
   name: string;
-  bit: number;
-  display: any;
+  content_b64: string;
+  content_type: string | null;
 }
-export interface ServiceRolesUserItem1 {
-  guid: string;
-  displayName: string;
-}
-export interface SystemConfigConfigItem1 {
-  key: string;
-  value: string;
-}
-export interface SystemConfigDeleteConfig1 {
-  key: string;
-}
-export interface SystemConfigList1 {
-  items: SystemConfigConfigItem1[];
-}
-export interface SystemRoutesDeleteRoute1 {
-  path: string;
-}
-export interface SystemRoutesList1 {
-  routes: SystemRoutesRouteItem1[];
-}
-export interface SystemRoutesRouteItem1 {
-  path: string;
-  name: string;
-  icon: string | null;
-  sequence: number;
-  required_roles: string[];
-}
-export interface SystemRolesDeleteRole1 {
-  name: string;
-}
-export interface SystemRolesList1 {
-  roles: SystemRolesRoleItem1[];
-}
-export interface SystemRolesRoleItem1 {
-  name: string;
-  mask: string;
-  display: any;
-}
-export interface SystemRolesUpsertRole1 {
-  name: string;
-  mask: string;
-  display: any;
+export interface StorageFilesUploadFiles1 {
+  files: StorageFilesUploadFile1[];
 }
 export interface SupportUsersGuid1 {
   userGuid: string;
@@ -166,8 +78,94 @@ export interface AuthGoogleOauthLogin1 {
 export interface AuthGoogleOauthLoginPayload1 {
   provider: string;
   code: string;
-  code_verifier: any;
   fingerprint: any;
+}
+export interface SystemRoutesDeleteRoute1 {
+  path: string;
+}
+export interface SystemRoutesList1 {
+  routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+  path: string;
+  name: string;
+  icon: string | null;
+  sequence: number;
+  required_roles: string[];
+}
+export interface SystemRolesDeleteRole1 {
+  name: string;
+}
+export interface SystemRolesList1 {
+  roles: SystemRolesRoleItem1[];
+}
+export interface SystemRolesRoleItem1 {
+  name: string;
+  mask: string;
+  display: any;
+}
+export interface SystemRolesUpsertRole1 {
+  name: string;
+  mask: string;
+  display: any;
+}
+export interface SystemConfigConfigItem1 {
+  key: string;
+  value: string;
+}
+export interface SystemConfigDeleteConfig1 {
+  key: string;
+}
+export interface SystemConfigList1 {
+  items: SystemConfigConfigItem1[];
+}
+export interface UsersProfileAuthProvider1 {
+  name: string;
+  display: string;
+}
+export interface UsersProfileProfile1 {
+  guid: string;
+  display_name: string;
+  email: string;
+  display_email: boolean;
+  credits: number;
+  profile_image: string | null;
+  default_provider: string;
+  auth_providers: UsersProfileAuthProvider1[];
+}
+export interface UsersProfileRoles1 {
+  roles: number;
+}
+export interface UsersProfileSetDisplay1 {
+  display_name: string;
+}
+export interface UsersProfileSetOptin1 {
+  display_email: boolean;
+}
+export interface UsersProfileSetProfileImage1 {
+  image_b64: string;
+  provider: string;
+}
+export interface UsersProvidersCreateFromProvider1 {
+  provider: string;
+  provider_identifier: string;
+  provider_email: string;
+  provider_displayname: string;
+  provider_profile_image: any;
+}
+export interface UsersProvidersGetByProviderIdentifier1 {
+  provider: string;
+  provider_identifier: string;
+}
+export interface UsersProvidersLinkProvider1 {
+  provider: string;
+  code: string;
+}
+export interface UsersProvidersSetProvider1 {
+  provider: string;
+}
+export interface UsersProvidersUnlinkProvider1 {
+  provider: string;
 }
 export interface PublicLinksHomeLinks1 {
   links: PublicLinksLinkItem1[];
@@ -199,64 +197,64 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
   version: string;
 }
-export interface StorageFilesDeleteFiles1 {
-  files: string[];
-}
-export interface StorageFilesFileItem1 {
+export interface ServiceRolesDeleteRole1 {
   name: string;
-  url: string;
-  content_type: string | null;
 }
-export interface StorageFilesFiles1 {
-  files: StorageFilesFileItem1[];
+export interface ServiceRolesRoleMemberUpdate1 {
+  role: string;
+  userGuid: string;
 }
-export interface StorageFilesSetGallery1 {
+export interface ServiceRolesRoleMembers1 {
+  members: ServiceRolesUserItem1[];
+  nonMembers: ServiceRolesUserItem1[];
+}
+export interface ServiceRolesRoles1 {
+  roles: string[];
+}
+export interface ServiceRolesUpsertRole1 {
   name: string;
-  gallery: boolean;
+  bit: number;
+  display: any;
 }
-export interface StorageFilesUploadFile1 {
-  name: string;
-  content_b64: string;
-  content_type: string | null;
-}
-export interface StorageFilesUploadFiles1 {
-  files: StorageFilesUploadFile1[];
+export interface ServiceRolesUserItem1 {
+  guid: string;
+  displayName: string;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
-	const request: RPCRequest = {
-		op,
-		payload,
-		version: 1,
-		timestamp: new Date().toISOString(),
-		user_guid: null,
-		roles: [],
-		role_mask: 0
-	};
-	const headers: Record<string, string> = {};
-	if (typeof localStorage !== 'undefined') {
-		try {
-			const raw = localStorage.getItem('authTokens');
-			if (raw) {
-				const { sessionToken } = JSON.parse(raw);
-				if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
-			}
-		} catch {
-			/* ignore token parsing errors */
-		}
-	}
-	try {
-		const response = await axios.post<RPCResponse>('/rpc', request, { headers });
-		return response.data.payload as T;
-	} catch (err: any) {
-		if (axios.isAxiosError(err) && err.response?.status === 401) {
-			if (typeof localStorage !== 'undefined') {
-				localStorage.removeItem('authTokens');
-			}
-			if (typeof window !== 'undefined') {
-				window.dispatchEvent(new Event('sessionExpired'));
-			}
-		}
-		throw err;
-	}
+    const request: RPCRequest = {
+        op,
+        payload,
+        version: 1,
+        timestamp: new Date().toISOString(),
+        user_guid: null,
+        roles: [],
+        role_mask: 0
+    };
+    const headers: Record<string, string> = {};
+    if (typeof localStorage !== 'undefined') {
+        try {
+            const raw = localStorage.getItem('authTokens');
+            if (raw) {
+                const { sessionToken } = JSON.parse(raw);
+                if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+            }
+        } catch {
+            /* ignore token parsing errors */
+        }
+    }
+    try {
+        const response = await axios.post<RPCResponse>('/rpc', request, { headers });
+        return response.data.payload as T;
+    } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('authTokens');
+            }
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('sessionExpired'));
+            }
+        }
+        throw err;
+    }
 }
