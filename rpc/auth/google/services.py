@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-import base64, logging, uuid
+import base64, logging, uuid, os
+import aiohttp
 
 from fastapi import HTTPException, Request
 
@@ -8,6 +9,40 @@ from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from .models import AuthGoogleOauthLogin1
+
+
+GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+
+
+async def exchange_code_for_tokens(
+  code: str,
+  client_id: str,
+  client_secret: str,
+  redirect_uri: str = "postmessage",
+) -> tuple[str, str]:
+  data = {
+    "code": code,
+    "client_id": client_id,
+    "client_secret": client_secret,
+    "redirect_uri": redirect_uri,
+    "grant_type": "authorization_code",
+  }
+  logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
+  async with aiohttp.ClientSession() as session:
+    async with session.post(GOOGLE_TOKEN_ENDPOINT, data=data) as resp:
+      if resp.status != 200:
+        error = await resp.text()
+        logging.error(
+          "[exchange_code_for_tokens] failed status=%s error=%s", resp.status, error
+        )
+        raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+      token_data = await resp.json()
+  id_token = token_data.get("id_token")
+  access_token = token_data.get("access_token")
+  if not id_token or not access_token:
+    logging.error("[exchange_code_for_tokens] missing tokens in response")
+    raise HTTPException(status_code=400, detail="Invalid token response")
+  return id_token, access_token
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -116,24 +151,29 @@ async def auth_google_oauth_login_v1(request: Request):
   req_payload = rpc_request.payload or {}
 
   provider = req_payload.get("provider", "google")
-  id_token = req_payload.get("idToken") or req_payload.get("id_token")
-  access_token = req_payload.get("accessToken") or req_payload.get("access_token")
+  code = req_payload.get("code")
   logging.debug(f"[auth_google_oauth_login_v1] provider={provider}")
   logging.debug(
-    f"[auth_google_oauth_login_v1] id_token={id_token[:40] if id_token else None}"
+    f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
   )
-  logging.debug(
-    f"[auth_google_oauth_login_v1] access_token={access_token[:40] if access_token else None}"
-  )
-  if not id_token or not access_token:
-    raise HTTPException(status_code=400, detail="Missing credentials")
+  if not code:
+    raise HTTPException(status_code=400, detail="Missing authorization code")
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
   providers = getattr(auth, "providers", {})
   google_provider = providers.get("google") if isinstance(providers, dict) else None
+  client_id = google_provider.audience if google_provider else os.getenv("GOOGLE_CLIENT_ID")
+  client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+  redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "postmessage")
+  if not client_id or not client_secret:
+    raise HTTPException(status_code=500, detail="Google OAuth not configured")
   if google_provider:
     logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", google_provider.audience)
+
+  id_token, access_token = await exchange_code_for_tokens(
+    code, client_id, client_secret, redirect_uri
+  )
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token

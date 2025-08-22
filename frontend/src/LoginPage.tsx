@@ -53,34 +53,19 @@ setNotification({ open: true, severity: 'error', message: `Login failed: ${error
 const handleGoogleLogin = async (): Promise<void> => {
 try {
 if (!window.google) throw new Error('Google API not loaded');
-const accessToken = await new Promise<string>((resolve) => {
-const tokenClientConfig = {
+const code = await new Promise<string>((resolve) => {
+const codeClientConfig = {
 client_id: googleConfig.clientId,
 scope: googleConfig.scope,
-callback: (resp: any) => resolve(resp.access_token),
+callback: (resp: any) => resolve(resp.code),
 };
-console.debug('[LoginPage] initTokenClient config', tokenClientConfig);
-const client = window.google.accounts.oauth2.initTokenClient(tokenClientConfig);
-const requestOpts = { prompt: 'consent' };
-console.debug('[LoginPage] requestAccessToken opts', requestOpts);
-client.requestAccessToken(requestOpts);
+console.debug('[LoginPage] initCodeClient config', codeClientConfig);
+const client = window.google.accounts.oauth2.initCodeClient(codeClientConfig);
+client.requestCode();
 });
-console.debug('[LoginPage] accessToken received', accessToken);
-const idToken = await new Promise<string>((resolve) => {
-const idInitConfig = {
-client_id: googleConfig.clientId,
-callback: (resp: any) => resolve(resp.credential),
-};
-console.debug('[LoginPage] id.initialize config', idInitConfig);
-window.google.accounts.id.initialize(idInitConfig);
-console.debug('[LoginPage] id.prompt called');
-window.google.accounts.id.prompt();
-});
-console.debug('[LoginPage] idToken received', idToken);
-console.debug('[LoginPage] Google token data', { idToken, accessToken });
+console.debug('[LoginPage] authorization code received', code);
 const data = await fetchGoogleOauthLogin({
-idToken,
-accessToken,
+code,
 provider: 'google',
 }) as AuthGoogleOauthLogin1;
 setUserData({ provider: 'google', ...data });
