@@ -144,7 +144,7 @@ def test_link_provider_google_normalizes_identifier():
       self.calls.append((op, args))
       if op == "urn:system:config:get_config:1":
         key = args["key"]
-        if key == "GoogleApiSecret":
+        if key == "GoogleApiId":
           return DBRes(rows=[{"value": "secret"}])
         if key == "GoogleAuthRedirectLocalhost":
           return DBRes(rows=[{"value": "redirect"}])
