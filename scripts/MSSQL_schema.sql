@@ -38,6 +38,21 @@ CREATE TABLE frontend_routes (
     element_icon NVARCHAR(256) NULL
 );
 
+-- Tracks device tokens associated with sessions
+CREATE TABLE sessions_devices (
+    element_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    sessions_guid UNIQUEIDENTIFIER NOT NULL,
+    element_token NVARCHAR(MAX) NOT NULL,
+    element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    element_token_exp DATETIMEOFFSET NOT NULL,
+    element_device_fingerprint NVARCHAR(512) NULL,
+    element_user_agent NVARCHAR(1024) NULL,
+    element_ip_last_seen NVARCHAR(64) NULL,
+    element_revoked_at DATETIMEOFFSET NULL,
+    FOREIGN KEY (sessions_guid) REFERENCES users_sessions(element_guid),
+    UNIQUE (sessions_guid)
+);
+
 -- System configuration table
 CREATE TABLE system_config (
     recid INT IDENTITY(1,1) PRIMARY KEY,
@@ -62,7 +77,6 @@ CREATE TABLE users_apitokens (
     element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     element_token_exp DATETIMEOFFSET NOT NULL,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
-    UNIQUE (users_guid)
 );
 
 -- Contains the unique identifiers supplied by the OAuth provider
@@ -77,7 +91,7 @@ CREATE TABLE users_auth (
 
 -- This is to include also a FK to task_guid in system_tasks
 CREATE TABLE users_credits (
-    users_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    users_guid UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     element_credits INT NOT NULL,
     element_reserve INT NULL,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
@@ -85,23 +99,23 @@ CREATE TABLE users_credits (
 
 -- Future role unicode mask system
 CREATE TABLE users_enablements (
-    users_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    users_guid UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     element_enablements NVARCHAR(MAX) NOT NULL DEFAULT '0',
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
 
 -- Contains the profile image in base64 supplied by the OAuth provider
 CREATE TABLE users_profileimg (
-    users_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    users_guid UNIQUEIDENTIFIER NOT NULL,
     element_base64 NVARCHAR(MAX) NOT NULL,
     providers_recid INT NOT NULL,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid),
     FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid)
 );
 
--- Current role bit mask system, DEPRECATED
+-- Current role bit mask system
 CREATE TABLE users_roles (
-    users_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    users_guid UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
     element_roles BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
@@ -112,20 +126,5 @@ CREATE TABLE users_sessions (
     users_guid UNIQUEIDENTIFIER NOT NULL,
     element_created_at DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
-);
-
--- Tracks device tokens associated with sessions
-CREATE TABLE sessions_devices (
-    element_guid UNIQUEIDENTIFIER PRIMARY KEY,
-    sessions_guid UNIQUEIDENTIFIER NOT NULL,
-    element_token NVARCHAR(MAX) NOT NULL,
-    element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
-    element_token_exp DATETIMEOFFSET NOT NULL,
-    element_device_fingerprint NVARCHAR(512) NULL,
-    element_user_agent NVARCHAR(1024) NULL,
-    element_ip_last_seen NVARCHAR(64) NULL,
-    element_revoked_at DATETIMEOFFSET NULL,
-    FOREIGN KEY (sessions_guid) REFERENCES users_sessions(element_guid),
-    UNIQUE (sessions_guid)
 );
 
