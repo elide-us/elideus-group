@@ -13,6 +13,7 @@ from .models import (
   UsersProvidersGetByProviderIdentifier1,
   UsersProvidersCreateFromProvider1,
 )
+from rpc.auth.google.services import exchange_code_for_tokens
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -46,7 +47,29 @@ async def users_providers_link_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
-  provider_uid, _, _ = await auth.handle_auth_login(payload.provider, payload.id_token, payload.access_token)
+  if payload.provider == "google":
+    google_provider = getattr(auth, "providers", {}).get("google")
+    if not google_provider or not google_provider.audience:
+      raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
+    client_id = google_provider.audience
+    res_secret = await db.run("urn:system:config:get_config:1", {"key": "GoogleApiId"})
+    if not res_secret.rows:
+      raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
+    client_secret = res_secret.rows[0]["value"]
+    res_redirect = await db.run("urn:system:config:get_config:1", {"key": "GoogleAuthRedirectLocalhost"})
+    if not res_redirect.rows:
+      raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
+    redirect_uri = res_redirect.rows[0]["value"]
+    id_token, access_token = await exchange_code_for_tokens(
+      payload.code,
+      client_id,
+      client_secret,
+      redirect_uri,
+      payload.code_verifier,
+    )
+  else:
+    raise HTTPException(status_code=400, detail="Unsupported auth provider")
+  provider_uid, _, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
   provider_uid = normalize_provider_identifier(provider_uid)
   res = await db.run(
     "urn:users:providers:get_by_provider_identifier:1",

@@ -119,13 +119,36 @@ def test_set_provider_missing_provider_raises():
 
 def test_link_provider_google_normalizes_identifier():
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:link_provider:1", payload={"provider": "google", "id_token": "id", "access_token": "acc"}, version=1)
+    rpc = RPCRequest(
+      op="urn:users:providers:link_provider:1",
+      payload={"provider": "google", "code": "authcode", "code_verifier": "ver"},
+      version=1,
+    )
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
 
+  async def fake_exchange(code, client_id, client_secret, redirect_uri, code_verifier):
+    return "id", "acc"
+  svc_mod.exchange_code_for_tokens = fake_exchange
+
   class DummyAuth:
+    def __init__(self):
+      self.providers = {"google": SimpleNamespace(audience="client-id")}
     async def handle_auth_login(self, provider, id_token, access_token):
       return "google-id", {}, {}
+
+  class DummyDb:
+    def __init__(self):
+      self.calls = []
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:system:config:get_config:1":
+        key = args["key"]
+        if key == "GoogleApiId":
+          return DBRes(rows=[{"value": "secret"}])
+        if key == "GoogleAuthRedirectLocalhost":
+          return DBRes(rows=[{"value": "redirect"}])
+      return DBRes()
 
   db = DummyDb()
   auth = DummyAuth()

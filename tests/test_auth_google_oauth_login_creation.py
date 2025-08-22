@@ -16,6 +16,8 @@ class DummyAuth:
     return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
+  def __init__(self):
+    self.providers = {"google": SimpleNamespace(audience="gid")}
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -32,7 +34,11 @@ class DummyDb:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
     if op == "urn:system:config:get_config:1":
-      return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
+      key = args.get("key")
+      if key == "GoogleApiId":
+        return DBRes([{ "value": "gsecret" }], 1)
+      if key == "GoogleAuthRedirectLocalhost":
+        return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
     if op == "urn:users:providers:create_from_provider:1":
       return DBRes([], 1)
     if op == "db:users:session:set_rotkey:1":
