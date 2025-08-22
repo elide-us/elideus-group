@@ -56,7 +56,7 @@ def test_lookup_existing_user(monkeypatch):
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox_request(request):
-    rpc = RPCRequest(op="urn:auth:google:oauth_login:1", payload={"idToken": "id", "accessToken": "acc"}, version=1)
+    rpc = RPCRequest(op="urn:auth:google:oauth_login:1", payload={"code": "auth-code"}, version=1)
     return rpc, None, None
   helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers
@@ -93,8 +93,14 @@ def test_lookup_existing_user(monkeypatch):
   )
   svc_mod = importlib.util.module_from_spec(svc_spec)
   svc_spec.loader.exec_module(svc_mod)
+  async def fake_exchange(code, client_id, client_secret, redirect_uri):
+    assert code == "auth-code"
+    return "id", "acc"
+  svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
+  monkeypatch.setenv("GOOGLE_CLIENT_ID", "gid")
+  monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "gsecret")
   req = DummyRequest()
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert isinstance(resp, RPCResponse)

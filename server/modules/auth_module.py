@@ -63,12 +63,15 @@ class AuthModule(BaseModule):
     logging.info("Auth module shutdown")
 
 
-  async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
+  async def handle_auth_login(self, provider: str, id_token: str | None, access_token: str | None):
     logging.debug("[AuthModule] handle_auth_login provider=%s", provider)
     strategy = self.providers.get(provider)
     if not strategy:
       logging.error("[AuthModule] Unsupported auth provider %s", provider)
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
+    if not id_token or not access_token:
+      logging.error("[AuthModule] Missing credentials for provider %s", provider)
+      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing credentials")
     payload = await strategy.verify_id_token(id_token)
     guid = strategy.extract_guid(payload)
     if not guid:
