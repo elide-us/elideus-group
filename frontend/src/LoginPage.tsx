@@ -9,7 +9,6 @@ import Notification from './Notification';
 import { fetchOauthLogin as fetchMicrosoftOauthLogin } from './rpc/auth/microsoft';
 import { fetchOauthLogin as fetchGoogleOauthLogin } from './rpc/auth/google';
 import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from './shared/RpcModels';
-import logging from './logging';
 
 declare global {
 interface Window {
@@ -37,6 +36,7 @@ try {
 await pca.initialize();
 const loginResponse = await pca.loginPopup(loginRequest);
 const { idToken, accessToken } = loginResponse;
+console.debug('[LoginPage] Microsoft token data', { idToken, accessToken, account: loginResponse.account, uniqueId: loginResponse.uniqueId });
 const data = await fetchMicrosoftOauthLogin({
 idToken,
 accessToken,
@@ -59,24 +59,25 @@ client_id: googleConfig.clientId,
 scope: googleConfig.scope,
 callback: (resp: any) => resolve(resp.access_token),
 };
-logging.debug('[LoginPage] initTokenClient config', tokenClientConfig);
+console.debug('[LoginPage] initTokenClient config', tokenClientConfig);
 const client = window.google.accounts.oauth2.initTokenClient(tokenClientConfig);
 const requestOpts = { prompt: 'consent' };
-logging.debug('[LoginPage] requestAccessToken opts', requestOpts);
+console.debug('[LoginPage] requestAccessToken opts', requestOpts);
 client.requestAccessToken(requestOpts);
 });
-logging.debug('[LoginPage] accessToken received', accessToken);
+console.debug('[LoginPage] accessToken received', accessToken);
 const idToken = await new Promise<string>((resolve) => {
 const idInitConfig = {
 client_id: googleConfig.clientId,
 callback: (resp: any) => resolve(resp.credential),
 };
-logging.debug('[LoginPage] id.initialize config', idInitConfig);
+console.debug('[LoginPage] id.initialize config', idInitConfig);
 window.google.accounts.id.initialize(idInitConfig);
-logging.debug('[LoginPage] id.prompt called');
+console.debug('[LoginPage] id.prompt called');
 window.google.accounts.id.prompt();
 });
-logging.debug('[LoginPage] idToken received', idToken);
+console.debug('[LoginPage] idToken received', idToken);
+console.debug('[LoginPage] Google token data', { idToken, accessToken });
 const data = await fetchGoogleOauthLogin({
 idToken,
 accessToken,
