@@ -167,16 +167,28 @@ async def auth_google_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
-  providers = getattr(auth, "providers", {})
-  google_provider = providers.get("google") if isinstance(providers, dict) else None
-  client_id = google_provider.audience if google_provider else os.getenv("GOOGLE_CLIENT_ID")
-  client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-  res = await db.run("urn:system:config:get_config:1", {"key": "google_redirect_uri"})
-  redirect_uri = res.rows[0]["value"] if res.rows else "http://localhost:8000/userpage"
-  if not client_id or not client_secret:
-    raise HTTPException(status_code=500, detail="Google OAuth not configured")
-  if google_provider:
-    logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", google_provider.audience)
+
+  # Get provider metadata
+  google_provider = getattr(auth, "providers", {}).get("google")
+
+  # Require Google client_id from provider config
+  if not google_provider or not google_provider.audience:
+      raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
+  client_id = google_provider.audience
+
+  # Require client_secret from system config
+  res_secret = await db.run("urn:system:config:get_config:1", {"key": "GoogleApiId"})
+  if not res_secret.rows:
+      raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
+  client_secret = res_secret.rows[0]["value"]
+
+  # Require redirect_uri from system config
+  res_redirect = await db.run("urn:system:config:get_config:1", {"key": "GoogleAuthRedirectLocalhost"})
+  if not res_redirect.rows:
+      raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
+  redirect_uri = res_redirect.rows[0]["value"]
+
+  logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", client_id)
 
   id_token, access_token = await exchange_code_for_tokens(
     code, client_id, client_secret, redirect_uri, code_verifier
