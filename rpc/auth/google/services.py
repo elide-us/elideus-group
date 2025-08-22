@@ -177,10 +177,10 @@ async def auth_google_oauth_login_v1(request: Request):
   client_id = google_provider.audience
 
   # Require client_secret from system config
-  res_secret = await db.run("urn:system:config:get_config:1", {"key": "GoogleApiId"})
-  if not res_secret.rows:
-      raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-  client_secret = res_secret.rows[0]["value"]
+  try:
+    client_secret = await db.get_google_api_secret()
+  except ValueError:
+    raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
 
   # Require redirect_uri from system config
   res_redirect = await db.run("urn:system:config:get_config:1", {"key": "GoogleAuthRedirectLocalhost"})

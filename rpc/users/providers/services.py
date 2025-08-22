@@ -52,10 +52,10 @@ async def users_providers_link_provider_v1(request: Request):
     if not google_provider or not google_provider.audience:
       raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
     client_id = google_provider.audience
-    res_secret = await db.run("urn:system:config:get_config:1", {"key": "GoogleApiId"})
-    if not res_secret.rows:
+    try:
+      client_secret = await db.get_google_api_secret()
+    except ValueError:
       raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-    client_secret = res_secret.rows[0]["value"]
     res_redirect = await db.run("urn:system:config:get_config:1", {"key": "GoogleAuthRedirectLocalhost"})
     if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
