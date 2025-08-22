@@ -3,6 +3,7 @@ import logging
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 import uuid
 
 from rpc.helpers import unbox_request
@@ -21,7 +22,7 @@ async def auth_session_get_token_v1(request: Request):
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
 
-  provider_uid, profile, payload = await auth.handle_auth_login(provider, id_token, access_token)
+  provider_uid, provider_profile, payload = await auth.handle_auth_login(provider, id_token, access_token)
 
   identifiers = []
   if provider_uid:
@@ -81,9 +82,9 @@ async def auth_session_get_token_v1(request: Request):
       {
         "provider": provider,
         "provider_identifier": provider_uid,
-        "provider_email": profile["email"],
-        "provider_displayname": profile["username"],
-        "provider_profile_image": profile.get("profilePicture"),
+        "provider_email": provider_profile["email"],
+        "provider_displayname": provider_profile["username"],
+        "provider_profile_image": provider_profile.get("profilePicture"),
       },
     )
     user = res.rows[0] if res.rows else None
@@ -122,9 +123,15 @@ async def auth_session_get_token_v1(request: Request):
     },
   )
 
+  profile = {
+    "display_name": user["display_name"],
+    "email": user.get("email"),
+    "credits": user.get("credits"),
+    "profile_image": user.get("profile_image"),
+  }
   payload = {"token": session_token, "profile": profile}
   rpc_resp = RPCResponse(op="urn:auth:session:get_token:1", payload=payload, version=1)
-  response = JSONResponse(content=rpc_resp.model_dump())
+  response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
     rotation_token,
