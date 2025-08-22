@@ -97,6 +97,14 @@ async def auth_session_get_token_v1(request: Request):
   if not user:
     raise HTTPException(status_code=500, detail="Unable to create user")
 
+  new_img = provider_profile.get("profilePicture")
+  if new_img and new_img != user.get("profile_image"):
+    await db.run(
+      "urn:users:profile:set_profile_image:1",
+      {"guid": user["guid"], "image_b64": new_img, "provider": provider},
+    )
+    user["profile_image"] = new_img
+
   user_guid = user["guid"]
   rotation_token, rot_exp = auth.make_rotation_token(user_guid)
   now = datetime.now(timezone.utc)

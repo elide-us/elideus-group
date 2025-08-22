@@ -170,6 +170,14 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
     raise HTTPException(status_code=500, detail="Unable to create user")
 
+  new_img = profile.get("profilePicture")
+  if new_img and new_img != user.get("profile_image"):
+    await db.run(
+      "urn:users:profile:set_profile_image:1",
+      {"guid": user["guid"], "image_b64": new_img, "provider": provider},
+    )
+    user["profile_image"] = new_img
+
   user_guid = user["guid"]
   fingerprint = req_payload.get("fingerprint")
   user_agent = request.headers.get("user-agent")
