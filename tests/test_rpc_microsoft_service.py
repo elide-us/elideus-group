@@ -13,6 +13,10 @@ class DummyAuth:
     return 'token'
   def make_rotation_token(self, guid):
     return ('rtoken', '2025-01-01T00:00:00Z')
+  async def handle_auth_login(self, provider, id_token, access_token):
+    data = await self.verify_ms_id_token(id_token)
+    profile = await self.fetch_ms_user_profile(access_token)
+    return data['sub'], profile
 
 class DummyDB:
   async def select_user(self, provider, mid):

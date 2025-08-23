@@ -1,7 +1,7 @@
 from fastapi import Request
 import logging
 from rpc.models import RPCResponse, RPCRequest
-from rpc.auth.microsoft.models import AuthMicrosoftLoginData1
+from rpc.auth.google.models import AuthGoogleLoginData1
 from server.modules.auth_module import AuthModule
 from server.modules.database_provider import DatabaseProvider, _utos
 from server.helpers.roles import mask_to_names
@@ -15,8 +15,7 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
     req_payload,
   )
 
-  provider = req_payload.get("provider", "microsoft")
-  logging.debug("user_login_v1 provider=%s", provider)
+  provider = "google"
   id_token = req_payload.get("idToken")
   access_token = req_payload.get("accessToken")
   guid, profile = await auth.handle_auth_login(provider, id_token, access_token)
@@ -32,7 +31,6 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
     )
   else:
     profile_picture = user.get("profile_image")
-  logging.debug("user_login_v1 user=%s", user)
 
   token = auth.make_bearer_token(_utos(user["guid"]))
   rotation_token, rotation_exp = auth.make_rotation_token(_utos(user["guid"]))
@@ -49,15 +47,15 @@ async def user_login_v1(rpc_request: RPCRequest, request: Request) -> RPCRespons
     )
     await discord.send_sys_message(msg)
 
-  payload = AuthMicrosoftLoginData1(
+  payload = AuthGoogleLoginData1(
     bearerToken=token,
     defaultProvider=user.get("provider_name", provider),
-    username=user.get("display_name", profile["username"] if profile else ""),
-    email=user.get("email", profile["email"] if profile else ""),
+    username=user.get("display_name", profile.get("username", "")),
+    email=user.get("email", profile.get("email", "")),
     backupEmail=None,
     profilePicture=profile_picture,
     credits=user.get("credits", 0),
     rotationToken=rotation_token,
     rotationExpires=rotation_exp,
   )
-  return RPCResponse(op="urn:auth:microsoft:login_data:1", payload=payload, version=1)
+  return RPCResponse(op="urn:auth:google:login_data:1", payload=payload, version=1)
