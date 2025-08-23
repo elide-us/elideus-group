@@ -1,6 +1,6 @@
 import json, aioodbc, logging
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvironmentModule
@@ -367,16 +367,26 @@ class MSSQLProvider(BaseModule, DatabaseProvider):
 
   async def create_user_session(self, user_guid: str, bearer: str, rotation: str, expires: datetime) -> str:
     session_id = _utos(uuid4())
+    device_id = _utos(uuid4())
+    await self._run("DELETE FROM sessions_devices WHERE sessions_guid IN (SELECT element_guid FROM users_sessions WHERE users_guid=?)", user_guid)
     await self._run("DELETE FROM users_sessions WHERE users_guid=?", user_guid)
     query = (
       "INSERT INTO users_sessions(element_guid, users_guid, element_token, element_token_iat, element_token_exp) "
-      "VALUES(?, ?, ?, GETDATE(), ?);"
+      "VALUES(?, ?, ?, SYSDATETIMEOFFSET(), ?);"
     )
     await self._run(query, session_id, user_guid, rotation, expires)
+    bearer_exp = datetime.now(timezone.utc) + timedelta(hours=24)
+    query = (
+      "INSERT INTO sessions_devices(element_guid, sessions_guid, element_token, element_token_iat, element_token_exp) "
+      "VALUES(?, ?, ?, SYSDATETIMEOFFSET(), ?);"
+    )
+    await self._run(query, device_id, session_id, bearer, bearer_exp)
     return session_id
 
   async def get_session_by_rotation(self, rotation_token: str):
-    query = "SELECT * FROM users_sessions WHERE element_token=?;"
+    query = (
+      "SELECT element_guid AS session_id, users_guid FROM users_sessions WHERE element_token=?;"
+    )
     return await self._fetch_one(query, rotation_token)
 
   async def update_session_tokens(self, session_id: str, bearer: str, rotation: str, expires: datetime):
@@ -385,8 +395,14 @@ class MSSQLProvider(BaseModule, DatabaseProvider):
       "WHERE element_guid=?;"
     )
     await self._run(query, rotation, expires, session_id)
+    query = (
+      "UPDATE sessions_devices SET element_token=?, element_token_exp=?, element_token_iat=SYSDATETIMEOFFSET() "
+      "WHERE sessions_guid=?;"
+    )
+    await self._run(query, bearer, expires, session_id)
 
   async def delete_session(self, session_id: str):
+    await self._run("DELETE FROM sessions_devices WHERE sessions_guid=?", session_id)
     await self._run("DELETE FROM users_sessions WHERE element_guid=?", session_id)
 
   async def get_user_profile_image(self, guid: str, provider: str | None = None) -> str | None:

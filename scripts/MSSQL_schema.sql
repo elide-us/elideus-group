@@ -117,3 +117,17 @@ CREATE TABLE users_sessions (
     UNIQUE (users_guid, element_guid)
 );
 
+-- Tracks device tokens associated with sessions
+CREATE TABLE sessions_devices (
+    element_guid UNIQUEIDENTIFIER PRIMARY KEY,
+    sessions_guid UNIQUEIDENTIFIER NOT NULL,
+    element_token NVARCHAR(MAX) NOT NULL,
+    element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    element_token_exp DATETIMEOFFSET NOT NULL,
+    element_device_fingerprint NVARCHAR(512) NULL,
+    element_user_agent NVARCHAR(1024) NULL,
+    element_ip_last_seen NVARCHAR(64) NULL,
+    element_revoked_at DATETIMEOFFSET NULL,
+    FOREIGN KEY (sessions_guid) REFERENCES users_sessions(element_guid)
+);
+
