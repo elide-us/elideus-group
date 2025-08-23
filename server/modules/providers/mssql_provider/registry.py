@@ -132,7 +132,7 @@ async def _users_unlink_provider(args: Dict[str, Any]):
         (guid,)
       )
       row = await cur.fetchone()
-      cnt = row["cnt"] if row else 0
+      cnt = row[0] if row else 0
       if cnt == 0:
         await cur.execute(
           "UPDATE users_roles SET element_roles = 0 WHERE users_guid = ?;",
@@ -403,15 +403,25 @@ async def _auth_session_create_session(args: Dict[str, Any]):
     user_agent = args.get("user_agent")
     ip_address = args.get("ip_address")
     user_guid = args["user_guid"]
+    provider = args["provider"]
 
     async with transaction() as cur:
+      await cur.execute(
+        "SELECT recid FROM auth_providers WHERE element_name = ?;",
+        (provider,),
+      )
+      row = await cur.fetchone()
+      if not row:
+        raise ValueError(f"Unknown auth provider: {provider}")
+      provider_recid = row[0]
+
       await cur.execute(
         "SELECT element_guid FROM users_sessions WHERE users_guid = ?;",
         (user_guid,),
       )
       row = await cur.fetchone()
       if row:
-        session_guid = row["element_guid"]
+        session_guid = row[0]
         await cur.execute(
           "UPDATE users_sessions SET element_created_at = SYSDATETIMEOFFSET() WHERE users_guid = ?;",
           (user_guid,),
@@ -428,11 +438,20 @@ async def _auth_session_create_session(args: Dict[str, Any]):
       await cur.execute(
         """
           INSERT INTO sessions_devices (
-            element_guid, sessions_guid, element_token, element_token_iat, element_token_exp,
+            element_guid, sessions_guid, providers_recid, element_token, element_token_iat, element_token_exp,
             element_device_fingerprint, element_user_agent, element_ip_last_seen
-          ) VALUES (?, ?, ?, SYSDATETIMEOFFSET(), ?, ?, ?, ?);
+          ) VALUES (?, ?, ?, ?, SYSDATETIMEOFFSET(), ?, ?, ?, ?);
         """,
-        (device_guid, session_guid, access_token, expires, fingerprint, user_agent, ip_address),
+        (
+          device_guid,
+          session_guid,
+          provider_recid,
+          access_token,
+          expires,
+          fingerprint,
+          user_agent,
+          ip_address,
+        ),
       )
 
     return {"rows": [{"session_guid": session_guid, "device_guid": device_guid}], "rowcount": 1}
@@ -445,6 +464,8 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
         device_guid,
         session_guid,
         user_guid,
+        providers_recid,
+        provider_name,
         session_created_at,
         element_token AS token,
         element_token_iat AS issued_at,

@@ -45,12 +45,16 @@ spec.loader.exec_module(registry_mod)
 
 def test_create_session_updates_existing(monkeypatch):
   executed: list[str] = []
+  fetch_calls: list[int] = []
 
   class DummyCur:
     async def execute(self, sql, params):
       executed.append(sql.lower())
     async def fetchone(self):
-      return {"element_guid": "sess"}
+      if not fetch_calls:
+        fetch_calls.append(1)
+        return (1,)
+      return ("sess",)
 
   @asynccontextmanager
   async def fake_tx():
@@ -65,6 +69,7 @@ def test_create_session_updates_existing(monkeypatch):
     "user_agent": None,
     "ip_address": None,
     "user_guid": "user",
+    "provider": "microsoft",
   }
   asyncio.run(handler(args))
   assert any("update users_sessions" in q for q in executed)

@@ -14,8 +14,9 @@ JOIN users_roles ur ON au.element_guid = ur.users_guid
 JOIN users_profileimg up ON au.element_guid = up.users_guid
 JOIN auth_providers ap ON au.providers_recid = ap.recid
 JOIN sessions_devices sd ON us.element_guid = sd.sessions_guid
+JOIN auth_providers ap2 ON sd.providers_recid = ap2.recid
 
-`users_sessions` records only map a user to a session identifier and creation time. Token data and device metadata live in `sessions_devices`, which references the session via `sessions_guid`.
+`users_sessions` records only map a user to a session identifier and creation time. Token data, device metadata, and the issuing provider live in `sessions_devices`, which references the session via `sessions_guid`.
 
 Note: `users_auth.element_identifier` is a `UNIQUEIDENTIFIER` and must be unique across all providers.
 
@@ -53,6 +54,8 @@ SELECT
     us.element_guid             AS session_guid,
     us.element_created_at       AS session_created_at,
     sd.element_guid             AS device_guid,
+    sd.providers_recid,
+    ap.element_name             AS provider_name,
     sd.element_token,
     sd.element_token_iat,
     sd.element_token_exp,
@@ -62,6 +65,7 @@ SELECT
     sd.element_ip_last_seen
 FROM account_users AS au
 JOIN users_sessions AS us ON au.element_guid = us.users_guid
-JOIN sessions_devices AS sd ON us.element_guid = sd.sessions_guid;
+JOIN sessions_devices AS sd ON us.element_guid = sd.sessions_guid
+JOIN auth_providers AS ap ON sd.providers_recid = ap.recid;
 ```
 
