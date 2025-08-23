@@ -111,7 +111,7 @@ const UserPage = (): JSX.Element => {
                         sx={{ alignItems: 'flex-end' }}
                     >
                         <FormControlLabel value='microsoft' control={<Radio />} label='Microsoft' />
-                        <FormControlLabel value='google' control={<Radio />} label='Google' disabled />
+                        <FormControlLabel value='google' control={<Radio />} label='Google' />
                         <FormControlLabel value='discord' control={<Radio />} label='Discord' disabled />
                         <FormControlLabel value='apple' control={<Radio />} label='Apple' disabled />
                     </RadioGroup>

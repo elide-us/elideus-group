@@ -113,6 +113,35 @@ class AuthModule(BaseModule):
         "profilePicture": profile_picture_base64,
       }
 
+  async def verify_google_id_token(self, id_token: str) -> Dict:
+    logging.debug("verify_google_id_token id_token=%s", id_token)
+    async with aiohttp.ClientSession() as session:
+      async with session.get(
+        "https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token}
+      ) as response:
+        if response.status != 200:
+          raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ID token.")
+        data = await response.json()
+    logging.debug("verify_google_id_token payload=%s", data)
+    return data
+
+  async def fetch_google_user_profile(self, access_token: str) -> Dict:
+    logging.debug("fetch_google_user_profile access_token=%s", access_token)
+    async with aiohttp.ClientSession() as session:
+      headers = {"Authorization": f"Bearer {access_token}"}
+      async with session.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo", headers=headers
+      ) as response:
+        if response.status != 200:
+          error_message = await response.text()
+          raise HTTPException(status_code=500, detail=f"Failed to fetch user profile. Status: {response.status}, Error: {error_message}")
+        user = await response.json()
+    return {
+      "email": user.get("email"),
+      "username": user.get("name"),
+      "profilePicture": user.get("picture"),
+    }
+
   async def handle_auth_login(self, provider: str, id_token: str, access_token: str):
     logging.debug(
       "handle_auth_login provider=%s id_token=%s access_token=%s",
@@ -126,6 +155,14 @@ class AuthModule(BaseModule):
       if not guid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
       profile = await self.fetch_ms_user_profile(access_token)
+      logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
+      return guid, profile
+    if provider == "google":
+      payload = await self.verify_google_id_token(id_token)
+      guid = payload.get("sub")
+      if not guid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload.")
+      profile = await self.fetch_google_user_profile(access_token)
       logging.info(f"Processing login for: {profile['username']}, {profile['email']}")
       return guid, profile
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")

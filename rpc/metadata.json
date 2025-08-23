@@ -113,6 +113,10 @@
       "capabilities": 0
     },
     {
+      "op": "urn:auth:google:user_login:1",
+      "capabilities": 0
+    },
+    {
       "op": "urn:auth:microsoft:user_login:1",
       "capabilities": 0
     },

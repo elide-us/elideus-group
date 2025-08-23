@@ -105,7 +105,7 @@ class MSSQLProvider(BaseModule, DatabaseProvider):
       JOIN users_auth ua ON ua.users_guid = u.element_guid
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
       LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
-      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
+      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid AND upi.providers_recid = ua.providers_recid
       WHERE ap.element_name = ? AND ua.element_identifier = ?;
     """
     result = await self._fetch_one(query, provider, provider_user_id)
@@ -169,9 +169,9 @@ class MSSQLProvider(BaseModule, DatabaseProvider):
         upi.element_base64 AS profile_image
       FROM account_users u
       LEFT JOIN users_credits uc ON uc.users_guid = u.element_guid
-      LEFT JOIN users_auth ua ON ua.users_guid = u.element_guid
+      LEFT JOIN users_auth ua ON ua.users_guid = u.element_guid AND ua.providers_recid = u.providers_recid
       LEFT JOIN auth_providers ap ON ap.recid = ua.providers_recid
-      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid
+      LEFT JOIN users_profileimg upi ON upi.users_guid = u.element_guid AND upi.providers_recid = u.providers_recid
       LEFT JOIN users_sessions us ON us.users_guid = u.element_guid
       WHERE u.element_guid = ?
       LIMIT 1;
@@ -389,9 +389,17 @@ class MSSQLProvider(BaseModule, DatabaseProvider):
   async def delete_session(self, session_id: str):
     await self._run("DELETE FROM users_sessions WHERE element_guid=?", session_id)
 
-  async def get_user_profile_image(self, guid: str) -> str | None:
-    query = "SELECT element_base64 FROM users_profileimg WHERE users_guid=?;"
-    row = await self._fetch_one(query, guid)
+  async def get_user_profile_image(self, guid: str, provider: str | None = None) -> str | None:
+    if provider:
+      query = (
+        "SELECT upi.element_base64 FROM users_profileimg upi "
+        "JOIN auth_providers ap ON ap.recid = upi.providers_recid "
+        "WHERE upi.users_guid=? AND ap.element_name=?;"
+      )
+      row = await self._fetch_one(query, guid, provider)
+    else:
+      query = "SELECT element_base64 FROM users_profileimg WHERE users_guid=?;"
+      row = await self._fetch_one(query, guid)
     if row:
       return row.get('element_base64')
     return None
