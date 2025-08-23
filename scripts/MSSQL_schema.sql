@@ -42,6 +42,7 @@ CREATE TABLE frontend_routes (
 CREATE TABLE sessions_devices (
     element_guid UNIQUEIDENTIFIER PRIMARY KEY,
     sessions_guid UNIQUEIDENTIFIER NOT NULL,
+    providers_recid INT NOT NULL,
     element_token NVARCHAR(MAX) NOT NULL,
     element_token_iat DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
     element_token_exp DATETIMEOFFSET NOT NULL,
@@ -50,6 +51,7 @@ CREATE TABLE sessions_devices (
     element_ip_last_seen NVARCHAR(64) NULL,
     element_revoked_at DATETIMEOFFSET NULL,
     FOREIGN KEY (sessions_guid) REFERENCES users_sessions(element_guid),
+    FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid),
     UNIQUE (sessions_guid)
 );
 

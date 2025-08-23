@@ -100,6 +100,7 @@ async def create_session(
       "user_agent": user_agent,
       "ip_address": ip_address,
       "user_guid": user_guid,
+      "provider": provider,
     },
   )
   return session_token, session_exp

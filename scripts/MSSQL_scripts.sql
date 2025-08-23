@@ -7,6 +7,7 @@ JOIN users_roles ur ON au.element_guid = ur.users_guid
 JOIN users_profileimg up ON au.element_guid = up.users_guid
 JOIN auth_providers ap ON au.providers_recid = ap.recid
 JOIN sessions_devices sd ON us.element_guid = sd.sessions_guid
+JOIN auth_providers apd ON sd.providers_recid = apd.recid
 
 
 -- DELETE JOINED RECORD --

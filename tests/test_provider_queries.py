@@ -77,7 +77,9 @@ def test_mssql_get_rotkey_uses_security_view():
 def test_mssql_get_by_access_token_uses_security_view():
   handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
   _, sql, _ = handler({"access_token": "tok"})
-  assert "vw_account_user_security" in sql.lower()
+  sql = sql.lower()
+  assert "vw_account_user_security" in sql
+  assert "providers_recid" in sql
 
 
 def test_fetch_rows_returns_empty_on_error(monkeypatch):
