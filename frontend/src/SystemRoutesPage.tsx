@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
+import EditBox from "./EditBox";
 import type {
 	SystemRoutesRouteItem1,
 	SystemRoutesList1,
@@ -127,52 +128,55 @@ const SystemRoutesPage = (): JSX.Element => {
                                                 <Fragment key={r.path}>
                                                         <TableRow sx={{ "& > *": { borderBottom: "none" } }}>
                                                                <TableCell>
-                                                                        <TextField
+                                                                        <EditBox
                                                                                 value={r.path}
-                                                                                onChange={(e) =>
+                                                                                onCommit={(val) =>
                                                                                         updateRoute(
                                                                                                 idx,
                                                                                                 "path",
-                                                                                                e.target.value,
+                                                                                                val,
                                                                                         )
                                                                                 }
+                                                                                width="100%"
                                                                         />
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                        <TextField
+                                                                        <EditBox
                                                                                 value={r.name}
-                                                                                onChange={(e) =>
+                                                                                onCommit={(val) =>
                                                                                         updateRoute(
                                                                                                 idx,
                                                                                                 "name",
-                                                                                                e.target.value,
+                                                                                                val,
                                                                                         )
                                                                                 }
+                                                                                width="100%"
                                                                         />
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                        <TextField
+                                                                        <EditBox
                                                                                 value={r.icon ?? ""}
-                                                                                onChange={(e) =>
+                                                                                onCommit={(val) =>
                                                                                         updateRoute(
                                                                                                 idx,
                                                                                                 "icon",
-                                                                                                e.target.value,
+                                                                                                val,
                                                                                         )
                                                                                 }
+                                                                                width="100%"
                                                                         />
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                        <TextField
-                                                                                type="number"
+                                                                        <EditBox
                                                                                 value={r.sequence}
-                                                                                onChange={(e) =>
+                                                                                onCommit={(val) =>
                                                                                         updateRoute(
                                                                                                 idx,
                                                                                                 "sequence",
-                                                                                                Number(e.target.value),
+                                                                                                val,
                                                                                         )
                                                                                 }
+                                                                                width="100%"
                                                                         />
                                                                 </TableCell>
                                                                 <TableCell>
