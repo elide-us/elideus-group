@@ -42,8 +42,7 @@ const EditBox = ({ value, onCommit, width = '100%' }: EditBoxProps): JSX.Element
 		return (
 				<>
 				<TextField
-				size='small'
-				sx={{ width, '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				sx={{ width }}
 				type={type}
 				value={internal}
 				onChange={(e) => {

@@ -10,8 +10,7 @@ import {
 		TextField,
 		IconButton,
 		Typography,
-} from "@mui/material";
-
+				} from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
 import EditBox from "./EditBox";
@@ -19,7 +18,7 @@ import type {
 	SystemRoutesRouteItem1,
 	SystemRoutesList1,
 		ServiceRolesRoles1,
-} from "./shared/RpcModels";
+				} from "./shared/RpcModels";
 import {
 	fetchRoutes,
 	fetchUpsertRoute,
@@ -185,10 +184,9 @@ const SystemRoutesPage = (): JSX.Element => {
 										))}
 										<TableRow>
 												<TableCell sx={{ width: '30%' }}>
-				<TextField
-				size='small'
-				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
-				value={newRoute.path}
+<TextField
+sx={{ width: '95%' }}
+value={newRoute.path}
 				onChange={(e) =>
 				setNewRoute({
 					...newRoute,
@@ -199,9 +197,8 @@ const SystemRoutesPage = (): JSX.Element => {
 												</TableCell>
 												<TableCell sx={{ width: '30%' }}>
 <TextField
-				size='small'
-				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
-				value={newRoute.name}
+sx={{ width: '95%' }}
+value={newRoute.name}
 				onChange={(e) =>
 				setNewRoute({
 					...newRoute,
@@ -212,9 +209,8 @@ const SystemRoutesPage = (): JSX.Element => {
 												</TableCell>
 												<TableCell sx={{ width: '20%' }}>
 <TextField
-				size='small'
-				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
-				value={newRoute.icon ?? ''}
+sx={{ width: '95%' }}
+value={newRoute.icon ?? ''}
 				onChange={(e) =>
 				setNewRoute({
 					...newRoute,
@@ -225,10 +221,9 @@ const SystemRoutesPage = (): JSX.Element => {
 												</TableCell>
 												<TableCell sx={{ width: '15%' }}>
 <TextField
-				size='small'
-				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+sx={{ width: '95%' }}
 type="number"
-				value={newRoute.sequence}
+value={newRoute.sequence}
 				onChange={(e) =>
 				setNewRoute({
 					...newRoute,
