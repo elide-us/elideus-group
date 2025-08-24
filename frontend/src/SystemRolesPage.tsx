@@ -141,10 +141,12 @@ const SystemRolesPage = (): JSX.Element => {
       <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
         <TableHead>
           <TableRow>
-            <TableCell>Mask</TableCell>
-            <TableCell>Name</TableCell>
-            <TableCell>Display</TableCell>
-            <TableCell />
+            <TableCell sx={{ width: '20%' }}>Mask</TableCell>
+            <TableCell sx={{ width: '25%' }}>Name</TableCell>
+            <TableCell sx={{ width: '25%' }}>Display</TableCell>
+            <TableCell sx={{ width: '10%' }} />
+            <TableCell sx={{ width: '10%' }} />
+            <TableCell sx={{ width: '10%' }} />
           </TableRow>
         </TableHead>
         <TableBody>
@@ -152,36 +154,40 @@ const SystemRolesPage = (): JSX.Element => {
             const bit = maskToBit(BigInt(i.mask));
             return (
               <TableRow key={i.name}>
-                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
-                  <TextField sx={{ width: '95%' }} value={i.mask} disabled />
+                <TableCell sx={{ width: '20%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                  <TextField sx={{ width: '100%' }} value={i.mask} disabled />
                 </TableCell>
-                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
                   <EditBox
-                    width="95%"
+                    width="100%"
                     value={i.name}
-                    onCommit={(val) => updateItem(idx, "name", String(val))}
+                    onCommit={(val) => updateItem(idx, 'name', String(val))}
                   />
                 </TableCell>
-                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
                   <EditBox
-                    width="95%"
-                    value={i.display ?? ""}
-                    onCommit={(val) => updateItem(idx, "display", String(val))}
+                    width="100%"
+                    value={i.display ?? ''}
+                    onCommit={(val) => updateItem(idx, 'display', String(val))}
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ width: '10%' }}>
                   <IconButton
                     onClick={() => void move(idx, -1)}
                     disabled={bit === 0}
                   >
                     <ArrowUpward />
                   </IconButton>
+                </TableCell>
+                <TableCell sx={{ width: '10%' }}>
                   <IconButton
                     onClick={() => void move(idx, 1)}
                     disabled={bit === 63}
                   >
                     <ArrowDownward />
                   </IconButton>
+                </TableCell>
+                <TableCell sx={{ width: '10%' }}>
                   <IconButton onClick={() => void handleDelete(i.name)}>
                     <Delete />
                   </IconButton>
@@ -190,12 +196,12 @@ const SystemRolesPage = (): JSX.Element => {
             );
           })}
           <TableRow>
-            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
-              <TextField sx={{ width: '95%' }} value="" disabled />
+            <TableCell sx={{ width: '20%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+              <TextField sx={{ width: '100%' }} value="" disabled />
             </TableCell>
-            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+            <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
               <TextField
-                sx={{ width: '95%' }}
+                sx={{ width: '100%' }}
                 value={newItem.name}
                 onChange={(e) =>
                   setNewItem({
@@ -205,10 +211,10 @@ const SystemRolesPage = (): JSX.Element => {
                 }
               />
             </TableCell>
-            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+            <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
               <TextField
-                sx={{ width: '95%' }}
-                value={newItem.display ?? ""}
+                sx={{ width: '100%' }}
+                value={newItem.display ?? ''}
                 onChange={(e) =>
                   setNewItem({
                     ...newItem,
@@ -217,7 +223,9 @@ const SystemRolesPage = (): JSX.Element => {
                 }
               />
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ width: '10%' }} />
+            <TableCell sx={{ width: '10%' }} />
+            <TableCell sx={{ width: '10%' }}>
               <IconButton onClick={() => void handleAdd()}>
                 <Add />
               </IconButton>
