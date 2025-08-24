@@ -11,6 +11,7 @@ import {
 		IconButton,
 		Typography,
 } from "@mui/material";
+
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
 import EditBox from "./EditBox";
@@ -23,7 +24,7 @@ import {
 	fetchRoutes,
 	fetchUpsertRoute,
 	fetchDeleteRoute,
-} from "./rpc/system/routes";
+				} from "./rpc/system/routes";
 import { fetchRoles } from "./rpc/service/roles";
 
 const SystemRoutesPage = (): JSX.Element => {
@@ -133,7 +134,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																				onCommit={(val) =>
 																						updateRoute(idx, 'path', val)
 																				}
-																				width="100%"
+																				width="95%"
 																		/>
 																</TableCell>
 																<TableCell sx={{ width: '30%' }}>
@@ -142,7 +143,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																				onCommit={(val) =>
 																						updateRoute(idx, 'name', val)
 																				}
-																				width="100%"
+																				width="95%"
 																		/>
 																</TableCell>
 																<TableCell sx={{ width: '20%' }}>
@@ -151,7 +152,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																				onCommit={(val) =>
 																						updateRoute(idx, 'icon', val)
 																				}
-																				width="100%"
+																				width="95%"
 																		/>
 																</TableCell>
 																<TableCell sx={{ width: '15%' }}>
@@ -160,7 +161,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																				onCommit={(val) =>
 																						updateRoute(idx, 'sequence', val)
 																				}
-																				width="100%"
+																				width="95%"
 																		/>
 																</TableCell>
 																<TableCell sx={{ width: '5%' }}>
@@ -184,53 +185,57 @@ const SystemRoutesPage = (): JSX.Element => {
 										))}
 										<TableRow>
 												<TableCell sx={{ width: '30%' }}>
-														<TextField
-																sx={{ width: '100%' }}
-																value={newRoute.path}
-																onChange={(e) =>
-																		setNewRoute({
-																				...newRoute,
-																				path: e.target.value,
-																		})
-																}
-														/>
+				<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.path}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					path: e.target.value,
+				})
+				}
+			/>
 												</TableCell>
 												<TableCell sx={{ width: '30%' }}>
-														<TextField
-																sx={{ width: '100%' }}
-																value={newRoute.name}
-																onChange={(e) =>
-																		setNewRoute({
-																				...newRoute,
-																				name: e.target.value,
-																		})
-																}
-														/>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.name}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					name: e.target.value,
+				})
+				}
+			/>
 												</TableCell>
 												<TableCell sx={{ width: '20%' }}>
-														<TextField
-																sx={{ width: '100%' }}
-																value={newRoute.icon ?? ''}
-																onChange={(e) =>
-																		setNewRoute({
-																				...newRoute,
-																				icon: e.target.value,
-																		})
-																}
-														/>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.icon ?? ''}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					icon: e.target.value,
+				})
+				}
+			/>
 												</TableCell>
 												<TableCell sx={{ width: '15%' }}>
-														<TextField
-																sx={{ width: '100%' }}
-																type="number"
-																value={newRoute.sequence}
-																onChange={(e) =>
-																		setNewRoute({
-																				...newRoute,
-																				sequence: Number(e.target.value),
-																		})
-																}
-														/>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+type="number"
+				value={newRoute.sequence}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					sequence: Number(e.target.value),
+				})
+				}
+			/>
 												</TableCell>
 												<TableCell sx={{ width: '5%' }}>
 														<IconButton onClick={handleAdd}>
@@ -256,6 +261,6 @@ const SystemRoutesPage = (): JSX.Element => {
 						</Table>
 		</Box>
 	);
-};
+				};
 
 export default SystemRoutesPage;

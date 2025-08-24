@@ -41,18 +41,19 @@ const EditBox = ({ value, onCommit, width = '100%' }: EditBoxProps): JSX.Element
 
 		return (
 				<>
-						<TextField
-								sx={{ width }}
-								type={type}
-								value={internal}
-								onChange={(e) => {
-										const target = e.target as HTMLInputElement;
-										const val = type === 'number' ? Number(target.value) : target.value;
-										setInternal(val);
-								}}
-								onKeyDown={handleKeyDown}
-								onBlur={handleBlur}
-						/>
+				<TextField
+				size='small'
+				sx={{ width, '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				type={type}
+				value={internal}
+				onChange={(e) => {
+					const target = e.target as HTMLInputElement;
+					const val = type === 'number' ? Number(target.value) : target.value;
+					setInternal(val);
+				}}
+				onKeyDown={handleKeyDown}
+				onBlur={handleBlur}
+			/>
 						<Notification
 								open={notify}
 								handleClose={handleClose}
@@ -61,7 +62,6 @@ const EditBox = ({ value, onCommit, width = '100%' }: EditBoxProps): JSX.Element
 						/>
 				</>
 		);
-
 };
 
 export default EditBox;
