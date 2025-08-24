@@ -154,17 +154,17 @@ const SystemRolesPage = (): JSX.Element => {
             const bit = maskToBit(BigInt(i.mask));
             return (
               <TableRow key={i.name}>
-                <TableCell sx={{ width: '20%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                <TableCell sx={{ width: '20%' }}>
                   <TextField sx={{ width: '100%' }} value={i.mask} disabled />
                 </TableCell>
-                <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                <TableCell sx={{ width: '25%' }}>
                   <EditBox
                     width="100%"
                     value={i.name}
                     onCommit={(val) => updateItem(idx, 'name', String(val))}
                   />
                 </TableCell>
-                <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                <TableCell sx={{ width: '25%' }}>
                   <EditBox
                     width="100%"
                     value={i.display ?? ''}
@@ -196,10 +196,10 @@ const SystemRolesPage = (): JSX.Element => {
             );
           })}
           <TableRow>
-            <TableCell sx={{ width: '20%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+            <TableCell sx={{ width: '20%' }}>
               <TextField sx={{ width: '100%' }} value="" disabled />
             </TableCell>
-            <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+            <TableCell sx={{ width: '25%' }}>
               <TextField
                 sx={{ width: '100%' }}
                 value={newItem.name}
@@ -211,7 +211,7 @@ const SystemRolesPage = (): JSX.Element => {
                 }
               />
             </TableCell>
-            <TableCell sx={{ width: '25%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+            <TableCell sx={{ width: '25%' }}>
               <TextField
                 sx={{ width: '100%' }}
                 value={newItem.display ?? ''}
