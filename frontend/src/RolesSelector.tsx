@@ -43,6 +43,7 @@ const RolesSelector = ({
                                         maxHeight,
                                         overflow: "auto",
                                         border: 1,
+                                        p: 0.25,
                                 }}
                         >
 				{available.map((role) => (
@@ -50,6 +51,11 @@ const RolesSelector = ({
 						key={role}
 						selected={left === role}
 						onClick={() => setLeft(role)}
+					sx={{
+						py: 0.25,
+						px: 0.5,
+						minHeight: 0,
+					}}
 					>
 						<ListItemText
 							primary={role}
@@ -76,6 +82,7 @@ const RolesSelector = ({
                                         maxHeight,
                                         overflow: "auto",
                                         border: 1,
+                                        p: 0.25,
                                 }}
                         >
 				{value.map((role) => (
@@ -83,6 +90,11 @@ const RolesSelector = ({
 						key={role}
 						selected={right === role}
 						onClick={() => setRight(role)}
+					sx={{
+						py: 0.25,
+						px: 0.5,
+						minHeight: 0,
+					}}
 					>
 						<ListItemText
 							primary={role}
