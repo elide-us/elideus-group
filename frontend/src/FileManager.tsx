@@ -13,6 +13,7 @@ import {
 	fetchDeleteFiles,
 	fetchSetGallery,
 } from './rpc/storage/files';
+import PageTitle from './PageTitle';
 
 interface StorageFile {
 	name: string;
@@ -69,7 +70,7 @@ const FileManager = (): JSX.Element => {
 
 	return (
 		<Box>
-			<h2>File Manager</h2>
+			<PageTitle>File Manager</PageTitle>
 			<input type="file" multiple onChange={handleUpload} />
 			<List>
 				{files.map((file) => (

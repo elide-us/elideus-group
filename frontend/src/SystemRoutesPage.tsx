@@ -1,16 +1,17 @@
 import { useEffect, useState, Fragment } from "react";
 import {
-		Box,
-		Divider,
-		Table,
-		TableHead,
-		TableRow,
-		TableCell,
-		TableBody,
-		TextField,
-		IconButton,
-		Typography,
-				} from "@mui/material";
+                Box,
+                Divider,
+                Table,
+                TableHead,
+                TableRow,
+                TableCell,
+                TableBody,
+                TextField,
+                IconButton,
+                Typography,
+                                } from "@mui/material";
+import PageTitle from "./PageTitle";
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
 import EditBox from "./EditBox";
@@ -111,7 +112,7 @@ const SystemRoutesPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2 }}>
-			<Typography variant="h5">System Routes</Typography>
+			<PageTitle>System Routes</PageTitle>
 			<Divider sx={{ mb: 2 }} />
 						<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
 								<TableHead>

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-	Box,
-	Table,
-	TableHead,
-	TableRow,
-	TableCell,
-	TableBody,
-	IconButton,
-	Typography,
+        Box,
+        Table,
+        TableHead,
+        TableRow,
+        TableCell,
+        TableBody,
+        IconButton,
+        Typography,
 } from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
 import EditBox from "./EditBox";
@@ -21,6 +21,7 @@ import {
 	fetchDeleteConfig,
 } from "./rpc/system/config";
 import Notification from "./Notification";
+import PageTitle from "./PageTitle";
 
 const SystemConfigPage = (): JSX.Element => {
 	const [items, setItems] = useState<SystemConfigConfigItem1[]>([]);
@@ -87,12 +88,12 @@ const SystemConfigPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2 }}>
-			<Typography variant="h5">System Configuration</Typography>
+			<PageTitle>System Configuration</PageTitle>
 			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-                        <TableHead>
-                                <TableRow>
-                                        <TableCell sx={{ width: "30%" }}>Key</TableCell>
-                                        <TableCell sx={{ width: "60%" }}>Value</TableCell>
+			<TableHead>
+				<TableRow>
+					<TableCell sx={{ width: "30%" }}>Key</TableCell>
+					<TableCell sx={{ width: "60%" }}>Value</TableCell>
                                         <TableCell sx={{ width: "10%" }} />
                                 </TableRow>
                         </TableHead>
