@@ -124,8 +124,8 @@ const SystemRoutesPage = (): JSX.Element => {
         </TableHead>
       <TableBody>
                                         {routes.map((r, idx) => (
-                                                <>
-                                                        <TableRow key={r.path}>
+                                                <Fragment key={r.path}>
+                                                        <TableRow>
                                                                 <TableCell>
                                                                         <TextField
                                                                                 value={r.path}
@@ -198,7 +198,7 @@ const SystemRoutesPage = (): JSX.Element => {
                                                                         />
                                                                 </TableCell>
                                                         </TableRow>
-                                                </>
+                                                </Fragment>
                                         ))}
                                         <TableRow>
                                                 <TableCell>
