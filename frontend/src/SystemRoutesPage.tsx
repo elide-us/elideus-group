@@ -170,7 +170,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																</TableCell>
 														</TableRow>
 														<TableRow>
-																<TableCell colSpan={5}>
+																<TableCell colSpan={4}>
 																		<RolesSelector
 																				allRoles={roleNames}
 																				value={r.required_roles}
@@ -179,6 +179,7 @@ const SystemRoutesPage = (): JSX.Element => {
 																				}
 																		/>
 																</TableCell>
+																<TableCell sx={{ width: '5%' }} />
 														</TableRow>
 												</Fragment>
 										))}
@@ -239,7 +240,7 @@ value={newRoute.sequence}
 												</TableCell>
 										</TableRow>
 										<TableRow>
-												<TableCell colSpan={5}>
+												<TableCell colSpan={4}>
 														<RolesSelector
 																allRoles={roleNames}
 																value={newRoute.required_roles}
@@ -251,6 +252,7 @@ value={newRoute.sequence}
 																}
 														/>
 												</TableCell>
+												<TableCell sx={{ width: '5%' }} />
 										</TableRow>
 								</TableBody>
 						</Table>
