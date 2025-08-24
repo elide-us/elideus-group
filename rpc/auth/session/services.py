@@ -128,6 +128,7 @@ async def auth_session_get_token_v1(request: Request):
       "user_agent": user_agent,
       "ip_address": ip_address,
       "user_guid": user_guid,
+      "provider": provider,
     },
   )
 

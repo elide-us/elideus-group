@@ -131,7 +131,10 @@ def test_fetch_user_after_create(monkeypatch):
   assert isinstance(resp, RPCResponse)
   calls = [op for op, _ in req.app.state.db.calls if op == "urn:users:providers:get_by_provider_identifier:1"]
   assert len(calls) == 2
-  assert any(op == "db:auth:session:create_session:1" for op, _ in req.app.state.db.calls)
+  assert any(
+    op == "db:auth:session:create_session:1" and args.get("provider") == "google"
+    for op, args in req.app.state.db.calls
+  )
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert any(
     op == "urn:users:providers:create_from_provider:1" and args["provider_identifier"] == expected

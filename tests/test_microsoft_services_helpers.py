@@ -106,4 +106,6 @@ def test_create_session_handles_missing_roles():
   assert token == "sess"
   ops = [op for op, _ in db.calls]
   assert "db:auth:session:create_session:1" in ops
+  args = [a for op, a in db.calls if op == "db:auth:session:create_session:1"][0]
+  assert args["provider"] == "microsoft"
 
