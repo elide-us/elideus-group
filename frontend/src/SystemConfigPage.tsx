@@ -10,7 +10,6 @@ import {
 	Typography,
 } from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
-import TextField from "@mui/material/TextField";
 import EditBox from "./EditBox";
 import type {
 	SystemConfigConfigItem1,
@@ -90,54 +89,54 @@ const SystemConfigPage = (): JSX.Element => {
 		<Box sx={{ p: 2 }}>
 			<Typography variant="h5">System Configuration</Typography>
 			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-				<TableHead>
-					<TableRow>
-						<TableCell sx={{ width: "30%" }}>Key</TableCell>
-						<TableCell sx={{ width: "30%" }}>Value</TableCell>
-						<TableCell sx={{ width: "40%" }} />
-					</TableRow>
-				</TableHead>
+                        <TableHead>
+                                <TableRow>
+                                        <TableCell sx={{ width: "30%" }}>Key</TableCell>
+                                        <TableCell sx={{ width: "60%" }}>Value</TableCell>
+                                        <TableCell sx={{ width: "10%" }} />
+                                </TableRow>
+                        </TableHead>
 				<TableBody>
-					{items.map((i, idx) => (
-						<TableRow key={i.key}>
-							<TableCell sx={{ width: "30%" }}>
-								<EditBox
-									value={i.key}
-									onCommit={(v) => updateItem(idx, "key", String(v))}
-								/>
-							</TableCell>
-							<TableCell sx={{ width: "30%" }}>
-								<EditBox
-									value={i.value}
-									onCommit={(v) => updateItem(idx, "value", String(v))}
-								/>
-							</TableCell>
-							<TableCell sx={{ width: "40%", pl: 0 }}>
-								<IconButton onClick={() => void handleDelete(i.key)}>
-									<Delete />
-								</IconButton>
-							</TableCell>
-						</TableRow>
-					))}
-					<TableRow>
-						<TableCell sx={{ width: "30%" }}>
-							<TextField
-								value={newItem.key}
-								onChange={(e) => setNewItem({ ...newItem, key: e.target.value })}
-							/>
-						</TableCell>
-						<TableCell sx={{ width: "30%" }}>
-							<TextField
-								value={newItem.value}
-								onChange={(e) => setNewItem({ ...newItem, value: e.target.value })}
-							/>
-						</TableCell>
-						<TableCell sx={{ width: "40%", pl: 0 }}>
-							<IconButton onClick={() => void handleAdd()}>
-								<Add />
-							</IconButton>
-						</TableCell>
-					</TableRow>
+                                        {items.map((i, idx) => (
+                                                <TableRow key={i.key}>
+                                                        <TableCell sx={{ width: "30%" }}>
+                                                                <EditBox
+                                                                        value={i.key}
+                                                                        onCommit={(v) => updateItem(idx, "key", String(v))}
+                                                                />
+                                                        </TableCell>
+                                                        <TableCell sx={{ width: "60%" }}>
+                                                                <EditBox
+                                                                        value={i.value}
+                                                                        onCommit={(v) => updateItem(idx, "value", String(v))}
+                                                                />
+                                                        </TableCell>
+                                                        <TableCell sx={{ width: "10%", pl: 0 }}>
+                                                                <IconButton onClick={() => void handleDelete(i.key)}>
+                                                                        <Delete />
+                                                                </IconButton>
+                                                        </TableCell>
+                                                </TableRow>
+                                        ))}
+                                        <TableRow>
+                                                <TableCell sx={{ width: "30%" }}>
+                                                        <EditBox
+                                                                value={newItem.key}
+                                                                onCommit={(v) => setNewItem({ ...newItem, key: String(v) })}
+                                                        />
+                                                </TableCell>
+                                                <TableCell sx={{ width: "60%" }}>
+                                                        <EditBox
+                                                                value={newItem.value}
+                                                                onCommit={(v) => setNewItem({ ...newItem, value: String(v) })}
+                                                        />
+                                                </TableCell>
+                                                <TableCell sx={{ width: "10%", pl: 0 }}>
+                                                        <IconButton onClick={() => void handleAdd()}>
+                                                                <Add />
+                                                        </IconButton>
+                                                </TableCell>
+                                        </TableRow>
 				</TableBody>
 			</Table>
 			<Notification
