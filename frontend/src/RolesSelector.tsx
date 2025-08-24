@@ -51,7 +51,13 @@ const RolesSelector = ({
 						selected={left === role}
 						onClick={() => setLeft(role)}
 					>
-						<ListItemText primary={role} />
+						<ListItemText
+							primary={role}
+							primaryTypographyProps={{
+								fontFamily: "monospace",
+								variant: "body2",
+							}}
+						/>
 					</ListItemButton>
 				))}
 			</List>
@@ -78,7 +84,13 @@ const RolesSelector = ({
 						selected={right === role}
 						onClick={() => setRight(role)}
 					>
-						<ListItemText primary={role} />
+						<ListItemText
+							primary={role}
+							primaryTypographyProps={{
+								fontFamily: "monospace",
+								variant: "body2",
+							}}
+						/>
 					</ListItemButton>
 				))}
 			</List>
