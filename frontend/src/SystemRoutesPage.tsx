@@ -1,28 +1,29 @@
 import { useEffect, useState, Fragment } from "react";
 import {
-        Box,
-        Divider,
-        Table,
-        TableHead,
-        TableRow,
-        TableCell,
-        TableBody,
-        TextField,
-        IconButton,
-        Typography,
-} from "@mui/material";
+		Box,
+		Divider,
+		Table,
+		TableHead,
+		TableRow,
+		TableCell,
+		TableBody,
+		TextField,
+		IconButton,
+		Typography,
+				} from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
+import EditBox from "./EditBox";
 import type {
 	SystemRoutesRouteItem1,
 	SystemRoutesList1,
-        ServiceRolesRoles1,
-} from "./shared/RpcModels";
+		ServiceRolesRoles1,
+				} from "./shared/RpcModels";
 import {
 	fetchRoutes,
 	fetchUpsertRoute,
 	fetchDeleteRoute,
-} from "./rpc/system/routes";
+				} from "./rpc/system/routes";
 import { fetchRoles } from "./rpc/service/roles";
 
 const SystemRoutesPage = (): JSX.Element => {
@@ -50,7 +51,7 @@ const SystemRoutesPage = (): JSX.Element => {
 						}
 				}
 				try {
-                                                const roles: ServiceRolesRoles1 = await fetchRoles();
+												const roles: ServiceRolesRoles1 = await fetchRoles();
 						setRoleNames(roles.roles);
 						console.debug("[SystemRoutesPage] loaded roles");
 				} catch (e: any) {
@@ -98,176 +99,167 @@ const SystemRoutesPage = (): JSX.Element => {
 		if (!newRoute.path) return;
 				console.debug("[SystemRoutesPage] adding route", newRoute);
 				await fetchUpsertRoute(newRoute);
-                setNewRoute({
-                                path: "",
-                                name: "",
-                                icon: "",
-                                sequence: 0,
-                                required_roles: [],
-                });
-                void load();
-        };
+				setNewRoute({
+								path: "",
+								name: "",
+								icon: "",
+								sequence: 0,
+								required_roles: [],
+				});
+				void load();
+		};
 
 	return (
 		<Box sx={{ p: 2 }}>
 			<Typography variant="h5">System Routes</Typography>
 			<Divider sx={{ mb: 2 }} />
-			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-				<TableHead>
-					<TableRow>
-            <TableCell>Path</TableCell>
-            <TableCell>Name</TableCell>
-            <TableCell>Icon</TableCell>
-            <TableCell>Sequence</TableCell>
-            <TableCell />
-          </TableRow>
-        </TableHead>
-      <TableBody>
-                                        {routes.map((r, idx) => (
-                                                <Fragment key={r.path}>
-                                                        <TableRow sx={{ "& > *": { borderBottom: "none" } }}>
-                                                               <TableCell>
-                                                                        <TextField
-                                                                                value={r.path}
-                                                                                onChange={(e) =>
-                                                                                        updateRoute(
-                                                                                                idx,
-                                                                                                "path",
-                                                                                                e.target.value,
-                                                                                        )
-                                                                                }
-                                                                        />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                        <TextField
-                                                                                value={r.name}
-                                                                                onChange={(e) =>
-                                                                                        updateRoute(
-                                                                                                idx,
-                                                                                                "name",
-                                                                                                e.target.value,
-                                                                                        )
-                                                                                }
-                                                                        />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                        <TextField
-                                                                                value={r.icon ?? ""}
-                                                                                onChange={(e) =>
-                                                                                        updateRoute(
-                                                                                                idx,
-                                                                                                "icon",
-                                                                                                e.target.value,
-                                                                                        )
-                                                                                }
-                                                                        />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                        <TextField
-                                                                                type="number"
-                                                                                value={r.sequence}
-                                                                                onChange={(e) =>
-                                                                                        updateRoute(
-                                                                                                idx,
-                                                                                                "sequence",
-                                                                                                Number(e.target.value),
-                                                                                        )
-                                                                                }
-                                                                        />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                        <IconButton
-                                                                                onClick={() => handleDelete(r.path)}
-                                                                        >
-                                                                                <Delete />
-                                                                        </IconButton>
-                                                                </TableCell>
-                                                        </TableRow>
-                                                        <TableRow>
-                                                                <TableCell colSpan={5}>
-                                                                        <RolesSelector
-                                                                                allRoles={roleNames}
-                                                                                value={r.required_roles}
-                                                                                onChange={(roles) =>
-                                                                                        void updateRoute(
-                                                                                                idx,
-                                                                                                "required_roles",
-                                                                                                roles,
-                                                                                        )
-                                                                                }
-                                                                        />
-                                                                </TableCell>
-                                                        </TableRow>
-                                                </Fragment>
-                                        ))}
-                                        <TableRow>
-                                                <TableCell>
-                                                        <TextField
-								value={newRoute.path}
-								onChange={(e) =>
-									setNewRoute({
-										...newRoute,
-										path: e.target.value,
-									})
-								}
-							/>
-						</TableCell>
-						<TableCell>
-							<TextField
-								value={newRoute.name}
-								onChange={(e) =>
-									setNewRoute({
-										...newRoute,
-										name: e.target.value,
-									})
-								}
-							/>
-						</TableCell>
-						<TableCell>
-							<TextField
-								value={newRoute.icon ?? ""}
-								onChange={(e) =>
-									setNewRoute({
-										...newRoute,
-										icon: e.target.value,
-									})
-								}
-							/>
-						</TableCell>
-						<TableCell>
-							<TextField
-								type="number"
-								value={newRoute.sequence}
-								onChange={(e) =>
-									setNewRoute({
-										...newRoute,
-										sequence: Number(e.target.value),
-									})
-								}
-							/>
-						</TableCell>
-                  <TableCell>
-                          <RolesSelector
-                                  allRoles={roleNames}
-                                  value={newRoute.required_roles}
-                                  onChange={(roles) =>
-                                          setNewRoute({
-                                                  ...newRoute,
-                                                  required_roles: roles,
-                                          })
-                                  }
-                          />
-                  </TableCell>
-                  <TableCell>
-                          <IconButton onClick={handleAdd}>
-                                  <Add />
-                          </IconButton>
-                  </TableCell>
-          </TableRow>
-				</TableBody>
-			</Table>
+						<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
+								<TableHead>
+										<TableRow>
+												<TableCell sx={{ width: '30%' }}>Path</TableCell>
+												<TableCell sx={{ width: '30%' }}>Name</TableCell>
+												<TableCell sx={{ width: '20%' }}>Icon</TableCell>
+												<TableCell sx={{ width: '15%' }}>Sequence</TableCell>
+												<TableCell sx={{ width: '5%' }} />
+										</TableRow>
+								</TableHead>
+								<TableBody>
+										{routes.map((r, idx) => (
+												<Fragment key={r.path}>
+														<TableRow sx={{ "& > *": { borderBottom: 'none' } }}>
+																<TableCell sx={{ width: '30%' }}>
+																		<EditBox
+																				value={r.path}
+																				onCommit={(val) =>
+																						updateRoute(idx, 'path', val)
+																				}
+																				width="95%"
+																		/>
+																</TableCell>
+																<TableCell sx={{ width: '30%' }}>
+																		<EditBox
+																				value={r.name}
+																				onCommit={(val) =>
+																						updateRoute(idx, 'name', val)
+																				}
+																				width="95%"
+																		/>
+																</TableCell>
+																<TableCell sx={{ width: '20%' }}>
+																		<EditBox
+																				value={r.icon ?? ''}
+																				onCommit={(val) =>
+																						updateRoute(idx, 'icon', val)
+																				}
+																				width="95%"
+																		/>
+																</TableCell>
+																<TableCell sx={{ width: '15%' }}>
+																		<EditBox
+																				value={r.sequence}
+																				onCommit={(val) =>
+																						updateRoute(idx, 'sequence', val)
+																				}
+																				width="95%"
+																		/>
+																</TableCell>
+																<TableCell sx={{ width: '5%' }}>
+																		<IconButton onClick={() => handleDelete(r.path)}>
+																				<Delete />
+																		</IconButton>
+																</TableCell>
+														</TableRow>
+														<TableRow>
+																<TableCell colSpan={5}>
+																		<RolesSelector
+																				allRoles={roleNames}
+																				value={r.required_roles}
+																				onChange={(roles) =>
+																						void updateRoute(idx, 'required_roles', roles)
+																				}
+																		/>
+																</TableCell>
+														</TableRow>
+												</Fragment>
+										))}
+										<TableRow>
+												<TableCell sx={{ width: '30%' }}>
+				<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.path}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					path: e.target.value,
+				})
+				}
+			/>
+												</TableCell>
+												<TableCell sx={{ width: '30%' }}>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.name}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					name: e.target.value,
+				})
+				}
+			/>
+												</TableCell>
+												<TableCell sx={{ width: '20%' }}>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+				value={newRoute.icon ?? ''}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					icon: e.target.value,
+				})
+				}
+			/>
+												</TableCell>
+												<TableCell sx={{ width: '15%' }}>
+<TextField
+				size='small'
+				sx={{ width: '95%', '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}
+type="number"
+				value={newRoute.sequence}
+				onChange={(e) =>
+				setNewRoute({
+					...newRoute,
+					sequence: Number(e.target.value),
+				})
+				}
+			/>
+												</TableCell>
+												<TableCell sx={{ width: '5%' }}>
+														<IconButton onClick={handleAdd}>
+																<Add />
+														</IconButton>
+												</TableCell>
+										</TableRow>
+										<TableRow>
+												<TableCell colSpan={5}>
+														<RolesSelector
+																allRoles={roleNames}
+																value={newRoute.required_roles}
+																onChange={(roles) =>
+																		setNewRoute({
+																				...newRoute,
+																				required_roles: roles,
+																		})
+																}
+														/>
+												</TableCell>
+										</TableRow>
+								</TableBody>
+						</Table>
 		</Box>
 	);
-};
+				};
 
 export default SystemRoutesPage;
