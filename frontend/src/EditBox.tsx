@@ -61,6 +61,7 @@ const EditBox = ({ value, onCommit, width = '100%' }: EditBoxProps): JSX.Element
 						/>
 				</>
 		);
+
 };
 
 export default EditBox;
