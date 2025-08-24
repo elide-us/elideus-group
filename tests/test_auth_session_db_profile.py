@@ -74,3 +74,7 @@ def test_auth_session_returns_db_profile(monkeypatch):
   profile = data["payload"]["profile"]
   assert profile["display_name"] == "DB"
   assert profile["email"] == "db@example.com"
+  assert any(
+    op == "db:auth:session:create_session:1" and args.get("provider") == "google"
+    for op, args in req.app.state.db.calls
+  )
