@@ -7,10 +7,11 @@ import {
   TableCell,
   TableBody,
   IconButton,
-  TextField,
   Typography,
 } from "@mui/material";
+import TextField from "@mui/material/TextField";
 import { Delete, Add, ArrowUpward, ArrowDownward } from "@mui/icons-material";
+import EditBox from "./EditBox";
 import type {
   SystemRolesRoleItem1,
   SystemRolesList1,
@@ -151,19 +152,21 @@ const SystemRolesPage = (): JSX.Element => {
             const bit = maskToBit(BigInt(i.mask));
             return (
               <TableRow key={i.name}>
-                <TableCell>
-                  <TextField value={i.mask} disabled />
+                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                  <TextField sx={{ width: '95%' }} value={i.mask} disabled />
                 </TableCell>
-                <TableCell>
-                  <TextField
+                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                  <EditBox
+                    width="95%"
                     value={i.name}
-                    onChange={(e) => updateItem(idx, "name", e.target.value)}
+                    onCommit={(val) => updateItem(idx, "name", String(val))}
                   />
                 </TableCell>
-                <TableCell>
-                  <TextField
+                <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+                  <EditBox
+                    width="95%"
                     value={i.display ?? ""}
-                    onChange={(e) => updateItem(idx, "display", e.target.value)}
+                    onCommit={(val) => updateItem(idx, "display", String(val))}
                   />
                 </TableCell>
                 <TableCell>
@@ -187,11 +190,12 @@ const SystemRolesPage = (): JSX.Element => {
             );
           })}
           <TableRow>
-            <TableCell>
-              <TextField value="" disabled />
+            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
+              <TextField sx={{ width: '95%' }} value="" disabled />
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
               <TextField
+                sx={{ width: '95%' }}
                 value={newItem.name}
                 onChange={(e) =>
                   setNewItem({
@@ -201,8 +205,9 @@ const SystemRolesPage = (): JSX.Element => {
                 }
               />
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '0.75rem', py: 0.5 } }}>
               <TextField
+                sx={{ width: '95%' }}
                 value={newItem.display ?? ""}
                 onChange={(e) =>
                   setNewItem({
