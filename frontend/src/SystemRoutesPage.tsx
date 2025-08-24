@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import {
         Box,
         Divider,
@@ -36,7 +36,6 @@ const SystemRoutesPage = (): JSX.Element => {
 		required_roles: [],
 	});
 		const [forbidden, setForbidden] = useState(false);
-
 		const load = async (): Promise<void> => {
 				try {
 						const res: SystemRoutesList1 = await fetchRoutes();
@@ -116,14 +115,14 @@ const SystemRoutesPage = (): JSX.Element => {
 			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
 				<TableHead>
 					<TableRow>
-                                                <TableCell>Path</TableCell>
-                                                <TableCell>Name</TableCell>
-                                                <TableCell>Icon</TableCell>
-                                                <TableCell>Sequence</TableCell>
-                                                <TableCell />
-                                        </TableRow>
-                                </TableHead>
-                                <TableBody>
+            <TableCell>Path</TableCell>
+            <TableCell>Name</TableCell>
+            <TableCell>Icon</TableCell>
+            <TableCell>Sequence</TableCell>
+            <TableCell />
+          </TableRow>
+        </TableHead>
+      <TableBody>
                                         {routes.map((r, idx) => (
                                                 <>
                                                         <TableRow key={r.path}>
@@ -247,24 +246,24 @@ const SystemRoutesPage = (): JSX.Element => {
 								}
 							/>
 						</TableCell>
-                                                <TableCell>
-                                                        <RolesSelector
-                                                                allRoles={roleNames}
-                                                                value={newRoute.required_roles}
-                                                                onChange={(roles) =>
-                                                                        setNewRoute({
-                                                                                ...newRoute,
-                                                                                required_roles: roles,
-                                                                        })
-                                                                }
-                                                        />
-                                                </TableCell>
-                                                <TableCell>
-                                                        <IconButton onClick={handleAdd}>
-                                                                <Add />
-                                                        </IconButton>
-                                                </TableCell>
-                                        </TableRow>
+                  <TableCell>
+                          <RolesSelector
+                                  allRoles={roleNames}
+                                  value={newRoute.required_roles}
+                                  onChange={(roles) =>
+                                          setNewRoute({
+                                                  ...newRoute,
+                                                  required_roles: roles,
+                                          })
+                                  }
+                          />
+                  </TableCell>
+                  <TableCell>
+                          <IconButton onClick={handleAdd}>
+                                  <Add />
+                          </IconButton>
+                  </TableCell>
+          </TableRow>
 				</TableBody>
 			</Table>
 		</Box>
