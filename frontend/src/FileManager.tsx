@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
 	Box,
 	Button,
@@ -8,12 +8,13 @@ import {
 	Stack,
 } from '@mui/material';
 import {
-	fetchFiles,
-	fetchUploadFiles,
-	fetchDeleteFiles,
-	fetchSetGallery,
+        fetchFiles,
+        fetchUploadFiles,
+        fetchDeleteFiles,
+        fetchSetGallery,
 } from './rpc/storage/files';
 import PageTitle from './PageTitle';
+import UserContext from './shared/UserContext';
 
 interface StorageFile {
 	name: string;
@@ -22,7 +23,8 @@ interface StorageFile {
 }
 
 const FileManager = (): JSX.Element => {
-	const [files, setFiles] = useState<StorageFile[]>([]);
+        const [files, setFiles] = useState<StorageFile[]>([]);
+        const { userData } = useContext(UserContext);
 
 	const load = async (): Promise<void> => {
 		try {
@@ -33,9 +35,13 @@ const FileManager = (): JSX.Element => {
 		}
 	};
 
-	useEffect(() => {
-		void load();
-	}, []);
+        useEffect(() => {
+                if (!userData) {
+                        setFiles([]);
+                        return;
+                }
+                void load();
+        }, [userData]);
 
 	const fileToUpload = (file: File): Promise<{ name: string; content_b64: string; content_type?: string }> => {
 		return new Promise((resolve, reject) => {
