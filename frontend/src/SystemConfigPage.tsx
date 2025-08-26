@@ -12,16 +12,17 @@ import {
 import { Delete, Add } from "@mui/icons-material";
 import EditBox from "./EditBox";
 import type {
-	SystemConfigConfigItem1,
-	SystemConfigList1,
+        SystemConfigConfigItem1,
+        SystemConfigList1,
 } from "./shared/RpcModels";
 import {
-	fetchConfigs,
-	fetchUpsertConfig,
-	fetchDeleteConfig,
+        fetchConfigs,
+        fetchUpsertConfig,
+        fetchDeleteConfig,
 } from "./rpc/system/config";
 import Notification from "./Notification";
 import PageTitle from "./PageTitle";
+import ColumnHeader from "./ColumnHeader";
 
 const SystemConfigPage = (): JSX.Element => {
 	const [items, setItems] = useState<SystemConfigConfigItem1[]>([]);
@@ -88,16 +89,16 @@ const SystemConfigPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2 }}>
-			<PageTitle>System Configuration</PageTitle>
-			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-			<TableHead>
-				<TableRow>
-					<TableCell sx={{ width: "30%" }}>Key</TableCell>
-					<TableCell sx={{ width: "60%" }}>Value</TableCell>
-                                        <TableCell sx={{ width: "10%" }} />
-                                </TableRow>
-                        </TableHead>
-				<TableBody>
+                        <PageTitle>System Configuration</PageTitle>
+                        <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
+                                <TableHead>
+                                        <TableRow>
+                                                <ColumnHeader sx={{ width: "30%" }}>Key</ColumnHeader>
+                                                <ColumnHeader sx={{ width: "60%" }}>Value</ColumnHeader>
+                                                <ColumnHeader sx={{ width: "10%" }} />
+                                        </TableRow>
+                                </TableHead>
+                                <TableBody>
                                         {items.map((i, idx) => (
                                                 <TableRow key={i.key}>
                                                         <TableCell sx={{ width: "30%" }}>

@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import { Delete, Add, ArrowUpward, ArrowDownward } from "@mui/icons-material";
 import EditBox from "./EditBox";
 import PageTitle from "./PageTitle";
+import ColumnHeader from "./ColumnHeader";
 import type {
 SystemRolesRoleItem1,
 SystemRolesList1,
@@ -138,19 +139,19 @@ setNotification(true);
 
 	return (
 		<Box sx={{ p: 2 }}>
-			<PageTitle>System Roles</PageTitle>
-			<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-	<TableHead>
-	<TableRow>
-	<TableCell sx={{ width: '20%' }}>Mask</TableCell>
-	<TableCell sx={{ width: '25%' }}>Name</TableCell>
-	<TableCell sx={{ width: '25%' }}>Display</TableCell>
-	<TableCell sx={{ width: '10%' }} />
-	<TableCell sx={{ width: '10%' }} />
-	<TableCell sx={{ width: '10%' }} />
-	</TableRow>
-	</TableHead>
-	<TableBody>
+                        <PageTitle>System Roles</PageTitle>
+                        <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
+        <TableHead>
+        <TableRow>
+        <ColumnHeader sx={{ width: '20%' }}>Mask</ColumnHeader>
+        <ColumnHeader sx={{ width: '25%' }}>Name</ColumnHeader>
+        <ColumnHeader sx={{ width: '25%' }}>Display</ColumnHeader>
+        <ColumnHeader sx={{ width: '10%' }} />
+        <ColumnHeader sx={{ width: '10%' }} />
+        <ColumnHeader sx={{ width: '10%' }} />
+        </TableRow>
+        </TableHead>
+        <TableBody>
 	{items.map((i, idx) => {
 	const bit = maskToBit(BigInt(i.mask));
 	return (
