@@ -15,6 +15,7 @@ import PageTitle from "./PageTitle";
 import { Delete, Add } from "@mui/icons-material";
 import RolesSelector from "./RolesSelector";
 import EditBox from "./EditBox";
+import ColumnHeader from "./ColumnHeader";
 import type {
 	SystemRoutesRouteItem1,
 	SystemRoutesList1,
@@ -112,19 +113,19 @@ const SystemRoutesPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2 }}>
-			<PageTitle>System Routes</PageTitle>
-			<Divider sx={{ mb: 2 }} />
-						<Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
-								<TableHead>
-										<TableRow>
-												<TableCell sx={{ width: '30%' }}>Path</TableCell>
-												<TableCell sx={{ width: '30%' }}>Name</TableCell>
-												<TableCell sx={{ width: '20%' }}>Icon</TableCell>
-												<TableCell sx={{ width: '15%' }}>Sequence</TableCell>
-												<TableCell sx={{ width: '5%' }} />
-										</TableRow>
-								</TableHead>
-								<TableBody>
+                        <PageTitle>System Routes</PageTitle>
+                        <Divider sx={{ mb: 2 }} />
+                        <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
+                                <TableHead>
+                                        <TableRow>
+                                                <ColumnHeader sx={{ width: '30%' }}>Path</ColumnHeader>
+                                                <ColumnHeader sx={{ width: '30%' }}>Name</ColumnHeader>
+                                                <ColumnHeader sx={{ width: '20%' }}>Icon</ColumnHeader>
+                                                <ColumnHeader sx={{ width: '15%' }}>Sequence</ColumnHeader>
+                                                <ColumnHeader sx={{ width: '5%' }} />
+                                        </TableRow>
+                                </TableHead>
+                                <TableBody>
 										{routes.map((r, idx) => (
 												<Fragment key={r.path}>
 														<TableRow sx={{ "& > *": { borderBottom: 'none' } }}>
