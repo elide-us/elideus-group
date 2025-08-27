@@ -7,7 +7,7 @@ from typing import Dict
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
-from server.modules.providers import AuthProvider
+from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
@@ -17,7 +17,7 @@ DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.providers: dict[str, AuthProvider] = {}
+    self.providers: dict[str, AuthProviderBase] = {}
     self.jwt_secret: str | None = None
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
@@ -42,7 +42,7 @@ class AuthModule(BaseModule):
         ms_api_id = await self.db.get_ms_api_id()
         logging.debug("[AuthModule] MsApiId=%s", ms_api_id)
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
-        await provider._get_jwks()
+        await provider.startup()
         self.providers["microsoft"] = provider
         logging.debug("[AuthModule] Microsoft provider ready")
       if "google" in providers_cfg:
@@ -50,7 +50,7 @@ class AuthModule(BaseModule):
         google_client_id = await self.db.get_google_client_id()
         logging.debug("[AuthModule] GoogleClientId=%s", google_client_id)
         provider = await GoogleAuthProvider.create(api_id=google_client_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
-        await provider._get_jwks()
+        await provider.startup()
         self.providers["google"] = provider
         logging.debug("[AuthModule] Google provider ready")
       await self.load_roles()
@@ -60,6 +60,8 @@ class AuthModule(BaseModule):
       logging.error(f"[AuthModule] Failed to load providers: {e}")
 
   async def shutdown(self):
+    for provider in self.providers.values():
+      await provider.shutdown()
     logging.info("Auth module shutdown")
 
 

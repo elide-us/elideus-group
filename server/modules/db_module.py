@@ -1,12 +1,14 @@
 """Database module loader."""
 
 from importlib import import_module
-from typing import Any, Dict, cast, Awaitable, Callable
+from typing import Any, Dict
+import inspect
 from fastapi import FastAPI
 import logging
 
 from . import BaseModule
 from .env_module import EnvModule
+from .providers import DbProviderBase
 from .providers.models import DBResult
 from server.helpers.logging import update_logging_level
 
@@ -16,8 +18,7 @@ class DbModule(BaseModule):
     super().__init__(app)
     self.provider: str = "mssql"
     self.debug_logging: bool = False
-    self._dispatch_executor: Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any] | DBResult]] | None = None
-    self._shutdown_executor: Callable[[], Awaitable[None]] | None = None
+    self._provider: DbProviderBase | None = None
 
   async def init(self, provider: str | None = None, **cfg):
     """Initialize database provider.
@@ -29,21 +30,23 @@ class DbModule(BaseModule):
     provider_name = provider or "mssql"
 
     try:
-      _module = import_module(f".providers.{provider_name}_provider", __package__)
+      module = import_module(f".providers.{provider_name}_provider", __package__)
     except ModuleNotFoundError as e:
       raise ValueError(f"Unsupported provider: {provider_name}") from e
 
-    if not hasattr(_module, "init") or not hasattr(_module, "dispatch"):
-      raise ValueError(f"Provider '{provider_name}' missing required interface")
+    provider_cls = None
+    for attr in module.__dict__.values():
+      if inspect.isclass(attr) and issubclass(attr, DbProviderBase):
+        provider_cls = attr
+        break
+    if not provider_cls:
+      raise ValueError(f"Provider '{provider_name}' missing DbProviderBase implementation")
 
-    provider_mod = cast(Any, _module)
-    await provider_mod.init(**cfg)
-    self._dispatch_executor = provider_mod.dispatch
-    self._shutdown_executor = getattr(provider_mod, "close_pool", None)
+    self._provider = provider_cls(**cfg)
 
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
-    assert self._dispatch_executor, "db_module not initialized"
-    out = await self._dispatch_executor(op, args)
+    assert self._provider, "db_module not initialized"
+    out = await self._provider.run(op, args)
     # normalize to DBResult
     if isinstance(out, DBResult):
       return out
@@ -57,6 +60,8 @@ class DbModule(BaseModule):
     if self.provider == "mssql":
       cfg = {"dsn": env.get("AZURE_SQL_CONNECTION_STRING")}
     await self.init(provider=self.provider, **cfg)
+    assert self._provider
+    await self._provider.startup()
     res = await self.run("db:system:config:get_config:1", {"key": "DebugLogging"})
     val = res.rows[0]["value"] if res.rows else ""
     self.debug_logging = str(val).lower() == "true"
@@ -64,9 +69,9 @@ class DbModule(BaseModule):
     self.mark_ready()
 
   async def shutdown(self):
-    if self._shutdown_executor:
-      await self._shutdown_executor()
-      self._shutdown_executor = None
+    if self._provider:
+      await self._provider.shutdown()
+      self._provider = None
 
   async def get_ms_api_id(self) -> str:
     res = await self.run("db:system:config:get_config:1", {"key": "MsApiId"})
