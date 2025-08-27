@@ -10,36 +10,42 @@ from server.modules.discord_module import DiscordModule
 from server.modules.auth_module import AuthModule
 from server.modules.permcap_module import PermCapModule
 from server.modules.mssql_provider import MSSQLProvider
+from server.modules import LifecycleProvider
 
 from server.helpers import roles as role_helper
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-  mssql_dsn = os.getenv("AZURE_SQL_CONNECTION_STRING")
-  app.state.mssql = MSSQLProvider(app, dsn=mssql_dsn)
-  await app.state.mssql.startup()
-
-  await role_helper.load_roles(app.state.mssql)
-
-  debug = await app.state.mssql.get_config_value("DebugLogging")
-  configure_root_logging(debug=str(debug).lower() in ["1", "true"])
-
   app.state.env = EnvironmentModule(app)
 
+  providers: list[LifecycleProvider] = []
+
+  mssql_dsn = os.getenv("AZURE_SQL_CONNECTION_STRING")
+  app.state.mssql = MSSQLProvider(app, dsn=mssql_dsn)
+  providers.append(app.state.mssql)
+
   app.state.storage = StorageModule(app)
-  await app.state.storage.startup()
+  providers.append(app.state.storage)
 
   app.state.discord = DiscordModule(app)
-  await app.state.discord.startup()
+  providers.append(app.state.discord)
 
   app.state.auth = AuthModule(app)
-  await app.state.auth.startup()
+  providers.append(app.state.auth)
 
   app.state.permcap = PermCapModule(app)
-  await app.state.permcap.startup()
+  providers.append(app.state.permcap)
+
+  for provider in providers:
+    await provider.startup()
+    if provider is app.state.mssql:
+      await role_helper.load_roles(app.state.mssql)
+      debug = await app.state.mssql.get_config_value("DebugLogging")
+      configure_root_logging(debug=str(debug).lower() in ["1", "true"])
 
   try:
     yield
   finally:
-    return
+    for provider in reversed(providers):
+      await provider.shutdown()
 

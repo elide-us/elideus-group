@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from typing import Dict, Optional
-from . import BaseModule
+from . import LifecycleProvider
 from .env_module import EnvironmentModule
 from .discord_module import DiscordModule
 from .database_provider import DatabaseProvider
@@ -24,7 +24,7 @@ async def fetch_ms_jwks(jwks_uri: str) -> Dict:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to fetch JWKS.")
       return await response.json()
 
-class AuthModule(BaseModule):
+class AuthModule(LifecycleProvider):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.ms_jwks: Optional[Dict] = None

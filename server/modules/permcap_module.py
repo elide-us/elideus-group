@@ -1,9 +1,9 @@
 import json, os
 from pathlib import Path
 from fastapi import FastAPI
-from . import BaseModule
+from . import LifecycleProvider
 
-class PermCapModule(BaseModule):
+class PermCapModule(LifecycleProvider):
   def __init__(self, app: FastAPI, metadata_file: str | None = None):
     super().__init__(app)
     root = Path(__file__).resolve().parents[1]

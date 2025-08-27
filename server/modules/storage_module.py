@@ -1,12 +1,12 @@
 from azure.storage.blob.aio import BlobServiceClient
 from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI
-from . import BaseModule
+from . import LifecycleProvider
 from .env_module import EnvironmentModule
 from .database_provider import DatabaseProvider
 import io, logging
 
-class StorageModule(BaseModule):
+class StorageModule(LifecycleProvider):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     try:

@@ -4,8 +4,9 @@ from server.modules.database_provider import DatabaseProvider
 from fastapi import FastAPI, Request
 from discord.ext import commands
 from server.helpers.logging import configure_discord_logging #, remove_discord_logging
+from . import LifecycleProvider
 
-class DiscordModule():
+class DiscordModule(LifecycleProvider):
   def __init__(self, app: FastAPI):
     self.app: FastAPI = app
     try:
@@ -94,9 +95,9 @@ class DiscordModule():
       except Exception as e:
         await ctx.send(f"Error: {e}")
 
-  # async def shutdown(self):
-  #   await self.bot.close()
-  #   if self.task:
-  #     self.task.cancel()
-  #   remove_discord_logging(self)
+  async def shutdown(self):
+    await self.bot.close()
+    if self.task:
+      self.task.cancel()
+    logging.info("Discord module shutdown")
 

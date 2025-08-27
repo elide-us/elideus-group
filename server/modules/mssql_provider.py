@@ -2,7 +2,7 @@ import json, aioodbc, logging
 from uuid import uuid4
 from datetime import datetime
 from fastapi import FastAPI
-from . import BaseModule
+from . import LifecycleProvider
 from .env_module import EnvironmentModule
 from .database_provider import DatabaseProvider, _utos
 
@@ -18,7 +18,7 @@ def _maybe_loads_json(data):
     return [_maybe_loads_json(v) for v in data]
   return data
 
-class MSSQLProvider(BaseModule, DatabaseProvider):
+class MSSQLProvider(LifecycleProvider, DatabaseProvider):
   def __init__(self, app: FastAPI, dsn: str | None = None):
     super().__init__(app)
     self.pool: aioodbc.pool.Pool | None = None
