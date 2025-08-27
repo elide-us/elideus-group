@@ -5,7 +5,7 @@ import sys
 import types
 from types import SimpleNamespace
 import uuid
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
 import pytest
@@ -136,8 +136,15 @@ def test_link_provider_google_normalizes_identifier():
   class DummyAuth:
     def __init__(self):
       provider = GoogleAuthProvider(api_id="client-id", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+
+      async def fake_fetch_jwks():
+        provider._jwks = {"keys": []}
+        provider._jwks_fetched_at = datetime.now(timezone.utc)
+
+      provider.fetch_jwks = fake_fetch_jwks
       asyncio.run(provider.startup())
       self.providers = {"google": provider}
+
     async def handle_auth_login(self, provider, id_token, access_token):
       return "google-id", {}, {}
 

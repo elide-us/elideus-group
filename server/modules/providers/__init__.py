@@ -36,7 +36,8 @@ class AuthProvider(AuthProviderBase):
     self._jwks_fetched_at: datetime | None = None
 
   async def startup(self) -> None:
-    pass
+    logging.debug("[AuthProvider] Startup initiating JWKS fetch")
+    await self._get_jwks()
 
   async def shutdown(self) -> None:
     pass

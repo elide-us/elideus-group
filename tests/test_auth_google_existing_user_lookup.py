@@ -19,6 +19,12 @@ class DummyAuth:
     return [], 0
   def __init__(self):
     provider = GoogleAuthProvider(api_id="gid", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+
+    async def fake_fetch_jwks():
+      provider._jwks = {"keys": []}
+      provider._jwks_fetched_at = datetime.now(timezone.utc)
+
+    provider.fetch_jwks = fake_fetch_jwks
     asyncio.run(provider.startup())
     self.providers = {"google": provider}
 
