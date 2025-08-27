@@ -1,25 +1,32 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Protocol
+from typing import Any, Dict
 
 import aiohttp
 from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from .models import DBResult
+from .base import (
+  BaseProvider,
+  LifecycleProvider,
+  AuthProviderBase,
+  DbProviderBase,
+)
 
-__all__ = ["AuthProvider", "Provider"]
+__all__ = [
+  "AuthProvider",
+  "BaseProvider",
+  "LifecycleProvider",
+  "AuthProviderBase",
+  "DbProviderBase",
+]
 
 
-class Provider(Protocol):
-  async def init(**cfg) -> None: ...
-  async def dispatch(op: str, args: Dict[str, Any]) -> Dict[str, Any] | DBResult: ...
-
-
-class AuthProvider:
+class AuthProvider(AuthProviderBase):
   def __init__(self, *, audience: str, issuer: str, jwks_uri: str, algorithm: str = "RS256", jwks_expiry: timedelta | None = None):
+    super().__init__()
     self.audience = audience
     self.issuer = issuer
     self.jwks_uri = jwks_uri
@@ -27,6 +34,12 @@ class AuthProvider:
     self.jwks_expiry = jwks_expiry or timedelta(hours=1)
     self._jwks: Dict[str, Any] | None = None
     self._jwks_fetched_at: datetime | None = None
+
+  async def startup(self) -> None:
+    pass
+
+  async def shutdown(self) -> None:
+    pass
 
   async def fetch_jwks(self):
     logging.debug("[AuthProvider] Fetching JWKS from %s", self.jwks_uri)
