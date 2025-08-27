@@ -7,7 +7,6 @@ import logging
 
 from . import BaseModule
 from .env_module import EnvModule
-from .providers import Provider
 from .providers.models import DBResult
 from server.helpers.logging import update_logging_level
 
@@ -37,7 +36,7 @@ class DbModule(BaseModule):
     if not hasattr(_module, "init") or not hasattr(_module, "dispatch"):
       raise ValueError(f"Provider '{provider_name}' missing required interface")
 
-    provider_mod = cast(Provider, _module)
+    provider_mod = cast(Any, _module)
     await provider_mod.init(**cfg)
     self._dispatch_executor = provider_mod.dispatch
     self._shutdown_executor = getattr(provider_mod, "close_pool", None)
