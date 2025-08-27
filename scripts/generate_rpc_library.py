@@ -12,43 +12,52 @@ sys.path.insert(0, REPO_ROOT)
 
 RPC_CALL_FUNC = [
   "export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {",
-  "    const request: RPCRequest = {",
-  "        op,",
-  "        payload,",
-  "        version: 1,",
-  "        timestamp: new Date().toISOString(),",
-  "        user_guid: null,",
-  "        roles: [],",
-  "        role_mask: 0",
-  "    };",
-  "    const headers: Record<string, string> = {};",
-  "    if (typeof localStorage !== 'undefined') {",
-  "        try {",
-  "            const raw = localStorage.getItem('authTokens');",
-  "            if (raw) {",
-  "                const { sessionToken } = JSON.parse(raw);",
-  "                if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;",
-  "            }",
-  "        } catch {",
-  "            /* ignore token parsing errors */",
-  "        }",
-  "    }",
-  "    try {",
-  "        const response = await axios.post<RPCResponse>('/rpc', request, { headers });",
-  "        return response.data.payload as T;",
-  "    } catch (err: any) {",
-  "        if (axios.isAxiosError(err) && err.response?.status === 401) {",
-  "            if (typeof localStorage !== 'undefined') {",
-  "                localStorage.removeItem('authTokens');",
-  "            }",
-  "            if (typeof window !== 'undefined') {",
-  "                window.dispatchEvent(new Event('sessionExpired'));",
-  "            }",
-  "        }",
-  "        throw err;",
-  "    }",
+  "\tconst request: RPCRequest = {",
+  "\top,",
+  "\tpayload,",
+  "\tversion: 1,",
+  "\ttimestamp: new Date().toISOString(),",
+  "\tuser_guid: null,",
+  "\troles: [],",
+  "\trole_mask: 0",
+  "\t};",
+  "\tconst headers: Record<string, string> = {};",
+  "\tif (typeof localStorage !== 'undefined') {",
+  "\t\ttry {",
+  "\t\t\tconst raw = localStorage.getItem('authTokens');",
+  "\t\t\tif (raw) {",
+  "\t\t\t\tconst { sessionToken } = JSON.parse(raw);",
+  "\t\t\t\tif (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;",
+  "\t\t\t}",
+  "\t\t} catch {",
+  "\t\t\t/* ignore token parsing errors */",
+  "\t\t}",
+  "\t}",
+  "\ttry {",
+  "\t\tconst response = await axios.post<RPCResponse>('/rpc', request, { headers });",
+  "\t\treturn response.data.payload as T;",
+  "\t} catch (err: any) {",
+  "\t\tif (axios.isAxiosError(err) && err.response?.status === 401) {",
+  "\t\t\tif (typeof localStorage !== 'undefined') {",
+  "\t\t\t\tlocalStorage.removeItem('authTokens');",
+  "\t\t\t}",
+  "\t\t\tif (typeof window !== 'undefined') {",
+  "\t\t\t\twindow.dispatchEvent(new Event('sessionExpired'));",
+  "\t\t\t}",
+  "\t\t}",
+  "\t\tthrow err;",
+  "\t}",
   "}",
 ]
+
+
+def to_tabs(text: str) -> str:
+  lines = []
+  for line in text.splitlines():
+    leading = len(line) - len(line.lstrip(' '))
+    tabs = "\t" * (leading // 2)
+    lines.append(tabs + line.lstrip(' '))
+  return "\n".join(lines)
 
 ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_SRC = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
@@ -68,7 +77,7 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> List[str]:
         continue
       print(f"🧩 Found model: {obj.__name__}")
       seen.add(obj.__name__)
-      interfaces.append(model_to_ts(obj))
+      interfaces.append(to_tabs(model_to_ts(obj)))
 
   return interfaces
 
