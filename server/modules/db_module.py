@@ -36,7 +36,12 @@ class DbModule(BaseModule):
 
     provider_cls = None
     for attr in module.__dict__.values():
-      if inspect.isclass(attr) and issubclass(attr, DbProviderBase):
+      if (
+        inspect.isclass(attr)
+        and issubclass(attr, DbProviderBase)
+        and attr is not DbProviderBase
+        and not inspect.isabstract(attr)
+      ):
         provider_cls = attr
         break
     if not provider_cls:
