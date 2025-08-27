@@ -1,11 +1,18 @@
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-import pathlib, sys, types
+import pathlib, sys, types, importlib.util
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Avoid importing rpc.__init__ which has side effects that trigger circular imports
 pkg = types.ModuleType('rpc')
-pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
+pkg.__path__ = [str(ROOT / 'rpc')]
 sys.modules.setdefault('rpc', pkg)
+
+spec_helpers = importlib.util.spec_from_file_location('rpc.helpers', ROOT / 'rpc/helpers.py')
+real_helpers = importlib.util.module_from_spec(spec_helpers)
+spec_helpers.loader.exec_module(real_helpers)
+sys.modules['rpc.helpers'] = real_helpers
 
 models_mod = types.ModuleType('rpc.models')
 
@@ -21,7 +28,6 @@ models_mod.RPCRequest = RPCRequest
 models_mod.RPCResponse = RPCResponse
 sys.modules['rpc.models'] = models_mod
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
   sys.path.insert(0, str(ROOT))
 
