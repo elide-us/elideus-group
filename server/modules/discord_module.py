@@ -1,4 +1,4 @@
-import logging, discord, asyncio, json
+import logging, discord, json
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -13,7 +13,6 @@ class DiscordModule(BaseModule):
     super().__init__(app)
     self.secret: str = ""
     self.syschan: int = 0
-    self.task: asyncio.Task | None = None
     self.bot: commands.Bot | None = None
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
@@ -33,15 +32,17 @@ class DiscordModule(BaseModule):
     if not res.rows:
       raise ValueError("Missing config value for key: DiscordSyschan")
     self.syschan = int(res.rows[0]["value"] or 0)
-    self.task = asyncio.create_task(self.bot.start(self.secret))
+    try:
+      await self.bot.start(self.secret)
+    except Exception as e:
+      logging.exception("Failed to start Discord bot")
+      raise
     logging.info("Discord module loaded")
     self.mark_ready()
 
   async def shutdown(self):
     if self.bot:
       await self.bot.close()
-    if self.task:
-      self.task.cancel()
     remove_discord_logging(self)
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
