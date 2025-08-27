@@ -2,6 +2,7 @@ import sys, types, pytest, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -14,7 +15,9 @@ class DummyAuth:
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
   def __init__(self):
-    self.providers = {"google": SimpleNamespace(audience="gid")}
+    provider = GoogleAuthProvider(api_id="gid", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+    asyncio.run(provider.startup())
+    self.providers = {"google": provider}
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -119,3 +122,4 @@ def test_email_exists(monkeypatch):
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  asyncio.run(req.app.state.auth.providers["google"].shutdown())

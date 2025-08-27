@@ -5,6 +5,8 @@ import sys
 import types
 from types import SimpleNamespace
 import uuid
+from datetime import timedelta
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
 import pytest
 from fastapi import HTTPException
@@ -133,7 +135,9 @@ def test_link_provider_google_normalizes_identifier():
 
   class DummyAuth:
     def __init__(self):
-      self.providers = {"google": SimpleNamespace(audience="client-id")}
+      provider = GoogleAuthProvider(api_id="client-id", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+      asyncio.run(provider.startup())
+      self.providers = {"google": provider}
     async def handle_auth_login(self, provider, id_token, access_token):
       return "google-id", {}, {}
 
@@ -159,4 +163,5 @@ def test_link_provider_google_normalizes_identifier():
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
+  asyncio.run(auth.providers["google"].shutdown())
 

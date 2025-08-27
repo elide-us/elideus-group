@@ -5,6 +5,7 @@ import importlib.util
 import sys
 import types
 import uuid
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -17,7 +18,9 @@ class DummyAuth:
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
   def __init__(self):
-    self.providers = {"google": SimpleNamespace(audience="gid")}
+    provider = GoogleAuthProvider(api_id="gid", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+    asyncio.run(provider.startup())
+    self.providers = {"google": provider}
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -140,3 +143,4 @@ def test_fetch_user_after_create(monkeypatch):
     op == "urn:users:providers:create_from_provider:1" and args["provider_identifier"] == expected
     for op, args in req.app.state.db.calls
   )
+  asyncio.run(req.app.state.auth.providers["google"].shutdown())

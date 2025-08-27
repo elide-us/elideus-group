@@ -56,6 +56,7 @@ def test_verify_id_token_refreshes_jwks(monkeypatch):
   provider = MicrosoftAuthProvider(api_id="api", jwks_uri="uri", jwks_expiry=timedelta(minutes=60))
   provider._jwks = {"keys": [{"kid": "kid1", "kty": "RSA", "use": "sig", "n": "n", "e": "e"}]}
   provider._jwks_fetched_at = datetime.now(timezone.utc) - timedelta(hours=2)
+  asyncio.run(provider.startup())
 
   async def fake_fetch_jwks():
     provider._jwks = {"keys": [{"kid": "kid1", "kty": "RSA", "use": "sig", "n": "n", "e": "e"}]}
@@ -74,6 +75,7 @@ def test_verify_id_token_refreshes_jwks(monkeypatch):
 
   asyncio.run(provider.verify_id_token("token"))
   assert provider._jwks_fetched_at > datetime.now(timezone.utc) - timedelta(minutes=5)
+  asyncio.run(provider.shutdown())
 
 
 def test_handle_auth_login_prefers_oid(monkeypatch):
@@ -160,6 +162,7 @@ def test_jwks_refresh_failure(monkeypatch):
   provider = MicrosoftAuthProvider(api_id="api", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
   provider._jwks = {"keys": []}
   provider._jwks_fetched_at = datetime.now(timezone.utc) - timedelta(hours=2)
+  asyncio.run(provider.startup())
 
   async def fake_fetch_jwks():
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="fail")
@@ -170,3 +173,4 @@ def test_jwks_refresh_failure(monkeypatch):
     asyncio.run(provider.verify_id_token("token"))
 
   assert exc.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+  asyncio.run(provider.shutdown())
