@@ -43,11 +43,12 @@ spec_providers.loader.exec_module(providers)
 sys.modules["server.modules.providers"] = providers
 
 spec_ms = importlib.util.spec_from_file_location(
-  "server.modules.providers.microsoft", root_path / "server/modules/providers/microsoft.py"
+  "server.modules.providers.auth.microsoft_provider",
+  root_path / "server/modules/providers/auth/microsoft_provider/__init__.py",
 )
 ms_provider = importlib.util.module_from_spec(spec_ms)
 spec_ms.loader.exec_module(ms_provider)
-sys.modules["server.modules.providers.microsoft"] = ms_provider
+sys.modules["server.modules.providers.auth.microsoft_provider"] = ms_provider
 MicrosoftAuthProvider = ms_provider.MicrosoftAuthProvider
 
 
