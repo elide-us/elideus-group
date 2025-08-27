@@ -8,8 +8,8 @@ from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
 from server.modules.providers import AuthProvider
-from server.modules.providers.microsoft import MicrosoftAuthProvider
-from server.modules.providers.google import GoogleAuthProvider
+from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
