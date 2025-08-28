@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 import sys
 import types
+import server.modules.providers.database.mssql_provider  # ensure provider module loaded
 
 # stub server package
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -16,16 +17,19 @@ sys.modules.setdefault("server.modules", modules_pkg)
 providers_pkg = types.ModuleType("server.modules.providers")
 providers_pkg.__path__ = [str(root_path / "server/modules/providers")]
 sys.modules.setdefault("server.modules.providers", providers_pkg)
-mssql_pkg = types.ModuleType("server.modules.providers.mssql_provider")
-mssql_pkg.__path__ = [str(root_path / "server/modules/providers/mssql_provider")]
-sys.modules.setdefault("server.modules.providers.mssql_provider", mssql_pkg)
+database_pkg = types.ModuleType("server.modules.providers.database")
+database_pkg.__path__ = [str(root_path / "server/modules/providers/database")]
+sys.modules.setdefault("server.modules.providers.database", database_pkg)
+mssql_pkg = types.ModuleType("server.modules.providers.database.mssql_provider")
+mssql_pkg.__path__ = [str(root_path / "server/modules/providers/database/mssql_provider")]
+sys.modules.setdefault("server.modules.providers.database.mssql_provider", mssql_pkg)
 
 spec_logic = importlib.util.spec_from_file_location(
-  "server.modules.providers.mssql_provider.logic",
-  root_path / "server/modules/providers/mssql_provider/logic.py",
+  "server.modules.providers.database.mssql_provider.logic",
+  root_path / "server/modules/providers/database/mssql_provider/logic.py",
 )
 logic_mod = importlib.util.module_from_spec(spec_logic)
-sys.modules["server.modules.providers.mssql_provider.logic"] = logic_mod
+sys.modules["server.modules.providers.database.mssql_provider.logic"] = logic_mod
 spec_logic.loader.exec_module(logic_mod)
 
 spec_models = importlib.util.spec_from_file_location(
@@ -37,19 +41,19 @@ sys.modules["server.modules.providers.models"] = models_mod
 spec_models.loader.exec_module(models_mod)
 
 spec_db_helpers = importlib.util.spec_from_file_location(
-  "server.modules.providers.mssql_provider.db_helpers",
-  root_path / "server/modules/providers/mssql_provider/db_helpers.py",
+  "server.modules.providers.database.mssql_provider.db_helpers",
+  root_path / "server/modules/providers/database/mssql_provider/db_helpers.py",
 )
 db_helpers = importlib.util.module_from_spec(spec_db_helpers)
-sys.modules["server.modules.providers.mssql_provider.db_helpers"] = db_helpers
+sys.modules["server.modules.providers.database.mssql_provider.db_helpers"] = db_helpers
 spec_db_helpers.loader.exec_module(db_helpers)
 
 spec_registry = importlib.util.spec_from_file_location(
-  "server.modules.providers.mssql_provider.registry",
-  root_path / "server/modules/providers/mssql_provider/registry.py",
+  "server.modules.providers.database.mssql_provider.registry",
+  root_path / "server/modules/providers/database/mssql_provider/registry.py",
 )
 registry_mod = importlib.util.module_from_spec(spec_registry)
-sys.modules["server.modules.providers.mssql_provider.registry"] = registry_mod
+sys.modules["server.modules.providers.database.mssql_provider.registry"] = registry_mod
 spec_registry.loader.exec_module(registry_mod)
 get_mssql_handler = registry_mod.get_handler
 

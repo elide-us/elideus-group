@@ -30,20 +30,17 @@ class DbModule(BaseModule):
     provider_name = provider or "mssql"
 
     try:
-      module = import_module(f".providers.{provider_name}_provider", __package__)
+      module = import_module(f".providers.database.{provider_name}_provider", __package__)
     except ModuleNotFoundError as e:
       raise ValueError(f"Unsupported provider: {provider_name}") from e
 
     provider_cls = None
     for attr in module.__dict__.values():
-      if (
-        inspect.isclass(attr)
-        and issubclass(attr, DbProviderBase)
-        and attr is not DbProviderBase
-        and not inspect.isabstract(attr)
-      ):
-        provider_cls = attr
-        break
+      if inspect.isclass(attr) and attr.__name__ != "DbProviderBase":
+        bases = inspect.getmro(attr)
+        if any(b.__name__ == "DbProviderBase" for b in bases) and not inspect.isabstract(attr):
+          provider_cls = attr
+          break
     if not provider_cls:
       raise ValueError(f"Provider '{provider_name}' missing DbProviderBase implementation")
 

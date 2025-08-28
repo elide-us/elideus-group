@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from server.modules.providers.mssql_provider import registry
+from server.modules.providers.database.mssql_provider import registry
 from server.modules.providers.models import DBResult
 
 
