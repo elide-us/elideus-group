@@ -1,6 +1,7 @@
 import asyncio, importlib.util, pathlib, sys, types
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import server.modules.providers.database.mssql_provider  # ensure provider module loaded
 
 root_path = pathlib.Path(__file__).resolve().parent.parent
 
@@ -14,13 +15,16 @@ sys.modules.setdefault("server.modules", modules_pkg)
 providers_pkg = types.ModuleType("server.modules.providers")
 providers_pkg.__path__ = [str(root_path / "server/modules/providers")]
 sys.modules.setdefault("server.modules.providers", providers_pkg)
-mssql_pkg = types.ModuleType("server.modules.providers.mssql_provider")
-mssql_pkg.__path__ = [str(root_path / "server/modules/providers/mssql_provider")]
-sys.modules.setdefault("server.modules.providers.mssql_provider", mssql_pkg)
+database_pkg = types.ModuleType("server.modules.providers.database")
+database_pkg.__path__ = [str(root_path / "server/modules/providers/database")]
+sys.modules.setdefault("server.modules.providers.database", database_pkg)
+mssql_pkg = types.ModuleType("server.modules.providers.database.mssql_provider")
+mssql_pkg.__path__ = [str(root_path / "server/modules/providers/database/mssql_provider")]
+sys.modules.setdefault("server.modules.providers.database.mssql_provider", mssql_pkg)
 
 # Stub dependencies
-a = types.ModuleType("server.modules.providers.mssql_provider.logic")
-sys.modules["server.modules.providers.mssql_provider.logic"] = a
+a = types.ModuleType("server.modules.providers.database.mssql_provider.logic")
+sys.modules["server.modules.providers.database.mssql_provider.logic"] = a
 a.init_pool = lambda *args, **kwargs: None
 a.close_pool = lambda *args, **kwargs: None
 async def _dummy_tx():
@@ -28,18 +32,18 @@ async def _dummy_tx():
 
 a.transaction = lambda: _dummy_tx()
 
-b = types.ModuleType("server.modules.providers.mssql_provider.db_helpers")
-sys.modules["server.modules.providers.mssql_provider.db_helpers"] = b
+b = types.ModuleType("server.modules.providers.database.mssql_provider.db_helpers")
+sys.modules["server.modules.providers.database.mssql_provider.db_helpers"] = b
 b.fetch_rows = lambda *args, **kwargs: None
 b.fetch_json = lambda *args, **kwargs: None
 b.exec_query = lambda *args, **kwargs: None
 
 spec = importlib.util.spec_from_file_location(
-  "server.modules.providers.mssql_provider.registry",
-  root_path / "server/modules/providers/mssql_provider/registry.py",
+  "server.modules.providers.database.mssql_provider.registry",
+  root_path / "server/modules/providers/database/mssql_provider/registry.py",
 )
 registry_mod = importlib.util.module_from_spec(spec)
-sys.modules["server.modules.providers.mssql_provider.registry"] = registry_mod
+sys.modules["server.modules.providers.database.mssql_provider.registry"] = registry_mod
 spec.loader.exec_module(registry_mod)
 
 
