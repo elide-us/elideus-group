@@ -9,7 +9,7 @@ import logging
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
-from .providers.models import DBResult
+from .providers import DBResult
 from server.helpers.logging import update_logging_level
 
 

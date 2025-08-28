@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from .models import DBResult
+from pydantic import BaseModel
 
 __all__ = [
   "AuthProvider",
@@ -17,7 +17,13 @@ __all__ = [
   "LifecycleProvider",
   "AuthProviderBase",
   "DbProviderBase",
+  "DBResult",
 ]
+
+
+class DBResult(BaseModel):
+  rows: list[dict] = []
+  rowcount: int = 0
 
 
 class BaseProvider(ABC):

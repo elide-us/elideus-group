@@ -2,7 +2,7 @@
 from typing import Any, Dict
 
 from ... import DbProviderBase
-from ...models import DBResult
+from ... import DBResult
 from .logic import init_pool, close_pool
 from .db_helpers import fetch_rows, fetch_json, exec_query
 from .registry import get_handler

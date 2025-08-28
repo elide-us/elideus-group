@@ -1,7 +1,7 @@
 import json, logging
 from typing import Any, Iterable, AsyncIterator
 from . import logic
-from ...models import DBResult
+from ... import DBResult
 
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):
   return dict(zip(cols, row))
