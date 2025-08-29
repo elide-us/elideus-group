@@ -6,6 +6,10 @@ MAX_DISCORD_MESSAGE_LEN = 1900
 def split_message(msg: str, limit: int = MAX_DISCORD_MESSAGE_LEN) -> list[str]:
   return [msg[i:i + limit] for i in range(0, len(msg), limit)]
 
+class ExcludeDiscordFilter(logging.Filter):
+  def filter(self, record):
+    return not record.name.startswith('discord')
+
 class DiscordHandler(logging.Handler):
   def __init__(self, discord_module, interval: float = 1.0, delay: float = 5.0):
     super().__init__()
@@ -60,8 +64,8 @@ def configure_discord_logging(discord_module):
   handler.setLevel(logging.INFO)
   handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
   logging.getLogger().addHandler(handler)
-  logging.getLogger('discord').setLevel(logging.WARNING)
-  logging.getLogger('discord.http').setLevel(logging.WARNING)
+  for name in ('discord', 'discord.http', 'discord.client', 'discord.gateway'):
+    logging.getLogger(name).setLevel(logging.WARNING)
 
 def update_logging_level(debug: bool = False):
   """Update global logging level including Azure SDK logger."""
@@ -77,6 +81,9 @@ def configure_root_logging(debug: bool = False):
   handler = logging.StreamHandler(sys.stdout)
   handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
   logger.addHandler(handler)
+  logger.addFilter(ExcludeDiscordFilter())
+  for name in ('discord', 'discord.http', 'discord.client', 'discord.gateway'):
+    logging.getLogger(name).setLevel(logging.WARNING)
   update_logging_level(debug)
 
 def remove_discord_logging(discord_module):
