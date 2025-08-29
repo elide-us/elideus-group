@@ -12,9 +12,9 @@ import {
         fetchUploadFiles,
         fetchDeleteFiles,
         fetchSetGallery,
-} from './rpc/storage/files';
-import PageTitle from './PageTitle';
-import UserContext from './shared/UserContext';
+} from '../rpc/storage/files';
+import PageTitle from '../components/PageTitle';
+import UserContext from '../shared/UserContext';
 
 interface StorageFile {
 	name: string;

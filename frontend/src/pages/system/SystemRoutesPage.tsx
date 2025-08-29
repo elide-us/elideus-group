@@ -11,22 +11,22 @@ import {
                 IconButton,
                 Typography,
                                 } from "@mui/material";
-import PageTitle from "./PageTitle";
+import PageTitle from "../../components/PageTitle";
 import { Delete, Add } from "@mui/icons-material";
-import RolesSelector from "./RolesSelector";
-import EditBox from "./EditBox";
-import ColumnHeader from "./ColumnHeader";
+import RolesSelector from "../../components/RolesSelector";
+import EditBox from "../../components/EditBox";
+import ColumnHeader from "../../components/ColumnHeader";
 import type {
-	SystemRoutesRouteItem1,
-	SystemRoutesList1,
-		ServiceRolesRoles1,
-				} from "./shared/RpcModels";
+        SystemRoutesRouteItem1,
+        SystemRoutesList1,
+                ServiceRolesRoles1,
+                                } from "../../shared/RpcModels";
 import {
-	fetchRoutes,
-	fetchUpsertRoute,
-	fetchDeleteRoute,
-				} from "./rpc/system/routes";
-import { fetchRoles } from "./rpc/service/roles";
+        fetchRoutes,
+        fetchUpsertRoute,
+        fetchDeleteRoute,
+                                } from "../../rpc/system/routes";
+import { fetchRoles } from "../../rpc/service/roles";
 
 const SystemRoutesPage = (): JSX.Element => {
 	const [routes, setRoutes] = useState<SystemRoutesRouteItem1[]>([]);

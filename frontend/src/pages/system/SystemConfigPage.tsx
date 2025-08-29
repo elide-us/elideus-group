@@ -10,19 +10,19 @@ import {
         Typography,
 } from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
-import EditBox from "./EditBox";
+import EditBox from "../../components/EditBox";
 import type {
         SystemConfigConfigItem1,
         SystemConfigList1,
-} from "./shared/RpcModels";
+} from "../../shared/RpcModels";
 import {
         fetchConfigs,
         fetchUpsertConfig,
         fetchDeleteConfig,
-} from "./rpc/system/config";
-import Notification from "./Notification";
-import PageTitle from "./PageTitle";
-import ColumnHeader from "./ColumnHeader";
+} from "../../rpc/system/config";
+import Notification from "../../components/Notification";
+import PageTitle from "../../components/PageTitle";
+import ColumnHeader from "../../components/ColumnHeader";
 
 const SystemConfigPage = (): JSX.Element => {
 	const [items, setItems] = useState<SystemConfigConfigItem1[]>([]);

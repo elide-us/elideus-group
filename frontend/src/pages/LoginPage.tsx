@@ -2,13 +2,13 @@ import { useContext, useState } from 'react';
 import { Container, Paper, Typography, Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { PublicClientApplication } from '@azure/msal-browser';
-import { msalConfig, loginRequest } from './config/msal';
-import googleConfig from './config/google';
-import UserContext from './shared/UserContext';
-import Notification from './Notification';
-import { fetchOauthLogin as fetchMicrosoftOauthLogin } from './rpc/auth/microsoft';
-import { fetchOauthLogin as fetchGoogleOauthLogin } from './rpc/auth/google';
-import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from './shared/RpcModels';
+import { msalConfig, loginRequest } from '../config/msal';
+import googleConfig from '../config/google';
+import UserContext from '../shared/UserContext';
+import Notification from '../components/Notification';
+import { fetchOauthLogin as fetchMicrosoftOauthLogin } from '../rpc/auth/microsoft';
+import { fetchOauthLogin as fetchGoogleOauthLogin } from '../rpc/auth/google';
+import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from '../shared/RpcModels';
 
 declare global {
 interface Window {

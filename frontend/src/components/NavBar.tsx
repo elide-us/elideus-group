@@ -11,10 +11,10 @@ import {
 	ListItemText,
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import type { PublicLinksNavBarRoute1, PublicLinksNavBarRoutes1 } from './shared/RpcModels';
-import { fetchNavbarRoutes } from './rpc/public/links';
-import { iconMap, defaultIcon } from './icons';
-import UserContext from './shared/UserContext';
+import type { PublicLinksNavBarRoute1, PublicLinksNavBarRoutes1 } from '../shared/RpcModels';
+import { fetchNavbarRoutes } from '../rpc/public/links';
+import { iconMap, defaultIcon } from '../icons';
+import UserContext from '../shared/UserContext';
 import Login from './Login';
 
 const DRAWER_OPEN = 240;
