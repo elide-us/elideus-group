@@ -108,7 +108,13 @@ The **server module system** uses a **two-phase initialization pattern** to ensu
 
 This design ensures that startup is deterministic, deadlock-free, and extensible: modules only proceed when their dependencies are explicitly ready.
 
+### How Not To SOlve Problems
 
+- Do Not Put Meaninless Aliases in between references, just reference the object directly
+- Do Not Make an Error Silently Fail
+- Do Not Give an Error a Meaningless Default
+- Do Not Invent Environment Variables
+- Do Not Create New Modules Unless Explicitly Told To
 
 ## File Structure
 
