@@ -2,7 +2,7 @@ import asyncio
 from fastapi import FastAPI
 
 from server.modules.db_module import DbModule
-from server.modules.providers.models import DBResult
+from server.modules.providers import DBResult
 
 
 def test_get_google_client_id():

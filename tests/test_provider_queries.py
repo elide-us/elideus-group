@@ -32,14 +32,6 @@ logic_mod = importlib.util.module_from_spec(spec_logic)
 sys.modules["server.modules.providers.database.mssql_provider.logic"] = logic_mod
 spec_logic.loader.exec_module(logic_mod)
 
-spec_models = importlib.util.spec_from_file_location(
-  "server.modules.providers.models",
-  root_path / "server/modules/providers/models.py",
-)
-models_mod = importlib.util.module_from_spec(spec_models)
-sys.modules["server.modules.providers.models"] = models_mod
-spec_models.loader.exec_module(models_mod)
-
 spec_db_helpers = importlib.util.spec_from_file_location(
   "server.modules.providers.database.mssql_provider.db_helpers",
   root_path / "server/modules/providers/database/mssql_provider/db_helpers.py",
