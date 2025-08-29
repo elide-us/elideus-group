@@ -3,10 +3,10 @@ import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Login as LoginIcon } from '@mui/icons-material';
 import { Typography, Box, Tooltip, IconButton, ListItemText } from '@mui/material';
 import { PublicClientApplication } from '@azure/msal-browser';
-import { msalConfig } from './config/msal';
-import { fetchInvalidateToken } from './rpc/auth/session';
+import { msalConfig } from '../config/msal';
+import { fetchInvalidateToken } from '../rpc/auth/session';
 import Notification from './Notification';
-import UserContext from './shared/UserContext';
+import UserContext from '../shared/UserContext';
 
 const pca = new PublicClientApplication(msalConfig);
 

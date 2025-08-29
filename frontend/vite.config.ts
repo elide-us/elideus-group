@@ -7,21 +7,22 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [react()],
 		base: isProduction ? "/static/" : "/",
-		build: {
-			outDir: "../static",
-			assetsDir: "assets",
-			rollupOptions: {
-				output: {
-					manualChunks: {
-						vendor: [
-							"react",
-							"react-dom",
-							"@mui/material",
-							"@mui/icons-material",
-						],
-					},
-				},
-			},
-		},
+                build: {
+                        outDir: "../static",
+                        assetsDir: "assets",
+                        rollupOptions: {
+                                output: {
+                                        manualChunks(id) {
+                                                if (id.includes("node_modules")) {
+                                                        return "vendor";
+                                                }
+                                                const match = id.match(/src\/pages\/(system|admin)\//);
+                                                if (match) {
+                                                        return match[1];
+                                                }
+                                        },
+                                },
+                        },
+                },
 	};
 });

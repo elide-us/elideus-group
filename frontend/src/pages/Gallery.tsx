@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import PageTitle from './PageTitle';
+import PageTitle from '../components/PageTitle';
 
 // TODO: Implement gallery component
 export default function Gallery(): JSX.Element {

@@ -1,15 +1,15 @@
 import { Box, Typography, Link, CardMedia } from '@mui/material';
 import { useEffect, useState } from 'react';
-import type { PublicLinksLinkItem1 } from './shared/RpcModels';
-import Logo from './assets/elideus_group_green.png';
+import type { PublicLinksLinkItem1 } from '../shared/RpcModels';
+import Logo from '../assets/elideus_group_green.png';
 import {
         fetchHostname,
         fetchVersion,
         fetchRepo,
         fetchFfmpegVersion,
         fetchOdbcVersion,
-} from './rpc/public/vars';
-import { fetchHomeLinks } from './rpc/public/links';
+} from '../rpc/public/vars';
+import { fetchHomeLinks } from '../rpc/public/links';
 
 const Home = (): JSX.Element => {
 	const [hostname, setHostname] = useState('');

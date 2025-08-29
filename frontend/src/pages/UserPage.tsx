@@ -1,10 +1,10 @@
 import { useContext, useEffect, useState, ChangeEvent } from 'react';
 import { Box, Typography, FormControlLabel, Switch, Avatar, TextField, Button, Stack, RadioGroup, Radio } from '@mui/material';
-import UserContext from './shared/UserContext';
-import type { UsersProfileProfile1 } from './shared/RpcModels';
-import { fetchProfile, fetchSetDisplay, fetchSetOptin } from './rpc/users/profile';
-import { fetchSetProvider, fetchLinkProvider, fetchUnlinkProvider } from './rpc/users/providers';
-import googleConfig from './config/google';
+import UserContext from '../shared/UserContext';
+import type { UsersProfileProfile1 } from '../shared/RpcModels';
+import { fetchProfile, fetchSetDisplay, fetchSetOptin } from '../rpc/users/profile';
+import { fetchSetProvider, fetchLinkProvider, fetchUnlinkProvider } from '../rpc/users/providers';
+import googleConfig from '../config/google';
 
 declare global {
 interface Window {

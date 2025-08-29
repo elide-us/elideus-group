@@ -11,19 +11,19 @@ Typography,
 } from "@mui/material";
 import TextField from "@mui/material/TextField";
 import { Delete, Add, ArrowUpward, ArrowDownward } from "@mui/icons-material";
-import EditBox from "./EditBox";
-import PageTitle from "./PageTitle";
-import ColumnHeader from "./ColumnHeader";
+import EditBox from "../../components/EditBox";
+import PageTitle from "../../components/PageTitle";
+import ColumnHeader from "../../components/ColumnHeader";
 import type {
 SystemRolesRoleItem1,
 SystemRolesList1,
-} from "./shared/RpcModels";
+} from "../../shared/RpcModels";
 import {
 fetchRoles,
 fetchUpsertRole,
 fetchDeleteRole
-} from "./rpc/system/roles";
-import Notification from "./Notification";
+} from "../../rpc/system/roles";
+import Notification from "../../components/Notification";
 
 const HIGH_BIT_MASK = (-(1n << 63n)).toString();
 

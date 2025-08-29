@@ -64,6 +64,12 @@ The project currently uses:
 
 ---
 
+## Frontend Build
+
+* The Vite config groups bundles by top-level route prefixes (e.g., `system-*`). Update `vite.config.ts` when adding new route categories like `admin-*` to keep chunking consistent.
+
+---
+
 ## Module Initialization
 
 The **server module system** uses a **two-phase initialization pattern** to ensure clean startup ordering and dependency handling.
