@@ -182,6 +182,11 @@ def _users_profile(args: Dict[str, Any]):
     return ("row_one", sql, (guid,))
 
 
+@register("db:users:profile:get_profile:1")
+def _db_users_profile(args: Dict[str, Any]):
+  return _users_profile(args)
+
+
 @register("urn:users:profile:set_display:1")
 def _users_set_display(args: Dict[str, Any]):
     guid = args["guid"]
