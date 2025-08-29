@@ -21,104 +21,6 @@ export interface RPCResponse {
 	version: number;
 	timestamp: string | null;
 }
-export interface SystemRolesDeleteRole1 {
-	name: string;
-}
-export interface SystemRolesList1 {
-	roles: SystemRolesRoleItem1[];
-}
-export interface SystemRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemConfigConfigItem1 {
-	key: string;
-	value: string;
-}
-export interface SystemConfigDeleteConfig1 {
-	key: string;
-}
-export interface SystemConfigList1 {
-	items: SystemConfigConfigItem1[];
-}
-export interface SystemRoutesDeleteRoute1 {
-	path: string;
-}
-export interface SystemRoutesList1 {
-	routes: SystemRoutesRouteItem1[];
-}
-export interface SystemRoutesRouteItem1 {
-	path: string;
-	name: string;
-	icon: string | null;
-	sequence: number;
-	required_roles: string[];
-}
-export interface AuthMicrosoftOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
-}
-export interface AuthGoogleOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
-}
-export interface AuthGoogleOauthLoginPayload1 {
-	provider: string;
-	code: string;
-	fingerprint: any;
-}
-export interface SupportRolesMembers1 {
-	members: SupportRolesUserItem1[];
-	nonMembers: SupportRolesUserItem1[];
-}
-export interface SupportRolesRoleMemberUpdate1 {
-	role: string;
-	userGuid: string;
-}
-export interface SupportRolesUserItem1 {
-	guid: string;
-	displayName: string;
-}
-export interface SupportUsersGuid1 {
-	userGuid: string;
-}
-export interface SupportUsersSetCredits1 {
-	userGuid: string;
-	credits: number;
-}
-export interface ServiceRolesDeleteRole1 {
-	name: string;
-}
-export interface ServiceRolesRoleMemberUpdate1 {
-	role: string;
-	userGuid: string;
-}
-export interface ServiceRolesRoleMembers1 {
-	members: ServiceRolesUserItem1[];
-	nonMembers: ServiceRolesUserItem1[];
-}
-export interface ServiceRolesRoles1 {
-	roles: string[];
-}
-export interface ServiceRolesUpsertRole1 {
-	name: string;
-	bit: number;
-	display: any;
-}
-export interface ServiceRolesUserItem1 {
-	guid: string;
-	displayName: string;
-}
 export interface StorageFilesDeleteFiles1 {
 	files: string[];
 }
@@ -219,6 +121,104 @@ export interface PublicVarsRepo1 {
 }
 export interface PublicVarsVersion1 {
 	version: string;
+}
+export interface ServiceRolesDeleteRole1 {
+	name: string;
+}
+export interface ServiceRolesRoleMemberUpdate1 {
+	role: string;
+	userGuid: string;
+}
+export interface ServiceRolesRoleMembers1 {
+	members: ServiceRolesUserItem1[];
+	nonMembers: ServiceRolesUserItem1[];
+}
+export interface ServiceRolesRoles1 {
+	roles: string[];
+}
+export interface ServiceRolesUpsertRole1 {
+	name: string;
+	bit: number;
+	display: any;
+}
+export interface ServiceRolesUserItem1 {
+	guid: string;
+	displayName: string;
+}
+export interface SupportUsersGuid1 {
+	userGuid: string;
+}
+export interface SupportUsersSetCredits1 {
+	userGuid: string;
+	credits: number;
+}
+export interface SupportRolesMembers1 {
+	members: SupportRolesUserItem1[];
+	nonMembers: SupportRolesUserItem1[];
+}
+export interface SupportRolesRoleMemberUpdate1 {
+	role: string;
+	userGuid: string;
+}
+export interface SupportRolesUserItem1 {
+	guid: string;
+	displayName: string;
+}
+export interface SystemConfigConfigItem1 {
+	key: string;
+	value: string;
+}
+export interface SystemConfigDeleteConfig1 {
+	key: string;
+}
+export interface SystemConfigList1 {
+	items: SystemConfigConfigItem1[];
+}
+export interface SystemRolesDeleteRole1 {
+	name: string;
+}
+export interface SystemRolesList1 {
+	roles: SystemRolesRoleItem1[];
+}
+export interface SystemRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemRoutesDeleteRoute1 {
+	path: string;
+}
+export interface SystemRoutesList1 {
+	routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+	path: string;
+	name: string;
+	icon: string | null;
+	sequence: number;
+	required_roles: string[];
+}
+export interface AuthGoogleOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLoginPayload1 {
+	provider: string;
+	code: string;
+	fingerprint: any;
+}
+export interface AuthMicrosoftOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
