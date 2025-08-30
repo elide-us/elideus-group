@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from fastapi import FastAPI
 from typing import Type, Dict, List
-from scripts.genlib import camel_case
+from server.helpers.strings import camel_case
 import asyncio, os, importlib
 
 MODULES_FOLDER = os.path.dirname(__file__)
