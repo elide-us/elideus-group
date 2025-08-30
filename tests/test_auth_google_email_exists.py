@@ -41,19 +41,25 @@ class DummyDb:
       return DBRes([{ "guid": "existing-guid" }], 1)
     if op == "urn:system:config:get_config:1":
       key = args.get("key")
-      if key == "GoogleApiId":
-        return DBRes([{ "value": "gsecret" }], 1)
-      if key == "GoogleAuthRedirectLocalhost":
+      if key == "Hostname":
         return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
     return DBRes()
 
   async def get_google_api_secret(self):
     return "gsecret"
 
+class DummyEnv:
+  async def on_ready(self):
+    return None
+  def get(self, k):
+    assert k == "GOOGLE_AUTH_SECRET"
+    return "gsecret"
+
 class DummyState:
   def __init__(self):
     self.auth = DummyAuth()
     self.db = DummyDb()
+    self.env = DummyEnv()
 
 class DummyApp:
   def __init__(self):
