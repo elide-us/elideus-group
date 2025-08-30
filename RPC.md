@@ -154,12 +154,22 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 
 | Operation                               | Description                                  |
 | --------------------------------------- | -------------------------------------------- |
-| `urn:service:roles:get_roles:1`         | List all role names and their bit positions. |
-| `urn:service:roles:get_role_members:1`  | Get members and non-members for a role.      |
-| `urn:service:roles:add_role_member:1`   | Add members to a role.                       |
-| `urn:service:roles:remove_role_member:1` | Remove members from a role.                 |
-| `urn:service:roles:upsert_role:1`       | Create or update a role definition.          |
-| `urn:service:roles:delete_role:1`       | Delete a role.                               |
+| `urn:service:roles:get_roles:1`   | List all role names and their bit positions. |
+| `urn:service:roles:upsert_role:1` | Create or update a role definition.          |
+| `urn:service:roles:delete_role:1` | Delete a role.                               |
+
+## Account Domain
+
+All Account domain calls require `ROLE_ACCOUNT_ADMIN`.
+
+### `role`
+
+| Operation                                   | Description                                  |
+| ------------------------------------------- | -------------------------------------------- |
+| `urn:account:role:get_roles:1`              | List all role names and their bit positions. |
+| `urn:account:role:get_role_members:1`       | Get members and non-members for a role.      |
+| `urn:account:role:add_role_member:1`        | Add members to a role.                       |
+| `urn:account:role:remove_role_member:1`     | Remove members from a role.                  |
 
 ## Moderation Domain
 

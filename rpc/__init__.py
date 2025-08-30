@@ -12,6 +12,7 @@ from .service.handler import handle_service_request
 from .storage.handler import handle_storage_request
 from .system.handler import handle_system_request
 from .users.handler import handle_users_request
+from .account.handler import handle_account_request
 
 
 HANDLERS: dict[str, callable] = {
@@ -22,6 +23,7 @@ HANDLERS: dict[str, callable] = {
   "service": handle_service_request,
   "storage": handle_storage_request,
   "system": handle_system_request,
-  "users": handle_users_request
+  "users": handle_users_request,
+  "account": handle_account_request,
 }
 
