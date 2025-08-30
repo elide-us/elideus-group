@@ -41,7 +41,7 @@ class DummyDb:
       return DBRes([{ "guid": "existing-guid" }], 1)
     if op == "urn:system:config:get_config:1":
       key = args.get("key")
-      if key == "GoogleAuthRedirectLocalhost":
+      if key == "Hostname":
         return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
     return DBRes()
 
