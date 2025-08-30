@@ -19,7 +19,7 @@ import ColumnHeader from "../../components/ColumnHeader";
 import type {
         SystemRoutesRouteItem1,
         SystemRoutesList1,
-                ServiceRolesRoles1,
+                ServiceRolesList1,
                                 } from "../../shared/RpcModels";
 import {
         fetchRoutes,
@@ -53,8 +53,8 @@ const SystemRoutesPage = (): JSX.Element => {
 						}
 				}
 				try {
-												const roles: ServiceRolesRoles1 = await fetchRoles();
-						setRoleNames(roles.roles);
+                                        const roles: ServiceRolesList1 = await fetchRoles();
+                                                setRoleNames(roles.roles.map((r) => r.name));
 						console.debug("[SystemRoutesPage] loaded roles");
 				} catch (e: any) {
 						console.debug("[SystemRoutesPage] failed to load roles", e);

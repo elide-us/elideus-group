@@ -147,8 +147,6 @@ sys.modules["rpc.service.roles.services"] = svc_mod
 svc_spec.loader.exec_module(svc_mod)
 
 service_roles_upsert_role_v1 = svc_mod.service_roles_upsert_role_v1
-service_roles_add_role_member_v1 = svc_mod.service_roles_add_role_member_v1
-service_roles_remove_role_member_v1 = svc_mod.service_roles_remove_role_member_v1
 
 
 def test_get_roles_allows_system_admin():
@@ -180,7 +178,7 @@ def test_upsert_role_calls_db_and_loads_roles():
   async def fake_get(request):
     rpc = RPCRequest(
       op="urn:service:roles:upsert_role:1",
-      payload={"name": "ROLE_NEW", "bit": 2, "display": "New"},
+      payload={"name": "ROLE_NEW", "mask": "4", "display": "New"},
       version=1,
     )
     return rpc, None, None
@@ -198,52 +196,4 @@ def test_upsert_role_calls_db_and_loads_roles():
   ) in db.calls
   assert auth.loaded
 
-
-def test_add_and_remove_member():
-  members = [{"guid": "u1", "display_name": "User 1"}]
-  non_members = [{"guid": "u2", "display_name": "User 2"}]
-  db = DummyDb(members, non_members)
-  auth = DummyAuth()
-  state = DummyState(db, auth)
-  req = DummyRequest(state)
-
-  async def fake_get_add(request):
-    rpc = RPCRequest(
-      op="urn:service:roles:add_role_member:1",
-      payload={"role": "ROLE_X", "userGuid": "u1"},
-      version=1,
-    )
-    return rpc, None, None
-
-  helpers.unbox_request = fake_get_add
-  svc_mod.unbox_request = fake_get_add
-  resp = asyncio.run(service_roles_add_role_member_v1(req))
-  assert any(op == "db:security:roles:add_role_member:1" for op, _ in db.calls)
-  assert resp.payload["members"] == [{"guid": "u1", "displayName": "User 1"}]
-  assert resp.payload["nonMembers"] == [{"guid": "u2", "displayName": "User 2"}]
-
-  db.calls.clear()
-  db.members = []
-  db.non_members = [
-    {"guid": "u1", "display_name": "User 1"},
-    {"guid": "u2", "display_name": "User 2"},
-  ]
-
-  async def fake_get_remove(request):
-    rpc = RPCRequest(
-      op="urn:service:roles:remove_role_member:1",
-      payload={"role": "ROLE_X", "userGuid": "u1"},
-      version=1,
-    )
-    return rpc, None, None
-
-  helpers.unbox_request = fake_get_remove
-  svc_mod.unbox_request = fake_get_remove
-  resp2 = asyncio.run(service_roles_remove_role_member_v1(req))
-  assert any(op == "db:security:roles:remove_role_member:1" for op, _ in db.calls)
-  assert resp2.payload["members"] == []
-  assert resp2.payload["nonMembers"] == [
-    {"guid": "u1", "displayName": "User 1"},
-    {"guid": "u2", "displayName": "User 2"},
-  ]
 

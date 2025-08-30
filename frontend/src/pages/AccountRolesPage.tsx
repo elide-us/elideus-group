@@ -11,29 +11,29 @@ import {
 import { ArrowForwardIos, ArrowBackIos } from "@mui/icons-material";
 import PageTitle from "../components/PageTitle";
 import type {
-    ServiceRolesUserItem1,
-    ServiceRolesRoleMembers1,
-    ServiceRolesRoles1,
+    AccountRoleUserItem1,
+    AccountRoleMembers1,
+    AccountRoleList1,
 } from "../shared/RpcModels";
 import {
     fetchRoles,
     fetchRoleMembers,
     fetchAddRoleMember,
     fetchRemoveRoleMember,
-} from "../rpc/service/roles";
+} from "../rpc/account/role";
 
 const AccountRolesPage = (): JSX.Element => {
     const [roles, setRoles] = useState<string[]>([]);
-    const [members, setMembers] = useState<Record<string, ServiceRolesUserItem1[]>>({});
-    const [nonMembers, setNonMembers] = useState<Record<string, ServiceRolesUserItem1[]>>({});
+    const [members, setMembers] = useState<Record<string, AccountRoleUserItem1[]>>({});
+    const [nonMembers, setNonMembers] = useState<Record<string, AccountRoleUserItem1[]>>({});
     const [selectedLeft, setSelectedLeft] = useState<Record<string, string>>({});
     const [selectedRight, setSelectedRight] = useState<Record<string, string>>({});
 
     useEffect(() => {
         void (async () => {
             try {
-                const res: ServiceRolesRoles1 = await fetchRoles();
-                setRoles(res.roles.sort());
+                const res: AccountRoleList1 = await fetchRoles();
+                setRoles(res.roles.map((r) => r.name).sort());
             } catch {
                 setRoles([]);
             }
@@ -45,7 +45,7 @@ const AccountRolesPage = (): JSX.Element => {
             if (members[r]) return;
             void (async () => {
                 try {
-                    const res: ServiceRolesRoleMembers1 = await fetchRoleMembers({ role: r });
+                    const res: AccountRoleMembers1 = await fetchRoleMembers({ role: r });
                     setMembers((m) => ({ ...m, [r]: res.members }));
                     setNonMembers((n) => ({ ...n, [r]: res.nonMembers }));
                 } catch {
@@ -60,7 +60,7 @@ const AccountRolesPage = (): JSX.Element => {
         const id = selectedLeft[role];
         if (!id) return;
         await fetchAddRoleMember({ role, userGuid: id });
-        const res: ServiceRolesRoleMembers1 = await fetchRoleMembers({ role });
+        const res: AccountRoleMembers1 = await fetchRoleMembers({ role });
         setMembers((m) => ({ ...m, [role]: res.members }));
         setNonMembers((n) => ({ ...n, [role]: res.nonMembers }));
         setSelectedLeft((s) => ({ ...s, [role]: "" }));
@@ -70,7 +70,7 @@ const AccountRolesPage = (): JSX.Element => {
         const id = selectedRight[role];
         if (!id) return;
         await fetchRemoveRoleMember({ role, userGuid: id });
-        const res: ServiceRolesRoleMembers1 = await fetchRoleMembers({ role });
+        const res: AccountRoleMembers1 = await fetchRoleMembers({ role });
         setMembers((m) => ({ ...m, [role]: res.members }));
         setNonMembers((n) => ({ ...n, [role]: res.nonMembers }));
         setSelectedRight((s) => ({ ...s, [role]: "" }));

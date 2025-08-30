@@ -15,8 +15,8 @@ import EditBox from "../../components/EditBox";
 import PageTitle from "../../components/PageTitle";
 import ColumnHeader from "../../components/ColumnHeader";
 import type {
-  SystemRolesRoleItem1 as ServiceRolesRoleItem1,
-  SystemRolesList1 as ServiceRolesList1,
+    ServiceRolesRoleItem1,
+    ServiceRolesList1,
 } from "../../shared/RpcModels";
 import {
   fetchRoles,
