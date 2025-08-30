@@ -5,15 +5,19 @@ import { ArrowForwardIos, ArrowBackIos } from '@mui/icons-material';
 import PageTitle from '../components/PageTitle';
 import EditBox from '../components/EditBox';
 import Notification from '../components/Notification';
-import type { UsersProfileProfile1, SystemRolesRoleItem1, SupportRolesMembers1 } from '../shared/RpcModels';
+import type {
+    UsersProfileProfile1,
+    SystemRolesRoleItem1 as ServiceRolesRoleItem1,
+    SupportRolesMembers1,
+} from '../shared/RpcModels';
 import { fetchProfile, fetchSetCredits, fetchEnableStorage, fetchResetDisplay } from '../rpc/support/users';
-import { fetchRoles as fetchSystemRoles } from '../rpc/system/roles';
+import { fetchRoles as fetchServiceRoles } from '../rpc/service/roles';
 import { fetchMembers, fetchAddMember, fetchRemoveMember } from '../rpc/support/roles';
 
 const AccountUserPanel = (): JSX.Element => {
 	const { guid } = useParams();
 	const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
-	const [roles, setRoles] = useState<SystemRolesRoleItem1[]>([]);
+        const [roles, setRoles] = useState<ServiceRolesRoleItem1[]>([]);
 	const [assigned, setAssigned] = useState<string[]>([]);
 	const [available, setAvailable] = useState<string[]>([]);
 	const [credits, setCredits] = useState<number>(0);
@@ -29,8 +33,8 @@ const AccountUserPanel = (): JSX.Element => {
 				const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
 				setProfile(prof);
 				setCredits(prof.credits);
-				const roleRes = await fetchSystemRoles();
-				const roleItems: SystemRolesRoleItem1[] = roleRes.roles;
+                                const roleRes = await fetchServiceRoles();
+                                const roleItems: ServiceRolesRoleItem1[] = roleRes.roles;
 				setRoles(roleItems);
 				const assignments: string[] = [];
 				const avail: string[] = [];
