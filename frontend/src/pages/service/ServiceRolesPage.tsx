@@ -15,14 +15,14 @@ import EditBox from "../../components/EditBox";
 import PageTitle from "../../components/PageTitle";
 import ColumnHeader from "../../components/ColumnHeader";
 import type {
-SystemRolesRoleItem1,
-SystemRolesList1,
+  SystemRolesRoleItem1 as ServiceRolesRoleItem1,
+  SystemRolesList1 as ServiceRolesList1,
 } from "../../shared/RpcModels";
 import {
-fetchRoles,
-fetchUpsertRole,
-fetchDeleteRole
-} from "../../rpc/system/roles";
+  fetchRoles,
+  fetchUpsertRole,
+  fetchDeleteRole,
+} from "../../rpc/service/roles";
 import Notification from "../../components/Notification";
 
 const HIGH_BIT_MASK = (-(1n << 63n)).toString();
@@ -33,7 +33,7 @@ mask < 0n ? 63 : mask.toString(2).length - 1;
 const bitToMask = (bit: number): string =>
 bit === 63 ? HIGH_BIT_MASK : (1n << BigInt(bit)).toString();
 
-const nextMask = (roles: SystemRolesRoleItem1[]): string => {
+const nextMask = (roles: ServiceRolesRoleItem1[]): string => {
 const used = new Set(roles.map((r) => maskToBit(BigInt(r.mask))));
 for (let bit = 0; bit < 64; bit++) {
 if (!used.has(bit)) return bitToMask(bit);
@@ -41,9 +41,9 @@ if (!used.has(bit)) return bitToMask(bit);
 	return bitToMask(0);
 };
 
-const SystemRolesPage = (): JSX.Element => {
-const [items, setItems] = useState<SystemRolesRoleItem1[]>([]);
-const [newItem, setNewItem] = useState<SystemRolesRoleItem1>({
+const ServiceRolesPage = (): JSX.Element => {
+const [items, setItems] = useState<ServiceRolesRoleItem1[]>([]);
+const [newItem, setNewItem] = useState<ServiceRolesRoleItem1>({
 name: "",
 mask: "",
 display: "",
@@ -56,7 +56,7 @@ setNotification(false);
 
 const load = async (): Promise<void> => {
 try {
-const res: SystemRolesList1 = await fetchRoles();
+const res: ServiceRolesList1 = await fetchRoles();
 const sorted = res.roles.sort(
 	(a, b) => maskToBit(BigInt(a.mask)) - maskToBit(BigInt(b.mask)),
 );
@@ -84,7 +84,7 @@ if (forbidden) {
 
 const updateItem = async (
 index: number,
-field: keyof SystemRolesRoleItem1,
+field: keyof ServiceRolesRoleItem1,
 value: string,
 ): Promise<void> => {
 const updated = [...items];
@@ -138,8 +138,8 @@ setNotification(true);
 };
 
 	return (
-		<Box sx={{ p: 2 }}>
-                        <PageTitle>System Roles</PageTitle>
+                <Box sx={{ p: 2 }}>
+                        <PageTitle>Service Roles</PageTitle>
                         <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
         <TableHead>
         <TableRow>
@@ -245,4 +245,4 @@ setNotification(true);
 );
 };
 
-export default SystemRolesPage;
+export default ServiceRolesPage;

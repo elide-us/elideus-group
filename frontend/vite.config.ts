@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
                                                 if (id.includes("node_modules")) {
                                                         return "vendor";
                                                 }
-                                                const match = id.match(/src\/pages\/(system|admin)\//);
+                                                const match = id.match(/src\/pages\/(system|service|admin)\//);
                                                 if (match) {
                                                         return match[1];
                                                 }

@@ -10,7 +10,7 @@ const Gallery = lazy(() => import("./pages/Gallery"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const UserPage = lazy(() => import("./pages/UserPage"));
 const SystemRoutesPage = lazy(() => import("./pages/system/SystemRoutesPage"));
-const SystemRolesPage = lazy(() => import("./pages/system/SystemRolesPage"));
+const ServiceRolesPage = lazy(() => import("./pages/service/ServiceRolesPage"));
 const FileManager = lazy(() => import("./pages/FileManager"));
 const SystemConfigPage = lazy(() => import("./pages/system/SystemConfigPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
@@ -42,7 +42,7 @@ function App(): JSX.Element {
 								<Route path="/userpage" element={<UserPage />} />
 								<Route path="/system-routes" element={<SystemRoutesPage />} />
 								<Route path="/system-config" element={<SystemConfigPage />} />
-								<Route path="/system-roles" element={<SystemRolesPage />} />
+                                                                <Route path="/service-roles" element={<ServiceRolesPage />} />
 								<Route path="/account-roles" element={<AccountRolesPage />} />
 								<Route path="/account-users" element={<AccountUsersPage />} />
 								<Route path="/account-users/:guid" element={<AccountUserPanel />} />
