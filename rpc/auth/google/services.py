@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
+from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from .models import AuthGoogleOauthLogin1, AuthGoogleOauthLoginPayload1
@@ -166,6 +167,7 @@ async def auth_google_oauth_login_v1(request: Request):
     f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
   )
 
+  env: EnvModule = request.app.state.env
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
 
@@ -177,18 +179,17 @@ async def auth_google_oauth_login_v1(request: Request):
       raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
   client_id = google_provider.audience
 
-  # Require client_secret from system config
-  try:
-    client_secret = await db.get_google_api_secret()
-  except ValueError:
-    raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
+  # Acquire client_secret from environment
+  client_secret = env.get("GOOGLE_AUTH_SECRET")
+  if not client_secret:
+    raise HTTPException(status_code=500, detail="GOOGLE_AUTH_SECRET not configured")
 
   # Require redirect_uri from system config
-  res_redirect = await db.run("urn:system:config:get_config:1", {"key": "GoogleAuthRedirectLocalhost"})
+  res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
   if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]
-  logging.debug("[auth_google_oauth_login_v1] GoogleApiId=%s", client_id)
+  logging.debug("[auth_google_oauth_login_v1] GoogleClientId=%s", client_id)
   logging.debug("[auth_google_oauth_login_v1] redirect_uri=%s", redirect_uri)
 
   id_token, access_token = await exchange_code_for_tokens(

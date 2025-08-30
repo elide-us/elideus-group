@@ -79,10 +79,12 @@ class DummyDb:
     return DBRes()
 
 class DummyState:
-  def __init__(self, db, auth=None):
+  def __init__(self, db, auth=None, env=None):
     self.db = db
     if auth is not None:
       self.auth = auth
+    if env is not None:
+      self.env = env
 
 class DummyApp:
   def __init__(self, state):
@@ -155,8 +157,6 @@ def test_link_provider_google_normalizes_identifier():
       self.calls.append((op, args))
       if op == "urn:system:config:get_config:1":
         key = args["key"]
-        if key == "GoogleApiId":
-          return DBRes(rows=[{"value": "secret"}])
         if key == "GoogleAuthRedirectLocalhost":
           return DBRes(rows=[{"value": "redirect"}])
       return DBRes()
@@ -164,9 +164,17 @@ def test_link_provider_google_normalizes_identifier():
     async def get_google_api_secret(self):
       return "secret"
 
+  class DummyEnv:
+    async def on_ready(self):
+      return None
+    def get(self, k):
+      assert k == "GOOGLE_AUTH_SECRET"
+      return "secret"
+
   db = DummyDb()
   auth = DummyAuth()
-  req = DummyRequest(DummyState(db, auth))
+  env = DummyEnv()
+  req = DummyRequest(DummyState(db, auth, env))
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls

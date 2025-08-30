@@ -14,6 +14,7 @@ from server.modules.providers.auth.google_provider import GoogleAuthProvider
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 
+
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)

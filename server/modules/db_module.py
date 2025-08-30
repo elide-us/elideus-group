@@ -89,22 +89,13 @@ class DbModule(BaseModule):
       raise ValueError("Missing config value for key: GoogleClientId")
     return value
 
-  async def get_google_api_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
-    value = res.rows[0]["value"] if res.rows else None
-    logging.debug("[DbModule] GoogleApiId=%s", value)
-    if not value:
-      raise ValueError("Missing config value for key: GoogleApiId")
-    return value
-
   async def get_google_api_secret(self) -> str:
-    # Note: legacy naming stores the Google OAuth client secret under
-    # the "GoogleApiId" key in system_config.
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleApiId"})
-    value = res.rows[0]["value"] if res.rows else None
-    logging.debug("[DbModule] GoogleApiSecret=%s", value)
+    # Refactored: read Google OAuth client secret from environment
+    env: EnvModule = self.app.state.env
+    value = env.get("GOOGLE_AUTH_SECRET")
+    logging.debug("[DbModule] GoogleAuthSecret loaded: %s", bool(value))
     if not value:
-      raise ValueError("Missing config value for key: GoogleApiId")
+      raise ValueError("Missing env value for key: GOOGLE_AUTH_SECRET")
     return value
 
   async def get_auth_providers(self) -> list[str]:

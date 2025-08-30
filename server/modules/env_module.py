@@ -12,6 +12,7 @@ class EnvModule(BaseModule):
   async def startup(self):
     self._getenv("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
     self._getenv("JWT_SECRET", "MISSING_ENV_JWT_SECRET")
+    self._getenv("GOOGLE_AUTH_SECRET", "MISSING_ENV_GOOGLE_AUTH_SECRET")
     self._getenv("DATABASE_PROVIDER", "MISSING_DATABASE_PROVIDER")
     provider = self._env["DATABASE_PROVIDER"]
     if not provider:
