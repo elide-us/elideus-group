@@ -142,31 +142,62 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       "urn:users:providers:get_user_by_email:1",
       {"email": profile["email"]},
     )
-    if res.rows:
-      logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
-      raise HTTPException(status_code=409, detail="Email already registered")
     try:
       provider_uid = str(uuid.UUID(provider_uid))
     except ValueError:
       raise HTTPException(status_code=400, detail="Invalid provider identifier")
-    res = await db.run(
-      "urn:users:providers:create_from_provider:1",
-      {
-        "provider": provider,
-        "provider_identifier": provider_uid,
-        "provider_email": profile["email"],
-        "provider_displayname": profile["username"],
-        "provider_profile_image": profile.get("profilePicture"),
-      },
-    )
-    user = res.rows[0] if res.rows else None
-    if not user:
-      logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
+    if res.rows:
+      logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
+      existing_guid = res.rows[0]["guid"]
+      confirm = req_payload.get("confirm")
+      reauth_token = req_payload.get("reauthToken") or req_payload.get("reAuthToken")
+      if reauth_token:
+        decoded = auth.decode_rotation_token(reauth_token)
+        if decoded.get("guid") != existing_guid:
+          raise HTTPException(status_code=401, detail="Re-auth token mismatch")
+        confirm = True
+      if confirm:
+        await db.run(
+          "urn:users:providers:link_provider:1",
+          {
+            "guid": existing_guid,
+            "provider": provider,
+            "provider_identifier": provider_uid,
+          },
+        )
+        res = await db.run(
+          "urn:users:providers:get_by_provider_identifier:1",
+          {"provider": provider, "provider_identifier": provider_uid},
+        )
+        user = res.rows[0] if res.rows else None
+      else:
+        res_prof = await db.run(
+          "urn:users:profile:get_profile:1",
+          {"guid": existing_guid},
+        )
+        default_provider = None
+        if res_prof.rows:
+          default_provider = res_prof.rows[0].get("default_provider")
+        raise HTTPException(status_code=409, detail={"default_provider": default_provider})
+    else:
       res = await db.run(
-        "urn:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": provider_uid},
+        "urn:users:providers:create_from_provider:1",
+        {
+          "provider": provider,
+          "provider_identifier": provider_uid,
+          "provider_email": profile["email"],
+          "provider_displayname": profile["username"],
+          "provider_profile_image": profile.get("profilePicture"),
+        },
       )
       user = res.rows[0] if res.rows else None
+      if not user:
+        logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
+        res = await db.run(
+          "urn:users:providers:get_by_provider_identifier:1",
+          {"provider": provider, "provider_identifier": provider_uid},
+        )
+        user = res.rows[0] if res.rows else None
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
     raise HTTPException(status_code=500, detail="Unable to create user")
