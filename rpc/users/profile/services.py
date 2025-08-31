@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
   UsersProfileProfile1,

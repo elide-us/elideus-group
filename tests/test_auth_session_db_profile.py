@@ -5,10 +5,10 @@ from types import SimpleNamespace
 import pytest
 
 def test_auth_session_returns_db_profile(monkeypatch):
-  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
-  monkeypatch.setitem(sys.modules, "rpc.models", models)
+  monkeypatch.setitem(sys.modules, "server.models", models)
   monkeypatch.setitem(sys.modules, "rpc", types.ModuleType("rpc"))
   helpers = types.ModuleType("rpc.helpers")
   async def _unbox_request(request):

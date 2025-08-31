@@ -39,7 +39,12 @@ jobs:
       run: |
         cd frontend
         npm ci
-    
+
+    - name: Generate RPC bindings
+      run: |
+        python scripts/generate_rpc_library.py
+        python scripts/generate_rpc_client.py
+
     - name: Install MSSQL ODBC Driver
       run: |
         sudo apt-get update

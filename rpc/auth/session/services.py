@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 import uuid
 
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 

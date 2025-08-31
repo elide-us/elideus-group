@@ -7,7 +7,7 @@ Auth and public domains are exempt from role checks.
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 
 from . import HANDLERS

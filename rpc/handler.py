@@ -4,7 +4,7 @@ from fastapi import HTTPException, Request
 
 from rpc import HANDLERS
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 
 
 async def handle_rpc_request(request: Request) -> RPCResponse:

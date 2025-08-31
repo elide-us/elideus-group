@@ -14,7 +14,7 @@ real_helpers = importlib.util.module_from_spec(spec_helpers)
 spec_helpers.loader.exec_module(real_helpers)
 sys.modules['rpc.helpers'] = real_helpers
 
-models_mod = types.ModuleType('rpc.models')
+models_mod = types.ModuleType('server.models')
 
 class RPCRequest:
   def __init__(self, **data):
@@ -26,7 +26,7 @@ class RPCResponse:
 
 models_mod.RPCRequest = RPCRequest
 models_mod.RPCResponse = RPCResponse
-sys.modules['rpc.models'] = models_mod
+sys.modules['server.models'] = models_mod
 
 if str(ROOT) not in sys.path:
   sys.path.insert(0, str(ROOT))

@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 
 from . import DISPATCHERS
 

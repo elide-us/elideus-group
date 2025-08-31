@@ -15,13 +15,13 @@ rpc_pkg.HANDLERS = {}
 sys.modules["rpc"] = rpc_pkg
 
 spec_models = importlib.util.spec_from_file_location(
-  "rpc.models", root_path / "rpc/models.py"
+  "server.models", root_path / "server/models.py"
 )
 models_mod = importlib.util.module_from_spec(spec_models)
 spec_models.loader.exec_module(models_mod)
 RPCRequest = models_mod.RPCRequest
 RPCResponse = models_mod.RPCResponse
-sys.modules["rpc.models"] = models_mod
+sys.modules["server.models"] = models_mod
 
 spec_helpers = importlib.util.spec_from_file_location(
   "rpc.helpers", root_path / "rpc/helpers.py"

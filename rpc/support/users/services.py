@@ -97,7 +97,7 @@ def _get_rpc_response_class():
     if isinstance(obj, type) and obj.__name__ == "RPCResponse":
       bases.append(obj)
   if not bases:
-    bases.append(import_module("rpc.models").RPCResponse)
+    bases.append(import_module("server.models").RPCResponse)
   bases = tuple(dict.fromkeys(bases))
   return type("RPCResponseCompat", bases, {})
 

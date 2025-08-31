@@ -18,7 +18,7 @@ _helpers_spec.loader.exec_module(_helpers_mod)
 sys.modules["rpc.helpers"] = _helpers_mod
 unbox_request = _helpers_mod.unbox_request
 
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.db_module import DbModule
 from .models import (
   PublicLinksHomeLinks1,
