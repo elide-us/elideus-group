@@ -7,22 +7,28 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [react()],
 		base: isProduction ? "/static/" : "/",
-                build: {
-                        outDir: "../static",
-                        assetsDir: "assets",
-                        rollupOptions: {
-                                output: {
-                                        manualChunks(id) {
-                                                if (id.includes("node_modules")) {
-                                                        return "vendor";
-                                                }
-                                                const match = id.match(/src\/pages\/(system|service|admin)\//);
-                                                if (match) {
-                                                        return match[1];
-                                                }
-                                        },
-                                },
-                        },
-                },
+		build: {
+			outDir: "../static",
+			assetsDir: "assets",
+			rollupOptions: {
+				output: {
+					manualChunks(id) {
+						if (id.includes("node_modules")) {
+							return "vendor";
+						}
+						const match = id.match(/src\/pages\/(system|service|admin)\//);
+						if (match) {
+							return match[1];
+						}
+					},
+				},
+			},
+		},
+		test: {
+			coverage: {
+				reporter: ["text", "json", "html"],
+				exclude: ["src/rpc/**", "src/shared/RpcModels.tsx"],
+			},
+		},
 	};
 });
