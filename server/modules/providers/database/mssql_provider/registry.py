@@ -497,6 +497,16 @@ def _auth_session_update_session(args: Dict[str, Any]):
     """
     return ("exec", sql, (ip_address, user_agent, token))
 
+@register("db:auth:session:revoke_device_token:1")
+def _auth_session_revoke_device_token(args: Dict[str, Any]):
+  token = args["access_token"]
+  sql = """
+    UPDATE sessions_devices
+    SET element_revoked_at = SYSDATETIMEOFFSET()
+    WHERE element_token = ?;
+  """
+  return ("exec", sql, (token,))
+
 # -------------------- SYSTEM CONFIG --------------------
 
 @register("db:system:config:get_config:1")

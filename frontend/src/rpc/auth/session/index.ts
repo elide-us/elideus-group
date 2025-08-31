@@ -9,4 +9,5 @@ import { rpcCall } from '../../../shared/RpcModels';
 export const fetchToken = (payload: any = null): Promise<any> => rpcCall('urn:auth:session:get_token:1', payload);
 export const fetchRefreshToken = (payload: any = null): Promise<any> => rpcCall('urn:auth:session:refresh_token:1', payload);
 export const fetchInvalidateToken = (payload: any = null): Promise<any> => rpcCall('urn:auth:session:invalidate_token:1', payload);
+export const fetchLogoutDevice = (payload: any = null): Promise<any> => rpcCall('urn:auth:session:logout_device:1', payload);
 export const fetchSession = (payload: any = null): Promise<any> => rpcCall('urn:auth:session:get_session:1', payload);
