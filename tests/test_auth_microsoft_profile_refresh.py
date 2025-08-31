@@ -1,6 +1,7 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+import json
 
 
 class DummyAuth:
@@ -110,7 +111,8 @@ def test_updates_profile_if_unedited():
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)
-  assert resp.payload["display_name"] == "New"
+  data = json.loads(resp.body)
+  assert data["payload"]["display_name"] == "New"
 
 
 def test_leaves_profile_if_edited():
@@ -120,5 +122,6 @@ def test_leaves_profile_if_edited():
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)
-  assert resp.payload["display_name"] == "User"
+  data = json.loads(resp.body)
+  assert data["payload"]["display_name"] == "User"
 

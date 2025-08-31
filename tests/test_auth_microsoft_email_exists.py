@@ -1,6 +1,7 @@
 import sys, types, pytest, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+import json
 from fastapi import HTTPException
 
 class DummyAuth:
@@ -160,5 +161,6 @@ def test_email_exists_confirm_links(monkeypatch):
 
   req = DummyRequest()
   res = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert res.payload["display_name"] == "User"
+  data = json.loads(res.body)
+  assert data["payload"]["display_name"] == "User"
   assert any(op == "urn:users:providers:link_provider:1" for op, _ in req.app.state.db.calls)

@@ -100,10 +100,11 @@ class DummyAuth:
 def test_create_session_handles_missing_roles():
   db = DummyDb()
   auth = DummyAuth()
-  token, exp = asyncio.run(
+  token, exp, rot, rot_exp = asyncio.run(
     create_session(auth, db, str(uuid.uuid4()), "microsoft", None, None, None)
   )
   assert token == "sess"
+  assert rot == "rot"
   ops = [op for op, _ in db.calls]
   assert "db:auth:session:create_session:1" in ops
   args = [a for op, a in db.calls if op == "db:auth:session:create_session:1"][0]

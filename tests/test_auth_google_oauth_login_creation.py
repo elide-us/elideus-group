@@ -144,7 +144,7 @@ def test_fetch_user_after_create(monkeypatch):
 
   req = DummyRequest()
   resp = asyncio.run(auth_google_oauth_login_v1(req))
-  assert isinstance(resp, RPCResponse)
+  assert "rotation_token=" in resp.headers.get("set-cookie", "")
   calls = [op for op, _ in req.app.state.db.calls if op == "urn:users:providers:get_by_provider_identifier:1"]
   assert len(calls) == 2
   assert any(

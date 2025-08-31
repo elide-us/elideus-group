@@ -3,6 +3,8 @@ import base64, logging, uuid
 import aiohttp
 
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
@@ -141,7 +143,7 @@ async def create_session(
       "provider": provider,
     },
   )
-  return session_token, session_exp
+  return session_token, session_exp, rotation_token, rot_exp
 
 
 async def auth_microsoft_oauth_login_v1(request: Request):
@@ -274,7 +276,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   fingerprint = req_payload.get("fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token, session_exp = await create_session(
+  session_token, session_exp, rotation_token, rot_exp = await create_session(
     auth, db, user_guid, provider, fingerprint, user_agent, ip_address
   )
 
@@ -284,5 +286,15 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     credits=user["credits"],
     profile_image=user.get("profile_image"),
   )
-  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+  rpc_resp = RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+  response = JSONResponse(content=jsonable_encoder(rpc_resp))
+  response.set_cookie(
+    "rotation_token",
+    rotation_token,
+    httponly=True,
+    secure=True,
+    samesite="lax",
+    expires=rot_exp,
+  )
+  return response
 

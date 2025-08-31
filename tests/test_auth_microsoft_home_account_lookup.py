@@ -94,5 +94,5 @@ def test_lookup_with_home_account_id(monkeypatch):
 
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert isinstance(resp, RPCResponse)
+  assert "rotation_token=" in resp.headers.get("set-cookie", "")
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
