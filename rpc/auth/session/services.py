@@ -162,11 +162,13 @@ async def auth_session_refresh_token_v1(request: Request):
   data = auth.decode_rotation_token(rotation_token)
   user_guid = data["guid"]
   stored = await db.run("db:users:session:get_rotkey:1", {"guid": user_guid})
-  if not stored.rows or stored.rows[0].get("rotkey") != rotation_token:
+  row = stored.rows[0] if stored.rows else None
+  if not row or row.get("rotkey") != rotation_token:
     raise HTTPException(status_code=401, detail="Invalid rotation token")
 
+  provider = row.get("provider_name") or "microsoft"
   roles, _ = await auth.get_user_roles(user_guid)
-  session_token, _ = auth.make_session_token(user_guid, rotation_token, roles, "microsoft")
+  session_token, _ = auth.make_session_token(user_guid, rotation_token, roles, provider)
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 
 async def auth_session_invalidate_token_v1(request: Request):
