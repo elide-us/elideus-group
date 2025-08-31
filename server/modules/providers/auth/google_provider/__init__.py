@@ -60,6 +60,7 @@ class GoogleAuthProvider(AuthProvider):
       profile_picture_base64 = None
       picture_url = user.get("picture")
       if picture_url:
+        logging.debug("[GoogleAuthProvider] Fetching profile image from %s", picture_url)
         try:
           async with session.get(picture_url) as img_resp:
             if img_resp.status == 200:

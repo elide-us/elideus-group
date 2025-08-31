@@ -1,6 +1,7 @@
 # providers/database/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
 from uuid import UUID
+from ... import DBResult
 from .logic import init_pool, close_pool, transaction
 from .db_helpers import fetch_rows, fetch_json, exec_query
 
@@ -243,6 +244,32 @@ def _users_set_optin(args: Dict[str, Any]):
       WHERE element_guid = ?;
     """
     return ("exec", sql, (display_email, guid))
+
+
+@register("urn:users:profile:update_if_unedited:1")
+async def _users_update_if_unedited(args: Dict[str, Any]):
+  guid = str(UUID(args["guid"]))
+  email = args.get("email")
+  display = args.get("display_name")
+  res = await exec_query(
+    """
+    UPDATE account_users
+    SET element_email = ?, element_display = ?
+    WHERE element_guid = ? AND (element_email <> ? OR element_display <> ?);
+    """,
+    (email, display, guid, email, display),
+  )
+  if res.rowcount > 0:
+    return await fetch_json(
+      """
+      SELECT element_display AS display_name, element_email AS email
+      FROM account_users
+      WHERE element_guid = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+      """,
+      (guid,),
+    )
+  return DBResult()
 
 
 @register("urn:users:providers:set_provider:1")
