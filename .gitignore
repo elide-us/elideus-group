@@ -134,3 +134,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Generated RPC bindings
+frontend/src/rpc/
+frontend/src/shared/RpcModels.tsx
