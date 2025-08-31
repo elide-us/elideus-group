@@ -30,10 +30,26 @@ async def users_providers_set_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
+  auth: AuthModule | None = getattr(request.app.state, "auth", None)
   await db.run(rpc_request.op, {
     "guid": auth_ctx.user_guid,
     "provider": payload.provider,
   })
+  if auth:
+    provider = getattr(auth, "providers", {}).get(payload.provider)
+    if provider:
+      try:
+        profile = await provider.fetch_user_profile(None)
+        await db.run(
+          "urn:users:profile:update_if_unedited:1",
+          {
+            "guid": auth_ctx.user_guid,
+            "email": profile.get("email"),
+            "display_name": profile.get("username"),
+          },
+        )
+      except Exception:
+        pass
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
