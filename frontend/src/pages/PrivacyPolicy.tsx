@@ -7,7 +7,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			<PageTitle>Privacy Policy</PageTitle>
 
 			<Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-				Last updated: [Insert Date]
+				Last updated: August 30, 2025
 			</Typography>
 
 			<Typography variant="body1" sx={{ mt: 2 }}>
@@ -22,6 +22,7 @@ const PrivacyPolicy = (): JSX.Element => {
 					<li>Username / Display Name from your identity provider</li>
 					<li>Email address from your identity provider</li>
 					<li>Profile image / avatar from your identity provider</li>
+					<li>Unique account identifier from your identity provider</li>
 				</ul>
 				We do not request or store passwords from your identity provider.
 			</Typography>
@@ -47,7 +48,7 @@ const PrivacyPolicy = (): JSX.Element => {
 					<li>Your email address is hidden by default. You may choose to display it, but it cannot be edited, as it is sourced from your provider.</li>
 					<li>Your profile image may be pulled from your provider, but you may replace it within the service.</li>
 				</ul>
-				Moderators cannot change your name, but may reset it to the provider default if reported or found offensive.
+				Moderators cannot change your name, but may reset it to a default if reported or found offensive.
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
@@ -86,7 +87,7 @@ const PrivacyPolicy = (): JSX.Element => {
 				8. Contact Us
 			</Typography>
 			<Typography variant="body1">
-				If you have questions about this Privacy Policy or wish to exercise your rights, please contact us at: [Insert Privacy Contact Email]
+				If you have questions about this Privacy Policy or wish to exercise your rights, please contact us at: aaron@elideus.net
 			</Typography>
 		</Box>
 	);
