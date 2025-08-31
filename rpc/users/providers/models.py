@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 class UsersProvidersSetProvider1(BaseModel):
   provider: str
+  code: str | None = None
+  access_token: str | None = None
 
 
 class UsersProvidersLinkProvider1(BaseModel):

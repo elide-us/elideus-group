@@ -21,93 +21,35 @@ export interface RPCResponse {
 	version: number;
 	timestamp: string | null;
 }
-export interface SystemConfigConfigItem1 {
-	key: string;
-	value: string;
+export interface PublicLinksHomeLinks1 {
+	links: PublicLinksLinkItem1[];
 }
-export interface SystemConfigDeleteConfig1 {
-	key: string;
+export interface PublicLinksLinkItem1 {
+	title: string;
+	url: string;
 }
-export interface SystemConfigList1 {
-	items: SystemConfigConfigItem1[];
-}
-export interface SystemRolesDeleteRole1 {
-	name: string;
-}
-export interface SystemRolesList1 {
-	roles: SystemRolesRoleItem1[];
-}
-export interface SystemRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemRoutesDeleteRoute1 {
-	path: string;
-}
-export interface SystemRoutesList1 {
-	routes: SystemRoutesRouteItem1[];
-}
-export interface SystemRoutesRouteItem1 {
+export interface PublicLinksNavBarRoute1 {
 	path: string;
 	name: string;
 	icon: string | null;
-	sequence: number;
-	required_roles: string[];
 }
-export interface UsersProfileAuthProvider1 {
-	name: string;
-	display: string;
+export interface PublicLinksNavBarRoutes1 {
+	routes: PublicLinksNavBarRoute1[];
 }
-export interface UsersProfileProfile1 {
-	guid: string;
-	display_name: string;
-	email: string;
-	display_email: boolean;
-	credits: number;
-	profile_image: string | null;
-	default_provider: string;
-	auth_providers: UsersProfileAuthProvider1[];
+export interface PublicVarsFfmpegVersion1 {
+	ffmpeg_version: string;
 }
-export interface UsersProfileRoles1 {
-	roles: number;
+export interface PublicVarsHostname1 {
+	hostname: string;
 }
-export interface UsersProfileSetDisplay1 {
-	display_name: string;
+export interface PublicVarsOdbcVersion1 {
+	odbc_version: string;
 }
-export interface UsersProfileSetOptin1 {
-	display_email: boolean;
+export interface PublicVarsRepo1 {
+	repo: string;
 }
-export interface UsersProfileSetProfileImage1 {
-	image_b64: string;
-	provider: string;
-}
-export interface UsersProvidersCreateFromProvider1 {
-	provider: string;
-	provider_identifier: string;
-	provider_email: string;
-	provider_displayname: string;
-	provider_profile_image: any;
-}
-export interface UsersProvidersGetByProviderIdentifier1 {
-	provider: string;
-	provider_identifier: string;
-}
-export interface UsersProvidersLinkProvider1 {
-	provider: string;
-	code: string;
-}
-export interface UsersProvidersSetProvider1 {
-	provider: string;
-}
-export interface UsersProvidersUnlinkProvider1 {
-	provider: string;
-	new_default: string | null;
+export interface PublicVarsVersion1 {
+	version: string;
 }
 export interface StorageFilesDeleteFiles1 {
 	files: string[];
@@ -148,72 +90,6 @@ export interface ServiceRolesUpsertRole1 {
 	mask: string;
 	display: any;
 }
-export interface SupportRolesMembers1 {
-	members: SupportRolesUserItem1[];
-	nonMembers: SupportRolesUserItem1[];
-}
-export interface SupportRolesRoleMemberUpdate1 {
-	role: string;
-	userGuid: string;
-}
-export interface SupportRolesUserItem1 {
-	guid: string;
-	displayName: string;
-}
-export interface SupportUsersGuid1 {
-	userGuid: string;
-}
-export interface SupportUsersSetCredits1 {
-	userGuid: string;
-	credits: number;
-}
-export interface PublicLinksHomeLinks1 {
-	links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-	title: string;
-	url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-	path: string;
-	name: string;
-	icon: string | null;
-}
-export interface PublicLinksNavBarRoutes1 {
-	routes: PublicLinksNavBarRoute1[];
-}
-export interface PublicVarsFfmpegVersion1 {
-	ffmpeg_version: string;
-}
-export interface PublicVarsHostname1 {
-	hostname: string;
-}
-export interface PublicVarsOdbcVersion1 {
-	odbc_version: string;
-}
-export interface PublicVarsRepo1 {
-	repo: string;
-}
-export interface PublicVarsVersion1 {
-	version: string;
-}
-export interface AuthGoogleOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
-}
-export interface AuthGoogleOauthLoginPayload1 {
-	provider: string;
-	code: string;
-	fingerprint: any;
-}
-export interface AuthMicrosoftOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
-}
 export interface AccountRoleList1 {
 	roles: AccountRoleRoleItem1[];
 }
@@ -233,6 +109,134 @@ export interface AccountRoleRoleItem1 {
 export interface AccountRoleUserItem1 {
 	guid: string;
 	displayName: string;
+}
+export interface UsersProvidersCreateFromProvider1 {
+	provider: string;
+	provider_identifier: string;
+	provider_email: string;
+	provider_displayname: string;
+	provider_profile_image: any;
+}
+export interface UsersProvidersGetByProviderIdentifier1 {
+	provider: string;
+	provider_identifier: string;
+}
+export interface UsersProvidersLinkProvider1 {
+	provider: string;
+	code: string;
+}
+export interface UsersProvidersSetProvider1 {
+	provider: string;
+	code: any;
+	access_token: any;
+}
+export interface UsersProvidersUnlinkProvider1 {
+	provider: string;
+	new_default: any;
+}
+export interface UsersProfileAuthProvider1 {
+	name: string;
+	display: string;
+}
+export interface UsersProfileProfile1 {
+	guid: string;
+	display_name: string;
+	email: string;
+	display_email: boolean;
+	credits: number;
+	profile_image: string | null;
+	default_provider: string;
+	auth_providers: UsersProfileAuthProvider1[];
+}
+export interface UsersProfileRoles1 {
+	roles: number;
+}
+export interface UsersProfileSetDisplay1 {
+	display_name: string;
+}
+export interface UsersProfileSetOptin1 {
+	display_email: boolean;
+}
+export interface UsersProfileSetProfileImage1 {
+	image_b64: string;
+	provider: string;
+}
+export interface SystemRolesDeleteRole1 {
+	name: string;
+}
+export interface SystemRolesList1 {
+	roles: SystemRolesRoleItem1[];
+}
+export interface SystemRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemRoutesDeleteRoute1 {
+	path: string;
+}
+export interface SystemRoutesList1 {
+	routes: SystemRoutesRouteItem1[];
+}
+export interface SystemRoutesRouteItem1 {
+	path: string;
+	name: string;
+	icon: string | null;
+	sequence: number;
+	required_roles: string[];
+}
+export interface SystemConfigConfigItem1 {
+	key: string;
+	value: string;
+}
+export interface SystemConfigDeleteConfig1 {
+	key: string;
+}
+export interface SystemConfigList1 {
+	items: SystemConfigConfigItem1[];
+}
+export interface AuthMicrosoftOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLoginPayload1 {
+	provider: string;
+	code: string;
+	confirm: any;
+	reauthToken: any;
+	fingerprint: any;
+}
+export interface SupportRolesMembers1 {
+	members: SupportRolesUserItem1[];
+	nonMembers: SupportRolesUserItem1[];
+}
+export interface SupportRolesRoleMemberUpdate1 {
+	role: string;
+	userGuid: string;
+}
+export interface SupportRolesUserItem1 {
+	guid: string;
+	displayName: string;
+}
+export interface SupportUsersGuid1 {
+	userGuid: string;
+}
+export interface SupportUsersSetCredits1 {
+	userGuid: string;
+	credits: number;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {
