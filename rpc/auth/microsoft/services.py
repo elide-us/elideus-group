@@ -256,6 +256,21 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     user["profile_image"] = new_img
 
   user_guid = user["guid"]
+  if user.get("provider_name") == "microsoft":
+    res_prof = await db.run(
+      "urn:users:profile:update_if_unedited:1",
+      {
+        "guid": user_guid,
+        "email": profile["email"],
+        "display_name": profile["username"],
+      },
+    )
+    if res_prof.rows:
+      updated = res_prof.rows[0]
+      if updated.get("display_name"):
+        user["display_name"] = updated["display_name"]
+      if updated.get("email"):
+        user["email"] = updated["email"]
   fingerprint = req_payload.get("fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
