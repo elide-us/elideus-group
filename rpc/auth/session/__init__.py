@@ -2,7 +2,8 @@ from .services import (
   auth_session_get_token_v1,
   auth_session_refresh_token_v1,
   auth_session_invalidate_token_v1,
-  auth_session_get_session_v1
+  auth_session_get_session_v1,
+  auth_session_logout_device_v1
 )
 
 
@@ -10,6 +11,7 @@ DISPATCHERS: dict[tuple[str, str], callable] = {
   ("get_token", "1"): auth_session_get_token_v1,
   ("refresh_token", "1"): auth_session_refresh_token_v1,
   ("invalidate_token", "1"): auth_session_invalidate_token_v1,
+  ("logout_device", "1"): auth_session_logout_device_v1,
   ("get_session", "1"): auth_session_get_session_v1,
 }
 

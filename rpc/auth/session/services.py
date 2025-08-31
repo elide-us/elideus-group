@@ -184,6 +184,18 @@ async def auth_session_invalidate_token_v1(request: Request):
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
 
 
+async def auth_session_logout_device_v1(request: Request):
+  rpc_request, _auth_ctx, _ = await unbox_request(request)
+  header = request.headers.get("authorization")
+  if not header or not header.lower().startswith("bearer "):
+    raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+  token = header.split(" ", 1)[1].strip()
+
+  db: DbModule = request.app.state.db
+  await db.run("db:auth:session:revoke_device_token:1", {"access_token": token})
+  return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
+
+
 async def auth_session_get_session_v1(request: Request):
   rpc_request, _auth_ctx, _ = await unbox_request(request)
   header = request.headers.get("authorization")
