@@ -30,6 +30,8 @@ async def users_providers_set_provider_v1(request: Request):
     payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
+  if not payload.code and not payload.access_token:
+    raise HTTPException(status_code=400, detail="code or access_token required")
   db: DbModule = request.app.state.db
   auth: AuthModule | None = getattr(request.app.state, "auth", None)
   await db.run(rpc_request.op, {
@@ -39,18 +41,59 @@ async def users_providers_set_provider_v1(request: Request):
   if auth:
     provider = getattr(auth, "providers", {}).get(payload.provider)
     if provider:
-      try:
-        profile = await provider.fetch_user_profile(None)
-        await db.run(
-          "urn:users:profile:update_if_unedited:1",
-          {
-            "guid": auth_ctx.user_guid,
-            "email": profile.get("email"),
-            "display_name": profile.get("username"),
-          },
-        )
-      except Exception:
-        pass
+      access_token = payload.access_token
+      if not access_token and payload.code:
+        if payload.provider == "google":
+          google_provider = provider
+          if not google_provider.audience:
+            raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
+          client_id = google_provider.audience
+          env = request.app.state.env
+          client_secret = env.get("GOOGLE_AUTH_SECRET")
+          if not client_secret:
+            raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
+          res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+          if not res_redirect.rows:
+            raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
+          redirect_uri = res_redirect.rows[0]["value"]
+          _, access_token = await exchange_code_for_tokens(
+            payload.code,
+            client_id,
+            client_secret,
+            redirect_uri,
+          )
+        elif payload.provider == "microsoft":
+          ms_provider = provider
+          if not ms_provider.audience:
+            raise HTTPException(status_code=500, detail="Microsoft OAuth client_id not configured")
+          client_id = ms_provider.audience
+          env = request.app.state.env
+          client_secret = env.get("MICROSOFT_AUTH_SECRET")
+          if not client_secret:
+            raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
+          res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+          if not res_redirect.rows:
+            raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
+          redirect_uri = res_redirect.rows[0]["value"]
+          _, access_token = await ms_exchange_code_for_tokens(
+            payload.code,
+            client_id,
+            client_secret,
+            redirect_uri,
+          )
+      if access_token:
+        try:
+          profile = await provider.fetch_user_profile(access_token)
+          await db.run(
+            "urn:users:profile:update_if_unedited:1",
+            {
+              "guid": auth_ctx.user_guid,
+              "email": profile.get("email"),
+              "display_name": profile.get("username"),
+            },
+          )
+        except Exception:
+          pass
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
