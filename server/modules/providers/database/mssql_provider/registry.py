@@ -142,7 +142,17 @@ async def _users_unlink_provider(args: Dict[str, Any]):
           "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
           (guid,)
         )
-    return {"rows": [], "rowcount": 1}
+    return {"rows": [{"providers_remaining": cnt}], "rowcount": 1}
+
+@register("urn:users:providers:soft_delete_account:1")
+def _users_soft_delete_account(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    sql = """
+      UPDATE account_users
+      SET element_soft_deleted_at = SYSDATETIMEOFFSET()
+      WHERE element_guid = ?;
+    """
+    return ("exec", sql, (guid,))
 
 @register("urn:users:providers:get_user_by_email:1")
 def _users_get_user_by_email(args: Dict[str, Any]):
@@ -506,6 +516,32 @@ def _auth_session_revoke_device_token(args: Dict[str, Any]):
     WHERE element_token = ?;
   """
   return ("exec", sql, (token,))
+
+@register("db:auth:session:revoke_all_device_tokens:1")
+def _auth_session_revoke_all_device_tokens(args: Dict[str, Any]):
+  guid = str(UUID(args["guid"]))
+  sql = """
+    UPDATE sd
+    SET element_revoked_at = SYSDATETIMEOFFSET()
+    FROM sessions_devices sd
+    JOIN users_sessions us ON us.element_guid = sd.sessions_guid
+    WHERE us.users_guid = ?;
+  """
+  return ("exec", sql, (guid,))
+
+@register("db:auth:session:revoke_provider_tokens:1")
+def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
+  guid = str(UUID(args["guid"]))
+  provider = args["provider"]
+  sql = """
+    UPDATE sd
+    SET element_revoked_at = SYSDATETIMEOFFSET()
+    FROM sessions_devices sd
+    JOIN users_sessions us ON us.element_guid = sd.sessions_guid
+    JOIN auth_providers ap ON ap.recid = sd.providers_recid
+    WHERE us.users_guid = ? AND ap.element_name = ?;
+  """
+  return ("exec", sql, (guid, provider))
 
 # -------------------- SYSTEM CONFIG --------------------
 
