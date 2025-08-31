@@ -1,0 +1,81 @@
+import importlib.util
+import types
+import sys
+import asyncio
+
+
+class DBRes:
+  def __init__(self, rows=None, rowcount=0):
+    self.rows = rows or []
+    self.rowcount = rowcount
+
+class DummyDb:
+  async def run(self, op, args):
+    if op == "db:users:session:get_rotkey:1":
+      return DBRes([{ "rotkey": "rot-token", "provider_name": "google" }], 1)
+    return DBRes()
+
+class DummyAuth:
+  def __init__(self):
+    self.provider = None
+  def decode_rotation_token(self, token):
+    return {"guid": "user-guid"}
+  async def get_user_roles(self, _guid):
+    return (["user"], 0)
+  def make_session_token(self, user_guid, rot, roles, provider):
+    self.provider = provider
+    return ("new-token", None)
+
+class DummyState:
+  def __init__(self):
+    self.db = DummyDb()
+    self.auth = DummyAuth()
+
+class DummyApp:
+  def __init__(self):
+    self.state = DummyState()
+
+class DummyRequest:
+  def __init__(self):
+    self.app = DummyApp()
+    self.headers = {}
+    self.cookies = {"rotation_token": "rot-token"}
+
+
+def _setup():
+  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  models = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(models)
+  sys.modules["rpc.models"] = models
+  RPCResponse = models.RPCResponse
+  helpers = types.ModuleType("rpc.helpers")
+  async def fake_unbox(_req):
+    return None
+  helpers.unbox_request = fake_unbox
+  sys.modules["rpc.helpers"] = helpers
+  sys.modules.setdefault("server", types.ModuleType("server"))
+  sys.modules.setdefault("server.modules", types.ModuleType("server.modules"))
+  models_mod = types.ModuleType("server.models")
+  class AuthContext: ...
+  models_mod.AuthContext = AuthContext
+  sys.modules["server.models"] = models_mod
+  db_mod = types.ModuleType("server.modules.db_module")
+  class DbModule: ...
+  db_mod.DbModule = DbModule
+  sys.modules["server.modules.db_module"] = db_mod
+  auth_mod = types.ModuleType("server.modules.auth_module")
+  class AuthModule: ...
+  auth_mod.AuthModule = AuthModule
+  sys.modules["server.modules.auth_module"] = auth_mod
+  spec = importlib.util.spec_from_file_location("rpc.auth.session.services", "rpc/auth/session/services.py")
+  svc_mod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(svc_mod)
+  return svc_mod, RPCResponse
+
+
+def test_refresh_retains_provider_google():
+  svc_mod, RPCResponse = _setup()
+  req = DummyRequest()
+  resp = asyncio.run(svc_mod.auth_session_refresh_token_v1(req))
+  assert isinstance(resp, RPCResponse)
+  assert req.app.state.auth.provider == "google"

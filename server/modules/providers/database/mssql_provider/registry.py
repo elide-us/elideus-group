@@ -305,7 +305,9 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
 def _users_session_get_rotkey(args: Dict[str, Any]):
     guid = args["guid"]
     sql = """
-      SELECT TOP 1 element_rotkey AS rotkey
+      SELECT TOP 1
+        element_rotkey AS rotkey,
+        provider_name
       FROM vw_account_user_security
       WHERE user_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;

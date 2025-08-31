@@ -26,7 +26,7 @@ class DummyDb:
         return DBRes([{"revoked_at": "2024-01-01T00:00:00Z"}], 1)
       return DBRes([{"revoked_at": None}], 1)
     if op == "db:users:session:get_rotkey:1":
-      return DBRes([{"rotkey": "rot-token"}], 1)
+      return DBRes([{"rotkey": "rot-token", "provider_name": "microsoft"}], 1)
     return DBRes()
 
 class DummyAuth:
