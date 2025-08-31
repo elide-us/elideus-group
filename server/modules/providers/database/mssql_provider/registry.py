@@ -118,7 +118,20 @@ async def _users_link_provider(args: Dict[str, Any]):
 async def _users_unlink_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
+    new_recid = args.get("new_provider_recid")
     async with transaction() as cur:
+      await cur.execute(
+        "SELECT providers_recid FROM account_users WHERE element_guid = ?;",
+        (guid,)
+      )
+      row = await cur.fetchone()
+      current_recid = row[0] if row else None
+      await cur.execute(
+        "SELECT recid FROM auth_providers WHERE element_name = ?;",
+        (provider,)
+      )
+      row = await cur.fetchone()
+      provider_recid = row[0] if row else None
       await cur.execute(
         """
         DELETE ua FROM users_auth ua
@@ -142,6 +155,17 @@ async def _users_unlink_provider(args: Dict[str, Any]):
           "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
           (guid,)
         )
+      elif current_recid == provider_recid:
+        if new_recid is not None:
+          await cur.execute(
+            "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
+            (new_recid, guid),
+          )
+        else:
+          await cur.execute(
+            "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
+            (guid,),
+          )
     return {"rows": [{"providers_remaining": cnt}], "rowcount": 1}
 
 @register("urn:users:providers:soft_delete_account:1")

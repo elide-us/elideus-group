@@ -155,6 +155,12 @@ async def users_providers_unlink_provider_v1(request: Request):
       {"guid": auth_ctx.user_guid, "rotkey": "", "iat": now, "exp": now},
     )
   elif payload.provider == default_provider:
+    if not payload.new_default:
+      raise HTTPException(status_code=400, detail="new_default required")
+    await db.run(
+      "urn:users:providers:set_provider:1",
+      {"guid": auth_ctx.user_guid, "provider": payload.new_default},
+    )
     await db.run(
       "db:auth:session:revoke_provider_tokens:1",
       {"guid": auth_ctx.user_guid, "provider": payload.provider},

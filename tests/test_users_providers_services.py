@@ -288,7 +288,8 @@ def test_unlink_non_default_provider_retains_tokens():
   assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
 
 
-def test_unlink_default_provider_revokes_tokens():
+
+def test_unlink_default_provider_without_new_default_raises():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
@@ -305,7 +306,31 @@ def test_unlink_default_provider_revokes_tokens():
 
   db = LocalDb()
   req = DummyRequest(DummyState(db))
+  with pytest.raises(HTTPException):
+    asyncio.run(users_providers_unlink_provider_v1(req))
+  assert not any(op == "urn:users:providers:set_provider:1" for op, _ in db.calls)
+  assert not any(op == "db:auth:session:revoke_provider_tokens:1" for op, _ in db.calls)
+
+
+def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google", "new_default": "microsoft"}, version=1)
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  class LocalDb(DummyDb):
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:users:profile:get_profile:1":
+        return DBRes(rows=[{"default_provider": "google"}])
+      if op == "urn:users:providers:unlink_provider:1":
+        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
+      return DBRes()
+
+  db = LocalDb()
+  req = DummyRequest(DummyState(db))
   asyncio.run(users_providers_unlink_provider_v1(req))
+  assert ("urn:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
   assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) in db.calls
   assert not any(op == "db:auth:session:revoke_all_device_tokens:1" for op, _ in db.calls)
   assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
