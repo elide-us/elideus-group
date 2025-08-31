@@ -66,6 +66,7 @@ sys.modules["rpc.helpers"] = real_helpers
 
 users_providers_set_provider_v1 = svc_mod.users_providers_set_provider_v1
 users_providers_link_provider_v1 = svc_mod.users_providers_link_provider_v1
+users_providers_unlink_provider_v1 = svc_mod.users_providers_unlink_provider_v1
 
 class DBRes:
   def __init__(self, rows=None, rowcount=0):
@@ -262,4 +263,81 @@ def test_link_provider_microsoft_normalizes_identifier():
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "ms-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
   asyncio.run(auth.providers["microsoft"].shutdown())
+
+
+def test_unlink_non_default_provider_retains_tokens():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  class LocalDb(DummyDb):
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:users:profile:get_profile:1":
+        return DBRes(rows=[{"default_provider": "microsoft"}])
+      if op == "urn:users:providers:unlink_provider:1":
+        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
+      return DBRes()
+
+  db = LocalDb()
+  req = DummyRequest(DummyState(db))
+  asyncio.run(users_providers_unlink_provider_v1(req))
+  assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) not in db.calls
+  assert not any(op == "db:auth:session:revoke_all_device_tokens:1" for op, _ in db.calls)
+  assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
+
+
+def test_unlink_default_provider_revokes_tokens():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  class LocalDb(DummyDb):
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:users:profile:get_profile:1":
+        return DBRes(rows=[{"default_provider": "google"}])
+      if op == "urn:users:providers:unlink_provider:1":
+        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
+      return DBRes()
+
+  db = LocalDb()
+  req = DummyRequest(DummyState(db))
+  asyncio.run(users_providers_unlink_provider_v1(req))
+  assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) in db.calls
+  assert not any(op == "db:auth:session:revoke_all_device_tokens:1" for op, _ in db.calls)
+  assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
+
+
+def test_unlink_last_provider_soft_deletes_and_revokes():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  class LocalDb(DummyDb):
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:users:profile:get_profile:1":
+        return DBRes(rows=[{"default_provider": "google"}])
+      if op == "urn:users:providers:unlink_provider:1":
+        return DBRes(rows=[{"providers_remaining": 0}], rowcount=1)
+      if op in (
+        "urn:users:providers:soft_delete_account:1",
+        "db:auth:session:revoke_all_device_tokens:1",
+        "db:users:session:set_rotkey:1",
+      ):
+        return DBRes([], 1)
+      return DBRes()
+
+  db = LocalDb()
+  req = DummyRequest(DummyState(db))
+  asyncio.run(users_providers_unlink_provider_v1(req))
+  assert ("urn:users:providers:soft_delete_account:1", {"guid": "u1"}) in db.calls
+  assert ("db:auth:session:revoke_all_device_tokens:1", {"guid": "u1"}) in db.calls
+  rotcall = next(args for op, args in db.calls if op == "db:users:session:set_rotkey:1")
+  assert rotcall["rotkey"] == ""
+  assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) not in db.calls
 

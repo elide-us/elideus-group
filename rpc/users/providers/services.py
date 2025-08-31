@@ -1,6 +1,7 @@
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
 import uuid
+from datetime import datetime, timezone
 
 from rpc.helpers import unbox_request
 from rpc.models import RPCResponse
@@ -129,10 +130,35 @@ async def users_providers_unlink_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
-  await db.run(
+  res_prof = await db.run(
+    "urn:users:profile:get_profile:1",
+    {"guid": auth_ctx.user_guid},
+  )
+  default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
+  res = await db.run(
     "urn:users:providers:unlink_provider:1",
     {"guid": auth_ctx.user_guid, "provider": payload.provider},
   )
+  remaining = res.rows[0].get("providers_remaining") if res.rows else 0
+  if remaining == 0:
+    await db.run(
+      "urn:users:providers:soft_delete_account:1",
+      {"guid": auth_ctx.user_guid},
+    )
+    await db.run(
+      "db:auth:session:revoke_all_device_tokens:1",
+      {"guid": auth_ctx.user_guid},
+    )
+    now = datetime.now(timezone.utc)
+    await db.run(
+      "db:users:session:set_rotkey:1",
+      {"guid": auth_ctx.user_guid, "rotkey": "", "iat": now, "exp": now},
+    )
+  elif payload.provider == default_provider:
+    await db.run(
+      "db:auth:session:revoke_provider_tokens:1",
+      {"guid": auth_ctx.user_guid, "provider": payload.provider},
+    )
   return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
 
 async def users_providers_get_by_provider_identifier_v1(request: Request):
