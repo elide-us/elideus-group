@@ -134,6 +134,6 @@ def test_lookup_existing_user(monkeypatch):
 
   req = DummyRequest()
   resp = asyncio.run(auth_google_oauth_login_v1(req))
-  assert isinstance(resp, RPCResponse)
+  assert "rotation_token=" in resp.headers.get("set-cookie", "")
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
