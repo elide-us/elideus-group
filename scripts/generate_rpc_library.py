@@ -12,14 +12,11 @@ sys.path.insert(0, REPO_ROOT)
 
 RPC_CALL_FUNC = [
   "export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {",
-  "\tconst request: RPCRequest = {",
+  "\tconst request = {",
   "\top,",
   "\tpayload,",
   "\tversion: 1,",
   "\ttimestamp: new Date().toISOString(),",
-  "\tuser_guid: null,",
-  "\troles: [],",
-  "\trole_mask: 0",
   "\t};",
   "\tconst headers: Record<string, string> = {};",
   "\tif (typeof localStorage !== 'undefined') {",
@@ -34,7 +31,7 @@ RPC_CALL_FUNC = [
   "\t\t}",
   "\t}",
   "\ttry {",
-  "\t\tconst response = await axios.post<RPCResponse>('/rpc', request, { headers });",
+  "\t\tconst response = await axios.post('/rpc', request, { headers });",
   "\t\treturn response.data.payload as T;",
   "\t} catch (err: any) {",
   "\t\tif (axios.isAxiosError(err) && err.response?.status === 401) {",
@@ -73,6 +70,8 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> List[str]:
 
   for _, obj in inspect.getmembers(module):
     if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
+      if obj.__name__ in {"RPCRequest", "RPCResponse"}:
+        continue
       if obj.__name__ in seen:
         continue
       print(f"🧩 Found model: {obj.__name__}")
