@@ -83,10 +83,10 @@ class DummyRequest:
     self.client = SimpleNamespace(host="127.0.0.1")
 
 def test_fetch_user_after_create(monkeypatch):
-  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
-  sys.modules["rpc.models"] = models
+  sys.modules["server.models"] = models
   RPCRequest = models.RPCRequest
   RPCResponse = models.RPCResponse
 
@@ -120,7 +120,6 @@ def test_fetch_user_after_create(monkeypatch):
   sys.modules["rpc.auth.google.models"] = models_mod
 
   sys.modules["server"] = types.ModuleType("server")
-  sys.modules["server.models"] = types.ModuleType("server.models")
   sys.modules["server.modules"] = types.ModuleType("server.modules")
   auth_mod = types.ModuleType("server.modules.auth_module")
   class AuthModule: ...

@@ -45,10 +45,10 @@ class DummyRequest:
     self.client = SimpleNamespace(host="127.0.0.1")
 
 def test_updates_profile_image(monkeypatch):
-  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
-  sys.modules["rpc.models"] = models
+  sys.modules["server.models"] = models
   RPCRequest = models.RPCRequest
 
   helpers = types.ModuleType("rpc.helpers")

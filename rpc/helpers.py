@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request
 
-from rpc.models import RPCRequest
+from server.models import RPCRequest
 from server.models import AuthContext
 
 if TYPE_CHECKING:

@@ -5,7 +5,7 @@ Dispatches user management operations requiring ROLE_SUPPORT.
 
 from fastapi import HTTPException, Request
 
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 
 from . import DISPATCHERS
 

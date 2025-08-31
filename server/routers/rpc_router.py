@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from rpc.handler import handle_rpc_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 
 router = APIRouter()
 

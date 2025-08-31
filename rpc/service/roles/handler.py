@@ -5,7 +5,7 @@ Dispatches role management operations requiring ROLE_ACCOUNT_ADMIN.
 
 from fastapi import HTTPException, Request
 
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 
 from . import DISPATCHERS
 

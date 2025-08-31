@@ -8,12 +8,12 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
 models = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(models)
 RPCRequest = models.RPCRequest
 RPCResponse = models.RPCResponse
-sys.modules["rpc.models"] = models
+sys.modules["server.models"] = models
 
 helpers = types.ModuleType("rpc.helpers")
 async def _stub(request):

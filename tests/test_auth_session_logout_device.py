@@ -56,10 +56,10 @@ class DummyRequest:
 
 
 def _setup(monkeypatch):
-  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
-  sys.modules["rpc.models"] = models
+  sys.modules["server.models"] = models
   RPCRequest = models.RPCRequest
   RPCResponse = models.RPCResponse
 

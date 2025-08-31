@@ -4,7 +4,7 @@ import io
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.storage_module import StorageModule
 
 from .models import (

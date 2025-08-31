@@ -6,7 +6,7 @@ from fastapi import HTTPException, Request
 from pydantic import ValidationError
 
 from rpc.helpers import unbox_request
-from rpc.models import RPCResponse
+from server.models import RPCResponse
 from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule

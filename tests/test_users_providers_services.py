@@ -17,12 +17,12 @@ pkg = types.ModuleType("rpc")
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "rpc")]
 sys.modules.setdefault("rpc", pkg)
 
-spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
 models = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(models)
 RPCRequest = models.RPCRequest
 RPCResponse = models.RPCResponse
-sys.modules["rpc.models"] = models
+sys.modules["server.models"] = models
 
 # stub server packages
 server_pkg = types.ModuleType("server")

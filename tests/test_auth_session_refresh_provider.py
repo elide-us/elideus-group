@@ -43,10 +43,10 @@ class DummyRequest:
 
 
 def _setup():
-  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
-  sys.modules["rpc.models"] = models
+  sys.modules["server.models"] = models
   RPCResponse = models.RPCResponse
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox(_req):
@@ -55,10 +55,8 @@ def _setup():
   sys.modules["rpc.helpers"] = helpers
   sys.modules.setdefault("server", types.ModuleType("server"))
   sys.modules.setdefault("server.modules", types.ModuleType("server.modules"))
-  models_mod = types.ModuleType("server.models")
   class AuthContext: ...
-  models_mod.AuthContext = AuthContext
-  sys.modules["server.models"] = models_mod
+  models.AuthContext = AuthContext
   db_mod = types.ModuleType("server.modules.db_module")
   class DbModule: ...
   db_mod.DbModule = DbModule
