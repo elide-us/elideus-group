@@ -240,6 +240,13 @@ async def auth_google_oauth_login_v1(request: Request):
     logging.debug("[auth_google_oauth_login_v1] failed to create user")
     raise HTTPException(status_code=500, detail="Unable to create user")
 
+  if user.get("element_soft_deleted_at"):
+    await db.run(
+      "urn:users:providers:undelete_account:1",
+      {"provider": provider, "provider_identifier": provider_uid},
+    )
+    user["element_soft_deleted_at"] = None
+
   new_img = profile.get("profilePicture")
   if new_img and new_img != user.get("profile_image"):
     await db.run(
