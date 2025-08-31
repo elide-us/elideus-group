@@ -107,6 +107,7 @@ export interface UsersProvidersSetProvider1 {
 }
 export interface UsersProvidersUnlinkProvider1 {
 	provider: string;
+	new_default: string | null;
 }
 export interface StorageFilesDeleteFiles1 {
 	files: string[];

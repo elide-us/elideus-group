@@ -12,6 +12,7 @@ class UsersProvidersLinkProvider1(BaseModel):
 
 class UsersProvidersUnlinkProvider1(BaseModel):
   provider: str
+  new_default: str | None = None
 
 
 class UsersProvidersGetByProviderIdentifier1(BaseModel):
