@@ -138,6 +138,9 @@ const Home = (): JSX.Element => {
 					contact@elideusgroup.com
 				</Link>
 			</Typography>
+			<Typography variant="body1" sx={{ marginTop: '4px' }}>
+				<Link href="/privacy-policy" underline="none">Privacy Policy</Link>
+			</Typography>
 		</Box>
 	);
 };

@@ -16,6 +16,7 @@ const SystemConfigPage = lazy(() => import("./pages/system/SystemConfigPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
 const AccountUserPanel = lazy(() => import("./pages/AccountUserPanel"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 function App(): JSX.Element {
 	return (
@@ -47,6 +48,7 @@ function App(): JSX.Element {
 								<Route path="/account-users" element={<AccountUsersPage />} />
 								<Route path="/account-users/:guid" element={<AccountUserPanel />} />
 								<Route path="/file-manager" element={<FileManager />} />
+								<Route path="/privacy-policy" element={<PrivacyPolicy />} />
 							</Routes>
 						</Suspense>
 					</Container>
