@@ -65,10 +65,13 @@ def test_mssql_get_profile_uses_profile_view():
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
-def test_mssql_get_rotkey_uses_security_view():
+def test_mssql_get_rotkey_queries_users_and_providers():
   handler = get_mssql_handler("db:users:session:get_rotkey:1")
   _, sql, _ = handler({"guid": "gid"})
-  assert "vw_account_user_security" in sql.lower()
+  sql = sql.lower()
+  assert "from account_users" in sql
+  assert "auth_providers" in sql
+  assert "vw_account_user_security" not in sql
 
 def test_mssql_get_by_access_token_uses_security_view():
   handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
