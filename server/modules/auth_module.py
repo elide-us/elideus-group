@@ -58,7 +58,7 @@ class AuthModule(BaseModule):
       logging.info("Auth module loaded")
       self.mark_ready()
     except Exception as e:
-      logging.error(f"[AuthModule] Failed to load providers: {e}")
+      logging.exception("[AuthModule] Failed to load providers: %s", e)
 
   async def shutdown(self):
     for provider in self.providers.values():
