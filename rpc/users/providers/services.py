@@ -14,6 +14,7 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 from rpc.auth.google.services import exchange_code_for_tokens
+from rpc.auth.microsoft.services import exchange_code_for_tokens as ms_exchange_code_for_tokens
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -61,6 +62,25 @@ async def users_providers_link_provider_v1(request: Request):
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
     redirect_uri = res_redirect.rows[0]["value"]
     id_token, access_token = await exchange_code_for_tokens(
+      payload.code,
+      client_id,
+      client_secret,
+      redirect_uri,
+    )
+  elif payload.provider == "microsoft":
+    ms_provider = getattr(auth, "providers", {}).get("microsoft")
+    if not ms_provider or not ms_provider.audience:
+      raise HTTPException(status_code=500, detail="Microsoft OAuth client_id not configured")
+    client_id = ms_provider.audience
+    env = request.app.state.env
+    client_secret = env.get("MICROSOFT_AUTH_SECRET")
+    if not client_secret:
+      raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
+    res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+    if not res_redirect.rows:
+      raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
+    redirect_uri = res_redirect.rows[0]["value"]
+    id_token, access_token = await ms_exchange_code_for_tokens(
       payload.code,
       client_id,
       client_secret,

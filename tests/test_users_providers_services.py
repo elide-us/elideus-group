@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import uuid
 from datetime import datetime, timezone, timedelta
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 
 import pytest
 from fastapi import HTTPException
@@ -179,4 +180,61 @@ def test_link_provider_google_normalizes_identifier():
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
   asyncio.run(auth.providers["google"].shutdown())
+
+
+def test_link_provider_microsoft_normalizes_identifier():
+  async def fake_get(request):
+    rpc = RPCRequest(
+      op="urn:users:providers:link_provider:1",
+      payload={"provider": "microsoft", "code": "authcode"},
+      version=1,
+    )
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  async def fake_exchange(code, client_id, client_secret, redirect_uri):
+    return "id", "acc"
+  svc_mod.ms_exchange_code_for_tokens = fake_exchange
+
+  class DummyAuth:
+    def __init__(self):
+      provider = MicrosoftAuthProvider(api_id="client-id", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
+
+      async def fake_fetch_jwks():
+        provider._jwks = {"keys": []}
+        provider._jwks_fetched_at = datetime.now(timezone.utc)
+
+      provider.fetch_jwks = fake_fetch_jwks
+      asyncio.run(provider.startup())
+      self.providers = {"microsoft": provider}
+
+    async def handle_auth_login(self, provider, id_token, access_token):
+      return "ms-id", {}, {}
+
+  class DummyDb:
+    def __init__(self):
+      self.calls = []
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "urn:system:config:get_config:1":
+        key = args["key"]
+        if key == "Hostname":
+          return DBRes(rows=[{"value": "redirect"}])
+      return DBRes()
+
+  class DummyEnv:
+    async def on_ready(self):
+      return None
+    def get(self, k):
+      assert k == "MICROSOFT_AUTH_SECRET"
+      return "secret"
+
+  db = DummyDb()
+  auth = DummyAuth()
+  env = DummyEnv()
+  req = DummyRequest(DummyState(db, auth, env))
+  asyncio.run(users_providers_link_provider_v1(req))
+  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "ms-id"))
+  assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
+  asyncio.run(auth.providers["microsoft"].shutdown())
 

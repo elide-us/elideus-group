@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import base64, logging, uuid
+import aiohttp
 
 from fastapi import HTTPException, Request
 
@@ -8,6 +9,43 @@ from rpc.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from .models import AuthMicrosoftOauthLogin1
+
+MICROSOFT_TOKEN_ENDPOINT = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+
+
+async def exchange_code_for_tokens(
+  code: str,
+  client_id: str,
+  client_secret: str,
+  redirect_uri: str = "http://localhost:8000/userpage",
+) -> tuple[str, str]:
+  data = {
+    "client_id": client_id,
+    "client_secret": client_secret,
+    "code": code,
+    "grant_type": "authorization_code",
+    "redirect_uri": redirect_uri,
+  }
+  logging.debug(
+    "[exchange_code_for_tokens] data=%s",
+    {k: v for k, v in data.items() if k != "client_secret"}
+  )
+  logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
+  async with aiohttp.ClientSession() as session:
+    async with session.post(MICROSOFT_TOKEN_ENDPOINT, data=data) as resp:
+      if resp.status != 200:
+        error = await resp.text()
+        logging.error(
+          "[exchange_code_for_tokens] failed status=%s error=%s", resp.status, error
+        )
+        raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+      token_data = await resp.json()
+  id_token = token_data.get("id_token")
+  access_token = token_data.get("access_token")
+  if not id_token or not access_token:
+    logging.error("[exchange_code_for_tokens] missing tokens in response")
+    raise HTTPException(status_code=400, detail="Invalid token response")
+  return id_token, access_token
 
 
 def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
