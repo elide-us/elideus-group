@@ -58,7 +58,7 @@ const PrivacyPolicy = (): JSX.Element => {
 				<ul>
 					<li>You may link or unlink identity providers at any time.</li>
 					<li>If you unlink all providers, your account enters a soft-deleted state. Minimal identifiers are retained to associate you with previously generated content.</li>
-					<li>You may request permanent deletion of your account and associated data by contacting us at [insert contact email].</li>
+					<li>You may request permanent deletion of your account and associated data by contacting us at contact@elideusgroup.com.</li>
 				</ul>
 			</Typography>
 
@@ -87,7 +87,7 @@ const PrivacyPolicy = (): JSX.Element => {
 				8. Contact Us
 			</Typography>
 			<Typography variant="body1">
-				If you have questions about this Privacy Policy or wish to exercise your rights, please contact us at: aaron@elideus.net
+				If you have questions about this Privacy Policy or wish to exercise your rights, please contact us at: contact@elideusgroup.com
 			</Typography>
 		</Box>
 	);
