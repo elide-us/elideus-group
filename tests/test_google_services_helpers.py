@@ -7,6 +7,7 @@ import sys
 import types
 import uuid
 import logging
+import base64
 
 import pytest
 from types import SimpleNamespace
@@ -69,7 +70,18 @@ def test_extract_identifiers_bad_base(caplog):
   ids = extract_identifiers("not-a-uuid", {})
   assert "not-a-uuid" in ids
   assert len(ids) == 1
-  assert any("home_account_id generation failed" in r.message for r in caplog.records)
+  assert not any(
+    "home_account_id generation failed" in r.message for r in caplog.records
+  )
+
+
+def test_extract_identifiers_fallback_to_provider():
+  uid = str(uuid.uuid4())
+  ids = extract_identifiers(uid, {"sub": "not-a-uuid"})
+  expected = base64.urlsafe_b64encode(
+    b"\x00" * 16 + uuid.UUID(uid).bytes
+  ).decode("utf-8").rstrip("=")
+  assert expected in ids
 
 
 class DummyDb:
