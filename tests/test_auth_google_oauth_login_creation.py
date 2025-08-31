@@ -107,6 +107,8 @@ def test_fetch_user_after_create(monkeypatch):
   class AuthGoogleOauthLoginPayload1(BaseModel):
     provider: str = "google"
     code: str
+    confirm: bool | None = None
+    reauthToken: str | None = None
     fingerprint: str | None = None
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str

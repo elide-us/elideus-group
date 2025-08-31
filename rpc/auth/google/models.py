@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class AuthGoogleOauthLoginPayload1(BaseModel):
   provider: str = "google"
   code: str
+  confirm: bool | None = None
+  reauthToken: str | None = None
   fingerprint: str | None = None
 
 

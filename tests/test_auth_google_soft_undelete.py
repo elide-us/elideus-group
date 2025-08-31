@@ -124,6 +124,8 @@ def test_undeletes_soft_deleted_account(monkeypatch):
   class AuthGoogleOauthLoginPayload1(BaseModel):
     provider: str = "google"
     code: str
+    confirm: bool | None = None
+    reauthToken: str | None = None
     fingerprint: str | None = None
 
   class AuthGoogleOauthLogin1(BaseModel):

@@ -33,12 +33,24 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
+    self.linked = False
   async def run(self, op, args):
     self.calls.append((op, args))
     if op == "urn:users:providers:get_by_provider_identifier:1":
+      if self.linked:
+        return DBRes([
+          {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
+        ], 1)
       return DBRes([], 0)
     if op == "urn:users:providers:get_user_by_email:1":
       return DBRes([{ "guid": "existing-guid" }], 1)
+    if op == "urn:users:profile:get_profile:1":
+      return DBRes([{ "default_provider": "microsoft" }], 1)
+    if op == "urn:users:providers:link_provider:1":
+      self.linked = True
+      return DBRes(rowcount=1)
+    if op in ("db:users:session:set_rotkey:1", "db:auth:session:create_session:1"):
+      return DBRes(rowcount=1)
     if op == "urn:system:config:get_config:1":
       key = args.get("key")
       if key == "Hostname":
@@ -71,7 +83,7 @@ class DummyRequest:
     self.headers = {"user-agent": "tester"}
     self.client = SimpleNamespace(host="127.0.0.1")
 
-def test_email_exists(monkeypatch):
+def test_email_exists_prompt(monkeypatch):
   spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
   models = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(models)
@@ -95,6 +107,8 @@ def test_email_exists(monkeypatch):
   class AuthGoogleOauthLoginPayload1(BaseModel):
     provider: str = "google"
     code: str
+    confirm: bool | None = None
+    reauthToken: str | None = None
     fingerprint: str | None = None
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str
@@ -133,5 +147,73 @@ def test_email_exists(monkeypatch):
   with pytest.raises(HTTPException) as exc:
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
+  assert exc.value.detail == {"default_provider": "microsoft"}
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  asyncio.run(req.app.state.auth.providers["google"].shutdown())
+
+
+def test_email_exists_confirm_links(monkeypatch):
+  spec = importlib.util.spec_from_file_location("rpc.models", "rpc/models.py")
+  models = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(models)
+  sys.modules["rpc.models"] = models
+  RPCRequest = models.RPCRequest
+
+  helpers = types.ModuleType("rpc.helpers")
+  async def fake_unbox_request(request):
+    rpc = RPCRequest(op="urn:auth:google:oauth_login:1", payload={"code": "auth-code", "confirm": True}, version=1)
+    return rpc, None, None
+  helpers.unbox_request = fake_unbox_request
+  sys.modules["rpc.helpers"] = helpers
+
+  sys.modules.setdefault("rpc", types.ModuleType("rpc"))
+  sys.modules.setdefault("rpc.auth", types.ModuleType("rpc.auth"))
+  rpc_auth_google = types.ModuleType("rpc.auth.google")
+  rpc_auth_google.__path__ = []
+  sys.modules.setdefault("rpc.auth.google", rpc_auth_google)
+  from pydantic import BaseModel
+  models_mod = types.ModuleType("rpc.auth.google.models")
+  class AuthGoogleOauthLoginPayload1(BaseModel):
+    provider: str = "google"
+    code: str
+    confirm: bool | None = None
+    reauthToken: str | None = None
+    fingerprint: str | None = None
+  class AuthGoogleOauthLogin1(BaseModel):
+    sessionToken: str
+    display_name: str
+    credits: int
+    profile_image: str | None = None
+  models_mod.AuthGoogleOauthLoginPayload1 = AuthGoogleOauthLoginPayload1
+  models_mod.AuthGoogleOauthLogin1 = AuthGoogleOauthLogin1
+  sys.modules["rpc.auth.google.models"] = models_mod
+
+  sys.modules["server"] = types.ModuleType("server")
+  sys.modules["server.models"] = types.ModuleType("server.models")
+  sys.modules["server.modules"] = types.ModuleType("server.modules")
+  auth_mod = types.ModuleType("server.modules.auth_module")
+  class AuthModule: ...
+  auth_mod.AuthModule = AuthModule
+  sys.modules["server.modules.auth_module"] = auth_mod
+  db_mod = types.ModuleType("server.modules.db_module")
+  class DbModule: ...
+  db_mod.DbModule = DbModule
+  sys.modules["server.modules.db_module"] = db_mod
+
+  svc_spec = importlib.util.spec_from_file_location(
+    "rpc.auth.google.services", "rpc/auth/google/services.py"
+  )
+  svc_mod = importlib.util.module_from_spec(svc_spec)
+  svc_spec.loader.exec_module(svc_mod)
+  async def fake_exchange(code, client_id, client_secret, redirect_uri):
+    assert code == "auth-code"
+    assert redirect_uri == "http://localhost:8000/userpage"
+    return "id", "acc"
+  svc_mod.exchange_code_for_tokens = fake_exchange
+  auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
+
+  req = DummyRequest()
+  res = asyncio.run(auth_google_oauth_login_v1(req))
+  assert res.payload["display_name"] == "User"
+  assert any(op == "urn:users:providers:link_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
