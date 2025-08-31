@@ -15,7 +15,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				1. Information We Collect
+				I. Information We Collect
 			</Typography>
 			<Typography variant="body1" component="div">
 				<ul>
@@ -28,7 +28,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				2. How We Use Your Information
+				II. How We Use Your Information
 			</Typography>
 			<Typography variant="body1" component="div">
 				<ul>
@@ -40,7 +40,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				3. Your Choices and Control
+				III. Your Choices and Control
 			</Typography>
 			<Typography variant="body1" component="div">
 				<ul>
@@ -52,7 +52,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				4. Account Management and Deletion
+				IV. Account Management and Deletion
 			</Typography>
 			<Typography variant="body1" component="div">
 				<ul>
@@ -63,28 +63,28 @@ const PrivacyPolicy = (): JSX.Element => {
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				5. Content Privacy
+				V. Content Privacy
 			</Typography>
 			<Typography variant="body1">
 				Your content is private by default. You may choose to share content publicly. This choice is always under your control.
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				6. Data Retention
+				VI. Data Retention
 			</Typography>
 			<Typography variant="body1">
 				We retain only the minimum information necessary to operate the service: identity provider identifiers (for login/authentication), and content/preferences you create. We do not collect or store payment details, government IDs, or other sensitive personal information.
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				7. Compliance
+				VII. Compliance
 			</Typography>
 			<Typography variant="body1">
 				We comply with data protection laws including the EU General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA). You have the right to access, rectify, delete, and export your data upon request.
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
-				8. Contact Us
+				VIII. Contact Us
 			</Typography>
 			<Typography variant="body1">
 				If you have questions about this Privacy Policy or wish to exercise your rights, please contact us at: contact@elideusgroup.com
