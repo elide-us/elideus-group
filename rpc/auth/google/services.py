@@ -67,22 +67,24 @@ def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
     identifiers.append(oid)
   if sub and sub not in identifiers:
     identifiers.append(sub)
-  base_id = oid or sub or provider_uid
-  if base_id:
+  base_id = None
+  for candidate in (oid, sub, provider_uid):
+    if not candidate:
+      continue
     try:
-      home_account_id = base64.urlsafe_b64encode(
-        b"\x00" * 16 + uuid.UUID(base_id).bytes
-      ).decode("utf-8").rstrip("=")
-    except Exception as e:
-      logging.exception(
-        f"[extract_identifiers] home_account_id generation failed for {base_id}: {e}"
-      )
-    else:
-      if home_account_id not in identifiers:
-        identifiers.append(home_account_id)
-      logging.debug(
-        f"[extract_identifiers] home_account_id={home_account_id[:40]}"
-      )
+      base_id = str(uuid.UUID(candidate))
+      break
+    except ValueError:
+      continue
+  if base_id:
+    home_account_id = base64.urlsafe_b64encode(
+      b"\x00" * 16 + uuid.UUID(base_id).bytes
+    ).decode("utf-8").rstrip("=")
+    if home_account_id not in identifiers:
+      identifiers.append(home_account_id)
+    logging.debug(
+      f"[extract_identifiers] home_account_id={home_account_id[:40]}"
+    )
   return identifiers
 
 

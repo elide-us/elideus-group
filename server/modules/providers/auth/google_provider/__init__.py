@@ -1,5 +1,6 @@
 import aiohttp
 import base64
+import uuid
 from datetime import timedelta
 from typing import Dict, Any
 
@@ -71,3 +72,12 @@ class GoogleAuthProvider(AuthProvider):
       "username": user.get("name"),
       "profilePicture": profile_picture_base64,
     }
+
+  def extract_guid(self, payload: Dict[str, Any]) -> str | None:
+    guid = payload.get("sub")
+    if not guid:
+      return None
+    try:
+      return str(uuid.UUID(guid))
+    except ValueError:
+      return str(uuid.uuid5(uuid.NAMESPACE_URL, guid))
