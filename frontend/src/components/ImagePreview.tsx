@@ -1,20 +1,19 @@
 import React from 'react';
-import { IconButton, Box } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 
 interface ImagePreviewProps {
-url: string;
-alt?: string;
+    url: string;
 }
 
-const ImagePreview = ({ url, alt }: ImagePreviewProps): JSX.Element => (
-<IconButton size="small" onClick={() => window.open(url, '_blank')}>
-	<Box
-		component="img"
-		src={url}
-		alt={alt ?? 'preview'}
-		sx={{ width: 60, height: 60, objectFit: 'cover' }}
-	/>
-</IconButton>
+const ImagePreview = ({ url }: ImagePreviewProps): JSX.Element => (
+    <IconButton size="small" onClick={() => window.open(url, '_blank')} sx={{ p: 0 }}>
+        <Box
+            component="img"
+            src={url}
+            alt=""
+            sx={{ width: 120, height: 20, objectFit: 'cover' }}
+        />
+    </IconButton>
 );
 
 export default ImagePreview;

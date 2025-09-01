@@ -107,20 +107,20 @@ const getType = (file: StorageFile): string => {
 	return 'other';
 };
 
-const renderPreview = (file: StorageFile): JSX.Element => {
-	const type = getType(file);
-	if (type === 'audio') {
-		return <AudioPreview url={file.url} />;
-	}
-	if (type === 'image') {
-		return <ImagePreview url={file.url} alt={file.name} />;
-	}
-	return (
-		<IconButton size="small" onClick={() => window.open(file.url, '_blank')}>
-			<OpenInNew />
-		</IconButton>
-	);
-};
+    const renderPreview = (file: StorageFile): JSX.Element => {
+        const type = getType(file);
+        if (type === 'audio') {
+            return <AudioPreview url={file.url} />;
+        }
+        if (type === 'image') {
+            return <ImagePreview url={file.url} />;
+        }
+        return (
+            <IconButton size="small" onClick={() => window.open(file.url, '_blank')}>
+                <OpenInNew />
+            </IconButton>
+        );
+    };
 
 const handleNotificationClose = (): void => {
 	setNotification(false);
