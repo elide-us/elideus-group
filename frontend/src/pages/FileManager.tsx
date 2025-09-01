@@ -12,7 +12,6 @@ import {
     FormControlLabel,
 } from '@mui/material';
 import {
-    PlayArrow,
     OpenInNew,
     Link as LinkIcon,
     Delete,
@@ -32,6 +31,7 @@ import Notification from '../components/Notification';
 import UserContext from '../shared/UserContext';
 import FileUpload from '../components/FileUpload';
 import FolderManager from '../components/FolderManager';
+import AudioPreview from '../components/AudioPreview';
 
 interface StorageFile {
     name: string;
@@ -106,19 +106,10 @@ const FileManager = (): JSX.Element => {
         return 'other';
     };
 
-    const playAudio = (url: string): void => {
-        const audio = new Audio(url);
-        void audio.play();
-    };
-
     const renderPreview = (file: StorageFile): JSX.Element => {
         const type = getType(file);
         if (type === 'audio') {
-            return (
-                <IconButton size="small" onClick={() => playAudio(file.url)}>
-                    <PlayArrow />
-                </IconButton>
-            );
+            return <AudioPreview url={file.url} />;
         }
         return (
             <IconButton size="small" onClick={() => window.open(file.url, '_blank')}>
