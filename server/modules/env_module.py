@@ -1,3 +1,5 @@
+"""Environment variable loader module."""
+
 import os, dotenv, logging
 from fastapi import FastAPI
 from . import BaseModule

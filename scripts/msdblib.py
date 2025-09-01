@@ -27,8 +27,13 @@ async def list_columns(conn, table):
 async def list_indexes(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT name AS indexname, type_desc AS indexdef
-         FROM sys.indexes WHERE object_id = OBJECT_ID(?) FOR JSON PATH""",
+      """SELECT i.name AS index_name,
+                STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) AS columns
+         FROM sys.indexes i
+         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+         JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+         WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 0
+         GROUP BY i.name FOR JSON PATH""",
       (table,),
     )
     row = await cur.fetchone()
@@ -183,9 +188,14 @@ def _build_create_sql(table: dict) -> str:
 async def dump_schema(conn, prefix: str = 'schema') -> str:
   schema = await get_schema(conn)
   ts = datetime.now(timezone.utc).strftime('%Y%m%d')
-  filename = f"{prefix}_{ts}.json"
+  filename = f"{prefix}_{ts}.sql"
+  lines: list[str] = []
+  for table in schema['tables']:
+    lines.append(_build_create_sql(table) + ';')
+    for idx in table.get('indexes', []):
+      lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
   with open(filename, 'w') as f:
-    json.dump(schema, f, indent=2)
+    f.write('\n'.join(lines))
   print(f'Schema dumped to {filename}')
   return filename
 
@@ -207,37 +217,13 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
 
 async def apply_schema(conn, path: str):
   with open(path, 'r') as f:
-    schema = json.load(f)
-  for table in schema.get('tables', []):
-    async with conn.cursor() as cur:
-      await cur.execute(
-        "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME=?",
-        (table['name'],),
-      )
-      exists = await cur.fetchone()
-    if not exists:
-      async with conn.cursor() as cur:
-        await cur.execute(_build_create_sql(table))
-    else:
-      cols = await list_columns(conn, table['name'])
-      existing = {c['column_name'] for c in cols}
-      for col in table['columns']:
-        if col['name'] not in existing:
-          ctype = col['type']
-          if col.get('length') is not None and ctype.lower() in {
-            'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
-          }:
-            if col['length'] == -1:
-              ctype += '(MAX)'
-            else:
-              ctype += f"({col['length']})"
-          line = f"ALTER TABLE {table['name']} ADD {col['name']} {ctype}"
-          if col['default'] is not None:
-            line += f" DEFAULT {col['default']}"
-          if not col['nullable']:
-            line += ' NOT NULL'
-          async with conn.cursor() as cur:
-            await cur.execute(line)
+    sql = f.read()
+  async with conn.cursor() as cur:
+    for stmt in sql.split(';'):
+      stmt = stmt.strip()
+      if not stmt:
+        continue
+      await cur.execute(stmt)
   print('Schema applied.')
 
 async def connect(dbname=None):

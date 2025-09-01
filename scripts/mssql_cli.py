@@ -39,14 +39,9 @@ Available commands:
   help                               Show this help message
   exit, quit                         Exit the console
   reconnect <db>                     Connect to a different database
-  list tables                        List all tables
-  list columns <table>               List columns of a table
-  list indexes <table>               List indexes on a table
-  list keys <table>                  List key columns and constraint types
-  list constraints <table>           List constraints on a table
   index all                          Reindex the current database
-  schema dump [name]                 Dump DB schema to <name>_YYYYMMDD.json
-  schema apply <file>                Apply schema JSON to the database
+  schema dump [name]                 Dump DB schema to <name>_YYYYMMDD.sql
+  schema apply <file>                Execute schema SQL on the database
   dump data [name]                   Dump DB schema and rows to <name>_YYYYMMDD.json
   update version major               Increment the major version
   update version minor               Increment the minor version
@@ -71,36 +66,6 @@ async def interactive_console(conn):
           conn = await db.connect(dbname)
         except Exception as e:
           print(f'Error reconnecting: {e}')
-      case ['list', 'tables']:
-        rows = await db.list_tables(conn)
-        for r in rows:
-          print(r['table_name'])
-      case ['list', 'columns', table]:
-        rows = await db.list_columns(conn, table)
-        for r in rows:
-          length = r.get('max_length')
-          if length is not None and r['data_type'].lower() in {
-            'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
-          }:
-            if length == -1:
-              t = f"{r['data_type']}(MAX)"
-            else:
-              t = f"{r['data_type']}({length})"
-          else:
-            t = r['data_type']
-          print(f"{r['column_name']} ({t})")
-      case ['list', 'indexes', table]:
-        rows = await db.list_indexes(conn, table)
-        for r in rows:
-          print(f"{r['indexname']} ({r['indexdef']})")
-      case ['list', 'keys', table]:
-        rows = await db.list_keys(conn, table)
-        for r in rows:
-          print(f"{r['column_name']} -> {r['constraint_name']} ({r['constraint_type']})")
-      case ['list', 'constraints', table]:
-        rows = await db.list_constraints(conn, table)
-        for r in rows:
-          print(f"{r['constraint_name']} ({r['constraint_type']})")
       case ['index', 'all']:
         try:
           async with conn.cursor() as cur:
