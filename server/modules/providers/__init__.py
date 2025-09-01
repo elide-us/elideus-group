@@ -1,3 +1,5 @@
+"""Provider contract definitions for authentication and database layers."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

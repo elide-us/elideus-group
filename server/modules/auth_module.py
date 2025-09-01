@@ -1,3 +1,5 @@
+"""Authentication module handling login and token workflows."""
+
 import base64, logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status

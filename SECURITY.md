@@ -56,8 +56,34 @@ The authentication provider is a client-side domain, this is the data that the c
  This is the back end server which handles all requests. The server domain includes the database and the information that is retained in the database is as follows:
 
  1) User's unique account identifier
- 2) User's email address*
- 3) User's unique session and device identifier
- 4) User's profile image (if available)
+  2) User's email address*
+  3) User's unique session and device identifier
+  4) User's profile image (if available)
 
- Email Opt-Out: If the user opt out of email, they will not be sent any e-mail based communication and their email address will not be shown to other users in their public profile.
+  Email Visibility: Email addresses are required for purchase receipts and cannot be removed. Users may hide their address from public profiles, and the service sends no other email communications.
+
+### Account Provisioning
+
+Accounts can only be created through trusted identity providers. Supported providers are **Microsoft**, **Google**, **Discord**, and **Apple**. No local credentials are ever issued or stored. When a user signs in for the first time, the provider identifier becomes the primary key used by the server to link all subsequent logins.
+
+### Authentication Workflow
+
+1. Client obtains an ID token from an identity provider.
+2. The token is sent to the server and validated against the provider's JWKS.
+3. For new accounts a GUID is generated and the provider becomes the user's primary provider.
+4. Existing accounts are looked up by GUID and their session/device records are refreshed.
+5. A server signed bearer token is returned to the client and used for all RPC calls.
+
+### Personal Data and Privacy
+
+The server stores only minimal personal information:
+
+* GUID (internal identifier)
+* Email address *(required; used only for purchase receipts)*
+* Profile image *(optional)*
+
+Email addresses are required for receipt delivery and cannot be changed or removed. Users may choose to hide their address from public profiles, and the service does not send other email communications.
+
+### Provider Association
+
+Each account is linked to a single primary provider for lookup and auditing. Identity provider data is not used in any internal cryptographic operations; it is only used to validate the provider's identity token during authentication. All encryption and signing routines rely solely on internal keys.

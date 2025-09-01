@@ -1,5 +1,9 @@
 # Database Overview
 
+## Schema Management
+
+Database maintenance is performed with `scripts/mssql_cli.py`. Use the `schema dump` command to emit a `.sql` file containing `CREATE TABLE` statements along with indexes, constraints, and references. The companion `schema apply <file>` command executes such a script against a target server. Interactive commands for listing tables and columns have been removed now that SQL Server tooling provides this functionality.
+
 ## Simple User Schema
 
 The below statement illustrates a simple JOIN statement to get the entire view of a standard user, this will incude

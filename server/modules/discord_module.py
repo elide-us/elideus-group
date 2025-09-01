@@ -1,3 +1,5 @@
+"""Discord integration module."""
+
 import logging, discord, json, asyncio
 from fastapi import FastAPI, Request
 from discord.ext import commands

@@ -1,3 +1,5 @@
+"""Blob storage access module."""
+
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 from azure.core.exceptions import ResourceExistsError
 from fastapi import FastAPI

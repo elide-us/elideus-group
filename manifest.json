@@ -1,0 +1,14 @@
+{
+  "modules": {
+    "db": "server.modules.db_module.DbModule",
+    "auth": "server.modules.auth_module.AuthModule",
+    "storage": "server.modules.storage_module.StorageModule",
+    "env": "server.modules.env_module.EnvModule",
+    "discord": "server.modules.discord_module.DiscordModule"
+  },
+  "providers": {
+    "MicrosoftAuthProvider": "server.modules.providers.auth.microsoft_provider.MicrosoftAuthProvider",
+    "GoogleAuthProvider": "server.modules.providers.auth.google_provider.GoogleAuthProvider",
+    "MssqlProvider": "server.modules.providers.database.mssql_provider.MssqlProvider"
+  }
+}
