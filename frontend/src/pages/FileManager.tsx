@@ -19,7 +19,6 @@ import {
 } from '@mui/icons-material';
 import {
     fetchFiles,
-    fetchUploadFiles,
     fetchDeleteFiles,
     fetchSetGallery,
 } from '../rpc/storage/files';
@@ -27,6 +26,7 @@ import PageTitle from '../components/PageTitle';
 import ColumnHeader from '../components/ColumnHeader';
 import Notification from '../components/Notification';
 import UserContext from '../shared/UserContext';
+import FileUpload from '../components/FileUpload';
 
 interface StorageFile {
     name: string;
@@ -57,27 +57,6 @@ const FileManager = (): JSX.Element => {
         void load();
     }, [userData]);
 
-    const fileToUpload = (file: File): Promise<{ name: string; content_b64: string; content_type?: string }> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result as string;
-                const content_b64 = result.split(',')[1] ?? '';
-                resolve({ name: file.name, content_b64, content_type: file.type || undefined });
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    };
-
-    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-        const selected = e.target.files;
-        if (!selected || selected.length === 0) return;
-        const uploads = await Promise.all(Array.from(selected).map(fileToUpload));
-        await fetchUploadFiles({ files: uploads });
-        e.target.value = '';
-        await load();
-    };
 
     const handleDelete = async (name: string): Promise<void> => {
         await fetchDeleteFiles({ files: [name] });
@@ -139,7 +118,7 @@ const FileManager = (): JSX.Element => {
         <Box sx={{ p: 2 }}>
             <Stack spacing={2}>
                 <PageTitle>File Manager</PageTitle>
-                <input type="file" multiple onChange={handleUpload} />
+                <FileUpload onComplete={() => load()} />
                 <Table size="small" sx={{ '& td, & th': { py: 0.5 } }}>
                     <TableHead>
                         <TableRow>
