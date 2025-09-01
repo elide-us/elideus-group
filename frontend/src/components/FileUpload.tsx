@@ -5,9 +5,10 @@ import axios from 'axios';
 
 interface FileUploadProps {
     onComplete?: () => Promise<void> | void;
+    path?: string;
 }
 
-const FileUpload = ({ onComplete }: FileUploadProps): JSX.Element => {
+const FileUpload = ({ onComplete, path = '' }: FileUploadProps): JSX.Element => {
     const [fileName, setFileName] = useState('');
     const [uploading, setUploading] = useState(false);
     const [uploaded, setUploaded] = useState(0);
@@ -23,7 +24,8 @@ const FileUpload = ({ onComplete }: FileUploadProps): JSX.Element => {
         setUploading(true);
         const start = Date.now();
         try {
-            await uploadWithProgress(file, controllerRef.current.signal, (loaded, totalBytes) => {
+            const toUpload = await fileToUpload(file, path);
+            await uploadWithProgress(toUpload, controllerRef.current.signal, (loaded, totalBytes) => {
                 const elapsed = (Date.now() - start) / 1000;
                 setUploaded(loaded);
                 setTotal(totalBytes);
@@ -69,11 +71,10 @@ const FileUpload = ({ onComplete }: FileUploadProps): JSX.Element => {
 };
 
 const uploadWithProgress = async (
-    file: File,
+    toUpload: { name: string; content_b64: string; content_type?: string },
     signal: AbortSignal,
     onProgress: (loaded: number, total: number) => void,
 ): Promise<void> => {
-    const toUpload = await fileToUpload(file);
     const request = {
         op: 'urn:storage:files:upload_files:1',
         payload: { files: [toUpload] },
@@ -101,13 +102,17 @@ const uploadWithProgress = async (
     });
 };
 
-const fileToUpload = (file: File): Promise<{ name: string; content_b64: string; content_type?: string }> => {
+const fileToUpload = (
+    file: File,
+    prefix: string,
+): Promise<{ name: string; content_b64: string; content_type?: string }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const result = reader.result as string;
             const content_b64 = result.split(',')[1] ?? '';
-            resolve({ name: file.name, content_b64, content_type: file.type || undefined });
+            const name = prefix ? `${prefix}/${file.name}` : file.name;
+            resolve({ name, content_b64, content_type: file.type || undefined });
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);

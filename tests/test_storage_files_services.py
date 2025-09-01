@@ -38,6 +38,7 @@ class StorageModule:
     self.uploads = []
     self.deleted = []
     self.ensure_called = False
+    self.created = []
   async def list_user_files(self, user_guid):
     return self.files
   async def ensure_user_folder(self, user_guid):
@@ -46,6 +47,8 @@ class StorageModule:
     self.uploads.append((user_guid, filename, content_type, buffer.getvalue()))
   async def delete_user_file(self, user_guid, filename):
     self.deleted.append((user_guid, filename))
+  async def create_folder(self, user_guid, path):
+    self.created.append((user_guid, path))
 
 storage_module_pkg.StorageModule = StorageModule
 modules_pkg.storage_module = storage_module_pkg
@@ -89,6 +92,7 @@ storage_files_get_files_v1 = svc_mod.storage_files_get_files_v1
 storage_files_upload_files_v1 = svc_mod.storage_files_upload_files_v1
 storage_files_delete_files_v1 = svc_mod.storage_files_delete_files_v1
 storage_files_set_gallery_v1 = svc_mod.storage_files_set_gallery_v1
+storage_files_create_folder_v1 = svc_mod.storage_files_create_folder_v1
 
 class DummyAuth:
   def __init__(self):
@@ -174,3 +178,20 @@ def test_set_gallery_validates_file():
   req = DummyRequest(storage)
   resp = asyncio.run(storage_files_set_gallery_v1(req))
   assert resp.payload["name"] == "a.txt"
+
+
+def test_create_folder_calls_storage():
+  async def fake_create(request):
+    rpc = RPCRequest(
+      op="urn:storage:files:create_folder:1",
+      payload={"path": "a/b"},
+      version=1,
+    )
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE"], role_mask=0x2)
+    return rpc, auth, None
+  svc_mod.unbox_request = fake_create
+  storage = StorageModule()
+  req = DummyRequest(storage)
+  resp = asyncio.run(storage_files_create_folder_v1(req))
+  assert ("u1", "a/b") in storage.created
+  assert isinstance(resp, RPCResponse)
