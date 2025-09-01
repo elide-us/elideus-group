@@ -34,3 +34,8 @@ class StorageFilesSetGallery1(BaseModel):
 
 class StorageFilesCreateFolder1(BaseModel):
   path: str
+
+
+class StorageFilesMoveFile1(BaseModel):
+  src: str
+  dst: str

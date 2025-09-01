@@ -8,6 +8,8 @@ import {
     TableBody,
     IconButton,
     Stack,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import {
     PlayArrow,
@@ -22,6 +24,7 @@ import {
     fetchFiles,
     fetchDeleteFiles,
     fetchSetGallery,
+    fetchMoveFile,
 } from '../rpc/storage/files';
 import PageTitle from '../components/PageTitle';
 import ColumnHeader from '../components/ColumnHeader';
@@ -42,6 +45,7 @@ const FileManager = (): JSX.Element => {
     const [notification, setNotification] = useState(false);
     const [notificationMsg, setNotificationMsg] = useState('');
     const [currentPath, setCurrentPath] = useState('');
+    const [moveTarget, setMoveTarget] = useState('');
 
     const load = async (): Promise<void> => {
         try {
@@ -66,6 +70,12 @@ const FileManager = (): JSX.Element => {
         await load();
     };
 
+    const handleDeleteFolder = async (folder: string): Promise<void> => {
+        const path = `${currentPath ? `${currentPath}/` : ''}${folder}/.init`;
+        await fetchDeleteFiles({ files: [path] });
+        await load();
+    };
+
     const handleSetGallery = async (name: string): Promise<void> => {
         await fetchSetGallery({ name, gallery: true });
     };
@@ -76,8 +86,11 @@ const FileManager = (): JSX.Element => {
         setNotification(true);
     };
 
-    const handleMove = (name: string): void => {
-        console.log('move', name);
+    const handleMove = async (name: string): Promise<void> => {
+        if (!moveTarget) return;
+        const base = name.split('/').pop() || name;
+        await fetchMoveFile({ src: name, dst: `${moveTarget}/${base}` });
+        await load();
     };
 
     const getType = (file: StorageFile): string => {
@@ -129,6 +142,11 @@ const FileManager = (): JSX.Element => {
     });
     const folders = Array.from(folderSet);
 
+    const isFolderEmpty = (folder: string): boolean => {
+        const fp = `${prefix}${folder}/`;
+        return !files.some((f) => f.name.startsWith(fp) && f.name !== `${fp}.init`);
+    };
+
     return (
         <Box sx={{ p: 2 }}>
             <Stack spacing={2}>
@@ -157,7 +175,35 @@ const FileManager = (): JSX.Element => {
                                     </IconButton>
                                 </TableCell>
                                 <TableCell sx={{ width: '60%' }}>{folder}</TableCell>
-                                <TableCell sx={{ width: '20%' }} />
+                                <TableCell sx={{ width: '20%' }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <FormControlLabel
+                                            onClick={(e) => e.stopPropagation()}
+                                            control={
+                                                <Checkbox
+                                                    checked={moveTarget === prefix + folder}
+                                                    onChange={(e) =>
+                                                        setMoveTarget(
+                                                            e.target.checked ? prefix + folder : ''
+                                                        )
+                                                    }
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            }
+                                            label="Move to"
+                                        />
+                                        <IconButton
+                                            size="small"
+                                            disabled={!isFolderEmpty(folder)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                void handleDeleteFolder(folder);
+                                            }}
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Stack>
+                                </TableCell>
                             </TableRow>
                         ))}
                         {visibleFiles.map((file) => (
@@ -175,7 +221,7 @@ const FileManager = (): JSX.Element => {
                                         <IconButton size="small" onClick={() => void handleSetGallery(file.name)}>
                                             <Publish />
                                         </IconButton>
-                                        <IconButton size="small" onClick={() => handleMove(file.name)}>
+                                        <IconButton size="small" onClick={() => void handleMove(file.name)}>
                                             <DriveFileMove />
                                         </IconButton>
                                     </Stack>

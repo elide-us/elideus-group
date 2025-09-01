@@ -111,6 +111,7 @@ Calls for user storage management. All Storage domain calls require `ROLE_STORAG
 | `urn:storage:files:upload_files:1` | Upload a file or files from the user into the moderation queue. |
 | `urn:storage:files:delete_files:1` | Delete a file or files specified by the user.                   |
 | `urn:storage:files:create_folder:1` | Create a folder at the specified path.                         |
+| `urn:storage:files:move_file:1`    | Move a file to a new location within the user's storage.       |
 
 ## System Domain
 
