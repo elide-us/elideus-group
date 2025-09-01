@@ -336,7 +336,7 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
         au.element_rotkey AS rotkey,
         ap.element_name AS provider_name
       FROM account_users AS au
-      JOIN auth_providers AS ap ON au.providers_recid = ap.recid
+      LEFT JOIN auth_providers AS ap ON au.providers_recid = ap.recid
       WHERE au.element_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
