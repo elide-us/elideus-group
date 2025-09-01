@@ -2,6 +2,7 @@ import importlib.util
 import types
 import sys
 import asyncio
+from types import SimpleNamespace
 
 
 class DBRes:
@@ -13,6 +14,10 @@ class DummyDb:
   async def run(self, op, args):
     if op == "db:users:session:get_rotkey:1":
       return DBRes([{ "rotkey": "rot-token", "provider_name": "google" }], 1)
+    if op == "db:auth:session:create_session:1":
+      return DBRes([{ "session_guid": "sess-guid", "device_guid": "dev-guid" }], 1)
+    if op == "db:auth:session:update_device_token:1":
+      return DBRes(rowcount=1)
     return DBRes()
 
 class DummyAuth:
@@ -22,9 +27,8 @@ class DummyAuth:
     return {"guid": "user-guid"}
   async def get_user_roles(self, _guid):
     return (["user"], 0)
-  def make_session_token(self, user_guid, rot, roles, provider):
-    self.provider = provider
-    return ("new-token", None)
+  def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+    return ("new-token", exp)
 
 class DummyState:
   def __init__(self):
@@ -40,6 +44,7 @@ class DummyRequest:
     self.app = DummyApp()
     self.headers = {}
     self.cookies = {"rotation_token": "rot-token"}
+    self.client = SimpleNamespace(host="127.0.0.1")
 
 
 def _setup():
@@ -71,9 +76,9 @@ def _setup():
   return svc_mod, RPCResponse
 
 
-def test_refresh_retains_provider_google():
+def test_refresh_token_ignores_provider():
   svc_mod, RPCResponse = _setup()
   req = DummyRequest()
   resp = asyncio.run(svc_mod.auth_session_refresh_token_v1(req))
   assert isinstance(resp, RPCResponse)
-  assert req.app.state.auth.provider == "google"
+  assert req.app.state.auth.provider is None

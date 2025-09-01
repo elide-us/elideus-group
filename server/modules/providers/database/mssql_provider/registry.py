@@ -551,15 +551,27 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
 
 @register("db:auth:session:update_session:1")
 def _auth_session_update_session(args: Dict[str, Any]):
-    token = args["access_token"]
-    ip_address = args.get("ip_address")
-    user_agent = args.get("user_agent")
-    sql = """
+  token = args["access_token"]
+  ip_address = args.get("ip_address")
+  user_agent = args.get("user_agent")
+  sql = """
       UPDATE sessions_devices
       SET element_ip_last_seen = ?, element_user_agent = ?
       WHERE element_token = ?;
     """
-    return ("exec", sql, (ip_address, user_agent, token))
+  return ("exec", sql, (ip_address, user_agent, token))
+
+@register("db:auth:session:update_device_token:1")
+def _auth_session_update_device_token(args: Dict[str, Any]):
+  from uuid import UUID
+  device_guid = str(UUID(args["device_guid"]))
+  token = args["access_token"]
+  sql = """
+    UPDATE sessions_devices
+    SET element_token = ?
+    WHERE element_guid = ?;
+  """
+  return ("exec", sql, (token, device_guid))
 
 @register("db:auth:session:revoke_device_token:1")
 def _auth_session_revoke_device_token(args: Dict[str, Any]):
