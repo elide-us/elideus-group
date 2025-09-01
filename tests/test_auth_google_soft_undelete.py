@@ -13,8 +13,8 @@ class DummyAuth:
   def make_rotation_token(self, user_guid):
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
 
-  def make_session_token(self, user_guid, rot, roles, provider):
-    return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
+  def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+    return "sess", exp or datetime.now(timezone.utc) + timedelta(hours=1)
 
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
@@ -52,11 +52,11 @@ class DummyDb:
           "element_soft_deleted_at": "2024-01-01T00:00:00Z",
         }
       ], 1)
-    if op in (
-      "urn:users:providers:undelete_account:1",
-      "db:users:session:set_rotkey:1",
-      "db:auth:session:create_session:1",
-    ):
+    if op == "urn:users:providers:undelete_account:1" or op == "db:users:session:set_rotkey:1":
+      return DBRes([], 1)
+    if op == "db:auth:session:create_session:1":
+      return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
+    if op == "db:auth:session:update_device_token:1":
       return DBRes([], 1)
     if op == "urn:system:config:get_config:1":
       key = args.get("key")

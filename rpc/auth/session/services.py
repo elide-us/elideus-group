@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 
 from fastapi import HTTPException, Request
@@ -9,6 +9,10 @@ import uuid
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
+try:
+  from server.modules.auth_module import DEFAULT_SESSION_TOKEN_EXPIRY
+except Exception:
+  DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 
 async def auth_session_get_token_v1(request: Request):
@@ -114,15 +118,15 @@ async def auth_session_get_token_v1(request: Request):
   )
 
   roles, _ = await auth.get_user_roles(user_guid)
-  session_token, session_exp = auth.make_session_token(user_guid, rotation_token, roles, provider)
-
   fingerprint = body.get("fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  await db.run(
+  session_exp = datetime.now(timezone.utc) + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+  placeholder = uuid.uuid4().hex
+  res = await db.run(
     "db:auth:session:create_session:1",
     {
-      "access_token": session_token,
+      "access_token": placeholder,
       "expires": session_exp,
       "fingerprint": fingerprint,
       "user_agent": user_agent,
@@ -130,6 +134,16 @@ async def auth_session_get_token_v1(request: Request):
       "user_guid": user_guid,
       "provider": provider,
     },
+  )
+  row = res.rows[0] if res.rows else {}
+  session_guid = row.get("session_guid")
+  device_guid = row.get("device_guid")
+  session_token, _ = auth.make_session_token(
+    user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
+  )
+  await db.run(
+    "db:auth:session:update_device_token:1",
+    {"device_guid": device_guid, "access_token": session_token},
   )
 
   profile = {
@@ -165,16 +179,37 @@ async def auth_session_refresh_token_v1(request: Request):
   row = stored.rows[0] if stored.rows else None
   if not row or row.get("rotkey") != rotation_token:
     raise HTTPException(status_code=401, detail="Invalid rotation token")
-
   provider = row.get("provider_name") or "microsoft"
   roles, _ = await auth.get_user_roles(user_guid)
-  session_token, _ = auth.make_session_token(user_guid, rotation_token, roles, provider)
+  session_exp = datetime.now(timezone.utc) + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+  placeholder = uuid.uuid4().hex
+  res = await db.run(
+    "db:auth:session:create_session:1",
+    {
+      "access_token": placeholder,
+      "expires": session_exp,
+      "fingerprint": None,
+      "user_agent": request.headers.get("user-agent"),
+      "ip_address": request.client.host if request.client else None,
+      "user_guid": user_guid,
+      "provider": provider,
+    },
+  )
+  row2 = res.rows[0] if res.rows else {}
+  session_guid = row2.get("session_guid")
+  device_guid = row2.get("device_guid")
+  session_token, _ = auth.make_session_token(
+    user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
+  )
+  await db.run(
+    "db:auth:session:update_device_token:1",
+    {"device_guid": device_guid, "access_token": session_token},
+  )
   return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
 
 async def auth_session_invalidate_token_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  rotation_token = auth_ctx.claims.get("session")
-  if not rotation_token or not auth_ctx.user_guid:
+  if not auth_ctx.user_guid:
     raise HTTPException(status_code=401, detail="Missing or invalid session token")
 
   db: DbModule = request.app.state.db

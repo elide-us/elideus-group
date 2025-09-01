@@ -30,3 +30,12 @@ class StorageFilesDeleteFiles1(BaseModel):
 class StorageFilesSetGallery1(BaseModel):
   name: str
   gallery: bool
+
+
+class StorageFilesCreateFolder1(BaseModel):
+  path: str
+
+
+class StorageFilesMoveFile1(BaseModel):
+  src: str
+  dst: str

@@ -8,8 +8,8 @@ class DummyAuth:
     return "00000000-0000-0000-0000-000000000001", profile, {}
   def make_rotation_token(self, user_guid):
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
-  def make_session_token(self, user_guid, rot, roles, provider):
-    return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
+  def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+    return "sess", exp or datetime.now(timezone.utc) + timedelta(hours=1)
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
 
@@ -25,7 +25,11 @@ class DummyDb:
     self.calls.append((op, args))
     if op == "urn:users:providers:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "profile_image": "old" }], 1)
-    if op in ("db:users:session:set_rotkey:1", "db:auth:session:create_session:1", "urn:users:profile:set_profile_image:1"):
+    if op == "db:users:session:set_rotkey:1" or op == "urn:users:profile:set_profile_image:1":
+      return DBRes([], 1)
+    if op == "db:auth:session:create_session:1":
+      return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
+    if op == "db:auth:session:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 

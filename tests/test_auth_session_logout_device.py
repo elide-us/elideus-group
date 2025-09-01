@@ -27,6 +27,10 @@ class DummyDb:
       return DBRes([{"revoked_at": None}], 1)
     if op == "db:users:session:get_rotkey:1":
       return DBRes([{"rotkey": "rot-token", "provider_name": "microsoft"}], 1)
+    if op == "db:auth:session:create_session:1":
+      return DBRes([{ "session_guid": "sess-guid", "device_guid": "dev-guid" }], 1)
+    if op == "db:auth:session:update_device_token:1":
+      return DBRes(rowcount=1)
     return DBRes()
 
 class DummyAuth:
@@ -34,8 +38,8 @@ class DummyAuth:
     return {"guid": "user-guid"}
   async def get_user_roles(self, _guid):
     return (["user"], 0)
-  def make_session_token(self, user_guid, rot, roles, provider):
-    return ("new-token", None)
+  def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+    return ("new-token", exp)
 
 class DummyState:
   def __init__(self):

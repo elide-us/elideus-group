@@ -85,20 +85,28 @@ class AuthModule(BaseModule):
     logging.debug("[AuthModule] Login payload guid=%s provider=%s", guid, provider)
     return guid, profile, payload
 
-  def make_session_token(self, guid: str, rotation_token: str, roles: list[str], provider: str) -> tuple[str, datetime]:
+  def make_session_token(
+    self,
+    guid: str,
+    rotation_token: str,
+    session_guid: str,
+    device_guid: str,
+    roles: list[str],
+    exp: datetime | None = None,
+  ) -> tuple[str, datetime]:
     now = datetime.now(timezone.utc)
-    exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+    exp = exp or now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
     token_data = {
       "sub": guid,
       "roles": roles,
       "iat": int(now.timestamp()),
       "exp": int(exp.timestamp()),
       "jti": uuid.uuid4().hex,
-      "session": rotation_token,
-      "provider": provider,
+      "sid": session_guid,
+      "did": device_guid,
     }
-    logging.debug("[AuthModule] Creating session token for %s roles=%s provider=%s", guid, roles, provider)
-    derived_secret = f"{self.jwt_secret}:{rotation_token}"
+    logging.debug("[AuthModule] Creating session token for %s roles=%s", guid, roles)
+    derived_secret = f"{self.jwt_secret}:{rotation_token}:{guid}:{session_guid}:{device_guid}"
     token = jwt.encode(token_data, derived_secret, algorithm=self.jwt_algo_int)
     return token, exp
 
@@ -120,11 +128,14 @@ class AuthModule(BaseModule):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
 
     guid = claims.get("sub")
-    if not guid:
+    session_guid = claims.get("sid")
+    device_guid = claims.get("did")
+    if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    session_key = claims.get("session")
-    derived_secret = f"{self.jwt_secret}:{session_key}" if session_key else None
+    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
+    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
       if not derived_secret:
         raise JWTError("missing session key")
@@ -133,10 +144,8 @@ class AuthModule(BaseModule):
       logging.error("[AuthModule] JWT decode failed for guid %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
-    rotkey = res.rows[0].get("rotkey") if res.rows else None
-    if not rotkey or rotkey != session_key:
-      logging.error("[AuthModule] Rotation key mismatch for %s", guid)
+    if not rotkey:
+      logging.error("[AuthModule] Rotation key missing for %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
 
     exp = payload.get("exp")

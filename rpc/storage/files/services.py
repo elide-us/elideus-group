@@ -11,7 +11,9 @@ from .models import (
   StorageFilesDeleteFiles1,
   StorageFilesFiles1,
   StorageFilesFileItem1,
+  StorageFilesCreateFolder1,
   StorageFilesSetGallery1,
+  StorageFilesMoveFile1,
   StorageFilesUploadFiles1,
 )
 
@@ -63,6 +65,30 @@ async def storage_files_set_gallery_v1(request: Request):
   files = await storage.list_user_files(auth_ctx.user_guid)
   if not any(f.get("name") == data.name for f in files):
     raise HTTPException(status_code=404, detail="File not found")
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def storage_files_create_folder_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  data = StorageFilesCreateFolder1(**(rpc_request.payload or {}))
+  storage: StorageModule = request.app.state.storage
+  await storage.create_folder(auth_ctx.user_guid, data.path)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def storage_files_move_file_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  data = StorageFilesMoveFile1(**(rpc_request.payload or {}))
+  storage: StorageModule = request.app.state.storage
+  await storage.move_file(auth_ctx.user_guid, data.src, data.dst)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
