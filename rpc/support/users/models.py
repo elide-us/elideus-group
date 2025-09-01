@@ -8,3 +8,7 @@ class SupportUsersGuid1(BaseModel):
 class SupportUsersSetCredits1(SupportUsersGuid1):
   credits: int
 
+
+class SupportUsersStorageStatus1(SupportUsersGuid1):
+  exists: bool
+

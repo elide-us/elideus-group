@@ -292,3 +292,53 @@ def test_support_enable_storage_creates_folder():
   helpers.unbox_request = orig
   users_mod.unbox_request = orig
 
+
+def test_support_check_storage_calls_storage():
+  users_mod = _load_module("rpc/support/users/services.py", "support_users_services")
+
+  class DummyStorage:
+    def __init__(self):
+      self.called = False
+      self.guid = None
+      self.exists = True
+    async def user_folder_exists(self, guid):
+      self.called = True
+      self.guid = guid
+      return self.exists
+
+  db = DummyDb()
+  storage = DummyStorage()
+  req = DummyRequest(DummyState(db, storage))
+
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:support:users:check_storage:1", payload={"userGuid": "u1"}, version=1)
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
+
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get
+  users_mod.unbox_request = fake_get
+  resp = asyncio.run(users_mod.support_users_check_storage_v1(req))
+  assert storage.called and storage.guid == "u1"
+  assert resp.payload["exists"] is True
+  helpers.unbox_request = orig
+  users_mod.unbox_request = orig
+
+
+def test_support_reset_display_sets_default_user():
+  users_mod = _load_module("rpc/support/users/services.py", "support_users_services")
+  db = DummyDb()
+  req = DummyRequest(DummyState(db))
+
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:support:users:reset_display:1", payload={"userGuid": "u1"}, version=1)
+    return rpc, SimpleNamespace(roles=["ROLE_SUPPORT"]), None
+
+  orig = helpers.unbox_request
+  helpers.unbox_request = fake_get
+  users_mod.unbox_request = fake_get
+  resp = asyncio.run(users_mod.support_users_reset_display_v1(req))
+  assert ("db:users:profile:set_display:1", {"guid": "u1", "display_name": "Default User"}) in db.calls
+  assert isinstance(resp, RPCResponse)
+  helpers.unbox_request = orig
+  users_mod.unbox_request = orig
+
