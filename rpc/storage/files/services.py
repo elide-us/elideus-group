@@ -13,6 +13,7 @@ from .models import (
   StorageFilesFileItem1,
   StorageFilesCreateFolder1,
   StorageFilesSetGallery1,
+  StorageFilesMoveFile1,
   StorageFilesUploadFiles1,
 )
 
@@ -76,6 +77,18 @@ async def storage_files_create_folder_v1(request: Request):
   data = StorageFilesCreateFolder1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.create_folder(auth_ctx.user_guid, data.path)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def storage_files_move_file_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  data = StorageFilesMoveFile1(**(rpc_request.payload or {}))
+  storage: StorageModule = request.app.state.storage
+  await storage.move_file(auth_ctx.user_guid, data.src, data.dst)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),

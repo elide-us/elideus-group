@@ -39,6 +39,7 @@ class StorageModule:
     self.deleted = []
     self.ensure_called = False
     self.created = []
+    self.moved = []
   async def list_user_files(self, user_guid):
     return self.files
   async def ensure_user_folder(self, user_guid):
@@ -49,6 +50,8 @@ class StorageModule:
     self.deleted.append((user_guid, filename))
   async def create_folder(self, user_guid, path):
     self.created.append((user_guid, path))
+  async def move_file(self, user_guid, src, dst):
+    self.moved.append((user_guid, src, dst))
 
 storage_module_pkg.StorageModule = StorageModule
 modules_pkg.storage_module = storage_module_pkg
@@ -93,6 +96,7 @@ storage_files_upload_files_v1 = svc_mod.storage_files_upload_files_v1
 storage_files_delete_files_v1 = svc_mod.storage_files_delete_files_v1
 storage_files_set_gallery_v1 = svc_mod.storage_files_set_gallery_v1
 storage_files_create_folder_v1 = svc_mod.storage_files_create_folder_v1
+storage_files_move_file_v1 = svc_mod.storage_files_move_file_v1
 
 class DummyAuth:
   def __init__(self):
@@ -194,4 +198,21 @@ def test_create_folder_calls_storage():
   req = DummyRequest(storage)
   resp = asyncio.run(storage_files_create_folder_v1(req))
   assert ("u1", "a/b") in storage.created
+  assert isinstance(resp, RPCResponse)
+
+
+def test_move_file_calls_storage():
+  async def fake_move(request):
+    rpc = RPCRequest(
+      op="urn:storage:files:move_file:1",
+      payload={"src": "a.txt", "dst": "b/a.txt"},
+      version=1,
+    )
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE"], role_mask=0x2)
+    return rpc, auth, None
+  svc_mod.unbox_request = fake_move
+  storage = StorageModule()
+  req = DummyRequest(storage)
+  resp = asyncio.run(storage_files_move_file_v1(req))
+  assert ("u1", "a.txt", "b/a.txt") in storage.moved
   assert isinstance(resp, RPCResponse)
