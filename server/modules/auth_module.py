@@ -123,18 +123,21 @@ class AuthModule(BaseModule):
     if not guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
-    rotkey = res.rows[0].get("rotkey") if res.rows else None
-    if not rotkey:
-      logging.error("[AuthModule] Rotation key not found for %s", guid)
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
-
-    derived_secret = f"{self.jwt_secret}:{rotkey}"
+    session_key = claims.get("session")
+    derived_secret = f"{self.jwt_secret}:{session_key}" if session_key else None
     try:
+      if not derived_secret:
+        raise JWTError("missing session key")
       payload = jwt.decode(token, derived_secret, algorithms=[self.jwt_algo_int])
     except JWTError:
       logging.error("[AuthModule] JWT decode failed for guid %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
+
+    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
+    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    if not rotkey or rotkey != session_key:
+      logging.error("[AuthModule] Rotation key mismatch for %s", guid)
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
 
     exp = payload.get("exp")
     if not exp or datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
