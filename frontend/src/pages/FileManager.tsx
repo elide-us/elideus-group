@@ -32,6 +32,7 @@ import UserContext from '../shared/UserContext';
 import FileUpload from '../components/FileUpload';
 import FolderManager from '../components/FolderManager';
 import AudioPreview from '../components/AudioPreview';
+import ImagePreview from '../components/ImagePreview';
 
 interface StorageFile {
     name: string;
@@ -110,6 +111,9 @@ const FileManager = (): JSX.Element => {
         const type = getType(file);
         if (type === 'audio') {
             return <AudioPreview url={file.url} />;
+        }
+        if (type === 'image') {
+            return <ImagePreview url={file.url} />;
         }
         return (
             <IconButton size="small" onClick={() => window.open(file.url, '_blank')}>
