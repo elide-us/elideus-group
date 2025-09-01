@@ -7,7 +7,7 @@ const PrivacyPolicy = (): JSX.Element => {
 			<PageTitle>Privacy Policy</PageTitle>
 
 			<Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-				Last updated: August 30, 2025
+				Last updated: September 1, 2025
 			</Typography>
 
 			<Typography variant="body1" sx={{ mt: 2 }}>
@@ -36,7 +36,7 @@ const PrivacyPolicy = (): JSX.Element => {
 					<li>Display within the service</li>
 					<li>Moderation purposes</li>
 				</ul>
-				We do not sell, rent, or share your personal data with third parties for marketing purposes.
+				We do not sell, rent, or share your personal data with third parties for any reason.
 			</Typography>
 
 			<Typography variant="h6" sx={{ mt: 2 }}>
