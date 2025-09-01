@@ -89,6 +89,10 @@ class DummyDb:
     self.calls = []
   async def run(self, op, args):
     self.calls.append((op, args))
+    if op == "db:auth:session:create_session:1":
+      return SimpleNamespace(rows=[{"session_guid": "sess", "device_guid": "dev"}])
+    if op == "db:auth:session:update_device_token:1":
+      return SimpleNamespace(rows=[], rowcount=1)
     return SimpleNamespace(rows=[])
 
 
@@ -102,8 +106,8 @@ def test_lookup_user_skips_invalid_identifier():
 class DummyAuth:
   def make_rotation_token(self, guid):
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
-  def make_session_token(self, guid, rot, roles, provider):
-    return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
+  def make_session_token(self, guid, rot, session_guid, device_guid, roles, exp=None):
+    return "sess", exp or datetime.now(timezone.utc) + timedelta(hours=1)
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
 

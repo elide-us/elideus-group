@@ -11,8 +11,8 @@ class DummyAuth:
     return "00000000-0000-0000-0000-000000000001", self.profile, {}
   def make_rotation_token(self, user_guid):
     return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
-  def make_session_token(self, user_guid, rot, roles, provider):
-    return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
+  def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+    return "sess", exp or datetime.now(timezone.utc) + timedelta(hours=1)
   async def get_user_roles(self, guid, refresh=False):
     return [], 0
 
@@ -35,7 +35,11 @@ class DummyDb:
       if self.allow_update:
         return DBRes([{ "display_name": args["display_name"], "email": args["email"] }], 1)
       return DBRes([], 0)
-    if op in ("db:users:session:set_rotkey:1", "db:auth:session:create_session:1"):
+    if op == "db:users:session:set_rotkey:1":
+      return DBRes([], 1)
+    if op == "db:auth:session:create_session:1":
+      return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
+    if op == "db:auth:session:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 

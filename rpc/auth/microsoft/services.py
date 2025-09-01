@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import base64, logging, uuid
 import aiohttp
 
@@ -9,6 +9,10 @@ from fastapi.encoders import jsonable_encoder
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
+try:
+  from server.modules.auth_module import DEFAULT_SESSION_TOKEN_EXPIRY
+except Exception:
+  DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from .models import AuthMicrosoftOauthLogin1
 
@@ -127,14 +131,12 @@ async def create_session(
     {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
   )
   roles, _ = await auth.get_user_roles(user_guid)
-  session_token, session_exp = auth.make_session_token(
-    user_guid, rotation_token, roles, provider
-  )
-  logging.debug(f"[create_session] session_token={session_token[:40]}")
-  await db.run(
+  session_exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+  placeholder = uuid.uuid4().hex
+  res = await db.run(
     "db:auth:session:create_session:1",
     {
-      "access_token": session_token,
+      "access_token": placeholder,
       "expires": session_exp,
       "fingerprint": fingerprint,
       "user_agent": user_agent,
@@ -143,6 +145,17 @@ async def create_session(
       "provider": provider,
     },
   )
+  row = res.rows[0] if res.rows else {}
+  session_guid = row.get("session_guid")
+  device_guid = row.get("device_guid")
+  session_token, _ = auth.make_session_token(
+    user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
+  )
+  await db.run(
+    "db:auth:session:update_device_token:1",
+    {"device_guid": device_guid, "access_token": session_token},
+  )
+  logging.debug(f"[create_session] session_token={session_token[:40]}")
   return session_token, session_exp, rotation_token, rot_exp
 
 

@@ -43,6 +43,12 @@ def test_auth_session_returns_db_profile(monkeypatch):
       self.calls.append((op, args))
       if op == "urn:users:providers:get_by_provider_identifier:1":
         return DBRes([{ "guid": "u1", "display_name": "DB", "email": "db@example.com", "credits": 5, "profile_image": "img" }], 1)
+      if op == "db:users:session:set_rotkey:1":
+        return DBRes(rowcount=1)
+      if op == "db:auth:session:create_session:1":
+        return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
+      if op == "db:auth:session:update_device_token:1":
+        return DBRes(rowcount=1)
       return DBRes()
 
   class DummyAuth:
@@ -50,8 +56,8 @@ def test_auth_session_returns_db_profile(monkeypatch):
       return "0a1b2c3d-4e5f-6789-aaaa-bbbbccccdddd", {"email": "prov@example.com", "username": "Prov"}, {}
     def make_rotation_token(self, user_guid):
       return "rot", datetime.now(timezone.utc) + timedelta(hours=1)
-    def make_session_token(self, user_guid, rot, roles, provider):
-      return "sess", datetime.now(timezone.utc) + timedelta(hours=1)
+    def make_session_token(self, user_guid, rot, session_guid, device_guid, roles, exp=None):
+      return "sess", exp or datetime.now(timezone.utc) + timedelta(hours=1)
     async def get_user_roles(self, guid, refresh=False):
       return [], 0
 
