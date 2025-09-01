@@ -45,7 +45,7 @@ const FileManager = (): JSX.Element => {
     const [notification, setNotification] = useState(false);
     const [notificationMsg, setNotificationMsg] = useState('');
     const [currentPath, setCurrentPath] = useState('');
-    const [moveTarget, setMoveTarget] = useState('');
+    const [moveTarget, setMoveTarget] = useState<string | null>(null);
 
     const load = async (): Promise<void> => {
         try {
@@ -87,9 +87,10 @@ const FileManager = (): JSX.Element => {
     };
 
     const handleMove = async (name: string): Promise<void> => {
-        if (!moveTarget) return;
+        if (moveTarget === null) return;
         const base = name.split('/').pop() || name;
-        await fetchMoveFile({ src: name, dst: `${moveTarget}/${base}` });
+        const dst = moveTarget ? `${moveTarget}/${base}` : base;
+        await fetchMoveFile({ src: name, dst });
         await load();
     };
 
@@ -130,6 +131,10 @@ const FileManager = (): JSX.Element => {
         setNotification(false);
     };
 
+    useEffect(() => {
+        setMoveTarget(null);
+    }, [currentPath]);
+
     const prefix = currentPath ? `${currentPath}/` : '';
     const folderSet = new Set<string>();
     const visibleFiles: StorageFile[] = [];
@@ -141,6 +146,8 @@ const FileManager = (): JSX.Element => {
         else visibleFiles.push(file);
     });
     const folders = Array.from(folderSet);
+    const parentPath = currentPath.split('/').slice(0, -1).join('/');
+    if (currentPath) folders.unshift('..');
 
     const isFolderEmpty = (folder: string): boolean => {
         const fp = `${prefix}${folder}/`;
@@ -162,50 +169,61 @@ const FileManager = (): JSX.Element => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {folders.map((folder) => (
-                            <TableRow
-                                key={`folder-${folder}`}
-                                hover
-                                sx={{ cursor: 'pointer' }}
-                                onClick={() => setCurrentPath(prefix + folder)}
-                            >
-                                <TableCell sx={{ width: '20%' }}>
-                                    <IconButton size="small">
-                                        <Folder />
-                                    </IconButton>
-                                </TableCell>
-                                <TableCell sx={{ width: '60%' }}>{folder}</TableCell>
-                                <TableCell sx={{ width: '20%' }}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <FormControlLabel
-                                            onClick={(e) => e.stopPropagation()}
-                                            control={
-                                                <Checkbox
-                                                    checked={moveTarget === prefix + folder}
-                                                    onChange={(e) =>
-                                                        setMoveTarget(
-                                                            e.target.checked ? prefix + folder : ''
-                                                        )
-                                                    }
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                            }
-                                            label="Move to"
-                                        />
-                                        <IconButton
-                                            size="small"
-                                            disabled={!isFolderEmpty(folder)}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                void handleDeleteFolder(folder);
-                                            }}
-                                        >
-                                            <Delete />
+                        {folders.map((folder) => {
+                            const fullPath = folder === '..' ? parentPath : prefix + folder;
+                            return (
+                                <TableRow
+                                    key={`folder-${folder}`}
+                                    hover
+                                    sx={{ cursor: 'pointer' }}
+                                    onClick={() => setCurrentPath(fullPath)}
+                                >
+                                    <TableCell sx={{ width: '20%' }}>
+                                        <IconButton size="small">
+                                            <Folder />
                                         </IconButton>
-                                    </Stack>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                                    </TableCell>
+                                    <TableCell sx={{ width: '60%' }}>{folder}</TableCell>
+                                    <TableCell sx={{ width: '20%' }}>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <FormControlLabel
+                                                onClick={(e) => e.stopPropagation()}
+                                                control={
+                                                    <Checkbox
+                                                        checked={moveTarget === fullPath}
+                                                        disabled={
+                                                            moveTarget !== null &&
+                                                            moveTarget !== fullPath
+                                                        }
+                                                        onChange={(e) =>
+                                                            setMoveTarget(
+                                                                e.target.checked
+                                                                    ? fullPath
+                                                                    : null
+                                                            )
+                                                        }
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                }
+                                                label="Move to"
+                                            />
+                                            {folder !== '..' && (
+                                                <IconButton
+                                                    size="small"
+                                                    disabled={!isFolderEmpty(folder)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void handleDeleteFolder(folder);
+                                                    }}
+                                                >
+                                                    <Delete />
+                                                </IconButton>
+                                            )}
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                         {visibleFiles.map((file) => (
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
@@ -221,7 +239,11 @@ const FileManager = (): JSX.Element => {
                                         <IconButton size="small" onClick={() => void handleSetGallery(file.name)}>
                                             <Publish />
                                         </IconButton>
-                                        <IconButton size="small" onClick={() => void handleMove(file.name)}>
+                                        <IconButton
+                                            size="small"
+                                            disabled={moveTarget === null}
+                                            onClick={() => void handleMove(file.name)}
+                                        >
                                             <DriveFileMove />
                                         </IconButton>
                                     </Stack>
