@@ -56,7 +56,7 @@ const ElideusTheme: Theme = createTheme({
                                 {
                                         props: { variant: 'pageTitle' },
                                         style: {
-                                                fontSize: '2rem',
+                                                fontSize: '4rem',
                                                 fontWeight: 700,
                                                 marginBottom: '30px',
                                                 textAlign: 'right',
