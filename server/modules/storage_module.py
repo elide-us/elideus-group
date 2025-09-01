@@ -101,6 +101,20 @@ class StorageModule(BaseModule):
     )
     logging.info("Initialized storage folder for %s", user_guid)
 
+  async def create_folder(self, user_guid: str, folder_path: str) -> None:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    await self.ensure_user_folder(user_guid)
+    safe = folder_path.strip("/").replace(" ", "_")
+    data = io.BytesIO(b"")
+    name = f"{user_guid}/{safe}/.init"
+    await self.client.upload_blob(
+      data=data,
+      name=name,
+      overwrite=True,
+    )
+    logging.info("Created folder %s for %s", folder_path, user_guid)
+
   async def list_user_files(self, user_guid: str) -> list[dict[str, str | None]]:
     if not self.client:
       raise RuntimeError("Storage client not initialized")

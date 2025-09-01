@@ -16,6 +16,7 @@ import {
     Delete,
     Publish,
     DriveFileMove,
+    Folder,
 } from '@mui/icons-material';
 import {
     fetchFiles,
@@ -27,6 +28,7 @@ import ColumnHeader from '../components/ColumnHeader';
 import Notification from '../components/Notification';
 import UserContext from '../shared/UserContext';
 import FileUpload from '../components/FileUpload';
+import FolderManager from '../components/FolderManager';
 
 interface StorageFile {
     name: string;
@@ -39,6 +41,7 @@ const FileManager = (): JSX.Element => {
     const { userData } = useContext(UserContext);
     const [notification, setNotification] = useState(false);
     const [notificationMsg, setNotificationMsg] = useState('');
+    const [currentPath, setCurrentPath] = useState('');
 
     const load = async (): Promise<void> => {
         try {
@@ -114,11 +117,24 @@ const FileManager = (): JSX.Element => {
         setNotification(false);
     };
 
+    const prefix = currentPath ? `${currentPath}/` : '';
+    const folderSet = new Set<string>();
+    const visibleFiles: StorageFile[] = [];
+    files.forEach((file) => {
+        if (!file.name.startsWith(prefix)) return;
+        const rest = file.name.slice(prefix.length);
+        const parts = rest.split('/');
+        if (parts.length > 1) folderSet.add(parts[0]);
+        else visibleFiles.push(file);
+    });
+    const folders = Array.from(folderSet);
+
     return (
         <Box sx={{ p: 2 }}>
             <Stack spacing={2}>
                 <PageTitle>File Manager</PageTitle>
-                <FileUpload onComplete={() => load()} />
+                <FileUpload onComplete={() => load()} path={currentPath} />
+                <FolderManager path={currentPath} onPathChange={setCurrentPath} onRefresh={() => load()} />
                 <Table size="small" sx={{ '& td, & th': { py: 0.5 } }}>
                     <TableHead>
                         <TableRow>
@@ -128,7 +144,23 @@ const FileManager = (): JSX.Element => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {files.map((file) => (
+                        {folders.map((folder) => (
+                            <TableRow
+                                key={`folder-${folder}`}
+                                hover
+                                sx={{ cursor: 'pointer' }}
+                                onClick={() => setCurrentPath(prefix + folder)}
+                            >
+                                <TableCell sx={{ width: '20%' }}>
+                                    <IconButton size="small">
+                                        <Folder />
+                                    </IconButton>
+                                </TableCell>
+                                <TableCell sx={{ width: '60%' }}>{folder}</TableCell>
+                                <TableCell sx={{ width: '20%' }} />
+                            </TableRow>
+                        ))}
+                        {visibleFiles.map((file) => (
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
                                 <TableCell sx={{ width: '60%' }}>{file.name}</TableCell>
