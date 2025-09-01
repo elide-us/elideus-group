@@ -239,6 +239,23 @@ def _db_users_set_display(args: Dict[str, Any]):
   return _users_set_display(args)
 
 
+@register("urn:support:users:set_credits:1")
+def _support_users_set_credits(args: Dict[str, Any]):
+  guid = args["guid"]
+  credits = args["credits"]
+  sql = """
+    UPDATE users_credits
+    SET element_credits = ?
+    WHERE users_guid = ?;
+  """
+  return ("exec", sql, (credits, guid))
+
+
+@register("db:support:users:set_credits:1")
+def _db_support_users_set_credits(args: Dict[str, Any]):
+  return _support_users_set_credits(args)
+
+
 @register("urn:support:users:enable_storage:1")
 def _support_users_enable_storage(args: Dict[str, Any]):
   guid = args["guid"]

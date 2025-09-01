@@ -81,6 +81,14 @@ def test_mssql_get_by_access_token_uses_security_view():
   assert "providers_recid" in sql
 
 
+def test_mssql_support_users_set_credits_updates_table():
+  handler = get_mssql_handler("db:support:users:set_credits:1")
+  mode, sql, params = handler({"guid": "gid", "credits": 10})
+  assert mode == "exec"
+  assert "update users_credits" in sql.lower()
+  assert params == (10, "gid")
+
+
 def test_fetch_rows_returns_empty_on_error(monkeypatch):
   class Cur:
     async def execute(self, q, p):
