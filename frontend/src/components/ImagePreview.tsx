@@ -11,7 +11,7 @@ const ImagePreview = ({ url }: ImagePreviewProps): JSX.Element => (
             component="img"
             src={url}
             alt=""
-            sx={{ width: 120, height: 20, objectFit: 'cover' }}
+            sx={{ width: 120, height: 30, objectFit: 'cover' }}
         />
     </IconButton>
 );
