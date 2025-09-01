@@ -154,8 +154,11 @@ class AuthModule(BaseModule):
       parts = raw.split(":")
       if len(parts) < 6:
         raise ValueError("Malformed token")
-      guid, timestamp = parts[0], parts[1]
+      guid = parts[0]
+      timestamp = ":".join(parts[1:-4])
       token_time = datetime.fromisoformat(timestamp)
+      if token_time.tzinfo is None:
+        token_time = token_time.replace(tzinfo=timezone.utc)
       if token_time + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY) < datetime.now(timezone.utc):
         logging.error("[AuthModule] Rotation token expired for %s", guid)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Rotation token expired")
