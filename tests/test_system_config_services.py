@@ -72,7 +72,7 @@ class DummyDb:
     self.calls.append((op, args))
     if op == 'urn:system:config:get_configs:1':
       assert args == {}
-      rows = [{'element_key': 'DebugLogging', 'element_value': 'true'}]
+      rows = [{'element_key': 'LoggingLevel', 'element_value': '4'}]
       return SimpleNamespace(rows=rows, rowcount=1)
     if op == 'urn:system:config:upsert_config:1':
       return SimpleNamespace(rows=[], rowcount=1)
@@ -103,14 +103,14 @@ def test_get_configs_service():
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
-    'items': [{'key': 'DebugLogging', 'value': 'true'}]
+    'items': [{'key': 'LoggingLevel', 'value': '4'}]
   }
   assert ('urn:system:config:get_configs:1', {}) in db.calls
 
 def test_upsert_and_delete_config_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:config:upsert_config:1', 'payload': {'key': 'DebugLogging', 'value': 'true'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:config:upsert_config:1', 'payload': {'key': 'LoggingLevel', 'value': '2'}})
   assert resp.status_code == 200
-  resp = client.post('/rpc', json={'op': 'urn:system:config:delete_config:1', 'payload': {'key': 'DebugLogging'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:config:delete_config:1', 'payload': {'key': 'LoggingLevel'}})
   assert resp.status_code == 200
-  assert ('urn:system:config:upsert_config:1', {'key': 'DebugLogging', 'value': 'true'}) in db.calls
-  assert ('urn:system:config:delete_config:1', {'key': 'DebugLogging'}) in db.calls
+  assert ('urn:system:config:upsert_config:1', {'key': 'LoggingLevel', 'value': '2'}) in db.calls
+  assert ('urn:system:config:delete_config:1', {'key': 'LoggingLevel'}) in db.calls

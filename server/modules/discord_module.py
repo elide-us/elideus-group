@@ -29,7 +29,7 @@ class DiscordModule(BaseModule):
     self.bot = self._init_discord_bot('!')
     self.bot.app = self.app
     self._init_bot_routes()
-    update_logging_level(self.db.debug_logging)
+    update_logging_level(self.db.logging_level)
     configure_discord_logging(self)
     res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
     if not res.rows:
