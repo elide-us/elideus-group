@@ -30,12 +30,19 @@ async def set_credits(db: DbModule, guid: str, credits: int) -> None:
 
 
 async def reset_display(db: DbModule, guid: str) -> None:
-  await db.run("db:support:users:reset_display:1", {"guid": guid})
+  await db.run(
+    "db:users:profile:set_display:1",
+    {"guid": guid, "display_name": "Default User"},
+  )
 
 
 async def enable_storage(db: DbModule, storage: StorageModule, guid: str) -> None:
   await db.run("db:support:users:enable_storage:1", {"guid": guid})
   await storage.ensure_user_folder(guid)
+
+
+async def check_storage(storage: StorageModule, guid: str) -> bool:
+  return await storage.user_folder_exists(guid)
 
 
 async def support_users_get_profile_v1(request: Request):
@@ -87,6 +94,19 @@ async def support_users_enable_storage_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def support_users_check_storage_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  data = SupportUsersGuid1(**(rpc_request.payload or {}))
+  storage: StorageModule = request.app.state.storage
+  exists = await check_storage(storage, data.userGuid)
+  RPCResponse = _get_rpc_response_class()
+  return RPCResponse(
+    op=rpc_request.op,
+    payload={"userGuid": data.userGuid, "exists": exists},
     version=rpc_request.version,
   )
 

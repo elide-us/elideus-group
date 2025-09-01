@@ -29,6 +29,7 @@ All Support domain calls require `ROLE_SUPPORT`.
 | `urn:support:users:get_profile:1`      | Get a user's profile details.                    |
 | `urn:support:users:set_credits:1`      | Moderator can set user credit amount.            |
 | `urn:support:users:enable_storage:1`   | Moderator can enable user storage.               |
+| `urn:support:users:check_storage:1`    | Check if user storage folder exists.             |
 | `urn:support:users:reset_display:1`    | Moderator reset of user display name to default. |
 
 ## Users Domain

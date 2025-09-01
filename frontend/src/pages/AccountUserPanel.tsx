@@ -10,7 +10,7 @@ import type {
     SystemRolesRoleItem1 as ServiceRolesRoleItem1,
     SupportRolesMembers1,
 } from '../shared/RpcModels';
-import { fetchProfile, fetchSetCredits, fetchEnableStorage, fetchResetDisplay } from '../rpc/support/users';
+import { fetchProfile, fetchSetCredits, fetchEnableStorage, fetchResetDisplay, fetchCheckStorage } from '../rpc/support/users';
 import { fetchRoles as fetchServiceRoles } from '../rpc/service/roles';
 import { fetchMembers, fetchAddMember, fetchRemoveMember } from '../rpc/support/roles';
 
@@ -23,8 +23,10 @@ const AccountUserPanel = (): JSX.Element => {
 	const [credits, setCredits] = useState<number>(0);
 	const [notification, setNotification] = useState(false);
 	const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
-	const [selectedLeft, setSelectedLeft] = useState('');
-	const [selectedRight, setSelectedRight] = useState('');
+        const [selectedLeft, setSelectedLeft] = useState('');
+        const [selectedRight, setSelectedRight] = useState('');
+        const [storageChecked, setStorageChecked] = useState(false);
+        const [storageExists, setStorageExists] = useState(false);
 
 	useEffect(() => {
 		void (async () => {
@@ -52,18 +54,38 @@ const AccountUserPanel = (): JSX.Element => {
 						}
 					})
 				);
-				setAssigned(assignments);
-				setAvailable(avail);
-				setInitialAssigned(assignments);
-			} catch {
+                                setAssigned(assignments);
+                                setAvailable(avail);
+                                setInitialAssigned(assignments);
+                        } catch {
 				setProfile(null);
 				setRoles([]);
 				setAssigned([]);
-				setAvailable([]);
-				setInitialAssigned([]);
-			}
-		})();
-	}, [guid]);
+                                setAvailable([]);
+                                setInitialAssigned([]);
+                        }
+                })();
+        }, [guid]);
+
+        useEffect(() => {
+                if (!guid) return;
+                setStorageChecked(false);
+                if (assigned.includes('ROLE_STORAGE')) {
+                        void (async () => {
+                                try {
+                                        const res = await fetchCheckStorage({ userGuid: guid });
+                                        setStorageExists(Boolean(res.exists));
+                                } catch {
+                                        setStorageExists(false);
+                                } finally {
+                                        setStorageChecked(true);
+                                }
+                        })();
+                } else {
+                        setStorageExists(false);
+                        setStorageChecked(true);
+                }
+        }, [assigned, guid]);
 
 	const moveRight = (): void => {
 		if (!selectedLeft) return;
@@ -86,10 +108,11 @@ const AccountUserPanel = (): JSX.Element => {
 		setProfile(prof);
 	};
 
-	const handleEnableStorage = async (): Promise<void> => {
-		if (!guid) return;
-		await fetchEnableStorage({ userGuid: guid });
-	};
+        const handleEnableStorage = async (): Promise<void> => {
+                if (!guid) return;
+                await fetchEnableStorage({ userGuid: guid });
+                setStorageExists(true);
+        };
 
 	const handleSave = async (): Promise<void> => {
 		if (!guid) return;
@@ -111,9 +134,9 @@ const AccountUserPanel = (): JSX.Element => {
 					<Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
 					<Typography>Email: {profile.email}</Typography>
 					<EditBox value={credits} onCommit={(val) => setCredits(Number(val))} width={120} />
-					<Button variant="outlined" onClick={handleEnableStorage}>Enable Storage</Button>
-				</Stack>
-			)}
+                                        <Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.includes('ROLE_STORAGE') || storageExists || !storageChecked}>Enable Storage</Button>
+                                </Stack>
+                        )}
 			<Stack direction="row" spacing={2}>
 				<List sx={{ width: 200, border: 1 }}>
 					{available.map((r) => (
