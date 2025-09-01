@@ -17,7 +17,7 @@ class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.provider: str = "mssql"
-    self.debug_logging: bool = False
+    self.logging_level: int = 0
     self._provider: DbProviderBase | None = None
 
   async def init(self, provider: str | None = None, **cfg):
@@ -64,10 +64,13 @@ class DbModule(BaseModule):
     await self.init(provider=self.provider, **cfg)
     assert self._provider
     await self._provider.startup()
-    res = await self.run("db:system:config:get_config:1", {"key": "DebugLogging"})
-    val = res.rows[0]["value"] if res.rows else ""
-    self.debug_logging = str(val).lower() == "true"
-    update_logging_level(self.debug_logging)
+    res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
+    val = res.rows[0]["value"] if res.rows else "0"
+    try:
+      self.logging_level = int(val)
+    except ValueError:
+      self.logging_level = 0
+    update_logging_level(self.logging_level)
     self.mark_ready()
 
   async def shutdown(self):

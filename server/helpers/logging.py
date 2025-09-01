@@ -67,14 +67,43 @@ def configure_discord_logging(discord_module):
   for name in ('discord', 'discord.http', 'discord.client', 'discord.gateway'):
     logging.getLogger(name).setLevel(logging.WARNING)
 
-def update_logging_level(debug: bool = False):
-  """Update global logging level including Azure SDK logger."""
-  logger = logging.getLogger()
-  logger.setLevel(logging.DEBUG if debug else logging.INFO)
-  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
-  azure_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+def update_logging_level(level: int = 3):
+  """Update global logging level including Azure SDK logger.
 
-def configure_root_logging(debug: bool = False):
+  ``level`` mapping:
+    0 → no logging
+    1 → errors
+    2 → errors and warnings
+    3 → errors, warnings and info
+    ≥4 → errors, warnings, info and debug
+  """
+  logger = logging.getLogger()
+  logger.disabled = level <= 0
+  if level <= 0:
+    log_level = logging.CRITICAL + 1
+  elif level == 1:
+    log_level = logging.ERROR
+  elif level == 2:
+    log_level = logging.WARNING
+  elif level == 3:
+    log_level = logging.INFO
+  else:
+    log_level = logging.DEBUG
+  logger.setLevel(log_level)
+
+  azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
+  azure_logger.disabled = level <= 0
+  if level >= 4:
+    azure_level = logging.DEBUG
+  elif level == 3:
+    azure_level = logging.INFO
+  elif level == 2:
+    azure_level = logging.WARNING
+  else:
+    azure_level = logging.ERROR
+  azure_logger.setLevel(azure_level)
+
+def configure_root_logging(level: int = 3):
   logger = logging.getLogger()
   if logger.handlers:
     logger.handlers.clear()
@@ -84,7 +113,7 @@ def configure_root_logging(debug: bool = False):
   logger.addFilter(ExcludeDiscordFilter())
   for name in ('discord', 'discord.http', 'discord.client', 'discord.gateway'):
     logging.getLogger(name).setLevel(logging.WARNING)
-  update_logging_level(debug)
+  update_logging_level(level)
 
 def remove_discord_logging(discord_module):
   logger = logging.getLogger()
