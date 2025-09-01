@@ -10,6 +10,7 @@ IconButton,
 Stack,
 Checkbox,
 FormControlLabel,
+Tooltip,
 } from '@mui/material';
 import {
 OpenInNew,
@@ -225,22 +226,30 @@ return (
 							<TableCell sx={{ width: '60%' }}>{file.name}</TableCell>
 							<TableCell sx={{ width: '20%' }}>
 								<Stack direction="row" spacing={1}>
-									<IconButton size="small" onClick={() => void handleCopy(file.url)}>
-										<LinkIcon />
-									</IconButton>
-									<IconButton size="small" onClick={() => void handleDelete(file.name)}>
-										<Delete />
-									</IconButton>
-									<IconButton size="small" onClick={() => void handleSetGallery(file.name)}>
-										<Publish />
-									</IconButton>
-									<IconButton
-										size="small"
-										disabled={moveTarget === null}
-										onClick={() => void handleMove(file.name)}
-									>
-										<DriveFileMove />
-									</IconButton>
+									<Tooltip title="Get link">
+										<IconButton size="small" onClick={() => void handleCopy(file.url)}>
+											<LinkIcon />
+										</IconButton>
+									</Tooltip>
+									<Tooltip title="Delete">
+										<IconButton size="small" onClick={() => void handleDelete(file.name)}>
+											<Delete />
+										</IconButton>
+									</Tooltip>
+									<Tooltip title="Publish">
+										<IconButton size="small" onClick={() => void handleSetGallery(file.name)}>
+											<Publish />
+										</IconButton>
+									</Tooltip>
+									<Tooltip title="Move">
+										<IconButton
+											size="small"
+											disabled={moveTarget === null}
+											onClick={() => void handleMove(file.name)}
+										>
+											<DriveFileMove />
+										</IconButton>
+									</Tooltip>
 								</Stack>
 							</TableCell>
 						</TableRow>
