@@ -3,7 +3,7 @@
 import base64, logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Dict
 
 from server.modules import BaseModule
@@ -142,18 +142,24 @@ class AuthModule(BaseModule):
       if not derived_secret:
         raise JWTError("missing session key")
       payload = jwt.decode(token, derived_secret, algorithms=[self.jwt_algo_int])
-    except JWTError:
-      logging.error("[AuthModule] JWT decode failed for guid %s", guid)
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token", headers={"WWW-Authenticate": "Bearer"})
+    except ExpiredSignatureError:
+      logging.warning("[AuthModule] Session token expired for %s", guid)
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
+    except jwt.JWTClaimsError:
+      logging.error("[AuthModule] JWT claims error for guid %s", guid)
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims", headers={"WWW-Authenticate": "Bearer"})
+    except JWTError as e:
+      if str(e) == "missing session key":
+        logging.error("[AuthModule] Session key missing for guid %s", guid)
+        detail = "Invalid session key"
+      else:
+        logging.error("[AuthModule] JWT decode failed for guid %s", guid)
+        detail = "Invalid token"
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail, headers={"WWW-Authenticate": "Bearer"})
 
     if not rotkey:
       logging.error("[AuthModule] Rotation key missing for %s", guid)
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token", headers={"WWW-Authenticate": "Bearer"})
-
-    exp = payload.get("exp")
-    if not exp or datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
-      logging.error("[AuthModule] Session token expired for %s", guid)
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired", headers={"WWW-Authenticate": "Bearer"})
 
     return payload
 
