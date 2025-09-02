@@ -21,6 +21,8 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
     q = query.strip().lower()
     if q.startswith("select recid from auth_providers"):
       return DBResult(rows=[{"recid": 1}], rowcount=1)
+    if q.startswith("select users_guid from users_auth"):
+      return DBResult(rows=[], rowcount=0)
     return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
   async def fake_fetch_rows(query, params, one=False, stream=False):

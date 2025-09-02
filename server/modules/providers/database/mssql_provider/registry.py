@@ -81,6 +81,23 @@ async def _users_insert(args: Dict[str, Any]):
       raise ValueError(f"Unknown auth provider: {provider}")
     ap_recid = res.rows[0]["recid"]
 
+    dup = await fetch_json(
+      "SELECT users_guid FROM users_auth WHERE element_identifier = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+      (identifier,),
+    )
+    if dup.rows:
+      existing_guid = dup.rows[0]["users_guid"]
+      await exec_query(
+        "UPDATE users_auth SET element_linked = 1, providers_recid = ? WHERE element_identifier = ?;",
+        (ap_recid, identifier),
+      )
+      await exec_query(
+        "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
+        (ap_recid, existing_guid),
+      )
+      sel = _users_select({"provider": provider, "provider_identifier": identifier})
+      return await fetch_rows(sel[1], sel[2], one=True)
+
     async with transaction() as cur:
         await cur.execute(
             """
