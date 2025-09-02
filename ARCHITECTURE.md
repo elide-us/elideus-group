@@ -76,7 +76,7 @@ The user's local session on a device. This session includes a bearer token which
 identifies the unique session and device. When a request is made the bearer token is
 decoded and security is looked up in the back end. If authorized, the RPC transaction
 continues. The client retains only this bearer token containing the user's randomly
-assigned GUID; no personal details are included.
+assigned GUID, session GUID, and device GUID; no personal details are included.
 
 #### Server Domain
 
@@ -89,20 +89,20 @@ retains:
 4. User's profile image (if available)
 
 *Email addresses are required for purchase receipts and cannot be removed. Users may
-hide their address from public profiles, and the service sends no other email communications.
+share their address in their public profile, the service sends no other email communications.
 
 #### Account Provisioning
 
 Accounts can only be created through trusted identity providers (**Microsoft**, **Google**,
 **Discord**, and **Apple**). No local credentials are ever issued or stored. When a user
-signs in for the first time, the provider identifier becomes the primary key used by the
-server to link all subsequent logins.
+signs in for the first time, the provider identifier becomes associated with a unique 
+internal identifier. Additional provider identities can also be linked to your identifier.
 
 #### Authentication Workflow
 
 1. Client obtains an ID token from an identity provider.
 2. Token is sent to the server and validated against the provider's JWKS.
-3. For new accounts a GUID is generated and the provider becomes the user's primary provider.
+3. For new accounts a GUID is generated and the provider becomes the user's default provider.
 4. Existing accounts are looked up by GUID and their session/device records are refreshed.
 5. A server-signed bearer token is returned to the client and used for all RPC calls.
 
@@ -113,12 +113,13 @@ The server stores only minimal personal information:
 * GUID (internal identifier)
 * Email address *(required; used only for purchase receipts)*
 * Profile image *(optional)*
+* Display name *(editable)*
 
 #### Provider Association
 
-Each account is linked to a single primary provider for lookup and auditing. Identity
+Each account is linked to a single default provider for communication and auditing. Identity
 provider data is not used in internal cryptographic operations; it is only used to
-validate the provider's identity token during authentication. All encryption and signing
+validate the user's identity token during authentication. All encryption and signing
 routines rely solely on internal keys.
 
 ### RPC Namespace Integration
@@ -133,7 +134,7 @@ and the appropriate role:
 | `users.*` | `ROLE_REGISTERED` |
 | `storage.*` | `ROLE_STORAGE` |
 | `system.*` | `ROLE_SYSTEM_ADMIN` |
-| `service.*` | `ROLE_SERVICE_ADMIN` (role management also requires `ROLE_ACCOUNT_ADMIN`) |
+| `service.*` | `ROLE_SERVICE_ADMIN` |
 | `account.*` | `ROLE_ACCOUNT_ADMIN` |
 | `moderation.*` | `ROLE_MODERATOR` |
 
