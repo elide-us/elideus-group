@@ -83,6 +83,20 @@ def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
   return identifiers
 
 
+def normalize_provider_identifier(pid: str) -> str:
+  try:
+    return str(uuid.UUID(pid))
+  except ValueError:
+    try:
+      pad = pid + "=" * (-len(pid) % 4)
+      raw = base64.urlsafe_b64decode(pad)
+      if len(raw) >= 16:
+        return str(uuid.UUID(bytes=raw[-16:]))
+    except Exception:
+      pass
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
+
+
 async def lookup_user(db: DbModule, provider: str, identifiers: list[str]):
   def _norm(pid: str) -> str | None:
     try:
@@ -178,10 +192,12 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  reactivated = False
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
   )
+  provider_uid = normalize_provider_identifier(provider_uid)
   logging.debug(
     f"[auth_microsoft_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
@@ -204,6 +220,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
           "provider_identifier": provider_uid,
         },
       )
+      reactivated = True
       res2 = await db.run(
         "urn:users:providers:get_by_provider_identifier:1",
         {"provider": provider, "provider_identifier": provider_uid},
@@ -215,6 +232,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
           {"provider": provider, "provider_identifier": provider_uid},
         )
         user["element_soft_deleted_at"] = None
+        reactivated = True
 
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
@@ -222,10 +240,6 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       "urn:users:providers:get_user_by_email:1",
       {"email": profile["email"]},
     )
-    try:
-      provider_uid = str(uuid.UUID(provider_uid))
-    except ValueError:
-      raise HTTPException(status_code=400, detail="Invalid provider identifier")
     if res.rows:
       logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
       existing_guid = res.rows[0]["guid"]
@@ -288,6 +302,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       {"provider": provider, "provider_identifier": provider_uid},
     )
     user["element_soft_deleted_at"] = None
+    reactivated = True
 
   new_img = profile.get("profilePicture")
   if new_img != user.get("profile_image"):
@@ -298,6 +313,19 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     user["profile_image"] = new_img
 
   user_guid = user["guid"]
+  if reactivated:
+    res_prof = await db.run(
+      "urn:users:profile:get_profile:1",
+      {"guid": user_guid},
+    )
+    default_provider = None
+    if res_prof.rows:
+      default_provider = res_prof.rows[0].get("default_provider")
+    if default_provider in (None, 0):
+      await db.run(
+        "urn:users:providers:set_provider:1",
+        {"guid": user_guid, "provider": provider},
+      )
   if user.get("provider_name") == "microsoft":
     res_prof = await db.run(
       "urn:users:profile:update_if_unedited:1",

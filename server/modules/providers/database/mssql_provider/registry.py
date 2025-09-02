@@ -47,18 +47,16 @@ def _users_select(provider_args: Dict[str, Any]):
 
 @register("urn:users:providers:get_any_by_provider_identifier:1")
 def _users_select_any(provider_args: Dict[str, Any]):
-    provider = provider_args["provider"]
     identifier = str(UUID(provider_args["provider_identifier"]))
     sql = """
       SELECT TOP 1
         au.element_guid AS guid,
         au.element_soft_deleted_at
       FROM users_auth ua
-      JOIN auth_providers ap ON ap.recid = ua.providers_recid
       JOIN account_users au ON au.element_guid = ua.users_guid
-      WHERE ap.element_name = ? AND ua.element_identifier = ?;
+      WHERE ua.element_identifier = ?;
     """
-    return ("row_one", sql, (provider, identifier))
+    return ("row_one", sql, (identifier,))
 
 @register("urn:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
@@ -128,9 +126,9 @@ async def _users_link_provider(args: Dict[str, Any]):
       """
       MERGE users_auth AS target
       USING (SELECT ? AS users_guid, ? AS providers_recid, ? AS element_identifier) AS source
-      ON target.users_guid = source.users_guid AND target.providers_recid = source.providers_recid AND target.element_identifier = source.element_identifier
+      ON target.element_identifier = source.element_identifier
       WHEN MATCHED THEN
-        UPDATE SET element_linked = 1
+        UPDATE SET users_guid = source.users_guid, providers_recid = source.providers_recid, element_linked = 1
       WHEN NOT MATCHED THEN
         INSERT (users_guid, providers_recid, element_identifier, element_linked)
         VALUES (source.users_guid, source.providers_recid, source.element_identifier, 1);
