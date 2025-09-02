@@ -234,5 +234,5 @@ When required, refer to the following documents for additional details:
 
 - DATABASE.md - Contains details about the database schema and design concepts
 - RPC.md - Outlines the RPC namespace and associated security paradigms
-- SECURITY.md - Details the security model and how roles are used in the system
+- ARCHITECTURE.md - Contains the system architecture and integrated security model including role definitions
 
