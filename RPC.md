@@ -74,7 +74,7 @@ Authentication and session management calls.
 
 | Operation                           | Description                                                       |
 | ----------------------------------- | ----------------------------------------------------------------- |
-| `urn:auth:unlink_last_provider:1`   | Unlink the final auth provider for a user and revoke all tokens. |
+| `urn:auth:providers:unlink_last_provider:1`   | Unlink the final auth provider for a user and revoke all tokens. |
 
 ### `session`
 
