@@ -48,12 +48,6 @@ low bits are used for user level flags.
 | 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain |
 | 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Grants access to profile and provider management |
 
-`ROLE_GLOBAL_ADMIN = ROLE_SERVICE_ADMIN | ROLE_SYSTEM_ADMIN | ROLE_MODERATOR | ROLE_SUPPORT`
-`ROLE_SERVICE_AGENT = ROLE_MODERATOR | ROLE_SUPPORT`
-
-The two lowest bits represent the base user roles: `ROLE_REGISTERED` for profile and
-provider access and `ROLE_STORAGE` for the storage domain.
-
 ### Authentication Domains
 
 Understanding the various domains and where values are used and stored is vital to the
