@@ -308,20 +308,13 @@ def test_unlink_last_provider_soft_deletes_and_revokes():
         return DBRes(rows=[{"default_provider": "google"}])
       if op == "urn:users:providers:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 0}], rowcount=1)
-      if op in (
-        "urn:users:providers:soft_delete_account:1",
-        "db:auth:session:revoke_all_device_tokens:1",
-        "db:users:session:set_rotkey:1",
-      ):
+      if op == "urn:auth:unlink_last_provider:1":
         return DBRes([], 1)
       return DBRes()
 
   db = LocalDb()
   req = DummyRequest(DummyState(db))
   asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("urn:users:providers:soft_delete_account:1", {"guid": "u1"}) in db.calls
-  assert ("db:auth:session:revoke_all_device_tokens:1", {"guid": "u1"}) in db.calls
-  rotcall = next(args for op, args in db.calls if op == "db:users:session:set_rotkey:1")
-  assert rotcall["rotkey"] == ""
-  assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) not in db.calls
+  assert ("urn:auth:unlink_last_provider:1", {"guid": "u1", "provider": "google"}) in db.calls
+  assert not any(op == "db:auth:session:revoke_provider_tokens:1" for op, _ in db.calls)
 

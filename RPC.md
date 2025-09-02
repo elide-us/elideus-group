@@ -61,12 +61,20 @@ Authentication and session management calls.
 | Operation                          | Description                                                                                                              |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `urn:auth:microsoft:oauth_login:1` | Validate Microsoft tokens, create a user record if necessary, and start a user session. Returns bearer and profile data. |
+| `urn:auth:microsoft:oauth_relink:1` | Reactivate or relink an existing Microsoft account and refresh user data. |
 
 ### `google`
 
 | Operation                       | Description                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------------- |
 | `urn:auth:google:oauth_login:1` | Exchange a Google OAuth authorization code for tokens, validate them, create a user record if necessary, and start a user session. Returns bearer and profile data. |
+| `urn:auth:google:oauth_relink:1` | Reactivate or relink an existing Google account and refresh user data. |
+
+### `providers`
+
+| Operation                           | Description                                                       |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `urn:auth:unlink_last_provider:1`   | Unlink the final auth provider for a user and revoke all tokens. |
 
 ### `session`
 

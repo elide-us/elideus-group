@@ -52,11 +52,9 @@ class DummyDb:
           "element_soft_deleted_at": "2024-01-01T00:00:00Z",
         }
       ], 1)
-    if op == "urn:users:providers:undelete_account:1" or op == "db:users:session:set_rotkey:1":
-      return DBRes([], 1)
-    if op == "urn:users:profile:get_profile:1":
-      return DBRes([{ "default_provider": 0 }], 1)
-    if op == "urn:users:providers:set_provider:1":
+    if op == "urn:auth:google:oauth_relink:1":
+      return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
+    if op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
     if op == "db:auth:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
@@ -174,12 +172,7 @@ def test_undeletes_soft_deleted_account(monkeypatch):
   req = DummyRequest()
   asyncio.run(auth_google_oauth_login_v1(req))
   calls = req.app.state.db.calls
-  assert any(op == "urn:users:providers:undelete_account:1" for op, _ in calls)
-  assert any(op == "urn:users:providers:set_provider:1" for op, _ in calls)
+  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in calls)
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)
-  undelete_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:undelete_account:1")
-  set_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:set_provider:1")
-  create_idx = next(i for i, (op, _) in enumerate(calls) if op == "db:auth:session:create_session:1")
-  assert undelete_idx < set_idx < create_idx
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
 

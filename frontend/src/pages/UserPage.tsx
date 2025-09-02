@@ -123,20 +123,31 @@ const UserPage = (): JSX.Element => {
   };
 
   const handleUnlink = async (name: string): Promise<void> => {
-    if (
-      providers.length <= 1 &&
-      !window.confirm("This will delete your account. Continue?")
-    )
+    const isLast = providers.length <= 1;
+    if (isLast && !window.confirm("This will delete your account. Continue?"))
       return;
     try {
-      await fetchUnlinkProvider({ provider: name });
+      let newDefault: string | undefined;
+      if (!isLast && provider === name)
+        newDefault = providers.find((p) => p !== name);
+      await fetchUnlinkProvider(
+        newDefault
+          ? { provider: name, new_default: newDefault }
+          : { provider: name }
+      );
       const updated = providers.filter((p) => p !== name);
       setProviders(updated);
       if (profile) {
         const authProviders =
           profile.auth_providers?.filter((p) => p.name !== name) ?? [];
-        setProfile({ ...profile, auth_providers: authProviders });
+        const updatedProfile = {
+          ...profile,
+          auth_providers: authProviders,
+        };
+        if (newDefault) updatedProfile.default_provider = newDefault;
+        setProfile(updatedProfile);
       }
+      if (newDefault) setProvider(newDefault);
       if (updated.length === 0) clearUserData();
     } catch (err) {
       console.error("Failed to unlink provider", err);

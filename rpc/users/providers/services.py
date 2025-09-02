@@ -137,17 +137,8 @@ async def users_providers_unlink_provider_v1(request: Request):
   remaining = res.rows[0].get("providers_remaining") if res.rows else 0
   if remaining == 0:
     await db.run(
-      "urn:users:providers:soft_delete_account:1",
-      {"guid": auth_ctx.user_guid},
-    )
-    await db.run(
-      "db:auth:session:revoke_all_device_tokens:1",
-      {"guid": auth_ctx.user_guid},
-    )
-    now = datetime.now(timezone.utc)
-    await db.run(
-      "db:users:session:set_rotkey:1",
-      {"guid": auth_ctx.user_guid, "rotkey": "", "iat": now, "exp": now},
+      "urn:auth:unlink_last_provider:1",
+      {"guid": auth_ctx.user_guid, "provider": payload.provider},
     )
   elif payload.provider == default_provider:
     if not payload.new_default:

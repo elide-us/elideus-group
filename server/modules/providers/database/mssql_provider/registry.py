@@ -257,6 +257,31 @@ def _users_profile(args: Dict[str, Any]):
     """
     return ("row_one", sql, (guid,))
 
+@register("urn:auth:unlink_last_provider:1")
+def _auth_unlink_last_provider(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    provider = args["provider"]
+    sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
+    return ("exec", sql, (guid, provider))
+
+@register("urn:auth:microsoft:oauth_relink:1")
+def _auth_ms_oauth_relink(args: Dict[str, Any]):
+    identifier = str(UUID(args["provider_identifier"]))
+    email = args.get("email")
+    display = args.get("display_name")
+    img = args.get("profile_image", "")
+    sql = "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;"
+    return ("row_one", sql, (identifier, email, display, img))
+
+@register("urn:auth:google:oauth_relink:1")
+def _auth_google_oauth_relink(args: Dict[str, Any]):
+    identifier = str(UUID(args["provider_identifier"]))
+    email = args.get("email")
+    display = args.get("display_name")
+    img = args.get("profile_image", "")
+    sql = "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;"
+    return ("row_one", sql, (identifier, email, display, img))
+
 
 @register("db:users:profile:get_profile:1")
 def _db_users_profile(args: Dict[str, Any]):

@@ -192,7 +192,6 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
-  reactivated = False
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
@@ -205,132 +204,52 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   identifiers = extract_identifiers(provider_uid, payload)
   user = await lookup_user(db, provider, identifiers)
 
-  if not user:
+  if not user or user.get("element_soft_deleted_at"):
     res = await db.run(
-      "urn:users:providers:get_any_by_provider_identifier:1",
-      {"provider": provider, "provider_identifier": provider_uid},
+      f"urn:auth:{provider}:oauth_relink:1",
+      {
+        "provider_identifier": provider_uid,
+        "email": profile["email"],
+        "display_name": profile["username"],
+        "profile_image": profile.get("profilePicture"),
+        "confirm": req_payload.get("confirm"),
+        "reauth_token": req_payload.get("reauthToken") or req_payload.get("reAuthToken"),
+      },
     )
-    if res.rows:
-      relink = res.rows[0]
-      await db.run(
-        "urn:users:providers:link_provider:1",
-        {
-          "guid": relink["guid"],
-          "provider": provider,
-          "provider_identifier": provider_uid,
-        },
-      )
-      reactivated = True
-      res2 = await db.run(
-        "urn:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": provider_uid},
-      )
-      user = res2.rows[0] if res2.rows else None
-      if user and relink.get("element_soft_deleted_at"):
-        await db.run(
-          "urn:users:providers:undelete_account:1",
-          {"provider": provider, "provider_identifier": provider_uid},
-        )
-        user["element_soft_deleted_at"] = None
-        reactivated = True
+    user = res.rows[0] if res.rows else None
 
   if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
     res = await db.run(
-      "urn:users:providers:get_user_by_email:1",
-      {"email": profile["email"]},
+      "urn:users:providers:create_from_provider:1",
+      {
+        "provider": provider,
+        "provider_identifier": provider_uid,
+        "provider_email": profile["email"],
+        "provider_displayname": profile["username"],
+        "provider_profile_image": profile.get("profilePicture"),
+      },
     )
-    if res.rows:
-      logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
-      existing_guid = res.rows[0]["guid"]
-      confirm = req_payload.get("confirm")
-      reauth_token = req_payload.get("reauthToken") or req_payload.get("reAuthToken")
-      if reauth_token:
-        decoded = auth.decode_rotation_token(reauth_token)
-        if decoded.get("guid") != existing_guid:
-          raise HTTPException(status_code=401, detail="Re-auth token mismatch")
-        confirm = True
-      if confirm:
-        await db.run(
-          "urn:users:providers:link_provider:1",
-          {
-            "guid": existing_guid,
-            "provider": provider,
-            "provider_identifier": provider_uid,
-          },
-        )
-        res = await db.run(
-          "urn:users:providers:get_by_provider_identifier:1",
-          {"provider": provider, "provider_identifier": provider_uid},
-        )
-        user = res.rows[0] if res.rows else None
-      else:
-        res_prof = await db.run(
-          "urn:users:profile:get_profile:1",
-          {"guid": existing_guid},
-        )
-        default_provider = None
-        if res_prof.rows:
-          default_provider = res_prof.rows[0].get("default_provider")
-        raise HTTPException(status_code=409, detail={"default_provider": default_provider})
-    else:
+    user = res.rows[0] if res.rows else None
+    if not user:
+      logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
       res = await db.run(
-        "urn:users:providers:create_from_provider:1",
-        {
-          "provider": provider,
-          "provider_identifier": provider_uid,
-          "provider_email": profile["email"],
-          "provider_displayname": profile["username"],
-          "provider_profile_image": profile.get("profilePicture"),
-        },
+        "urn:users:providers:get_by_provider_identifier:1",
+        {"provider": provider, "provider_identifier": provider_uid},
       )
       user = res.rows[0] if res.rows else None
-      if not user:
-        logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
-        res = await db.run(
-          "urn:users:providers:get_by_provider_identifier:1",
-          {"provider": provider, "provider_identifier": provider_uid},
-        )
-        user = res.rows[0] if res.rows else None
-  if not user:
-    logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
-    raise HTTPException(status_code=500, detail="Unable to create user")
+    if not user:
+      logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
+      raise HTTPException(status_code=500, detail="Unable to create user")
 
-  if user.get("element_soft_deleted_at"):
-    await db.run(
-      "urn:users:providers:undelete_account:1",
-      {"provider": provider, "provider_identifier": provider_uid},
-    )
-    user["element_soft_deleted_at"] = None
-    reactivated = True
-
+  user_guid = user["guid"]
   new_img = profile.get("profilePicture")
   if new_img != user.get("profile_image"):
     await db.run(
       "urn:users:profile:set_profile_image:1",
-      {"guid": user["guid"], "image_b64": new_img, "provider": provider},
+      {"guid": user_guid, "image_b64": new_img, "provider": provider},
     )
     user["profile_image"] = new_img
-
-  user_guid = user["guid"]
-  if reactivated:
-    await db.run(
-      "urn:users:profile:set_roles:1",
-      {"guid": user_guid, "roles": 1},
-    )
-    res_prof = await db.run(
-      "urn:users:profile:get_profile:1",
-      {"guid": user_guid},
-    )
-    default_provider = None
-    if res_prof.rows:
-      default_provider = res_prof.rows[0].get("default_provider")
-    if default_provider != provider:
-      await db.run(
-        "urn:users:providers:set_provider:1",
-        {"guid": user_guid, "provider": provider},
-      )
-      user["provider_name"] = provider
   if user.get("provider_name") == "microsoft":
     res_prof = await db.run(
       "urn:users:profile:update_if_unedited:1",
