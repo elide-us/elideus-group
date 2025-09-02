@@ -1,31 +1,31 @@
 import { useContext, useEffect, useState, ChangeEvent } from "react";
 import {
-  Box,
-  Typography,
-  FormControlLabel,
-  Switch,
-  Avatar,
-  TextField,
-  Button,
-  Stack,
-  RadioGroup,
-  Radio
+    Box,
+    Typography,
+    FormControlLabel,
+    Switch,
+    Avatar,
+    Button,
+    Stack,
+    RadioGroup,
+    Radio
 } from "@mui/material";
 import { PublicClientApplication } from "@azure/msal-browser";
 import UserContext from "../shared/UserContext";
 import type { UsersProfileProfile1 } from "../shared/RpcModels";
 import {
-  fetchProfile,
-  fetchSetDisplay,
-  fetchSetOptin
+    fetchProfile,
+    fetchSetDisplay,
+    fetchSetOptin
 } from "../rpc/users/profile";
 import {
-  fetchSetProvider,
-  fetchLinkProvider,
-  fetchUnlinkProvider
+    fetchSetProvider,
+    fetchLinkProvider,
+    fetchUnlinkProvider
 } from "../rpc/users/providers";
 import googleConfig from "../config/google";
 import { msalConfig, loginRequest } from "../config/msal";
+import EditBox from "../components/EditBox";
 
 declare global {
   interface Window {
@@ -36,13 +36,12 @@ declare global {
 const pca = new PublicClientApplication(msalConfig);
 
 const UserPage = (): JSX.Element => {
-  const { userData, setUserData, clearUserData } = useContext(UserContext);
-  const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
-  const [displayEmail, setDisplayEmail] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [provider, setProvider] = useState("microsoft");
-  const [dirty, setDirty] = useState(false);
-  const [providers, setProviders] = useState<string[]>([]);
+    const { userData, setUserData, clearUserData } = useContext(UserContext);
+    const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
+    const [displayEmail, setDisplayEmail] = useState(false);
+    const [displayName, setDisplayName] = useState("");
+    const [provider, setProvider] = useState("microsoft");
+    const [providers, setProviders] = useState<string[]>([]);
 
   const normalizeGuid = (guid: unknown): string => {
     if (typeof guid === "string") return guid;
@@ -79,48 +78,74 @@ const UserPage = (): JSX.Element => {
     })();
   }, [userData]);
 
-  const handleToggle = (): void => {
-    setDisplayEmail(!displayEmail);
-    setDirty(true);
-  };
+    const handleToggle = async (): Promise<void> => {
+        const next = !displayEmail;
+        setDisplayEmail(next);
+        try {
+            await fetchSetOptin({ display_email: next });
+            if (profile) setProfile({ ...profile, display_email: next });
+        } catch (err) {
+            console.error("Failed to update email display", err);
+        }
+    };
 
-  const handleNameChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setDisplayName(e.target.value);
-    setDirty(true);
-  };
+    const commitDisplayName = async (val: string | number): Promise<void> => {
+        const name = String(val);
+        setDisplayName(name);
+        try {
+            await fetchSetDisplay({ display_name: name });
+            if (userData) setUserData({ ...userData, display_name: name });
+            if (profile) setProfile({ ...profile, display_name: name });
+        } catch (err) {
+            console.error("Failed to update display name", err);
+        }
+    };
 
-  const handleProviderChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setProvider(e.target.value);
-    setDirty(true);
-  };
-
-  const handleCancel = (): void => {
-    if (profile) {
-      setDisplayName(profile.display_name);
-      setDisplayEmail(profile.display_email);
-      setProvider(profile.default_provider);
-    }
-    setDirty(false);
-  };
-
-  const handleApply = async (): Promise<void> => {
-    try {
-      await fetchSetDisplay({ display_name: displayName });
-      await fetchSetOptin({ display_email: displayEmail });
-      await fetchSetProvider({ provider });
-      if (userData) setUserData({ ...userData, display_name: displayName });
-      if (profile)
-        setProfile({
-          ...profile,
-          display_name: displayName,
-          display_email: displayEmail,
-          default_provider: provider
-        });
-      setDirty(false);
-    } catch (err) {
-      console.error("Failed to update profile", err);
-    }
-  };
+    const handleProviderChange = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
+        const prev = provider;
+        const next = e.target.value;
+        setProvider(next);
+        try {
+            if (next === "google") {
+                if (!window.google) throw new Error("Google API not loaded");
+                const code = await new Promise<string>((resolve) => {
+                    const cfg = {
+                        client_id: googleConfig.clientId,
+                        scope: googleConfig.scope,
+                        redirect_uri: googleConfig.redirectUri,
+                        callback: (resp: any) => resolve(resp.code)
+                    };
+                    const client = window.google.accounts.oauth2.initCodeClient(cfg);
+                    client.requestCode();
+                });
+                await fetchSetProvider({ provider: next, code });
+            } else if (next === "microsoft") {
+                await pca.initialize();
+                const loginResponse = await pca.loginPopup(loginRequest);
+                const { idToken, accessToken } = loginResponse;
+                await fetchSetProvider({
+                    provider: next,
+                    id_token: idToken,
+                    access_token: accessToken
+                });
+            } else {
+                await fetchSetProvider({ provider: next });
+            }
+            const res: any = await fetchProfile();
+            const profileData: UsersProfileProfile1 = {
+                ...res,
+                guid: normalizeGuid(res.guid)
+            };
+            setProfile(profileData);
+            setDisplayName(profileData.display_name);
+            setDisplayEmail(profileData.display_email);
+            setProviders(profileData.auth_providers?.map((p) => p.name) ?? []);
+            if (userData) setUserData({ ...userData, display_name: profileData.display_name });
+        } catch (err) {
+            console.error("Failed to set provider", err);
+            setProvider(prev);
+        }
+    };
 
   const handleUnlink = async (name: string): Promise<void> => {
     const isLast = providers.length <= 1;
@@ -234,24 +259,14 @@ const UserPage = (): JSX.Element => {
                 sx={{ width: 80, height: 80 }}
               />
 
-              <TextField
-                label="Display Name"
-                value={displayName}
-                onChange={handleNameChange}
-                fullWidth
-                slotProps={{
-                  input: {
-                    style: { textAlign: "right" }
-                  }
-                }}
-              />
+              <EditBox value={displayName} onCommit={commitDisplayName} />
 
               <Typography>Credits: {profile.credits ?? 0}</Typography>
               <Typography>Email: {profile.email}</Typography>
 
               <RadioGroup
                 value={provider}
-                onChange={handleProviderChange}
+                onChange={(e) => { void handleProviderChange(e); }}
                 sx={{ alignItems: "flex-end" }}
               >
                 {allProviders
@@ -298,36 +313,18 @@ const UserPage = (): JSX.Element => {
 
               <FormControlLabel
                 control={
-                  <Switch checked={displayEmail} onChange={handleToggle} />
+                  <Switch
+                    checked={displayEmail}
+                    onChange={() => {
+                      void handleToggle();
+                    }}
+                  />
                 }
                 label="Display email publicly"
                 labelPlacement="start"
                 sx={{ alignSelf: "flex-end" }}
               />
 
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{ justifyContent: "flex-end", width: "100%" }}
-              >
-                <Button
-                  variant="contained"
-                  onClick={handleApply}
-                  disabled={!dirty}
-                >
-                  Apply
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleCancel}
-                  disabled={!dirty}
-                >
-                  Cancel
-                </Button>
-                <Button variant="contained" color="error">
-                  Delete
-                </Button>
-              </Stack>
             </Stack>
           )}
         </Stack>
