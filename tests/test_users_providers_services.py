@@ -100,7 +100,7 @@ class DummyRequest:
 
 def test_set_provider_calls_db():
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft", "access_token": "acc"}, version=1)
+    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft"}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
   db = DummyDb()
@@ -111,49 +111,9 @@ def test_set_provider_calls_db():
   assert resp.payload["provider"] == "microsoft"
 
 
-def test_set_provider_refreshes_profile():
-  class DummyProvider:
-    def __init__(self):
-      self.calls = 0
-      self.token = None
-    async def fetch_user_profile(self, token):
-      self.calls += 1
-      self.token = token
-      return {"email": "e@example.com", "username": "User"}
-
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft", "access_token": "acc"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-
-  provider = DummyProvider()
-  auth = SimpleNamespace(providers={"microsoft": provider})
-  db = DummyDb()
-  svc_mod.unbox_request = fake_get
-  req = DummyRequest(DummyState(db, auth))
-  asyncio.run(users_providers_set_provider_v1(req))
-  assert provider.calls == 1
-  assert provider.token == "acc"
-  assert (
-    "urn:users:profile:update_if_unedited:1",
-    {"guid": "u1", "email": "e@example.com", "display_name": "User"},
-  ) in db.calls
-
-
 def test_set_provider_missing_provider_raises():
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"access_token": "acc"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-  db = DummyDb()
-  req = DummyRequest(DummyState(db))
-  with pytest.raises(HTTPException) as exc:
-    asyncio.run(users_providers_set_provider_v1(req))
-  assert exc.value.status_code == 400
-
-
-def test_set_provider_missing_credential_raises():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft"}, version=1)
+    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
   db = DummyDb()
