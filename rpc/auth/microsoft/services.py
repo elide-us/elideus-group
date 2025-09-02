@@ -83,6 +83,20 @@ def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
   return identifiers
 
 
+def normalize_provider_identifier(pid: str) -> str:
+  try:
+    return str(uuid.UUID(pid))
+  except ValueError:
+    try:
+      pad = pid + "=" * (-len(pid) % 4)
+      raw = base64.urlsafe_b64decode(pad)
+      if len(raw) >= 16:
+        return str(uuid.UUID(bytes=raw[-16:]))
+    except Exception:
+      pass
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
+
+
 async def lookup_user(db: DbModule, provider: str, identifiers: list[str]):
   def _norm(pid: str) -> str | None:
     try:
@@ -183,6 +197,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
   )
+  provider_uid = normalize_provider_identifier(provider_uid)
   logging.debug(
     f"[auth_microsoft_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
@@ -225,10 +240,6 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       "urn:users:providers:get_user_by_email:1",
       {"email": profile["email"]},
     )
-    try:
-      provider_uid = str(uuid.UUID(provider_uid))
-    except ValueError:
-      raise HTTPException(status_code=400, detail="Invalid provider identifier")
     if res.rows:
       logging.debug("[auth_microsoft_oauth_login_v1] email already registered")
       existing_guid = res.rows[0]["guid"]

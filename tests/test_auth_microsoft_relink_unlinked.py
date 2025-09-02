@@ -109,6 +109,7 @@ def test_relinks_unlinked_account(monkeypatch):
   assert ("urn:users:providers:link_provider:1", {"guid": "user-guid", "provider": "microsoft", "provider_identifier": "00000000-0000-0000-0000-000000000001"}) in calls
   assert any(op == "urn:users:providers:undelete_account:1" for op, _ in calls)
   assert any(op == "urn:users:providers:set_provider:1" for op, _ in calls)
+  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)
   link_idx = next(i for i,(op,_) in enumerate(calls) if op == "urn:users:providers:link_provider:1")
   set_idx = next(i for i,(op,_) in enumerate(calls) if op == "urn:users:providers:set_provider:1")
   create_idx = next(i for i,(op,_) in enumerate(calls) if op == "db:auth:session:create_session:1")

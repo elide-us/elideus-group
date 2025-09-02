@@ -176,6 +176,7 @@ def test_undeletes_soft_deleted_account(monkeypatch):
   calls = req.app.state.db.calls
   assert any(op == "urn:users:providers:undelete_account:1" for op, _ in calls)
   assert any(op == "urn:users:providers:set_provider:1" for op, _ in calls)
+  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)
   undelete_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:undelete_account:1")
   set_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:set_provider:1")
   create_idx = next(i for i, (op, _) in enumerate(calls) if op == "db:auth:session:create_session:1")
