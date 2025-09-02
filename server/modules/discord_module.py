@@ -82,7 +82,9 @@ class DiscordModule(BaseModule):
       if channel:
         res = await self.db.run("db:system:config:get_config:1", {"key": "Version"})
         version = res.rows[0]["value"] if res.rows else None
-        logging.info(f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}")
+        msg = f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}"
+        await channel.send(msg)
+        logging.info(msg)
       else:
         logging.warning("[DiscordProvider] System channel not found on ready.")
 
