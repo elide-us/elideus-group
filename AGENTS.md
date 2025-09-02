@@ -103,18 +103,19 @@ The **server module system** uses a **two-phase initialization pattern** to ensu
 
 * **Every module must inherit from `BaseModule`**.
 * Call `super().__init__(app)` in the constructor.
-* Consumers of a module must always `await on_ready()` before use.
+* Consumers of a module must always `await on_ready()` before use in startup phase.
 * Modules may optionally expose helpers on `app.state` for use by others.
 
 This design ensures that startup is deterministic, deadlock-free, and extensible: modules only proceed when their dependencies are explicitly ready.
 
-### How Not To SOlve Problems
+### Solutions To Avoid
 
-- Do Not Put Meaninless Aliases in between references, just reference the object directly
-- Do Not Make an Error Silently Fail
-- Do Not Give an Error a Meaningless Default
-- Do Not Invent Environment Variables
-- Do Not Create New Modules Unless Explicitly Told To
+- Do NOT add additional aliases for objects when you can reference them directly.
+- Do NOT make errors silently fail.
+- Do NOT provide meaningless defaults.
+- Do NOT invent environment variables.
+
+---
 
 ## File Structure
 
@@ -135,93 +136,7 @@ This design ensures that startup is deterministic, deadlock-free, and extensible
 
 ---
 
-# Security Model
-
-This section defines the layered security domains. It describes how authentication, identity, and authorization are separated and enforced.
-
----
-
-## 1. Identity Providers (External)
-
-* Providers: Microsoft, Google, Apple, Discord
-* Only source of authentication — no local credentials exist.
-* Tokens are issued to the client (via MSAL or equivalent).
-* Server responsibility: validate tokens, extract claims.
-* Server non-responsibility: managing or refreshing provider tokens.
-
----
-
-## 2. Internal User Domain
-
-* On first login, the system creates a **unique GUID** for the user.
-* The GUID is the sole server-side identity key.
-* All tracked state (sessions, devices, credits, entitlements, profile image) is keyed to the GUID.
-* User profile data is minimal and opt-in.
-
----
-
-## 3. Client Application Domain
-
-* The React frontend is user-owned.
-* May store provider tokens and private user data.
-* Receives server-issued bearer tokens (encrypted with GUID).
-* The server cannot reach into client storage; the client only gets what it needs for RPC.
-
----
-
-## 4. Server Authentication Domain
-
-* Anonymous requests (no token) → access limited to `public.*` and `auth.*` RPC domains.
-* Login flow:
-
-  1. Validate provider token
-  2. New user → create GUID, seed 50 credits, assign base role
-  3. Existing user → load state, refresh session/device
-  4. Issue bearer token with GUID
-  5. Return profile + token to client
-
----
-
-## 5. RPC Security
-
-* Every RPC call must include a server-issued bearer token.
-* Request flow:
-
-  * Decrypt token → extract GUID
-  * Build `RPCRequest` (GUID + operation URN)
-  * Check security (roles, credits, entitlements)
-  * Allow or deny, then return `RPCResponse`
-
----
-
-## 6. Separation of Concerns
-
-* Identity providers → manage identity & tokens
-* Client → stores provider tokens, private data
-* Server → enforces security via GUID + bearer tokens
-* Internal roles/entitlements never leak to client
-
----
-
-## 7. Workflow Summary
-```
-flowchart TD
-    A[Client] -->|Provider Token| B[Server: Validate]
-    B -->|New User| C[Create GUID + Credits]
-    B -->|Existing User| D[Load State]
-    C --> E[Generate Bearer Token (GUID inside)]
-    D --> E[Generate Bearer Token (GUID inside)]
-    E -->|Bearer Token| A
-    A -->|RPCRequest + Bearer| F[RPC Layer]
-    F -->|Check Security (GUID)| G[Authorized?]
-    G -->|Yes| H[Dispatch Operation]
-    G -->|No| I[Return Denial]
-    H --> J[RPCResponse]
-    I --> J
-    J --> A
-```
-
-## 8. Key Principles
+## 8. Key Security Principles
 
 * Do not bypass or merge domains.
 * Do not expose security details.
@@ -232,7 +147,6 @@ flowchart TD
 
 When required, refer to the following documents for additional details:
 
-- DATABASE.md - Contains details about the database schema and design concepts
 - RPC.md - Outlines the RPC namespace and associated security paradigms
 - ARCHITECTURE.md - Contains the system architecture and integrated security model including role definitions
 
