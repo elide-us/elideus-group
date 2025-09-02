@@ -137,7 +137,7 @@ async def users_providers_unlink_provider_v1(request: Request):
   remaining = res.rows[0].get("providers_remaining") if res.rows else 0
   if remaining == 0:
     await db.run(
-      "urn:auth:unlink_last_provider:1",
+      "urn:auth:providers:unlink_last_provider:1",
       {"guid": auth_ctx.user_guid, "provider": payload.provider},
     )
   elif payload.provider == default_provider:

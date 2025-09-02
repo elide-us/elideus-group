@@ -257,7 +257,7 @@ def _users_profile(args: Dict[str, Any]):
     """
     return ("row_one", sql, (guid,))
 
-@register("urn:auth:unlink_last_provider:1")
+@register("urn:auth:providers:unlink_last_provider:1")
 def _auth_unlink_last_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
