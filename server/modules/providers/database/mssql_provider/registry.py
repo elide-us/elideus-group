@@ -177,7 +177,7 @@ async def _users_unlink_provider(args: Dict[str, Any]):
           (guid,)
         )
         await cur.execute(
-          "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
+          "UPDATE account_users SET providers_recid = NULL, element_display = '', element_email = '' WHERE element_guid = ?;",
           (guid,)
         )
       elif current_recid == provider_recid:
