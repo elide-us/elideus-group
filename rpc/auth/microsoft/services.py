@@ -190,6 +190,33 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   user = await lookup_user(db, provider, identifiers)
 
   if not user:
+    res = await db.run(
+      "urn:users:providers:get_any_by_provider_identifier:1",
+      {"provider": provider, "provider_identifier": provider_uid},
+    )
+    if res.rows:
+      relink = res.rows[0]
+      await db.run(
+        "urn:users:providers:link_provider:1",
+        {
+          "guid": relink["guid"],
+          "provider": provider,
+          "provider_identifier": provider_uid,
+        },
+      )
+      res2 = await db.run(
+        "urn:users:providers:get_by_provider_identifier:1",
+        {"provider": provider, "provider_identifier": provider_uid},
+      )
+      user = res2.rows[0] if res2.rows else None
+      if user and relink.get("element_soft_deleted_at"):
+        await db.run(
+          "urn:users:providers:undelete_account:1",
+          {"provider": provider, "provider_identifier": provider_uid},
+        )
+        user["element_soft_deleted_at"] = None
+
+  if not user:
     logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
     res = await db.run(
       "urn:users:providers:get_user_by_email:1",
