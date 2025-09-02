@@ -39,7 +39,7 @@ def _users_select(provider_args: Dict[str, Any]):
         v.provider_display,
         v.profile_image_base64 AS profile_image
       FROM vw_account_user_profile v
-      JOIN users_auth ua ON ua.users_guid = v.user_guid
+      JOIN users_auth ua ON ua.users_guid = v.user_guid AND ua.element_linked = 1
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
       WHERE ap.element_name = ? AND ua.element_identifier = ?;
     """
@@ -77,7 +77,7 @@ async def _users_insert(args: Dict[str, Any]):
             (new_guid, provider_email, provider_displayname, ap_recid, element_rotkey, element_rotkey_iat, element_rotkey_exp)
         )
         await cur.execute(
-            "INSERT INTO users_auth (users_guid, providers_recid, element_identifier) VALUES (?, ?, ?);",
+            "INSERT INTO users_auth (users_guid, providers_recid, element_identifier, element_linked) VALUES (?, ?, ?, 1);",
             (new_guid, ap_recid, identifier)
         )
         await cur.execute(
@@ -110,7 +110,16 @@ async def _users_link_provider(args: Dict[str, Any]):
       raise ValueError(f"Unknown auth provider: {provider}")
     ap_recid = res.rows[0]["recid"]
     rc = await exec_query(
-      "INSERT INTO users_auth (users_guid, providers_recid, element_identifier) VALUES (?, ?, ?);",
+      """
+      MERGE users_auth AS target
+      USING (SELECT ? AS users_guid, ? AS providers_recid, ? AS element_identifier) AS source
+      ON target.users_guid = source.users_guid AND target.providers_recid = source.providers_recid AND target.element_identifier = source.element_identifier
+      WHEN MATCHED THEN
+        UPDATE SET element_linked = 1
+      WHEN NOT MATCHED THEN
+        INSERT (users_guid, providers_recid, element_identifier, element_linked)
+        VALUES (source.users_guid, source.providers_recid, source.element_identifier, 1);
+      """,
       (guid, ap_recid, identifier)
     )
     return rc
@@ -135,14 +144,16 @@ async def _users_unlink_provider(args: Dict[str, Any]):
       provider_recid = row[0] if row else None
       await cur.execute(
         """
-        DELETE ua FROM users_auth ua
+        UPDATE ua
+        SET ua.element_linked = 0
+        FROM users_auth ua
         JOIN auth_providers ap ON ap.recid = ua.providers_recid
         WHERE ua.users_guid = ? AND ap.element_name = ?;
         """,
         (guid, provider)
       )
       await cur.execute(
-        "SELECT COUNT(*) AS cnt FROM users_auth WHERE users_guid = ?;",
+        "SELECT COUNT(*) AS cnt FROM users_auth WHERE users_guid = ? AND element_linked = 1;",
         (guid,)
       )
       row = await cur.fetchone()
@@ -208,7 +219,7 @@ def _users_profile(args: Dict[str, Any]):
             ap.element_display AS display
           FROM users_auth ua
           JOIN auth_providers ap ON ap.recid = ua.providers_recid
-          WHERE ua.users_guid = v.user_guid
+          WHERE ua.users_guid = v.user_guid AND ua.element_linked = 1
           FOR JSON PATH
         ) AS auth_providers
       FROM vw_account_user_profile v
