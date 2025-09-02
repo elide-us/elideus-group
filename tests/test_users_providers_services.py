@@ -100,13 +100,26 @@ class DummyRequest:
 
 def test_set_provider_calls_db():
   async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={"provider": "microsoft"}, version=1)
+    rpc = RPCRequest(
+      op="urn:users:providers:set_provider:1",
+      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
+      version=1,
+    )
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
   db = DummyDb()
-  req = DummyRequest(DummyState(db))
+  class DummyAuth:
+    def __init__(self):
+      self.providers = {"microsoft": SimpleNamespace(audience="client")}
+    async def handle_auth_login(self, provider, id_token, access_token):
+      return "pid", {"email": "e", "username": "n"}, {}
+  req = DummyRequest(DummyState(db, auth=DummyAuth()))
   resp = asyncio.run(users_providers_set_provider_v1(req))
   assert ("urn:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
+  assert (
+    "urn:users:profile:update_if_unedited:1",
+    {"guid": "u1", "email": "e", "display_name": "n"},
+  ) in db.calls
   assert isinstance(resp, RPCResponse)
   assert resp.payload["provider"] == "microsoft"
 
