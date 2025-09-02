@@ -83,15 +83,30 @@ const AccountRolesPage = (): JSX.Element => {
                 {roles.map((role) => (
                     <Stack key={role} spacing={2} direction="column" alignItems="center">
                         <Typography variant="h6">{role}</Typography>
-                        <Stack direction="row" spacing={2}>
-                            <List sx={{ width: 200, border: 1 }}>
+                        <Stack direction="row" spacing={1}>
+                            <List
+                                sx={{
+                                    width: 200,
+                                    maxHeight: 120,
+                                    overflow: "auto",
+                                    border: 1,
+                                    p: 0.25,
+                                }}
+                            >
                                 {(nonMembers[role] || []).map((u) => (
                                     <ListItemButton
                                         key={u.guid}
                                         selected={selectedLeft[role] === u.guid}
                                         onClick={() => setSelectedLeft({ ...selectedLeft, [role]: u.guid })}
+                                        sx={{ py: 0.25, px: 0.5, minHeight: 0 }}
                                     >
-                                        <ListItemText primary={u.displayName} />
+                                        <ListItemText
+                                            primary={u.displayName}
+                                            primaryTypographyProps={{
+                                                fontFamily: "monospace",
+                                                variant: "body2",
+                                            }}
+                                        />
                                     </ListItemButton>
                                 ))}
                             </List>
@@ -103,14 +118,29 @@ const AccountRolesPage = (): JSX.Element => {
                                     <ArrowBackIos />
                                 </IconButton>
                             </Stack>
-                            <List sx={{ width: 200, border: 1 }}>
+                            <List
+                                sx={{
+                                    width: 200,
+                                    maxHeight: 120,
+                                    overflow: "auto",
+                                    border: 1,
+                                    p: 0.25,
+                                }}
+                            >
                                 {(members[role] || []).map((u) => (
                                     <ListItemButton
                                         key={u.guid}
                                         selected={selectedRight[role] === u.guid}
                                         onClick={() => setSelectedRight({ ...selectedRight, [role]: u.guid })}
+                                        sx={{ py: 0.25, px: 0.5, minHeight: 0 }}
                                     >
-                                        <ListItemText primary={u.displayName} />
+                                        <ListItemText
+                                            primary={u.displayName}
+                                            primaryTypographyProps={{
+                                                fontFamily: "monospace",
+                                                variant: "body2",
+                                            }}
+                                        />
                                     </ListItemButton>
                                 ))}
                             </List>
