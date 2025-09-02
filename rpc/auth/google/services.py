@@ -342,11 +342,12 @@ async def auth_google_oauth_login_v1(request: Request):
     default_provider = None
     if res_prof.rows:
       default_provider = res_prof.rows[0].get("default_provider")
-    if default_provider in (None, 0):
+    if default_provider != provider:
       await db.run(
         "urn:users:providers:set_provider:1",
         {"guid": user_guid, "provider": provider},
       )
+      user["provider_name"] = provider
   if user.get("provider_name") == "google":
     res_prof = await db.run(
       "urn:users:profile:update_if_unedited:1",
