@@ -54,6 +54,10 @@ class DummyDb:
       ], 1)
     if op == "urn:users:providers:undelete_account:1" or op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
+    if op == "urn:users:profile:get_profile:1":
+      return DBRes([{ "default_provider": 0 }], 1)
+    if op == "urn:users:providers:set_provider:1":
+      return DBRes([], 1)
     if op == "db:auth:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
     if op == "db:auth:session:update_device_token:1":
@@ -171,8 +175,10 @@ def test_undeletes_soft_deleted_account(monkeypatch):
   asyncio.run(auth_google_oauth_login_v1(req))
   calls = req.app.state.db.calls
   assert any(op == "urn:users:providers:undelete_account:1" for op, _ in calls)
+  assert any(op == "urn:users:providers:set_provider:1" for op, _ in calls)
   undelete_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:undelete_account:1")
+  set_idx = next(i for i, (op, _) in enumerate(calls) if op == "urn:users:providers:set_provider:1")
   create_idx = next(i for i, (op, _) in enumerate(calls) if op == "db:auth:session:create_session:1")
-  assert undelete_idx < create_idx
+  assert undelete_idx < set_idx < create_idx
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
 

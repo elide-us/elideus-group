@@ -190,6 +190,7 @@ async def auth_google_oauth_login_v1(request: Request):
   env: EnvModule = request.app.state.env
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  reactivated = False
 
   # Get provider metadata
   google_provider = getattr(auth, "providers", {}).get("google")
@@ -242,6 +243,7 @@ async def auth_google_oauth_login_v1(request: Request):
           "provider_identifier": provider_uid,
         },
       )
+      reactivated = True
       res2 = await db.run(
         "urn:users:providers:get_by_provider_identifier:1",
         {"provider": provider, "provider_identifier": provider_uid},
@@ -253,6 +255,7 @@ async def auth_google_oauth_login_v1(request: Request):
           {"provider": provider, "provider_identifier": provider_uid},
         )
         user["element_soft_deleted_at"] = None
+        reactivated = True
 
   if not user:
     logging.debug("[auth_google_oauth_login_v1] user not found, creating new user")
@@ -320,6 +323,7 @@ async def auth_google_oauth_login_v1(request: Request):
       {"provider": provider, "provider_identifier": provider_uid},
     )
     user["element_soft_deleted_at"] = None
+    reactivated = True
 
   new_img = profile.get("profilePicture")
   if new_img and new_img != user.get("profile_image"):
@@ -330,6 +334,19 @@ async def auth_google_oauth_login_v1(request: Request):
     user["profile_image"] = new_img
 
   user_guid = user["guid"]
+  if reactivated:
+    res_prof = await db.run(
+      "urn:users:profile:get_profile:1",
+      {"guid": user_guid},
+    )
+    default_provider = None
+    if res_prof.rows:
+      default_provider = res_prof.rows[0].get("default_provider")
+    if default_provider in (None, 0):
+      await db.run(
+        "urn:users:providers:set_provider:1",
+        {"guid": user_guid, "provider": provider},
+      )
   if user.get("provider_name") == "google":
     res_prof = await db.run(
       "urn:users:profile:update_if_unedited:1",
