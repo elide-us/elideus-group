@@ -12,7 +12,7 @@ provider, their credits, security roles, and session/device details and tokens.
 
 SELECT * FROM account_users au
 JOIN users_sessions us ON au.element_guid = us.users_guid
-JOIN users_auth ua ON au.element_guid = ua.users_guid
+JOIN users_auth ua ON au.element_guid = ua.users_guid AND ua.element_linked = 1
 JOIN users_credits uc ON au.element_guid = uc.users_guid
 JOIN users_roles ur ON au.element_guid = ur.users_guid
 JOIN users_profileimg up ON au.element_guid = up.users_guid
@@ -22,7 +22,7 @@ JOIN auth_providers ap2 ON sd.providers_recid = ap2.recid
 
 `users_sessions` records only map a user to a session identifier and creation time. Token data, device metadata, and the issuing provider live in `sessions_devices`, which references the session via `sessions_guid`.
 
-Note: `users_auth.element_identifier` is a `UNIQUEIDENTIFIER` and must be unique across all providers.
+Note: `users_auth.element_identifier` is a `UNIQUEIDENTIFIER` and must be unique across all providers. `users_auth.element_linked` indicates whether a provider is currently linked. Records are never deleted; unlinking sets this flag to `0`.
 
 The above materialized view would result in a row that looks like this:
 

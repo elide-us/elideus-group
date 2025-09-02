@@ -87,6 +87,7 @@ CREATE TABLE users_auth (
     users_guid UNIQUEIDENTIFIER NOT NULL,
     providers_recid INT NOT NULL,
     element_identifier UNIQUEIDENTIFIER NOT NULL UNIQUE,
+    element_linked BIT NOT NULL,
     FOREIGN KEY (providers_recid) REFERENCES auth_providers(recid),
     FOREIGN KEY (users_guid) REFERENCES account_users(element_guid)
 );
