@@ -43,13 +43,13 @@ class DummyDb:
           {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
         ], 1)
       return DBRes([], 0)
-    if op == "urn:users:providers:get_user_by_email:1":
-      return DBRes([{ "guid": "existing-guid" }], 1)
-    if op == "urn:users:profile:get_profile:1":
-      return DBRes([{ "default_provider": "microsoft" }], 1)
-    if op == "urn:users:providers:link_provider:1":
-      self.linked = True
-      return DBRes(rowcount=1)
+    if op == "urn:auth:google:oauth_relink:1":
+      if args.get("confirm"):
+        self.linked = True
+        return DBRes([
+          {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
+        ], 1)
+      raise HTTPException(status_code=409, detail={"default_provider": "microsoft"})
     if op == "db:users:session:set_rotkey:1":
       return DBRes(rowcount=1)
     if op == "db:auth:session:create_session:1":
@@ -152,6 +152,7 @@ def test_email_exists_prompt(monkeypatch):
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert exc.value.detail == {"default_provider": "microsoft"}
+  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
 
@@ -219,5 +220,5 @@ def test_email_exists_confirm_links(monkeypatch):
   res = asyncio.run(auth_google_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
-  assert any(op == "urn:users:providers:link_provider:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
