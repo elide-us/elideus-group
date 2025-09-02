@@ -46,6 +46,8 @@ class DummyDb:
       return DBRes([], 1)
     if op == "urn:users:profile:get_profile:1":
       return DBRes([{ "default_provider": 0 }], 1)
+    if op == "urn:users:profile:set_roles:1":
+      return DBRes([], 1)
     if op == "urn:users:providers:set_provider:1":
       return DBRes([], 1)
     if op == "urn:users:profile:update_if_unedited:1":
@@ -146,6 +148,10 @@ def test_relinks_unlinked_account(monkeypatch):
     for op, args in calls
   )
   assert any(op == "urn:users:providers:undelete_account:1" for op, _ in calls)
+  assert any(
+    op == "urn:users:profile:set_roles:1" and args["guid"] == "user-guid" and args["roles"] == 1
+    for op, args in calls
+  )
   assert any(op == "urn:users:providers:set_provider:1" for op, _ in calls)
   assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in calls)
   assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)

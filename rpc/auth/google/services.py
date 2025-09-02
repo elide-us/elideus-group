@@ -335,6 +335,10 @@ async def auth_google_oauth_login_v1(request: Request):
 
   user_guid = user["guid"]
   if reactivated:
+    await db.run(
+      "urn:users:profile:set_roles:1",
+      {"guid": user_guid, "roles": 1},
+    )
     res_prof = await db.run(
       "urn:users:profile:get_profile:1",
       {"guid": user_guid},
