@@ -9,7 +9,9 @@ class UsersProvidersSetProvider1(BaseModel):
 
 class UsersProvidersLinkProvider1(BaseModel):
   provider: str
-  code: str
+  code: str | None = None
+  id_token: str | None = None
+  access_token: str | None = None
 
 
 class UsersProvidersUnlinkProvider1(BaseModel):

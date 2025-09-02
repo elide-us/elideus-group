@@ -227,15 +227,11 @@ def test_link_provider_microsoft_normalizes_identifier():
   async def fake_get(request):
     rpc = RPCRequest(
       op="urn:users:providers:link_provider:1",
-      payload={"provider": "microsoft", "code": "authcode"},
+      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
       version=1,
     )
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
-
-  async def fake_exchange(code, client_id, client_secret, redirect_uri):
-    return "id", "acc"
-  svc_mod.ms_exchange_code_for_tokens = fake_exchange
 
   class DummyAuth:
     def __init__(self):
@@ -257,23 +253,11 @@ def test_link_provider_microsoft_normalizes_identifier():
       self.calls = []
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:system:config:get_config:1":
-        key = args["key"]
-        if key == "Hostname":
-          return DBRes(rows=[{"value": "redirect"}])
       return DBRes()
-
-  class DummyEnv:
-    async def on_ready(self):
-      return None
-    def get(self, k):
-      assert k == "MICROSOFT_AUTH_SECRET"
-      return "secret"
 
   db = DummyDb()
   auth = DummyAuth()
-  env = DummyEnv()
-  req = DummyRequest(DummyState(db, auth, env))
+  req = DummyRequest(DummyState(db, auth))
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "ms-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
