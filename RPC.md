@@ -192,3 +192,16 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 | Operation                            | Description                          |
 | ------------------------------------ | ------------------------------------ |
 | `urn:moderation:content:review_content:1` | Placeholder content review task.    |
+
+## Discord Domain
+
+All Discord domain calls require `ROLE_DISCORD_BOT`.
+
+Currently exposes placeholder Discord command operations.
+
+### `command`
+
+| Operation                                | Description                      |
+| ---------------------------------------- | -------------------------------- |
+| `urn:discord:command:text_uwu:1`         | Stub command returning "uwu" text. |
+
