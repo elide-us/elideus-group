@@ -13,6 +13,7 @@ from .storage.handler import handle_storage_request
 from .system.handler import handle_system_request
 from .users.handler import handle_users_request
 from .account.handler import handle_account_request
+from .discord.handler import handle_discord_request
 
 
 HANDLERS: dict[str, callable] = {
@@ -25,5 +26,7 @@ HANDLERS: dict[str, callable] = {
   "system": handle_system_request,
   "users": handle_users_request,
   "account": handle_account_request,
+  "discord": handle_discord_request,
 }
+
 
