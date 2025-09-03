@@ -1,18 +1,20 @@
-from importlib import import_module
-import gc
 from fastapi import Request
 
 from rpc.helpers import unbox_request
+from server.models import RPCResponse
 from server.modules.user_admin_module import UserAdminModule
-from .models import SupportUsersGuid1, SupportUsersSetCredits1
+from .models import (
+  AccountUserGuid1,
+  AccountUserSetCredits1,
+  AccountUserStorageStatus1,
+)
 
 
-async def support_users_get_profile_v1(request: Request):
+async def account_user_get_profile_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = SupportUsersGuid1(**(rpc_request.payload or {}))
+  data = AccountUserGuid1(**(rpc_request.payload or {}))
   user_admin: UserAdminModule = request.app.state.user_admin
   profile = await user_admin.get_profile(data.userGuid)
-  RPCResponse = _get_rpc_response_class()
   return RPCResponse(
     op=rpc_request.op,
     payload=profile.model_dump(),
@@ -20,12 +22,11 @@ async def support_users_get_profile_v1(request: Request):
   )
 
 
-async def support_users_set_credits_v1(request: Request):
+async def account_user_set_credits_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = SupportUsersSetCredits1(**(rpc_request.payload or {}))
+  data = AccountUserSetCredits1(**(rpc_request.payload or {}))
   user_admin: UserAdminModule = request.app.state.user_admin
   await user_admin.set_credits(data.userGuid, data.credits)
-  RPCResponse = _get_rpc_response_class()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -33,12 +34,11 @@ async def support_users_set_credits_v1(request: Request):
   )
 
 
-async def support_users_reset_display_v1(request: Request):
+async def account_user_reset_display_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = SupportUsersGuid1(**(rpc_request.payload or {}))
+  data = AccountUserGuid1(**(rpc_request.payload or {}))
   user_admin: UserAdminModule = request.app.state.user_admin
   await user_admin.reset_display(data.userGuid)
-  RPCResponse = _get_rpc_response_class()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -46,12 +46,11 @@ async def support_users_reset_display_v1(request: Request):
   )
 
 
-async def support_users_enable_storage_v1(request: Request):
+async def account_user_enable_storage_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = SupportUsersGuid1(**(rpc_request.payload or {}))
+  data = AccountUserGuid1(**(rpc_request.payload or {}))
   user_admin: UserAdminModule = request.app.state.user_admin
   await user_admin.enable_storage(data.userGuid)
-  RPCResponse = _get_rpc_response_class()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -59,25 +58,14 @@ async def support_users_enable_storage_v1(request: Request):
   )
 
 
-async def support_users_check_storage_v1(request: Request):
+async def account_user_check_storage_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  data = SupportUsersGuid1(**(rpc_request.payload or {}))
+  data = AccountUserGuid1(**(rpc_request.payload or {}))
   user_admin: UserAdminModule = request.app.state.user_admin
   exists = await user_admin.check_storage(data.userGuid)
-  RPCResponse = _get_rpc_response_class()
+  status = AccountUserStorageStatus1(userGuid=data.userGuid, exists=exists)
   return RPCResponse(
     op=rpc_request.op,
-    payload={"userGuid": data.userGuid, "exists": exists},
+    payload=status.model_dump(),
     version=rpc_request.version,
   )
-
-
-def _get_rpc_response_class():
-  bases = []
-  for obj in gc.get_objects():
-    if isinstance(obj, type) and obj.__name__ == "RPCResponse":
-      bases.append(obj)
-  if not bases:
-    bases.append(import_module("server.models").RPCResponse)
-  bases = tuple(dict.fromkeys(bases))
-  return type("RPCResponseCompat", bases, {})

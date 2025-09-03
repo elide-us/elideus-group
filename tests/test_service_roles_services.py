@@ -86,13 +86,31 @@ class DummyDb:
 
 
 class DummyAuth:
-  def __init__(self):
+  def __init__(self, db=None):
     self.loaded = False
     self.roles = {"ROLE_ACCOUNT_ADMIN": 1, "ROLE_SYSTEM_ADMIN": 2}
     self.user_roles: dict[str, int] = {}
+    self.db = db
+    self.upsert_args = None
+    self.delete_args = None
 
   async def refresh_role_cache(self):
     self.loaded = True
+
+  async def upsert_role(self, name, mask, display):
+    self.upsert_args = (name, mask, display)
+    if self.db:
+      await self.db.run(
+        "db:security:roles:upsert_role:1",
+        {"name": name, "mask": mask, "display": display},
+      )
+    await self.refresh_role_cache()
+
+  async def delete_role(self, name):
+    self.delete_args = name
+    if self.db:
+      await self.db.run("db:security:roles:delete_role:1", {"name": name})
+    await self.refresh_role_cache()
 
   def get_role_names(self, exclude_registered=False):
     return ["ROLE_ACCOUNT_ADMIN"]
@@ -186,13 +204,38 @@ def test_upsert_role_calls_db_and_loads_roles():
   helpers.unbox_request = fake_get
   svc_mod.unbox_request = fake_get
   db = DummyDb()
-  auth = DummyAuth()
+  auth = DummyAuth(db)
   req = DummyRequest(DummyState(db, auth))
   resp = asyncio.run(service_roles_upsert_role_v1(req))
   assert isinstance(resp, RPCResponse)
+  assert auth.upsert_args == ("ROLE_NEW", 4, "New")
   assert (
     "db:security:roles:upsert_role:1",
     {"name": "ROLE_NEW", "mask": 4, "display": "New"},
+  ) in db.calls
+  assert auth.loaded
+
+
+def test_delete_role_calls_db_and_loads_roles():
+  async def fake_get(request):
+    rpc = RPCRequest(
+      op="urn:service:roles:delete_role:1",
+      payload={"name": "ROLE_OLD"},
+      version=1,
+    )
+    return rpc, None, None
+
+  helpers.unbox_request = fake_get
+  svc_mod.unbox_request = fake_get
+  db = DummyDb()
+  auth = DummyAuth(db)
+  req = DummyRequest(DummyState(db, auth))
+  resp = asyncio.run(svc_mod.service_roles_delete_role_v1(req))
+  assert isinstance(resp, RPCResponse)
+  assert auth.delete_args == "ROLE_OLD"
+  assert (
+    "db:security:roles:delete_role:1",
+    {"name": "ROLE_OLD"},
   ) in db.calls
   assert auth.loaded
 

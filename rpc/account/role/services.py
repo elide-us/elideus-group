@@ -3,12 +3,15 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
+from server.modules.auth_module import AuthModule
 from .models import (
   AccountRoleRoleItem1,
   AccountRoleList1,
   AccountRoleMemberUpdate1,
   AccountRoleMembers1,
   AccountRoleUserItem1,
+  AccountRoleUpsertRole1,
+  AccountRoleDeleteRole1,
 )
 
 
@@ -96,5 +99,29 @@ async def account_role_remove_role_member_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=members.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def account_role_upsert_role_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  data = AccountRoleUpsertRole1(**(rpc_request.payload or {}))
+  auth: AuthModule = request.app.state.auth
+  await auth.upsert_role(data.name, int(data.mask), data.display)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def account_role_delete_role_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  data = AccountRoleDeleteRole1(**(rpc_request.payload or {}))
+  auth: AuthModule = request.app.state.auth
+  await auth.delete_role(data.name)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
     version=rpc_request.version,
   )

@@ -35,14 +35,8 @@ async def service_roles_get_roles_v1(request: Request):
 async def service_roles_upsert_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesUpsertRole1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run("db:security:roles:upsert_role:1", {
-    "name": data.name,
-    "mask": int(data.mask),
-    "display": data.display,
-  })
   auth: AuthModule = request.app.state.auth
-  await auth.refresh_role_cache()
+  await auth.upsert_role(data.name, int(data.mask), data.display)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -53,10 +47,8 @@ async def service_roles_upsert_role_v1(request: Request):
 async def service_roles_delete_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesDeleteRole1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run("db:security:roles:delete_role:1", {"name": data.name})
   auth: AuthModule = request.app.state.auth
-  await auth.refresh_role_cache()
+  await auth.delete_role(data.name)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
