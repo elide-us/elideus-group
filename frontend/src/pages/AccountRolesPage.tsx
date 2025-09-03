@@ -86,7 +86,7 @@ const AccountRolesPage = (): JSX.Element => {
                         <Stack direction="row" spacing={1}>
                             <List
                                 sx={{
-                                    width: 300,
+                                    width: 400,
                                     maxHeight: 120,
                                     overflow: "auto",
                                     border: 1,
@@ -120,7 +120,7 @@ const AccountRolesPage = (): JSX.Element => {
                             </Stack>
                             <List
                                 sx={{
-                                    width: 200,
+                                    width: 400,
                                     maxHeight: 120,
                                     overflow: "auto",
                                     border: 1,
