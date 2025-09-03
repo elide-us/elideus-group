@@ -47,6 +47,7 @@ async def dummy_handler(parts, request):
 class DummyAuth:
   def __init__(self, allowed: bool):
     self.allowed = allowed
+    self.roles = {"ROLE_DISCORD_BOT": 0x40}
 
   async def user_has_role(self, guid: str, mask: int) -> bool:
     return self.allowed

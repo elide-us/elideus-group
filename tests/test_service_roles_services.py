@@ -88,7 +88,11 @@ class DummyDb:
 class DummyAuth:
   def __init__(self, db=None):
     self.loaded = False
-    self.roles = {"ROLE_ACCOUNT_ADMIN": 1, "ROLE_SYSTEM_ADMIN": 2}
+    self.roles = {
+      "ROLE_ACCOUNT_ADMIN": 1,
+      "ROLE_SYSTEM_ADMIN": 2,
+      "ROLE_SERVICE_ADMIN": 0x4000000000000000,
+    }
     self.user_roles: dict[str, int] = {}
     self.db = db
     self.upsert_args = None
