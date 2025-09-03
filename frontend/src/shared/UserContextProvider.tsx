@@ -36,6 +36,9 @@ const setUserData = useCallback((data: AuthTokens) => {
                                 if (typeof localStorage !== 'undefined') {
                                                 localStorage.removeItem('authTokens');
                                 }
+                                if (typeof window !== 'undefined') {
+                                                window.location.replace('/');
+                                }
                 }, []);
 
                 const refreshed = useRef(false);
