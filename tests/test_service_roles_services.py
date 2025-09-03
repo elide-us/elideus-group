@@ -129,10 +129,35 @@ class DummyAuth:
     return bool(self.user_roles.get(guid, 0) & mask)
 
 
+class DummyRoleAdmin:
+  def __init__(self, db, auth):
+    self.db = db
+    self.auth = auth
+
+  async def list_roles(self):
+    res = await self.db.run("db:system:roles:list:1", {})
+    return [
+      {
+        "name": r.get("name", ""),
+        "mask": str(r.get("mask", "")),
+        "display": r.get("display"),
+      }
+      for r in res.rows
+      if r.get("name") != "ROLE_REGISTERED"
+    ]
+
+  async def upsert_role(self, name, mask, display):
+    await self.auth.upsert_role(name, mask, display)
+
+  async def delete_role(self, name):
+    await self.auth.delete_role(name)
+
+
 class DummyState:
   def __init__(self, db, auth):
     self.db = db
     self.auth = auth
+    self.role_admin = DummyRoleAdmin(db, auth)
 
 
 class DummyApp:

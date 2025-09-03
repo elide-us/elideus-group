@@ -7,17 +7,27 @@ import EditBox from '../components/EditBox';
 import Notification from '../components/Notification';
 import type {
     UsersProfileProfile1,
-    SystemRolesRoleItem1 as ServiceRolesRoleItem1,
-    SupportRolesMembers1,
+    AccountRoleRoleItem1,
+    AccountRoleMembers1,
 } from '../shared/RpcModels';
-import { fetchProfile, fetchSetCredits, fetchEnableStorage, fetchResetDisplay, fetchCheckStorage } from '../rpc/support/users';
-import { fetchRoles as fetchServiceRoles } from '../rpc/service/roles';
-import { fetchMembers, fetchAddMember, fetchRemoveMember } from '../rpc/support/roles';
+import {
+    fetchProfile,
+    fetchSetCredits,
+    fetchEnableStorage,
+    fetchResetDisplay,
+    fetchCheckStorage,
+} from '../rpc/account/user';
+import {
+    fetchRoles,
+    fetchRoleMembers,
+    fetchAddRoleMember,
+    fetchRemoveRoleMember,
+} from '../rpc/account/role';
 
 const AccountUserPanel = (): JSX.Element => {
 	const { guid } = useParams();
 	const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
-        const [roles, setRoles] = useState<ServiceRolesRoleItem1[]>([]);
+        const [roles, setRoles] = useState<AccountRoleRoleItem1[]>([]);
 	const [assigned, setAssigned] = useState<string[]>([]);
 	const [available, setAvailable] = useState<string[]>([]);
 	const [credits, setCredits] = useState<number>(0);
@@ -35,15 +45,15 @@ const AccountUserPanel = (): JSX.Element => {
 				const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
 				setProfile(prof);
 				setCredits(prof.credits);
-                                const roleRes = await fetchServiceRoles();
-                                const roleItems: ServiceRolesRoleItem1[] = roleRes.roles;
+                                const roleRes = await fetchRoles();
+                                const roleItems: AccountRoleRoleItem1[] = roleRes.roles;
 				setRoles(roleItems);
 				const assignments: string[] = [];
 				const avail: string[] = [];
 				await Promise.all(
 					roleItems.map(async (r) => {
 						try {
-							const members: SupportRolesMembers1 = await fetchMembers({ role: r.name });
+							const members: AccountRoleMembers1 = await fetchRoleMembers({ role: r.name });
 							if (members.members.some((m) => m.guid === guid)) {
 								assignments.push(r.name);
 							} else {
@@ -118,8 +128,8 @@ const AccountUserPanel = (): JSX.Element => {
 		if (!guid) return;
 		const toAdd = assigned.filter((r) => !initialAssigned.includes(r));
 		const toRemove = initialAssigned.filter((r) => !assigned.includes(r));
-		await Promise.all(toAdd.map((r) => fetchAddMember({ role: r, userGuid: guid })));
-		await Promise.all(toRemove.map((r) => fetchRemoveMember({ role: r, userGuid: guid })));
+                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: guid })));
+                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: guid })));
 		await fetchSetCredits({ userGuid: guid, credits });
 		setInitialAssigned(assigned);
 		setNotification(true);
