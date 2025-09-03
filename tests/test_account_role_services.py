@@ -34,10 +34,11 @@ class DBRes:
     self.rowcount = rowcount
 
 class DummyDb:
-  def __init__(self, members=None, non_members=None):
+  def __init__(self, members=None, non_members=None, roles=None):
     self.calls = []
     self.members = members or []
     self.non_members = non_members or []
+    self.roles = roles or []
 
   async def run(self, op, args):
     self.calls.append((op, args))
@@ -45,11 +46,14 @@ class DummyDb:
       return DBRes(self.members, len(self.members))
     if op == "db:security:roles:get_role_non_members:1":
       return DBRes(self.non_members, len(self.non_members))
+    if op == "db:system:roles:list:1":
+      return DBRes(self.roles, len(self.roles))
     return DBRes()
 
 class DummyAuth:
-  def __init__(self, db=None):
+  def __init__(self, db=None, roles=None):
     self.db = db
+    self.roles = roles or {}
     self.upsert_args = None
     self.delete_args = None
     self.loaded = False
@@ -161,7 +165,8 @@ def test_add_and_remove_member():
       payload={"role": "ROLE_X", "userGuid": "u1"},
       version=1,
     )
-    return rpc, None, None
+    auth_ctx = models_mod.AuthContext(role_mask=8)
+    return rpc, auth_ctx, None
 
   helpers.unbox_request = fake_get_add
   svc_mod.unbox_request = fake_get_add
@@ -183,7 +188,8 @@ def test_add_and_remove_member():
       payload={"role": "ROLE_X", "userGuid": "u1"},
       version=1,
     )
-    return rpc, None, None
+    auth_ctx = models_mod.AuthContext(role_mask=8)
+    return rpc, auth_ctx, None
 
   helpers.unbox_request = fake_get_remove
   svc_mod.unbox_request = fake_get_remove
@@ -198,7 +204,7 @@ def test_add_and_remove_member():
 
 def test_upsert_and_delete_role():
   db = DummyDb()
-  auth = DummyAuth(db)
+  auth = DummyAuth(db, roles={"ROLE_NEW": 8})
   state = DummyState(db, auth)
   req = DummyRequest(state)
 
@@ -208,7 +214,8 @@ def test_upsert_and_delete_role():
       payload={"name": "ROLE_NEW", "mask": "8", "display": "New"},
       version=1,
     )
-    return rpc, None, None
+    auth_ctx = models_mod.AuthContext(role_mask=8)
+    return rpc, auth_ctx, None
 
   helpers.unbox_request = fake_upsert
   svc_mod.unbox_request = fake_upsert
@@ -228,11 +235,35 @@ def test_upsert_and_delete_role():
       payload={"name": "ROLE_NEW"},
       version=1,
     )
-    return rpc, None, None
-
+    auth_ctx = models_mod.AuthContext(role_mask=8)
+    return rpc, auth_ctx, None
+  
   helpers.unbox_request = fake_delete
   svc_mod.unbox_request = fake_delete
   resp2 = asyncio.run(account_role_delete_role_v1(req))
   assert auth.delete_args == "ROLE_NEW"
   assert ("db:security:roles:delete_role:1", {"name": "ROLE_NEW"}) in db.calls
   assert isinstance(resp2, models_mod.RPCResponse)
+
+
+def test_get_roles_filters_by_mask():
+  roles = [
+    {"name": "ROLE_SYSTEM_ADMIN", "mask": 2 ** 61, "display": None},
+    {"name": "ROLE_ACCOUNT_ADMIN", "mask": 2 ** 60, "display": None},
+    {"name": "ROLE_SERVICE_ADMIN", "mask": 2 ** 62, "display": None},
+  ]
+  db = DummyDb(roles=roles)
+  auth = DummyAuth(db, roles={r["name"]: r["mask"] for r in roles})
+  state = DummyState(db, auth)
+  req = DummyRequest(state)
+
+  async def fake_get_roles(request):
+    rpc = RPCRequest(op="urn:account:role:get_roles:1", version=1)
+    auth_ctx = models_mod.AuthContext(role_mask=2 ** 61)
+    return rpc, auth_ctx, None
+
+  helpers.unbox_request = fake_get_roles
+  svc_mod.unbox_request = fake_get_roles
+  resp = asyncio.run(svc_mod.account_role_get_roles_v1(req))
+  names = [r["name"] for r in resp.payload["roles"]]
+  assert names == ["ROLE_ACCOUNT_ADMIN", "ROLE_SYSTEM_ADMIN"]
