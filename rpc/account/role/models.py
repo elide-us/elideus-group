@@ -24,3 +24,13 @@ class AccountRoleUserItem1(BaseModel):
 class AccountRoleMembers1(BaseModel):
   members: list[AccountRoleUserItem1]
   nonMembers: list[AccountRoleUserItem1]
+
+
+class AccountRoleUpsertRole1(BaseModel):
+  name: str
+  mask: str
+  display: str | None = None
+
+
+class AccountRoleDeleteRole1(BaseModel):
+  name: str

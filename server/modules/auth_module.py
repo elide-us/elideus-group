@@ -207,6 +207,20 @@ class AuthModule(BaseModule):
     logging.debug("[AuthModule] Refreshing role cache")
     await self.load_roles()
 
+  async def upsert_role(self, name: str, mask: int, display: str | None):
+    await self.db.run(
+      "db:security:roles:upsert_role:1",
+      {"name": name, "mask": mask, "display": display},
+    )
+    await self.refresh_role_cache()
+
+  async def delete_role(self, name: str):
+    await self.db.run(
+      "db:security:roles:delete_role:1",
+      {"name": name},
+    )
+    await self.refresh_role_cache()
+
   def mask_to_names(self, mask: int) -> list[str]:
     return [name for name, bit in self.roles.items() if mask & bit]
 

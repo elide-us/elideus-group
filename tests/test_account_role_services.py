@@ -47,9 +47,36 @@ class DummyDb:
       return DBRes(self.non_members, len(self.non_members))
     return DBRes()
 
-class DummyState:
-  def __init__(self, db):
+class DummyAuth:
+  def __init__(self, db=None):
     self.db = db
+    self.upsert_args = None
+    self.delete_args = None
+    self.loaded = False
+
+  async def refresh_role_cache(self):
+    self.loaded = True
+
+  async def upsert_role(self, name, mask, display):
+    self.upsert_args = (name, mask, display)
+    if self.db:
+      await self.db.run(
+        "db:security:roles:upsert_role:1",
+        {"name": name, "mask": mask, "display": display},
+      )
+    await self.refresh_role_cache()
+
+  async def delete_role(self, name):
+    self.delete_args = name
+    if self.db:
+      await self.db.run("db:security:roles:delete_role:1", {"name": name})
+    await self.refresh_role_cache()
+
+
+class DummyState:
+  def __init__(self, db, auth=None):
+    self.db = db
+    self.auth = auth or DummyAuth(db)
 
 class DummyApp:
   def __init__(self, state):
@@ -66,6 +93,8 @@ svc_mod = importlib.import_module("rpc.account.role.services")
 account_role_get_role_members_v1 = svc_mod.account_role_get_role_members_v1
 account_role_add_role_member_v1 = svc_mod.account_role_add_role_member_v1
 account_role_remove_role_member_v1 = svc_mod.account_role_remove_role_member_v1
+account_role_upsert_role_v1 = svc_mod.account_role_upsert_role_v1
+account_role_delete_role_v1 = svc_mod.account_role_delete_role_v1
 
 
 def test_add_and_remove_member():
@@ -114,3 +143,45 @@ def test_add_and_remove_member():
     {"guid": "u1", "displayName": "User 1"},
     {"guid": "u2", "displayName": "User 2"},
   ]
+
+
+def test_upsert_and_delete_role():
+  db = DummyDb()
+  auth = DummyAuth(db)
+  state = DummyState(db, auth)
+  req = DummyRequest(state)
+
+  async def fake_upsert(request):
+    rpc = RPCRequest(
+      op="urn:account:role:upsert_role:1",
+      payload={"name": "ROLE_NEW", "mask": "8", "display": "New"},
+      version=1,
+    )
+    return rpc, None, None
+
+  helpers.unbox_request = fake_upsert
+  svc_mod.unbox_request = fake_upsert
+  resp = asyncio.run(account_role_upsert_role_v1(req))
+  assert auth.upsert_args == ("ROLE_NEW", 8, "New")
+  assert (
+    "db:security:roles:upsert_role:1",
+    {"name": "ROLE_NEW", "mask": 8, "display": "New"},
+  ) in db.calls
+  assert isinstance(resp, models_mod.RPCResponse)
+
+  db.calls.clear()
+
+  async def fake_delete(request):
+    rpc = RPCRequest(
+      op="urn:account:role:delete_role:1",
+      payload={"name": "ROLE_NEW"},
+      version=1,
+    )
+    return rpc, None, None
+
+  helpers.unbox_request = fake_delete
+  svc_mod.unbox_request = fake_delete
+  resp2 = asyncio.run(account_role_delete_role_v1(req))
+  assert auth.delete_args == "ROLE_NEW"
+  assert ("db:security:roles:delete_role:1", {"name": "ROLE_NEW"}) in db.calls
+  assert isinstance(resp2, models_mod.RPCResponse)
