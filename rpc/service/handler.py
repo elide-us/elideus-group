@@ -12,13 +12,12 @@ from server.modules.auth_module import AuthModule
 
 from . import HANDLERS
 
-REQUIRED_ROLE_MASK = 0x4000000000000000  # ROLE_SERVICE_ADMIN
-
 
 async def handle_service_request(parts: list[str], request: Request) -> RPCResponse:
   _, auth_ctx, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
-  if not await auth.user_has_role(auth_ctx.user_guid, REQUIRED_ROLE_MASK):
+  required_mask = auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+  if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
     raise HTTPException(status_code=403, detail="Forbidden")
 
   subdomain = parts[0]
