@@ -1,9 +1,8 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
-from server.modules.auth_module import AuthModule
+from server.modules.role_admin_module import RoleAdminModule
 from .models import (
   ServiceRolesRoleItem1,
   ServiceRolesList1,
@@ -14,17 +13,9 @@ from .models import (
 
 async def service_roles_get_roles_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  res = await db.run("db:system:roles:list:1", {})
-  roles = [
-    ServiceRolesRoleItem1(
-      name=r.get("name", ""),
-      mask=str(r.get("mask", "")),
-      display=r.get("display"),
-    )
-    for r in res.rows
-    if r.get("name") != "ROLE_REGISTERED"
-  ]
+  role_admin: RoleAdminModule = request.app.state.role_admin
+  roles_raw = await role_admin.list_roles()
+  roles = [ServiceRolesRoleItem1(**r) for r in roles_raw]
   payload = ServiceRolesList1(roles=roles)
   return RPCResponse(
     op=rpc_request.op,
@@ -32,11 +23,12 @@ async def service_roles_get_roles_v1(request: Request):
     version=rpc_request.version,
   )
 
+
 async def service_roles_upsert_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesUpsertRole1(**(rpc_request.payload or {}))
-  auth: AuthModule = request.app.state.auth
-  await auth.upsert_role(data.name, int(data.mask), data.display)
+  role_admin: RoleAdminModule = request.app.state.role_admin
+  await role_admin.upsert_role(data.name, int(data.mask), data.display)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -47,11 +39,10 @@ async def service_roles_upsert_role_v1(request: Request):
 async def service_roles_delete_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesDeleteRole1(**(rpc_request.payload or {}))
-  auth: AuthModule = request.app.state.auth
-  await auth.delete_role(data.name)
+  role_admin: RoleAdminModule = request.app.state.role_admin
+  await role_admin.delete_role(data.name)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
     version=rpc_request.version,
   )
-

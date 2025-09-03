@@ -3,16 +3,16 @@ import { Box, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@
 import ColumnHeader from '../components/ColumnHeader';
 import PageTitle from '../components/PageTitle';
 import { Link as RouterLink } from 'react-router-dom';
-import type { SupportRolesUserItem1, SupportRolesMembers1 } from '../shared/RpcModels';
-import { fetchMembers } from '../rpc/support/roles';
+import type { AccountRoleUserItem1, AccountRoleMembers1 } from '../shared/RpcModels';
+import { fetchRoleMembers } from '../rpc/account/role';
 
 const AccountUsersPage = (): JSX.Element => {
-        const [users, setUsers] = useState<SupportRolesUserItem1[]>([]);
+        const [users, setUsers] = useState<AccountRoleUserItem1[]>([]);
 
 	useEffect(() => {
 		void (async () => {
 			try {
-                                const res: SupportRolesMembers1 = await fetchMembers({ role: 'ROLE_REGISTERED' });
+                                const res: AccountRoleMembers1 = await fetchRoleMembers({ role: 'ROLE_REGISTERED' });
                                 setUsers(res.members);
 			} catch {
 				setUsers([]);

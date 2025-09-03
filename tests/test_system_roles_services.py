@@ -31,8 +31,26 @@ db_module_pkg.DbModule = DbModule
 modules_pkg.db_module = db_module_pkg
 
 class AuthModule:
+  def __init__(self, db=None):
+    self.db = db
+    self.refreshed = False
+    self.upsert_args = None
+    self.delete_args = None
+
   async def refresh_role_cache(self):
     self.refreshed = True
+
+  async def upsert_role(self, name, mask, display):
+    self.upsert_args = (name, mask, display)
+    if self.db:
+      await self.db.run('db:security:roles:upsert_role:1', {'name': name, 'mask': mask, 'display': display})
+    await self.refresh_role_cache()
+
+  async def delete_role(self, name):
+    self.delete_args = name
+    if self.db:
+      await self.db.run('db:security:roles:delete_role:1', {'name': name})
+    await self.refresh_role_cache()
 
 auth_module_pkg.AuthModule = AuthModule
 modules_pkg.auth_module = auth_module_pkg
@@ -91,10 +109,33 @@ class DummyDb:
     raise AssertionError(f'unexpected op {op}')
 
 db = DummyDb()
-auth = AuthModule()
+auth = AuthModule(db)
+class DummyRoleAdmin:
+  def __init__(self, db, auth):
+    self.db = db
+    self.auth = auth
+
+  async def list_roles(self):
+    res = await self.db.run('db:system:roles:list:1', {})
+    return [
+      {
+        'name': r.get('name', ''),
+        'mask': str(r.get('mask', '')),
+        'display': r.get('display'),
+      }
+      for r in res.rows
+      if r.get('name') != 'ROLE_REGISTERED'
+    ]
+
+  async def upsert_role(self, name, mask, display):
+    await self.auth.upsert_role(name, mask, display)
+
+  async def delete_role(self, name):
+    await self.auth.delete_role(name)
 app = FastAPI()
 app.state.db = db
 app.state.auth = auth
+app.state.role_admin = DummyRoleAdmin(db, auth)
 
 @app.post('/rpc')
 async def rpc_endpoint(request: Request):

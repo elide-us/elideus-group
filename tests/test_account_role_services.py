@@ -73,10 +73,61 @@ class DummyAuth:
     await self.refresh_role_cache()
 
 
+class DummyRoleAdmin:
+  def __init__(self, db, auth):
+    self.db = db
+    self.auth = auth
+
+  async def list_roles(self):
+    res = await self.db.run("db:system:roles:list:1", {})
+    return [
+      {
+        "name": r.get("name", ""),
+        "mask": str(r.get("mask", "")),
+        "display": r.get("display"),
+      }
+      for r in res.rows
+      if r.get("name") != "ROLE_REGISTERED"
+    ]
+
+  async def get_role_members(self, role):
+    mem_res = await self.db.run("db:security:roles:get_role_members:1", {"role": role})
+    non_res = await self.db.run("db:security:roles:get_role_non_members:1", {"role": role})
+    members = [
+      {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
+      for r in mem_res.rows
+    ]
+    non = [
+      {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
+      for r in non_res.rows
+    ]
+    return members, non
+
+  async def add_role_member(self, role, user_guid):
+    await self.db.run(
+      "db:security:roles:add_role_member:1",
+      {"role": role, "user_guid": user_guid},
+    )
+    return await self.get_role_members(role)
+
+  async def remove_role_member(self, role, user_guid):
+    await self.db.run(
+      "db:security:roles:remove_role_member:1",
+      {"role": role, "user_guid": user_guid},
+    )
+    return await self.get_role_members(role)
+
+  async def upsert_role(self, name, mask, display):
+    await self.auth.upsert_role(name, mask, display)
+
+  async def delete_role(self, name):
+    await self.auth.delete_role(name)
+
 class DummyState:
   def __init__(self, db, auth=None):
     self.db = db
     self.auth = auth or DummyAuth(db)
+    self.role_admin = DummyRoleAdmin(self.db, self.auth)
 
 class DummyApp:
   def __init__(self, state):
