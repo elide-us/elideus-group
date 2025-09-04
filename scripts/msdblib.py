@@ -12,6 +12,30 @@ async def list_tables(conn):
     row = await cur.fetchone()
   return json.loads(row[0]) if row else []
 
+async def list_views(conn):
+  async with conn.cursor() as cur:
+    await cur.execute(
+      """SELECT v.name AS view_name, m.definition AS view_definition
+           FROM sys.views v
+           JOIN sys.sql_modules m ON v.object_id = m.object_id
+           FOR JSON PATH"""
+    )
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
+
+async def list_view_dependencies(conn):
+  async with conn.cursor() as cur:
+    await cur.execute(
+      """SELECT OBJECT_NAME(d.referencing_id) AS view_name,
+                OBJECT_NAME(d.referenced_id) AS ref_name
+           FROM sys.sql_expression_dependencies d
+          WHERE d.referencing_id IN (SELECT object_id FROM sys.views)
+            AND d.referenced_id IN (SELECT object_id FROM sys.views)
+           FOR JSON PATH"""
+    )
+    row = await cur.fetchone()
+  return json.loads(row[0]) if row else []
+
 async def list_columns(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
@@ -158,7 +182,29 @@ async def get_schema(conn):
     ordered.append(n)
   for t in deps.keys():
     visit(t)
-  return {'tables': [schemas[n] for n in ordered]}
+
+  view_defs = await list_views(conn)
+  view_map = {v['view_name']: v['view_definition'] for v in view_defs}
+  view_deps: dict[str, set[str]] = {}
+  for d in await list_view_dependencies(conn):
+    view_deps.setdefault(d['view_name'], set()).add(d['ref_name'])
+  vordered: list[str] = []
+  vvisited: set[str] = set()
+  def vvisit(n: str):
+    if n in vvisited:
+      return
+    vvisited.add(n)
+    for d in view_deps.get(n, set()):
+      if d in view_deps:
+        vvisit(d)
+    vordered.append(n)
+  for v in view_map.keys():
+    vvisit(v)
+
+  return {
+    'tables': [schemas[n] for n in ordered],
+    'views': [{'name': n, 'definition': view_map[n]} for n in vordered],
+  }
 
 def _build_create_sql(table: dict) -> str:
   parts: list[str] = []
@@ -194,6 +240,13 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
     lines.append(_build_create_sql(table) + ';')
     for idx in table.get('indexes', []):
       lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
+  for view in schema.get('views', []):
+    definition = view['definition'].strip()
+    if not definition.lower().startswith('create'):
+      definition = f"CREATE VIEW {view['name']} AS {definition}"
+    if not definition.rstrip().endswith(';'):
+      definition += ';'
+    lines.append(definition)
   with open(filename, 'w') as f:
     f.write('\n'.join(lines))
   print(f'Schema dumped to {filename}')
