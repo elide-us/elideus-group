@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class SystemRoutesRouteItem1(BaseModel):
+class ServiceRoutesRouteItem1(BaseModel):
   path: str
   name: str
   icon: Optional[str] = None
@@ -11,9 +11,9 @@ class SystemRoutesRouteItem1(BaseModel):
   required_roles: list[str] = []
 
 
-class SystemRoutesList1(BaseModel):
-  routes: list[SystemRoutesRouteItem1]
+class ServiceRoutesList1(BaseModel):
+  routes: list[ServiceRoutesRouteItem1]
 
 
-class SystemRoutesDeleteRoute1(BaseModel):
+class ServiceRoutesDeleteRoute1(BaseModel):
   path: str

@@ -1,6 +1,6 @@
-"""System routes RPC handler.
+"""Service routes RPC handler.
 
-Dispatches route management operations requiring ROLE_SYSTEM_ADMIN.
+Dispatches route management operations requiring ROLE_SERVICE_ADMIN.
 """
 
 from fastapi import HTTPException, Request
