@@ -16,7 +16,7 @@ def _next_build(current_version: str, last_version: str) -> int:
   current_major, current_minor, _, current_build = _unpack_version(current_version)
   last_major, last_minor, _, _ = _unpack_version(last_version)
   if (current_major, current_minor) != (last_major, last_minor):
-    return 1
+    return 0
   return current_build + 1
 
 def _parse_args() -> argparse.Namespace:
