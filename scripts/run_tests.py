@@ -1,6 +1,7 @@
 from __future__ import annotations
 import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
 from pathlib import Path
+from scriptlib import parse_version, next_build
 
 def _unpack_version(ver: str) -> tuple[int, int, int, int]:
   ver = ver.lstrip('v')
