@@ -4,13 +4,21 @@ from datetime import datetime, timezone
 
 dotenv.load_dotenv()
 
+async def _fetch_json(cur):
+  parts: list[str] = []
+  while True:
+    row = await cur.fetchone()
+    if not row:
+      break
+    parts.append(row[0])
+  return json.loads(''.join(parts)) if parts else []
+
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
       "SELECT TABLE_NAME AS table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_views(conn):
   async with conn.cursor() as cur:
@@ -20,8 +28,7 @@ async def list_views(conn):
            JOIN sys.sql_modules m ON v.object_id = m.object_id
            FOR JSON PATH"""
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
@@ -33,8 +40,7 @@ async def list_view_dependencies(conn):
             AND d.referenced_id IN (SELECT object_id FROM sys.views)
            FOR JSON PATH"""
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_columns(conn, table):
   async with conn.cursor() as cur:
@@ -45,8 +51,7 @@ async def list_columns(conn, table):
         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
       (table,),
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_indexes(conn, table):
   async with conn.cursor() as cur:
@@ -60,8 +65,7 @@ async def list_indexes(conn, table):
          GROUP BY i.name FOR JSON PATH""",
       (table,),
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_keys(conn, table):
   async with conn.cursor() as cur:
@@ -75,8 +79,7 @@ async def list_keys(conn, table):
          WHERE k.TABLE_NAME=? FOR JSON PATH""",
       (table,),
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def list_constraints(conn, table):
   async with conn.cursor() as cur:
@@ -87,8 +90,7 @@ async def list_constraints(conn, table):
          WHERE TABLE_NAME=? FOR JSON PATH""",
       (table,),
     )
-    row = await cur.fetchone()
-  return json.loads(row[0]) if row else []
+    return await _fetch_json(cur)
 
 async def _table_schema(conn, table: str):
   async with conn.cursor() as cur:
@@ -102,8 +104,7 @@ async def _table_schema(conn, table: str):
         WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
       (table,),
     )
-    row = await cur.fetchone()
-    cols = json.loads(row[0]) if row else []
+    cols = await _fetch_json(cur)
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT k.COLUMN_NAME AS column_name
@@ -113,8 +114,7 @@ async def _table_schema(conn, table: str):
          WHERE t.TABLE_NAME=? AND t.CONSTRAINT_TYPE='PRIMARY KEY' FOR JSON PATH""",
       (table,),
     )
-    row = await cur.fetchone()
-    pk = json.loads(row[0]) if row else []
+    pk = await _fetch_json(cur)
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT k.COLUMN_NAME AS column_name,
@@ -130,8 +130,7 @@ async def _table_schema(conn, table: str):
          WHERE k.TABLE_NAME=? FOR JSON PATH""",
       (table,),
     )
-    row = await cur.fetchone()
-    fks = json.loads(row[0]) if row else []
+    fks = await _fetch_json(cur)
   indexes = await list_indexes(conn, table)
   keys = await list_keys(conn, table)
   constraints = await list_constraints(conn, table)
@@ -259,8 +258,7 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
     name = tbl['name']
     async with conn.cursor() as cur:
       await cur.execute(f"SELECT * FROM {name} FOR JSON PATH")
-      row = await cur.fetchone()
-    data[name] = json.loads(row[0]) if row else []
+      data[name] = await _fetch_json(cur)
   ts = datetime.now(timezone.utc).strftime('%Y%m%d_BACKUP')
   filename = f"{prefix}_{ts}.json"
   with open(filename, 'w') as f:
