@@ -1,23 +1,7 @@
 from __future__ import annotations
 import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
 from pathlib import Path
-
-def _unpack_version(ver: str) -> tuple[int, int, int, int]:
-  ver = ver.lstrip('v')
-  major, minor, patch, build = [int(p) for p in ver.split('.')]
-  return major, minor, patch, build
-
-def _next_build(current_version: str, last_version: str) -> int:
-  """Return the next build number for the given versions.
-
-  The build number is reset only when the major or minor version changes.
-  Patch version bumps continue the build count within the same minor version.
-  """
-  current_major, current_minor, _, current_build = _unpack_version(current_version)
-  last_major, last_minor, _, _ = _unpack_version(last_version)
-  if (current_major, current_minor) != (last_major, last_minor):
-    return 1
-  return current_build + 1
+from scriptlib import parse_version, next_build
 
 def _parse_args() -> argparse.Namespace:
   parser = argparse.ArgumentParser()
@@ -60,8 +44,8 @@ async def update_build_version() -> None:
         if not last_version:
           last_version = current_version
 
-        current_major, current_minor, current_patch, _ = _unpack_version(current_version)
-        build = _next_build(current_version, last_version)
+        current_major, current_minor, current_patch, _ = parse_version(current_version)
+        build = next_build(current_version, last_version)
 
         new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
         print(f'Updating build version: {current_version} -> {new_version}')

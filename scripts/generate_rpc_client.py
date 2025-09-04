@@ -7,7 +7,7 @@ This version uses the Python AST to read DISPATCHERS mappings and payload
 models rather than brittle regular expressions.
 """
 
-from genlib import REPO_ROOT, HEADER_COMMENT, camel_case
+from scriptlib import REPO_ROOT, HEADER_COMMENT, camel_case
 
 RPC_ROOT = os.path.join(REPO_ROOT, 'rpc')
 FRONTEND_RPC = os.path.join(REPO_ROOT, 'frontend', 'src', 'rpc')
