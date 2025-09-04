@@ -19,14 +19,14 @@ import ColumnHeader from "../../components/ColumnHeader";
 import type {
         SystemRoutesRouteItem1,
         SystemRoutesList1,
-                ServiceRolesList1,
+                SystemRolesList1,
                                 } from "../../shared/RpcModels";
 import {
         fetchRoutes,
         fetchUpsertRoute,
         fetchDeleteRoute,
                                 } from "../../rpc/system/routes";
-import { fetchRoles } from "../../rpc/service/roles";
+import { fetchRoles } from "../../rpc/system/roles";
 
 const SystemRoutesPage = (): JSX.Element => {
 	const [routes, setRoutes] = useState<SystemRoutesRouteItem1[]>([]);
@@ -52,19 +52,19 @@ const SystemRoutesPage = (): JSX.Element => {
 								setRoutes([]);
 						}
 				}
-				try {
-                                        const roles: ServiceRolesList1 = await fetchRoles();
+                                try {
+                                        const roles: SystemRolesList1 = await fetchRoles();
                                                 setRoleNames(roles.roles.map((r) => r.name));
-						console.debug("[SystemRoutesPage] loaded roles");
-				} catch (e: any) {
-						console.debug("[SystemRoutesPage] failed to load roles", e);
-						if (e?.response?.status === 403) {
-								setForbidden(true);
-						} else {
-								setRoleNames([]);
-						}
-				}
-		};
+                                                console.debug("[SystemRoutesPage] loaded roles");
+                                } catch (e: any) {
+                                                console.debug("[SystemRoutesPage] failed to load roles", e);
+                                                if (e?.response?.status === 403) {
+                                                                setForbidden(true);
+                                                } else {
+                                                                setRoleNames([]);
+                                                }
+                                }
+                };
 
 		useEffect(() => {
 				void load();
