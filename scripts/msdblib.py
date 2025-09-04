@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, json, aioodbc, dotenv
+import os, json, aioodbc, dotenv, re
 from datetime import datetime, timezone
 
 dotenv.load_dotenv()
@@ -243,7 +243,8 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
     for idx in table.get('indexes', []):
       lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
   for view in schema.get('views', []):
-    definition = ' '.join(view['definition'].split())
+    raw_def = re.sub(r'--.*?(\r?\n|$)', ' ', view['definition'])
+    definition = ' '.join(raw_def.split())
     if not definition.lower().startswith('create'):
       definition = f"CREATE VIEW {view['name']} AS {definition}"
     if not definition.endswith(';'):
