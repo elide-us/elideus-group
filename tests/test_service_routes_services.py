@@ -9,13 +9,13 @@ pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
 sys.modules.setdefault('rpc', pkg)
 
-rpc_system_pkg = types.ModuleType('rpc.system')
-rpc_system_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/system')]
-sys.modules.setdefault('rpc.system', rpc_system_pkg)
+rpc_service_pkg = types.ModuleType('rpc.service')
+rpc_service_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/service')]
+sys.modules.setdefault('rpc.service', rpc_service_pkg)
 
-rpc_system_routes_pkg = types.ModuleType('rpc.system.routes')
-rpc_system_routes_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/system/routes')]
-sys.modules.setdefault('rpc.system.routes', rpc_system_routes_pkg)
+rpc_service_routes_pkg = types.ModuleType('rpc.service.routes')
+rpc_service_routes_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/service/routes')]
+sys.modules.setdefault('rpc.service.routes', rpc_service_routes_pkg)
 
 # Stub server modules
 server_pkg = types.ModuleType('server')
@@ -35,7 +35,7 @@ modules_pkg.db_module = db_module_pkg
 
 class AuthModule:
   def __init__(self):
-    self.roles = {'ROLE_SYSTEM_ADMIN': 1}
+    self.roles = {'ROLE_SERVICE_ADMIN': 1}
 
   def mask_to_names(self, mask):
     return [name for name, bit in self.roles.items() if mask & bit]
@@ -69,16 +69,16 @@ sys.modules.setdefault('server.models', models_pkg)
 import importlib.util
 
 svc_spec = importlib.util.spec_from_file_location(
-  'rpc.system.routes.services',
-  pathlib.Path(__file__).resolve().parent.parent / 'rpc/system/routes/services.py',
+  'rpc.service.routes.services',
+  pathlib.Path(__file__).resolve().parent.parent / 'rpc/service/routes/services.py',
 )
 svc = importlib.util.module_from_spec(svc_spec)
-sys.modules['rpc.system.routes.services'] = svc
+sys.modules['rpc.service.routes.services'] = svc
 svc_spec.loader.exec_module(svc)
 
-system_routes_get_routes_v1 = svc.system_routes_get_routes_v1
-system_routes_upsert_route_v1 = svc.system_routes_upsert_route_v1
-system_routes_delete_route_v1 = svc.system_routes_delete_route_v1
+service_routes_get_routes_v1 = svc.service_routes_get_routes_v1
+service_routes_upsert_route_v1 = svc.service_routes_upsert_route_v1
+service_routes_delete_route_v1 = svc.service_routes_delete_route_v1
 
 
 async def fake_unbox(request: Request):
@@ -86,7 +86,7 @@ async def fake_unbox(request: Request):
   op = body.get('op')
   payload = body.get('payload')
   rpc_req = SimpleNamespace(op=op, payload=payload, version=1)
-  auth_ctx = SimpleNamespace(user_guid='u1', roles=['ROLE_SYSTEM_ADMIN'])
+  auth_ctx = SimpleNamespace(user_guid='u1', roles=['ROLE_SERVICE_ADMIN'])
   return rpc_req, auth_ctx, None
 
 
@@ -99,7 +99,7 @@ class DummyDb:
 
   async def run(self, op: str, args: dict):
     self.calls.append((op, args))
-    if op == 'urn:system:routes:get_routes:1':
+    if op == 'urn:service:routes:get_routes:1':
       rows = [{
         'element_path': '/a',
         'element_name': 'A',
@@ -108,7 +108,7 @@ class DummyDb:
         'element_roles': 1,
       }]
       return SimpleNamespace(rows=rows, rowcount=1)
-    if op in ('urn:system:routes:upsert_route:1', 'urn:system:routes:delete_route:1'):
+    if op in ('urn:service:routes:upsert_route:1', 'urn:service:routes:delete_route:1'):
       return SimpleNamespace(rows=[], rowcount=1)
     raise AssertionError(f'unexpected op {op}')
 
@@ -125,12 +125,12 @@ app.state.auth = auth
 async def rpc_endpoint(request: Request):
   body = await request.json()
   op = body['op']
-  if op == 'urn:system:routes:get_routes:1':
-    return await system_routes_get_routes_v1(request)
-  if op == 'urn:system:routes:upsert_route:1':
-    return await system_routes_upsert_route_v1(request)
-  if op == 'urn:system:routes:delete_route:1':
-    return await system_routes_delete_route_v1(request)
+  if op == 'urn:service:routes:get_routes:1':
+    return await service_routes_get_routes_v1(request)
+  if op == 'urn:service:routes:upsert_route:1':
+    return await service_routes_upsert_route_v1(request)
+  if op == 'urn:service:routes:delete_route:1':
+    return await service_routes_delete_route_v1(request)
   raise AssertionError('unexpected op')
 
 
@@ -138,7 +138,7 @@ client = TestClient(app)
 
 
 def test_get_routes_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:routes:get_routes:1'})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:get_routes:1'})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -147,10 +147,10 @@ def test_get_routes_service():
       'name': 'A',
       'icon': 'home',
       'sequence': 1,
-      'required_roles': ['ROLE_SYSTEM_ADMIN'],
+      'required_roles': ['ROLE_SERVICE_ADMIN'],
     }]
   }
-  assert ('urn:system:routes:get_routes:1', {}) in db.calls
+  assert ('urn:service:routes:get_routes:1', {}) in db.calls
 
 
 def test_upsert_and_delete_route_service():
@@ -159,17 +159,17 @@ def test_upsert_and_delete_route_service():
     'name': 'A',
     'icon': 'home',
     'sequence': 1,
-    'required_roles': ['ROLE_SYSTEM_ADMIN'],
+    'required_roles': ['ROLE_SERVICE_ADMIN'],
   }
-  resp = client.post('/rpc', json={'op': 'urn:system:routes:upsert_route:1', 'payload': upsert_payload})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:upsert_route:1', 'payload': upsert_payload})
   assert resp.status_code == 200
-  resp = client.post('/rpc', json={'op': 'urn:system:routes:delete_route:1', 'payload': {'path': '/a'}})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
   assert resp.status_code == 200
-  assert ('urn:system:routes:upsert_route:1', {
+  assert ('urn:service:routes:upsert_route:1', {
     'path': '/a',
     'name': 'A',
     'icon': 'home',
     'sequence': 1,
     'roles': 1,
   }) in db.calls
-  assert ('urn:system:routes:delete_route:1', {'path': '/a'}) in db.calls
+  assert ('urn:service:routes:delete_route:1', {'path': '/a'}) in db.calls
