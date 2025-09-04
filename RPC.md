@@ -134,14 +134,6 @@ These calls expose system administration functionality. All System domain calls 
 | `urn:system:config:upsert_config:1` | Create or update a configuration entry. |
 | `urn:system:config:delete_config:1` | Delete a configuration entry.           |
 
-### `routes`
-
-| Operation                          | Description                          |
-| ---------------------------------- | ------------------------------------ |
-| `urn:system:routes:get_routes:1`   | List application routes.             |
-| `urn:system:routes:upsert_route:1` | Create or update a route definition. |
-| `urn:system:routes:delete_route:1` | Delete a route definition.           |
-
 ### `roles`
 
 | Operation                          | Description                          |
@@ -161,6 +153,14 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | Operation                         | Description                         |
 | --------------------------------- | ----------------------------------- |
 | `urn:service:health_check:1`     | Placeholder service health check.  |
+
+### `routes`
+
+| Operation                          | Description                          |
+| ---------------------------------- | ------------------------------------ |
+| `urn:service:routes:get_routes:1`   | List application routes.             |
+| `urn:service:routes:upsert_route:1` | Create or update a route definition. |
+| `urn:service:routes:delete_route:1` | Delete a route definition.           |
 
 ### `roles`
 

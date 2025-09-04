@@ -17,21 +17,21 @@ import RolesSelector from "../../components/RolesSelector";
 import EditBox from "../../components/EditBox";
 import ColumnHeader from "../../components/ColumnHeader";
 import type {
-        SystemRoutesRouteItem1,
-        SystemRoutesList1,
-                SystemRolesList1,
-                                } from "../../shared/RpcModels";
+        ServiceRoutesRouteItem1,
+        ServiceRoutesList1,
+        ServiceRolesList1,
+} from "../../shared/RpcModels";
 import {
         fetchRoutes,
         fetchUpsertRoute,
         fetchDeleteRoute,
-                                } from "../../rpc/system/routes";
-import { fetchRoles } from "../../rpc/system/roles";
+} from "../../rpc/service/routes";
+import { fetchRoles } from "../../rpc/service/roles";
 
-const SystemRoutesPage = (): JSX.Element => {
-	const [routes, setRoutes] = useState<SystemRoutesRouteItem1[]>([]);
+const ServiceRoutesPage = (): JSX.Element => {
+        const [routes, setRoutes] = useState<ServiceRoutesRouteItem1[]>([]);
 	const [roleNames, setRoleNames] = useState<string[]>([]);
-	const [newRoute, setNewRoute] = useState<SystemRoutesRouteItem1>({
+        const [newRoute, setNewRoute] = useState<ServiceRoutesRouteItem1>({
 		path: "",
 		name: "",
 		icon: "",
@@ -40,12 +40,12 @@ const SystemRoutesPage = (): JSX.Element => {
 	});
 		const [forbidden, setForbidden] = useState(false);
 		const load = async (): Promise<void> => {
-				try {
-						const res: SystemRoutesList1 = await fetchRoutes();
-						setRoutes(res.routes.sort((a, b) => a.sequence - b.sequence));
-						console.debug("[SystemRoutesPage] loaded routes");
-				} catch (e: any) {
-						console.debug("[SystemRoutesPage] failed to load routes", e);
+                                try {
+                                                const res: ServiceRoutesList1 = await fetchRoutes();
+                                                setRoutes(res.routes.sort((a, b) => a.sequence - b.sequence));
+                                                console.debug("[ServiceRoutesPage] loaded routes");
+                                } catch (e: any) {
+                                                console.debug("[ServiceRoutesPage] failed to load routes", e);
 						if (e?.response?.status === 403) {
 								setForbidden(true);
 						} else {
@@ -53,11 +53,11 @@ const SystemRoutesPage = (): JSX.Element => {
 						}
 				}
                                 try {
-                                        const roles: SystemRolesList1 = await fetchRoles();
+                                        const roles: ServiceRolesList1 = await fetchRoles();
                                                 setRoleNames(roles.roles.map((r) => r.name));
-                                                console.debug("[SystemRoutesPage] loaded roles");
+                                                console.debug("[ServiceRoutesPage] loaded roles");
                                 } catch (e: any) {
-                                                console.debug("[SystemRoutesPage] failed to load roles", e);
+                                                console.debug("[ServiceRoutesPage] failed to load roles", e);
                                                 if (e?.response?.status === 403) {
                                                                 setForbidden(true);
                                                 } else {
@@ -80,26 +80,26 @@ const SystemRoutesPage = (): JSX.Element => {
 
 		const updateRoute = async (
 				index: number,
-				field: keyof SystemRoutesRouteItem1,
+                                field: keyof ServiceRoutesRouteItem1,
 				value: any,
 	): Promise<void> => {
 				const updated = [...routes];
 				(updated[index] as any)[field] = value;
 				setRoutes(updated);
-				console.debug("[SystemRoutesPage] updating route", updated[index]);
+                                console.debug("[ServiceRoutesPage] updating route", updated[index]);
 				await fetchUpsertRoute(updated[index]);
 				void load();
 		};
 
 	const handleDelete = async (path: string): Promise<void> => {
-				console.debug("[SystemRoutesPage] deleting route", path);
+                                console.debug("[ServiceRoutesPage] deleting route", path);
 				await fetchDeleteRoute({ path });
 				void load();
 		};
 
 	const handleAdd = async (): Promise<void> => {
 		if (!newRoute.path) return;
-				console.debug("[SystemRoutesPage] adding route", newRoute);
+                                console.debug("[ServiceRoutesPage] adding route", newRoute);
 				await fetchUpsertRoute(newRoute);
 				setNewRoute({
 								path: "",
@@ -113,7 +113,7 @@ const SystemRoutesPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2 }}>
-                        <PageTitle>System Routes</PageTitle>
+                        <PageTitle>Service Routes</PageTitle>
                         <Divider sx={{ mb: 2 }} />
                         <Table size="small" sx={{ "& td, & th": { py: 0.5 } }}>
                                 <TableHead>
@@ -262,4 +262,4 @@ value={newRoute.sequence}
 	);
 				};
 
-export default SystemRoutesPage;
+export default ServiceRoutesPage;

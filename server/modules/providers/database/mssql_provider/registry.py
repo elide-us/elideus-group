@@ -477,10 +477,10 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
     """
     return ("json_many", sql, (mask,))
 
-# -------------------- SYSTEM ROUTES --------------------
+# -------------------- SERVICE ROUTES --------------------
 
-@register("urn:system:routes:get_routes:1")
-def _system_routes_get_routes(_: Dict[str, Any]):
+@register("urn:service:routes:get_routes:1")
+def _service_routes_get_routes(_: Dict[str, Any]):
   sql = """
     SELECT
       element_path,
@@ -494,8 +494,8 @@ def _system_routes_get_routes(_: Dict[str, Any]):
   """
   return ("json_many", sql, ())
 
-@register("urn:system:routes:upsert_route:1")
-async def _system_routes_upsert_route(args: Dict[str, Any]):
+@register("urn:service:routes:upsert_route:1")
+async def _service_routes_upsert_route(args: Dict[str, Any]):
   path = args["path"]
   name = args["name"]
   icon = args.get("icon")
@@ -512,8 +512,8 @@ async def _system_routes_upsert_route(args: Dict[str, Any]):
     )
   return rc
 
-@register("urn:system:routes:delete_route:1")
-def _system_routes_delete_route(args: Dict[str, Any]):
+@register("urn:service:routes:delete_route:1")
+def _service_routes_delete_route(args: Dict[str, Any]):
   path = args["path"]
   sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
   return ("exec", sql, (path,))
