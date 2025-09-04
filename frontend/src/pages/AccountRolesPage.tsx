@@ -14,6 +14,7 @@ import type {
     AccountRoleUserItem1,
     AccountRoleMembers1,
     AccountRoleList1,
+    AccountRoleRoleItem1,
 } from "../shared/RpcModels";
 import {
     fetchRoles,
@@ -23,7 +24,7 @@ import {
 } from "../rpc/account/role";
 
 const AccountRolesPage = (): JSX.Element => {
-    const [roles, setRoles] = useState<string[]>([]);
+    const [roles, setRoles] = useState<AccountRoleRoleItem1[]>([]);
     const [members, setMembers] = useState<Record<string, AccountRoleUserItem1[]>>({});
     const [nonMembers, setNonMembers] = useState<Record<string, AccountRoleUserItem1[]>>({});
     const [selectedLeft, setSelectedLeft] = useState<Record<string, string>>({});
@@ -33,7 +34,14 @@ const AccountRolesPage = (): JSX.Element => {
         void (async () => {
             try {
                 const res: AccountRoleList1 = await fetchRoles();
-                setRoles(res.roles.map((r) => r.name).sort());
+                const sorted = [...res.roles].sort((a, b) => {
+                    const am = BigInt(a.mask);
+                    const bm = BigInt(b.mask);
+                    if (am < bm) return -1;
+                    if (am > bm) return 1;
+                    return 0;
+                });
+                setRoles(sorted);
             } catch {
                 setRoles([]);
             }
@@ -42,15 +50,16 @@ const AccountRolesPage = (): JSX.Element => {
 
     useEffect(() => {
         roles.forEach((r) => {
-            if (members[r]) return;
+            const name = r.name;
+            if (members[name]) return;
             void (async () => {
                 try {
-                    const res: AccountRoleMembers1 = await fetchRoleMembers({ role: r });
-                    setMembers((m) => ({ ...m, [r]: res.members }));
-                    setNonMembers((n) => ({ ...n, [r]: res.nonMembers }));
+                    const res: AccountRoleMembers1 = await fetchRoleMembers({ role: name });
+                    setMembers((m) => ({ ...m, [name]: res.members }));
+                    setNonMembers((n) => ({ ...n, [name]: res.nonMembers }));
                 } catch {
-                    setMembers((m) => ({ ...m, [r]: [] }));
-                    setNonMembers((n) => ({ ...n, [r]: [] }));
+                    setMembers((m) => ({ ...m, [name]: [] }));
+                    setNonMembers((n) => ({ ...n, [name]: [] }));
                 }
             })();
         });
@@ -81,8 +90,8 @@ const AccountRolesPage = (): JSX.Element => {
             <PageTitle>Account Roles</PageTitle>
             <Stack spacing={2}>
                 {roles.map((role) => (
-                    <Stack key={role} spacing={2} direction="column" alignItems="center">
-                        <Typography variant="h6">{role}</Typography>
+                    <Stack key={role.name} spacing={2} direction="column" alignItems="center">
+                        <Typography variant="h6">{role.name}</Typography>
                         <Stack direction="row" spacing={1}>
                             <List
                                 sx={{
@@ -93,11 +102,11 @@ const AccountRolesPage = (): JSX.Element => {
                                     p: 0.25,
                                 }}
                             >
-                                {(nonMembers[role] || []).map((u) => (
+                                {(nonMembers[role.name] || []).map((u) => (
                                     <ListItemButton
                                         key={u.guid}
-                                        selected={selectedLeft[role] === u.guid}
-                                        onClick={() => setSelectedLeft({ ...selectedLeft, [role]: u.guid })}
+                                        selected={selectedLeft[role.name] === u.guid}
+                                        onClick={() => setSelectedLeft({ ...selectedLeft, [role.name]: u.guid })}
                                         sx={{ py: 0.25, px: 0.5, minHeight: 0 }}
                                     >
                                         <ListItemText
@@ -111,10 +120,10 @@ const AccountRolesPage = (): JSX.Element => {
                                 ))}
                             </List>
                             <Stack spacing={1} justifyContent="center">
-                                <IconButton onClick={() => void moveRight(role)}>
+                                <IconButton onClick={() => void moveRight(role.name)}>
                                     <ArrowForwardIos />
                                 </IconButton>
-                                <IconButton onClick={() => void moveLeft(role)}>
+                                <IconButton onClick={() => void moveLeft(role.name)}>
                                     <ArrowBackIos />
                                 </IconButton>
                             </Stack>
@@ -127,11 +136,11 @@ const AccountRolesPage = (): JSX.Element => {
                                     p: 0.25,
                                 }}
                             >
-                                {(members[role] || []).map((u) => (
+                                {(members[role.name] || []).map((u) => (
                                     <ListItemButton
                                         key={u.guid}
-                                        selected={selectedRight[role] === u.guid}
-                                        onClick={() => setSelectedRight({ ...selectedRight, [role]: u.guid })}
+                                        selected={selectedRight[role.name] === u.guid}
+                                        onClick={() => setSelectedRight({ ...selectedRight, [role.name]: u.guid })}
                                         sx={{ py: 0.25, px: 0.5, minHeight: 0 }}
                                     >
                                         <ListItemText

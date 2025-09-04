@@ -48,6 +48,7 @@ class RoleAdminModule(BaseModule):
       "db:security:roles:add_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
+    await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def remove_role_member(self, role: str, user_guid: str) -> tuple[list[dict], list[dict]]:
@@ -55,6 +56,7 @@ class RoleAdminModule(BaseModule):
       "db:security:roles:remove_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
+    await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def upsert_role(self, name: str, mask: int, display: str | None) -> None:
