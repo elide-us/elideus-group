@@ -44,7 +44,7 @@ Several helper scripts in the `scripts` directory manage the project database an
     - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
 - `generate_rpc_client.py` generates function accessors for the RPC namespace, parsing dispatcher mappings and payload models via the Python AST.
 - `generate_rpc_library.py` generates a data entity library for use in the front end.
-- `genlib.py` handles common RPC namespace generation functions.
+- `scriptlib.py` handles common RPC namespace generation functions and version helpers.
 - `msdblib.py` handles most of the mssql querying operations.
   Schema dumps now record NVARCHAR field lengths for accurate
   recreation across environments.

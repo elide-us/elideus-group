@@ -60,8 +60,8 @@ async def update_build_version() -> None:
         if not last_version:
           last_version = current_version
 
-        current_major, current_minor, current_patch, _ = _unpack_version(current_version)
-        build = _next_build(current_version, last_version)
+        current_major, current_minor, current_patch, _ = parse_version(current_version)
+        build = next_build(current_version, last_version)
 
         new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
         print(f'Updating build version: {current_version} -> {new_version}')

@@ -5,7 +5,7 @@ import sys
 import inspect
 from typing import List
 from pydantic import BaseModel
-from genlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
+from scriptlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
 
 # Ensure repo root is on sys.path so RPC modules can be imported with package names
 sys.path.insert(0, REPO_ROOT)
