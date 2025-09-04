@@ -32,24 +32,21 @@ HEADER_COMMENT = [
   "",
 ]
 
+
 def camel_case(name: str) -> str:
   """Convert snake_case names to CamelCase."""
   return "".join(part.capitalize() for part in name.split("_"))
 
-# def load_module(path: str):
-#   spec = importlib.util.spec_from_file_location("mod", path)
-#   module = importlib.util.module_from_spec(spec)
-#   spec.loader.exec_module(module)  # type: ignore[attr-defined]
-#   return module
 
 def load_module(path: str) -> types.ModuleType:
-    module_name = os.path.splitext(os.path.basename(path))[0] + "_tmp"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if not spec or not spec.loader:
-        raise ImportError(f"Could not load spec for module at {path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+  module_name = os.path.splitext(os.path.basename(path))[0] + "_tmp"
+  spec = importlib.util.spec_from_file_location(module_name, path)
+  if not spec or not spec.loader:
+    raise ImportError(f"Could not load spec for module at {path}")
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  return module
+
 
 def py_to_ts(py_type: Any) -> str:
   origin = get_origin(py_type)
@@ -78,6 +75,7 @@ def py_to_ts(py_type: Any) -> str:
   # Fallback
   return 'any'
 
+
 def model_to_ts(model: type[BaseModel]) -> str:
   lines = [f"export interface {model.__name__} {{"]
   fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
@@ -87,3 +85,50 @@ def model_to_ts(model: type[BaseModel]) -> str:
     lines.append(f"  {name}: {ts_type};")
   lines.append("}")
   return "\n".join(lines)
+
+
+def parse_version(ver: str) -> tuple[int, int, int, int]:
+  """Convert a version string like 'v1.2.3.4' into its numeric parts."""
+  ver = ver.lstrip('v')
+  major, minor, patch, build = [int(p) for p in ver.split('.')]
+  return major, minor, patch, build
+
+
+def next_build(current_version: str, last_version: str) -> int:
+  """Return the next build number for the given versions.
+
+  The build number is reset only when the major or minor version changes.
+  Patch version bumps continue the build count within the same minor version.
+  """
+  cur_major, cur_minor, _, cur_build = parse_version(current_version)
+  last_major, last_minor, _, _ = parse_version(last_version)
+  if (cur_major, cur_minor) != (last_major, last_minor):
+    return 1
+  return cur_build + 1
+
+
+def bump_version(version: str, part: str) -> str:
+  """Increment the specified part of a version string.
+
+  Parts can be 'major', 'minor', 'patch', or 'build'.
+  Major/minor bumps reset lower-order fields to 0.
+  """
+  ma, mi, pa, bu = parse_version(version)
+  match part:
+    case 'major':
+      ma += 1
+      mi = 0
+      pa = 0
+      bu = 0
+    case 'minor':
+      mi += 1
+      pa = 0
+      bu = 0
+    case 'patch':
+      pa += 1
+    case 'build':
+      bu += 1
+    case _:
+      raise ValueError(f"Unknown part: {part}")
+  return f"v{ma}.{mi}.{pa}.{bu}"
+

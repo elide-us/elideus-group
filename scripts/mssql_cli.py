@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import msdblib as db
+from scriptlib import bump_version
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
@@ -14,12 +15,6 @@ def _commit_and_tag(version: str, schema_file: str) -> None:
   ).strip()
   subprocess.check_call(f'git push origin {current_branch}', shell=True)
   subprocess.check_call('git push origin --tags', shell=True)
-
-
-def _parse_version(ver: str) -> tuple[int, int, int, int]:
-  ver = ver.lstrip('v')
-  major, minor, patch, build = [int(v) for v in ver.split('.')]
-  return major, minor, patch, build
 
 
 async def _update_config(conn, key: str, value: str):
@@ -94,20 +89,7 @@ async def interactive_console(conn):
           print('Version entry not found in system_config table')
           continue
         cur_ver = row[0]
-        ma, mi, pa, bu = _parse_version(cur_ver)
-        match part:
-          case 'major':
-            ma += 1
-            mi = 0
-            pa = 0
-            bu = 0
-          case 'minor':
-            mi += 1
-            pa = 0
-            bu = 0
-          case 'patch':
-            pa += 1
-        new_ver = f"v{ma}.{mi}.{pa}.{bu}"
+        new_ver = bump_version(cur_ver, part)
         await _update_config(conn, 'Version', new_ver)
         print(f'Updated Version: {cur_ver} -> {new_ver}')
         schema_file = await db.dump_schema(conn, new_ver)
