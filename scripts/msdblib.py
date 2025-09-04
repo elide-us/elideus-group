@@ -26,6 +26,7 @@ async def list_views(conn):
       """SELECT v.name AS view_name, m.definition AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
+          WHERE SCHEMA_NAME(v.schema_id)='dbo'
            FOR JSON PATH"""
     )
     return await _fetch_json(cur)
@@ -36,8 +37,10 @@ async def list_view_dependencies(conn):
       """SELECT OBJECT_NAME(d.referencing_id) AS view_name,
                 OBJECT_NAME(d.referenced_id) AS ref_name
            FROM sys.sql_expression_dependencies d
-          WHERE d.referencing_id IN (SELECT object_id FROM sys.views)
-            AND d.referenced_id IN (SELECT object_id FROM sys.views)
+           JOIN sys.views v ON d.referencing_id = v.object_id
+           JOIN sys.views r ON d.referenced_id = r.object_id
+          WHERE SCHEMA_NAME(v.schema_id)='dbo'
+            AND SCHEMA_NAME(r.schema_id)='dbo'
            FOR JSON PATH"""
     )
     return await _fetch_json(cur)
@@ -240,10 +243,10 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
     for idx in table.get('indexes', []):
       lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
   for view in schema.get('views', []):
-    definition = view['definition'].strip()
+    definition = ' '.join(view['definition'].split())
     if not definition.lower().startswith('create'):
       definition = f"CREATE VIEW {view['name']} AS {definition}"
-    if not definition.rstrip().endswith(';'):
+    if not definition.endswith(';'):
       definition += ';'
     lines.append(definition)
   with open(filename, 'w') as f:
