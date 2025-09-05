@@ -24,7 +24,7 @@ class SystemConfigModule(BaseModule):
 
   async def get_configs(self, user_guid: str, roles: list[str]) -> SystemConfigList1:
     logging.debug("[system_config_get_configs_v1] user=%s roles=%s", user_guid, roles)
-    res = await self.db.run("urn:system:config:get_configs:1", {})
+    res = await self.db.run("db:system:config:get_configs:1", {})
     items = [
       SystemConfigConfigItem1(
         key=row.get("element_key", ""),
@@ -47,7 +47,7 @@ class SystemConfigModule(BaseModule):
       value,
     )
     await self.db.run(
-      "urn:system:config:upsert_config:1",
+      "db:system:config:upsert_config:1",
       {"key": key, "value": value},
     )
     logging.debug(
@@ -64,7 +64,7 @@ class SystemConfigModule(BaseModule):
       key,
     )
     await self.db.run(
-      "urn:system:config:delete_config:1",
+      "db:system:config:delete_config:1",
       {"key": key},
     )
     logging.debug(

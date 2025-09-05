@@ -108,7 +108,7 @@ class DummyRequest:
 def test_set_provider_calls_db():
   async def fake_get(request):
     rpc = RPCRequest(
-      op="urn:users:providers:set_provider:1",
+      op="db:users:providers:set_provider:1",
       payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
       version=1,
     )
@@ -122,9 +122,9 @@ def test_set_provider_calls_db():
       return "pid", {"email": "e", "username": "n"}, {}
   req = DummyRequest(DummyState(db, auth=DummyAuth()))
   resp = asyncio.run(users_providers_set_provider_v1(req))
-  assert ("urn:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
+  assert ("db:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
   assert (
-    "urn:users:profile:update_if_unedited:1",
+    "db:users:profile:update_if_unedited:1",
     {"guid": "u1", "email": "e", "display_name": "n"},
   ) in db.calls
   assert isinstance(resp, RPCResponse)
@@ -176,7 +176,7 @@ def test_link_provider_google_normalizes_identifier():
       self.calls = []
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:system:config:get_config:1":
+      if op == "db:system:config:get_config:1":
         key = args["key"]
         if key == "Hostname":
           return DBRes(rows=[{"value": "redirect"}])
@@ -199,7 +199,7 @@ def test_link_provider_google_normalizes_identifier():
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
-  assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
+  assert ("db:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
   asyncio.run(auth.providers["google"].shutdown())
 
 
@@ -240,7 +240,7 @@ def test_link_provider_microsoft_normalizes_identifier():
   req = DummyRequest(DummyState(db, auth))
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "ms-id"))
-  assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
+  assert ("db:users:providers:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
   asyncio.run(auth.providers["microsoft"].shutdown())
 
 
@@ -253,9 +253,9 @@ def test_unlink_non_default_provider_retains_tokens():
   class LocalDb(DummyDb):
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:users:profile:get_profile:1":
+      if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "microsoft"}])
-      if op == "urn:users:providers:unlink_provider:1":
+      if op == "db:users:providers:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
@@ -264,7 +264,7 @@ def test_unlink_non_default_provider_retains_tokens():
   asyncio.run(users_providers_unlink_provider_v1(req))
   assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) not in db.calls
   assert not any(op == "db:auth:session:revoke_all_device_tokens:1" for op, _ in db.calls)
-  assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
+  assert not any(op == "db:users:providers:soft_delete_account:1" for op, _ in db.calls)
 
 
 
@@ -277,9 +277,9 @@ def test_unlink_default_provider_without_new_default_raises():
   class LocalDb(DummyDb):
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:users:profile:get_profile:1":
+      if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "urn:users:providers:unlink_provider:1":
+      if op == "db:users:providers:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
@@ -287,7 +287,7 @@ def test_unlink_default_provider_without_new_default_raises():
   req = DummyRequest(DummyState(db))
   with pytest.raises(HTTPException):
     asyncio.run(users_providers_unlink_provider_v1(req))
-  assert not any(op == "urn:users:providers:set_provider:1" for op, _ in db.calls)
+  assert not any(op == "db:users:providers:set_provider:1" for op, _ in db.calls)
   assert not any(op == "db:auth:session:revoke_provider_tokens:1" for op, _ in db.calls)
 
 
@@ -300,19 +300,19 @@ def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
   class LocalDb(DummyDb):
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:users:profile:get_profile:1":
+      if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "urn:users:providers:unlink_provider:1":
+      if op == "db:users:providers:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
   db = LocalDb()
   req = DummyRequest(DummyState(db))
   asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("urn:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
+  assert ("db:users:providers:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
   assert ("db:auth:session:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) in db.calls
   assert not any(op == "db:auth:session:revoke_all_device_tokens:1" for op, _ in db.calls)
-  assert not any(op == "urn:users:providers:soft_delete_account:1" for op, _ in db.calls)
+  assert not any(op == "db:users:providers:soft_delete_account:1" for op, _ in db.calls)
 
 
 def test_unlink_last_provider_soft_deletes_and_revokes():
@@ -324,17 +324,17 @@ def test_unlink_last_provider_soft_deletes_and_revokes():
   class LocalDb(DummyDb):
     async def run(self, op, args):
       self.calls.append((op, args))
-      if op == "urn:users:profile:get_profile:1":
+      if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "urn:users:providers:unlink_provider:1":
+      if op == "db:users:providers:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 0}], rowcount=1)
-      if op == "urn:auth:providers:unlink_last_provider:1":
+      if op == "db:auth:providers:unlink_last_provider:1":
         return DBRes([], 1)
       return DBRes()
 
   db = LocalDb()
   req = DummyRequest(DummyState(db))
   asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("urn:auth:providers:unlink_last_provider:1", {"guid": "u1", "provider": "google"}) in db.calls
+  assert ("db:auth:providers:unlink_last_provider:1", {"guid": "u1", "provider": "google"}) in db.calls
   assert not any(op == "db:auth:session:revoke_provider_tokens:1" for op, _ in db.calls)
 

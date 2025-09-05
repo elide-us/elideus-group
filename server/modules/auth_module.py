@@ -240,7 +240,7 @@ class AuthModule(BaseModule):
       logging.debug("[AuthModule] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[AuthModule] Fetching roles for %s", guid)
-    res = await self.db.run("urn:users:profile:get_roles:1", {"guid": guid})
+    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)

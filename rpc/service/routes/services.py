@@ -21,7 +21,7 @@ async def service_routes_get_routes_v1(request: Request):
   )
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
-  res = await db.run(rpc_request.op, {})
+  res = await db.run("db:service:routes:get_routes:1", {})
   routes = []
   for row in res.rows:
     mask = int(row.get("element_roles", 0))
@@ -58,7 +58,7 @@ async def service_routes_upsert_route_v1(request: Request):
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
   mask = auth.names_to_mask(payload.required_roles)
-  await db.run(rpc_request.op, {
+  await db.run("db:service:routes:upsert_route:1", {
     "path": payload.path,
     "name": payload.name,
     "icon": payload.icon,
@@ -86,7 +86,7 @@ async def service_routes_delete_route_v1(request: Request):
   )
   payload = ServiceRoutesDeleteRoute1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
-  await db.run(rpc_request.op, {"path": payload.path})
+  await db.run("db:service:routes:delete_route:1", {"path": payload.path})
   logging.debug(
     "[service_routes_delete_route_v1] deleted route %s",
     payload.path,

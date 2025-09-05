@@ -67,12 +67,12 @@ class DummyDb(DbModule):
     pass
   async def run(self, op: str, args: dict):
     self.calls.append((op, args))
-    if op == 'urn:system:config:get_configs:1':
+    if op == 'db:system:config:get_configs:1':
       rows = [{'element_key': 'LoggingLevel', 'element_value': '4'}]
       return SimpleNamespace(rows=rows, rowcount=1)
-    if op == 'urn:system:config:upsert_config:1':
+    if op == 'db:system:config:upsert_config:1':
       return SimpleNamespace(rows=[], rowcount=1)
-    if op == 'urn:system:config:delete_config:1':
+    if op == 'db:system:config:delete_config:1':
       return SimpleNamespace(rows=[], rowcount=1)
     raise AssertionError(f'unexpected op {op}')
 
@@ -85,16 +85,16 @@ asyncio.run(module.startup())
 def test_get_configs_module():
   payload = asyncio.run(module.get_configs('u1', []))
   assert payload.items[0].key == 'LoggingLevel'
-  assert ('urn:system:config:get_configs:1', {}) in db.calls
+  assert ('db:system:config:get_configs:1', {}) in db.calls
 
 def test_upsert_and_delete_module():
   asyncio.run(module.upsert_config('u1', [], 'LoggingLevel', '2'))
   asyncio.run(module.delete_config('u1', [], 'LoggingLevel'))
   assert (
-    'urn:system:config:upsert_config:1',
+    'db:system:config:upsert_config:1',
     {'key': 'LoggingLevel', 'value': '2'}
   ) in db.calls
   assert (
-    'urn:system:config:delete_config:1',
+    'db:system:config:delete_config:1',
     {'key': 'LoggingLevel'}
   ) in db.calls

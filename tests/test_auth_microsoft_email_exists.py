@@ -28,13 +28,13 @@ class DummyDb:
     self.linked = False
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       if self.linked:
         return DBRes([
           {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
         ], 1)
       return DBRes([], 0)
-    if op == "urn:auth:microsoft:oauth_relink:1":
+    if op == "db:auth:microsoft:oauth_relink:1":
       if args.get("confirm"):
         self.linked = True
         return DBRes([
@@ -119,8 +119,8 @@ def test_email_exists_prompt(monkeypatch):
     asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert exc.value.detail == {"default_provider": "google"}
-  assert any(op == "urn:auth:microsoft:oauth_relink:1" for op, _ in req.app.state.db.calls)
-  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:auth:microsoft:oauth_relink:1" for op, _ in req.app.state.db.calls)
+  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
 
 def test_email_exists_confirm_links(monkeypatch):
   spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
@@ -173,4 +173,4 @@ def test_email_exists_confirm_links(monkeypatch):
   res = asyncio.run(auth_microsoft_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
-  assert any(op == "urn:auth:microsoft:oauth_relink:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:auth:microsoft:oauth_relink:1" for op, _ in req.app.state.db.calls)

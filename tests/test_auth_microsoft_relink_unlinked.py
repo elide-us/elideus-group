@@ -27,14 +27,14 @@ class DummyDb:
     self._get_by_count = 0
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       self._get_by_count += 1
       if self._get_by_count == 1:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "urn:users:providers:get_any_by_provider_identifier:1":
+    if op == "db:users:providers:get_any_by_provider_identifier:1":
       return DBRes([{"guid": "user-guid"}], 1)
-    if op == "urn:auth:microsoft:oauth_relink:1":
+    if op == "db:auth:microsoft:oauth_relink:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
     if op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
@@ -110,5 +110,5 @@ def test_relinks_unlinked_account(monkeypatch):
   req = DummyRequest()
   asyncio.run(auth_microsoft_oauth_login_v1(req))
   calls = req.app.state.db.calls
-  assert any(op == "urn:auth:microsoft:oauth_relink:1" for op, _ in calls)
-  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)
+  assert any(op == "db:auth:microsoft:oauth_relink:1" for op, _ in calls)
+  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in calls)

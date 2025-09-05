@@ -32,9 +32,9 @@ class DummyDb:
     self.allow_update = allow_update
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "provider_name": "microsoft" }], 1)
-    if op == "urn:users:profile:update_if_unedited:1":
+    if op == "db:users:profile:update_if_unedited:1":
       if self.allow_update:
         return DBRes([{ "display_name": args["display_name"], "email": args["email"] }], 1)
       return DBRes([], 0)
@@ -120,7 +120,7 @@ def test_updates_profile_if_unedited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(op == "db:users:profile:update_if_unedited:1" for op, _ in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "New"
 
@@ -131,7 +131,7 @@ def test_leaves_profile_if_edited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(op == "db:users:profile:update_if_unedited:1" for op, _ in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "User"
 

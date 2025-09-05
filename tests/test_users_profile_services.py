@@ -74,9 +74,9 @@ class DummyDb:
     self.roles = roles
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:profile:get_roles:1":
+    if op == "db:users:profile:get_roles:1":
       return DBRes([{"element_roles": self.roles}], 1)
-    if op == "urn:users:profile:set_profile_image:1":
+    if op == "db:users:profile:set_profile_image:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -103,7 +103,7 @@ def test_get_roles_service_returns_mask():
   resp = asyncio.run(users_profile_get_roles_v1(req))
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
-  assert ("urn:users:profile:get_roles:1", {"guid": "u1"}) in db.calls
+  assert ("db:users:profile:get_roles:1", {"guid": "u1"}) in db.calls
 
 def test_set_profile_image_calls_db():
   async def fake_img(request):
@@ -113,7 +113,7 @@ def test_set_profile_image_calls_db():
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
-  assert ("urn:users:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
+  assert ("db:users:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
   assert resp.payload["image_b64"] == "abc"
 
 

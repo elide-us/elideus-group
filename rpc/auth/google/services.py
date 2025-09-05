@@ -56,7 +56,7 @@ async def auth_google_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="GOOGLE_AUTH_SECRET not configured")
 
   # Require redirect_uri from system config
-  res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+  res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
   if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]
@@ -83,7 +83,7 @@ async def auth_google_oauth_login_v1(request: Request):
 
   if user and user.get("element_soft_deleted_at"):
     res = await db.run(
-      f"urn:auth:{provider}:oauth_relink:1",
+      f"db:auth:{provider}:oauth_relink:1",
       {
         "provider_identifier": provider_uid,
         "email": profile["email"],
@@ -97,12 +97,12 @@ async def auth_google_oauth_login_v1(request: Request):
 
   if not user:
     res = await db.run(
-      "urn:users:providers:get_any_by_provider_identifier:1",
+      "db:users:providers:get_any_by_provider_identifier:1",
       {"provider": provider, "provider_identifier": provider_uid},
     )
     if res.rows:
       res2 = await db.run(
-        f"urn:auth:{provider}:oauth_relink:1",
+        f"db:auth:{provider}:oauth_relink:1",
         {
           "provider_identifier": provider_uid,
           "email": profile["email"],
@@ -116,7 +116,7 @@ async def auth_google_oauth_login_v1(request: Request):
 
   if not user:
     res = await db.run(
-      f"urn:auth:{provider}:oauth_relink:1",
+      f"db:auth:{provider}:oauth_relink:1",
       {
         "provider_identifier": provider_uid,
         "email": profile["email"],
@@ -131,7 +131,7 @@ async def auth_google_oauth_login_v1(request: Request):
   if not user:
     logging.debug("[auth_google_oauth_login_v1] user not found, creating new user")
     res = await db.run(
-      "urn:users:providers:create_from_provider:1",
+      "db:users:providers:create_from_provider:1",
       {
         "provider": provider,
         "provider_identifier": provider_uid,
@@ -144,7 +144,7 @@ async def auth_google_oauth_login_v1(request: Request):
     if not user:
       logging.debug("[auth_google_oauth_login_v1] fetching user after creation")
       res = await db.run(
-        "urn:users:providers:get_by_provider_identifier:1",
+        "db:users:providers:get_by_provider_identifier:1",
         {"provider": provider, "provider_identifier": provider_uid},
       )
       user = res.rows[0] if res.rows else None
@@ -156,13 +156,13 @@ async def auth_google_oauth_login_v1(request: Request):
   new_img = profile.get("profilePicture")
   if new_img and new_img != user.get("profile_image"):
     await db.run(
-      "urn:users:profile:set_profile_image:1",
+      "db:users:profile:set_profile_image:1",
       {"guid": user_guid, "image_b64": new_img, "provider": provider},
     )
     user["profile_image"] = new_img
   if user.get("provider_name") == "google":
     res_prof = await db.run(
-      "urn:users:profile:update_if_unedited:1",
+      "db:users:profile:update_if_unedited:1",
       {
         "guid": user_guid,
         "email": profile["email"],

@@ -38,13 +38,13 @@ class DummyDb:
     self.linked = False
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       if self.linked:
         return DBRes([
           {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
         ], 1)
       return DBRes([], 0)
-    if op == "urn:auth:google:oauth_relink:1":
+    if op == "db:auth:google:oauth_relink:1":
       if args.get("confirm"):
         self.linked = True
         return DBRes([
@@ -57,7 +57,7 @@ class DummyDb:
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
     if op == "db:auth:session:update_device_token:1":
       return DBRes(rowcount=1)
-    if op == "urn:system:config:get_config:1":
+    if op == "db:system:config:get_config:1":
       key = args.get("key")
       if key == "Hostname":
         return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
@@ -156,8 +156,8 @@ def test_email_exists_prompt(monkeypatch):
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert exc.value.detail == {"default_provider": "microsoft"}
-  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
-  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
+  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
 
 
@@ -224,5 +224,5 @@ def test_email_exists_confirm_links(monkeypatch):
   res = asyncio.run(auth_google_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
-  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
