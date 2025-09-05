@@ -23,7 +23,6 @@ const AZURE_BLOB_REGEX = /^(?!-)(?!.*--)[a-z0-9-]{3,63}(?<!-)$/;
 const DISCORD_SNOWFLAKE = /^\d{17,20}$/;
 const DISCORD_CHANNEL = /^#[a-z0-9-]{2,100}$/;
 const REPO_REGEX = /^(https:\/\/|git@)/;
-const SEMVER_REGEX = /^\d+\.\d+\.\d+(?:\+\d+)?$/;
 
 interface TabPanelProps {
     children?: ReactNode;
@@ -106,10 +105,6 @@ const SystemConfigPage = (): JSX.Element => {
                 break;
             case 'Repo':
                 if (!REPO_REGEX.test(value)) err = 'Must be https:// or git@';
-                break;
-            case 'Version':
-            case 'LastVersion':
-                if (!SEMVER_REGEX.test(value)) err = 'Invalid semver.';
                 break;
             default:
                 break;
@@ -208,11 +203,6 @@ const SystemConfigPage = (): JSX.Element => {
                         error={Boolean(errors.GoogleClientId)}
                         helperText={errors.GoogleClientId}
                     />
-                    <Typography variant="caption">
-                        https://accounts.google.com/o/oauth2/v2/auth?client_id={
-                            config.GoogleClientId || '<GoogleClientId>'
-                        }
-                    </Typography>
                     <TextField
                         label="JwksCacheTime"
                         type="number"
@@ -258,9 +248,15 @@ const SystemConfigPage = (): JSX.Element => {
                         onChange={(e) => save('LoggingLevel', e.target.value)}
                         helperText="Controls what is sent to DiscordSyschan."
                     >
-                        {['error', 'warn', 'info', 'debug', 'trace'].map((l) => (
-                            <MenuItem key={l} value={l}>
-                                {l}
+                        {[
+                            { value: '0', label: 'Off' },
+                            { value: '1', label: 'Errors' },
+                            { value: '2', label: 'Warnings, Errors' },
+                            { value: '3', label: 'Info, Warning, Errors' },
+                            { value: '4', label: 'Debug, Info, Warning, Errors' },
+                        ].map((l) => (
+                            <MenuItem key={l.value} value={l.value}>
+                                {l.value} - {l.label}
                             </MenuItem>
                         ))}
                     </TextField>
@@ -277,18 +273,8 @@ const SystemConfigPage = (): JSX.Element => {
                         error={Boolean(errors.Repo)}
                         helperText={errors.Repo}
                     />
-                    <TextField
-                        label="Version"
-                        value={config.Version || ''}
-                        InputProps={{ readOnly: true }}
-                        helperText="CI increases build automatically."
-                    />
-                    <TextField
-                        label="LastVersion"
-                        value={config.LastVersion || ''}
-                        InputProps={{ readOnly: true }}
-                        helperText="If MAJOR/MINOR increased since LastVersion, reset build to 0."
-                    />
+                    <Typography>Version: {config.Version || ''}</Typography>
+                    <Typography>LastVersion: {config.LastVersion || ''}</Typography>
                 </Stack>
             </TabPanel>
 
