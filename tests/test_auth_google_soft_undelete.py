@@ -107,7 +107,7 @@ def test_undeletes_soft_deleted_account(monkeypatch):
   async def fake_unbox_request(_):
     rpc = RPCRequest(
       op="urn:auth:google:oauth_login:1",
-      payload={"code": "auth-code"},
+      payload={"code": "auth-code", "fingerprint": "fp"},
       version=1,
     )
     return rpc, None, None
@@ -128,7 +128,7 @@ def test_undeletes_soft_deleted_account(monkeypatch):
     code: str
     confirm: bool | None = None
     reauthToken: str | None = None
-    fingerprint: str | None = None
+    fingerprint: str
 
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str

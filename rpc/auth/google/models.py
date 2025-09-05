@@ -8,7 +8,7 @@ class AuthGoogleOauthLoginPayload1(BaseModel):
   code: str
   confirm: bool | None = None
   reauthToken: str | None = None
-  fingerprint: str | None = None
+  fingerprint: str
 
 
 class AuthGoogleOauthLogin1(BaseModel):

@@ -94,7 +94,7 @@ def test_fetch_user_after_create(monkeypatch):
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox_request(request):
-    rpc = RPCRequest(op="urn:auth:google:oauth_login:1", payload={"code": "auth-code"}, version=1)
+    rpc = RPCRequest(op="urn:auth:google:oauth_login:1", payload={"code": "auth-code", "fingerprint": "fp"}, version=1)
     return rpc, None, None
   helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers
@@ -111,7 +111,7 @@ def test_fetch_user_after_create(monkeypatch):
     code: str
     confirm: bool | None = None
     reauthToken: str | None = None
-    fingerprint: str | None = None
+    fingerprint: str
   class AuthGoogleOauthLogin1(BaseModel):
     sessionToken: str
     display_name: str

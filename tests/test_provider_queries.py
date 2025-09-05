@@ -77,8 +77,8 @@ def test_mssql_get_by_access_token_uses_security_view():
   handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
   _, sql, _ = handler({"access_token": "tok"})
   sql = sql.lower()
-  assert "vw_account_user_security" in sql
-  assert "providers_recid" in sql
+  assert "vw_user_session_security" in sql
+  assert "user_roles" in sql
 
 
 def test_mssql_support_users_set_credits_updates_table():

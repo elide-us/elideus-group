@@ -4,6 +4,7 @@ import UserContext, { AuthTokens } from './UserContext';
 import { msalConfig, loginRequest } from '../config/msal';
 import { fetchOauthLogin as fetchMicrosoftOauthLogin } from '../rpc/auth/microsoft';
 import type { AuthMicrosoftOauthLogin1 } from './RpcModels';
+import { getFingerprint } from './fingerprint';
 
 interface UserContextProviderProps {
 	children: ReactNode;
@@ -55,15 +56,16 @@ const setUserData = useCallback((data: AuthTokens) => {
                                                                 await msal.initialize();
                                                                 const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
                                                                 if (!account) return;
-                                                                const result = await msal.acquireTokenSilent({
-                                                                                ...loginRequest,
-                                                                                account
-                                                                });
-                                                                const data = await fetchMicrosoftOauthLogin({
-                                                                                idToken: result.idToken,
-                                                                                accessToken: result.accessToken,
-                                                                                provider: 'microsoft'
-                                                                }) as AuthMicrosoftOauthLogin1;
+const result = await msal.acquireTokenSilent({
+...loginRequest,
+account
+});
+const data = await fetchMicrosoftOauthLogin({
+idToken: result.idToken,
+accessToken: result.accessToken,
+provider: 'microsoft',
+fingerprint: getFingerprint(),
+}) as AuthMicrosoftOauthLogin1;
                                                                 setUserData({ provider: 'microsoft', ...data });
                                                 } catch {
                                                                 /* silent token acquisition failed */

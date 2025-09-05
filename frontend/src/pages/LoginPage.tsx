@@ -8,6 +8,7 @@ import UserContext from '../shared/UserContext';
 import Notification from '../components/Notification';
 import { fetchOauthLogin as fetchMicrosoftOauthLogin } from '../rpc/auth/microsoft';
 import { fetchOauthLogin as fetchGoogleOauthLogin } from '../rpc/auth/google';
+import { getFingerprint } from '../shared/fingerprint';
 import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from '../shared/RpcModels';
 
 declare global {
@@ -41,6 +42,7 @@ const data = await fetchMicrosoftOauthLogin({
 idToken,
 accessToken,
 provider: 'microsoft',
+fingerprint: getFingerprint(),
 }) as AuthMicrosoftOauthLogin1;
 setUserData({ provider: 'microsoft', ...data });
 setNotification({ open: true, severity: 'success', message: 'Login successful!' });
@@ -68,6 +70,7 @@ console.debug('[LoginPage] authorization code received', code);
 const data = await fetchGoogleOauthLogin({
 code,
 provider: 'google',
+fingerprint: getFingerprint(),
 }) as AuthGoogleOauthLogin1;
 setUserData({ provider: 'google', ...data });
 setNotification({ open: true, severity: 'success', message: 'Login successful!' });

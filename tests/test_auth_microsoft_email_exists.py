@@ -71,7 +71,7 @@ def test_email_exists_prompt(monkeypatch):
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox_request(request):
-    rpc = RPCRequest(op="urn:auth:microsoft:oauth_login:1", payload={"idToken": "id", "accessToken": "acc"}, version=1)
+    rpc = RPCRequest(op="urn:auth:microsoft:oauth_login:1", payload={"idToken": "id", "accessToken": "acc", "fingerprint": "fp"}, version=1)
     return rpc, None, None
   helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers
@@ -126,7 +126,7 @@ def test_email_exists_confirm_links(monkeypatch):
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox_request(request):
-    rpc = RPCRequest(op="urn:auth:microsoft:oauth_login:1", payload={"idToken": "id", "accessToken": "acc", "confirm": True}, version=1)
+    rpc = RPCRequest(op="urn:auth:microsoft:oauth_login:1", payload={"idToken": "id", "accessToken": "acc", "confirm": True, "fingerprint": "fp"}, version=1)
     return rpc, None, None
   helpers.unbox_request = fake_unbox_request
   sys.modules["rpc.helpers"] = helpers

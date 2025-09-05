@@ -130,7 +130,7 @@ async def create_session(
   db: DbModule,
   user_guid: str,
   provider: str,
-  fingerprint: str | None,
+  fingerprint: str,
   user_agent: str | None,
   ip_address: str | None,
 ):
