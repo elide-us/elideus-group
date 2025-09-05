@@ -50,7 +50,7 @@ spec_registry.loader.exec_module(registry_mod)
 get_mssql_handler = registry_mod.get_handler
 
 def test_mssql_get_by_provider_identifier_uses_user_view():
-  handler = get_mssql_handler("urn:users:providers:get_by_provider_identifier:1")
+  handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
   _, sql, _ = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
   sql = sql.lower()
   assert "vw_account_user_profile" in sql
@@ -58,7 +58,7 @@ def test_mssql_get_by_provider_identifier_uses_user_view():
   assert "users_credits" not in sql
 
 def test_mssql_get_profile_uses_profile_view():
-  handler = get_mssql_handler("urn:users:profile:get_profile:1")
+  handler = get_mssql_handler("db:users:profile:get_profile:1")
   _, sql, _ = handler({"guid": "gid"})
   sql = sql.lower()
   assert "vw_account_user_profile" in sql

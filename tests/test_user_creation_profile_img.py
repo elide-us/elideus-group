@@ -32,7 +32,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
   monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
   monkeypatch.setattr(registry, "fetch_rows", fake_fetch_rows)
 
-  handler = registry.get_handler("urn:users:providers:create_from_provider:1")
+  handler = registry.get_handler("db:users:providers:create_from_provider:1")
   args = {
     "provider": "microsoft",
     "provider_identifier": str(uuid4()),

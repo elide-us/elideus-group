@@ -40,9 +40,9 @@ class DummyDb:
     self.calls = []
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "urn:system:config:get_config:1":
+    if op == "db:system:config:get_config:1":
       key = args.get("key")
       if key == "Hostname":
         return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
@@ -146,5 +146,5 @@ def test_lookup_existing_user(monkeypatch):
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

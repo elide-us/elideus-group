@@ -43,7 +43,7 @@ async def users_providers_set_provider_v1(request: Request):
         client_secret = env.get("GOOGLE_AUTH_SECRET")
         if not client_secret:
           raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-        res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
@@ -65,7 +65,7 @@ async def users_providers_set_provider_v1(request: Request):
         client_secret = env.get("MICROSOFT_AUTH_SECRET")
         if not client_secret:
           raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-        res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
@@ -84,7 +84,7 @@ async def users_providers_set_provider_v1(request: Request):
       raise HTTPException(status_code=400, detail="Unsupported auth provider")
     _, profile, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
   await db.run(
-    rpc_request.op,
+    "db:users:providers:set_provider:1",
     {
       "guid": auth_ctx.user_guid,
       "provider": payload.provider,
@@ -92,7 +92,7 @@ async def users_providers_set_provider_v1(request: Request):
   )
   if profile:
     await db.run(
-      "urn:users:profile:update_if_unedited:1",
+      "db:users:profile:update_if_unedited:1",
       {
         "guid": auth_ctx.user_guid,
         "email": profile.get("email"),
@@ -125,7 +125,7 @@ async def users_providers_link_provider_v1(request: Request):
     client_secret = env.get("GOOGLE_AUTH_SECRET")
     if not client_secret:
       raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-    res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+    res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
     if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
     redirect_uri = res_redirect.rows[0]["value"]
@@ -145,7 +145,7 @@ async def users_providers_link_provider_v1(request: Request):
       client_secret = env.get("MICROSOFT_AUTH_SECRET")
       if not client_secret:
         raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-      res_redirect = await db.run("urn:system:config:get_config:1", {"key": "Hostname"})
+      res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
       if not res_redirect.rows:
         raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
       redirect_uri = res_redirect.rows[0]["value"]
@@ -166,13 +166,13 @@ async def users_providers_link_provider_v1(request: Request):
   provider_uid, _, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
   provider_uid = normalize_provider_identifier(provider_uid)
   res = await db.run(
-    "urn:users:providers:get_by_provider_identifier:1",
+    "db:users:providers:get_by_provider_identifier:1",
     {"provider": payload.provider, "provider_identifier": provider_uid},
   )
   if res.rows and res.rows[0].get("guid") != auth_ctx.user_guid:
     raise HTTPException(status_code=409, detail="Provider already linked")
   await db.run(
-    "urn:users:providers:link_provider:1",
+    "db:users:providers:link_provider:1",
     {
       "guid": auth_ctx.user_guid,
       "provider": payload.provider,
@@ -189,25 +189,25 @@ async def users_providers_unlink_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   res_prof = await db.run(
-    "urn:users:profile:get_profile:1",
+    "db:users:profile:get_profile:1",
     {"guid": auth_ctx.user_guid},
   )
   default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
   res = await db.run(
-    "urn:users:providers:unlink_provider:1",
+    "db:users:providers:unlink_provider:1",
     {"guid": auth_ctx.user_guid, "provider": payload.provider},
   )
   remaining = res.rows[0].get("providers_remaining") if res.rows else 0
   if remaining == 0:
     await db.run(
-      "urn:auth:providers:unlink_last_provider:1",
+      "db:auth:providers:unlink_last_provider:1",
       {"guid": auth_ctx.user_guid, "provider": payload.provider},
     )
   elif payload.provider == default_provider:
     if not payload.new_default:
       raise HTTPException(status_code=400, detail="new_default required")
     await db.run(
-      "urn:users:providers:set_provider:1",
+      "db:users:providers:set_provider:1",
       {"guid": auth_ctx.user_guid, "provider": payload.new_default},
     )
     await db.run(
@@ -224,7 +224,7 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   res = await db.run(
-    "urn:users:providers:get_by_provider_identifier:1",
+    "db:users:providers:get_by_provider_identifier:1",
     payload.model_dump(),
   )
   row = res.rows[0] if res.rows else None
@@ -238,13 +238,13 @@ async def users_providers_create_from_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   res = await db.run(
-    "urn:users:providers:get_user_by_email:1",
+    "db:users:providers:get_user_by_email:1",
     {"email": payload.provider_email},
   )
   if res.rows:
     raise HTTPException(status_code=409, detail="Email already registered")
   res = await db.run(
-    "urn:users:providers:create_from_provider:1",
+    "db:users:providers:create_from_provider:1",
     payload.model_dump(),
   )
   row = res.rows[0] if res.rows else None

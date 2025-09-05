@@ -30,15 +30,15 @@ class PublicVarsModule(BaseModule):
       return result.stdout, result.stderr
 
   async def get_version(self) -> str:
-    res = await self.db.run("urn:public:vars:get_version:1", {})
+    res = await self.db.run("db:public:vars:get_version:1", {})
     return res.rows[0].get("version") if res.rows else ""
 
   async def get_hostname(self) -> str:
-    res = await self.db.run("urn:public:vars:get_hostname:1", {})
+    res = await self.db.run("db:public:vars:get_hostname:1", {})
     return res.rows[0].get("hostname") if res.rows else ""
 
   async def get_repo(self) -> str:
-    res = await self.db.run("urn:public:vars:get_repo:1", {})
+    res = await self.db.run("db:public:vars:get_repo:1", {})
     return res.rows[0].get("repo") if res.rows else ""
 
   async def get_ffmpeg_version(self) -> str:

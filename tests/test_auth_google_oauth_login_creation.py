@@ -40,19 +40,19 @@ class DummyDb:
     self.calls = []
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       if len([c for c in self.calls if c[0] == op]) == 1:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "urn:system:config:get_config:1":
+    if op == "db:system:config:get_config:1":
       key = args.get("key")
       if key == "Hostname":
         return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
-    if op == "urn:users:providers:create_from_provider:1":
+    if op == "db:users:providers:create_from_provider:1":
       return DBRes([], 1)
     if op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
-    if op == "urn:users:profile:get_roles:1":
+    if op == "db:users:profile:get_roles:1":
       return DBRes([{ "element_roles": 0 }], 1)
     if op == "db:auth:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
@@ -152,7 +152,7 @@ def test_fetch_user_after_create(monkeypatch):
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  calls = [op for op, _ in req.app.state.db.calls if op == "urn:users:providers:get_by_provider_identifier:1"]
+  calls = [op for op, _ in req.app.state.db.calls if op == "db:users:providers:get_by_provider_identifier:1"]
   assert len(calls) == 2
   assert any(
     op == "db:auth:session:create_session:1" and args.get("provider") == "google"
@@ -160,7 +160,7 @@ def test_fetch_user_after_create(monkeypatch):
   )
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert any(
-    op == "urn:users:providers:create_from_provider:1" and args["provider_identifier"] == expected
+    op == "db:users:providers:create_from_provider:1" and args["provider_identifier"] == expected
     for op, args in req.app.state.db.calls
   )
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

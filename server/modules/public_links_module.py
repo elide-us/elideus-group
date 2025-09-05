@@ -17,9 +17,9 @@ class PublicLinksModule(BaseModule):
     self.db = None
 
   async def get_home_links(self):
-    res = await self.db.run("urn:public:links:get_home_links:1", {})
+    res = await self.db.run("db:public:links:get_home_links:1", {})
     return res.rows
 
   async def get_navbar_routes(self, role_mask: int):
-    res = await self.db.run("urn:public:links:get_navbar_routes:1", {"role_mask": role_mask})
+    res = await self.db.run("db:public:links:get_navbar_routes:1", {"role_mask": role_mask})
     return res.rows

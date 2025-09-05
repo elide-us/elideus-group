@@ -135,7 +135,7 @@ class OauthModule(BaseModule):
       checked.add(uid)
       logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
       res = await self.db.run(
-        "urn:users:providers:get_by_provider_identifier:1",
+        "db:users:providers:get_by_provider_identifier:1",
         {"provider": provider, "provider_identifier": uid},
       )
       if res.rows:

@@ -37,14 +37,14 @@ class DummyDb:
     self._get_by_count = 0
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "urn:users:providers:get_by_provider_identifier:1":
+    if op == "db:users:providers:get_by_provider_identifier:1":
       self._get_by_count += 1
       if self._get_by_count == 1:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "urn:users:providers:get_any_by_provider_identifier:1":
+    if op == "db:users:providers:get_any_by_provider_identifier:1":
       return DBRes([{"guid": "user-guid"}], 1)
-    if op == "urn:auth:google:oauth_relink:1":
+    if op == "db:auth:google:oauth_relink:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
     if op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
@@ -52,7 +52,7 @@ class DummyDb:
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
     if op == "db:auth:session:update_device_token:1":
       return DBRes([], 1)
-    if op == "urn:system:config:get_config:1":
+    if op == "db:system:config:get_config:1":
       return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
     return DBRes()
 
@@ -142,6 +142,6 @@ def test_relinks_unlinked_account(monkeypatch):
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(auth_google_oauth_login_v1(req))
   calls = req.app.state.db.calls
-  assert any(op == "urn:auth:google:oauth_relink:1" for op, _ in calls)
-  assert not any(op == "urn:users:providers:create_from_provider:1" for op, _ in calls)
+  assert any(op == "db:auth:google:oauth_relink:1" for op, _ in calls)
+  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
