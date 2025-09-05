@@ -17,7 +17,6 @@ TOKEN_ENDPOINTS = {
   "microsoft": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
 }
 
-
 class OauthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
