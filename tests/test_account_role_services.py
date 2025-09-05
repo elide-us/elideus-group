@@ -1,4 +1,5 @@
 import types, sys, pathlib, asyncio, importlib
+from fastapi import HTTPException
 
 # stub rpc package and load required modules
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -76,15 +77,27 @@ class DummyAuth:
       await self.db.run("db:security:roles:delete_role:1", {"name": name})
     await self.refresh_role_cache()
 
+  async def refresh_user_roles(self, guid):
+    self.loaded = True
+
 
 class DummyRoleAdmin:
   def __init__(self, db, auth):
     self.db = db
     self.auth = auth
 
-  async def list_roles(self):
+  def _max_mask(self, mask: int) -> int:
+    if mask == 0:
+      return 0
+    return 1 << (mask.bit_length() - 1)
+
+  def _ensure_can_manage(self, actor_mask: int, target_mask: int) -> None:
+    if target_mask > self._max_mask(actor_mask):
+      raise HTTPException(status_code=403, detail="Forbidden")
+
+  async def list_roles(self, actor_mask: int | None = None):
     res = await self.db.run("db:system:roles:list:1", {})
-    return [
+    roles = [
       {
         "name": r.get("name", ""),
         "mask": str(r.get("mask", "")),
@@ -93,6 +106,11 @@ class DummyRoleAdmin:
       for r in res.rows
       if r.get("name") != "ROLE_REGISTERED"
     ]
+    roles.sort(key=lambda r: int(r["mask"]))
+    if actor_mask is not None:
+      max_mask = self._max_mask(actor_mask)
+      roles = [r for r in roles if int(r["mask"]) <= max_mask]
+    return roles
 
   async def get_role_members(self, role):
     mem_res = await self.db.run("db:security:roles:get_role_members:1", {"role": role})
@@ -107,24 +125,37 @@ class DummyRoleAdmin:
     ]
     return members, non
 
-  async def add_role_member(self, role, user_guid):
+  async def add_role_member(self, role, user_guid, actor_mask=None):
+    if actor_mask is not None:
+      role_mask = self.auth.roles.get(role, 0)
+      self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       "db:security:roles:add_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
+    await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
-  async def remove_role_member(self, role, user_guid):
+  async def remove_role_member(self, role, user_guid, actor_mask=None):
+    if actor_mask is not None:
+      role_mask = self.auth.roles.get(role, 0)
+      self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       "db:security:roles:remove_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
+    await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
-  async def upsert_role(self, name, mask, display):
+  async def upsert_role(self, name, mask, display, actor_mask=None):
+    if actor_mask is not None:
+      self._ensure_can_manage(actor_mask, mask)
     await self.auth.upsert_role(name, mask, display)
 
-  async def delete_role(self, name):
+  async def delete_role(self, name, actor_mask=None):
+    if actor_mask is not None:
+      role_mask = self.auth.roles.get(name, 0)
+      self._ensure_can_manage(actor_mask, role_mask)
     await self.auth.delete_role(name)
 
 class DummyState:
