@@ -1,23 +1,9 @@
-import asyncio
-import subprocess
-import importlib.util
-import pathlib
-import sys
 from fastapi import HTTPException, Request
-
-# See note in ``rpc.public.links.services`` for why the helper module is loaded
-# explicitly.  The admin service tests leave a stub in ``sys.modules`` which
-# would otherwise cause these public services to fail with ``NotImplementedError``.
-_helpers_spec = importlib.util.spec_from_file_location(
-  "rpc.helpers", pathlib.Path(__file__).resolve().parents[2] / "helpers.py"
-)
-_helpers_mod = importlib.util.module_from_spec(_helpers_spec)
-_helpers_spec.loader.exec_module(_helpers_mod)
-sys.modules["rpc.helpers"] = _helpers_mod
-unbox_request = _helpers_mod.unbox_request
-
+from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+  from server.modules.public_vars_module import PublicVarsModule
 from .models import (
   PublicVarsFfmpegVersion1,
   PublicVarsHostname1,
@@ -27,26 +13,10 @@ from .models import (
 )
 
 
-async def _run_command(*cmd: str):
-  try:
-    process = await asyncio.create_subprocess_exec(
-      *cmd,
-      stdout=asyncio.subprocess.PIPE,
-      stderr=asyncio.subprocess.PIPE,
-    )
-    return await process.communicate()
-  except NotImplementedError:
-    result = await asyncio.to_thread(
-      subprocess.run, cmd, capture_output=True
-    )
-    return result.stdout, result.stderr
-
-
 async def public_vars_get_version_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  res = await db.run(rpc_request.op, rpc_request.payload or {})
-  version = res.rows[0].get("version") if res.rows else ""
+  vars_mod: PublicVarsModule = request.app.state.public_vars
+  version = await vars_mod.get_version()
   payload = PublicVarsVersion1(version=version)
   return RPCResponse(
     op=rpc_request.op,
@@ -56,9 +26,8 @@ async def public_vars_get_version_v1(request: Request):
 
 async def public_vars_get_hostname_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  res = await db.run(rpc_request.op, rpc_request.payload or {})
-  hostname = res.rows[0].get("hostname") if res.rows else ""
+  vars_mod: PublicVarsModule = request.app.state.public_vars
+  hostname = await vars_mod.get_hostname()
   payload = PublicVarsHostname1(hostname=hostname)
   return RPCResponse(
     op=rpc_request.op,
@@ -68,9 +37,8 @@ async def public_vars_get_hostname_v1(request: Request):
 
 async def public_vars_get_repo_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  res = await db.run(rpc_request.op, rpc_request.payload or {})
-  repo = res.rows[0].get("repo") if res.rows else ""
+  vars_mod: PublicVarsModule = request.app.state.public_vars
+  repo = await vars_mod.get_repo()
   payload = PublicVarsRepo1(repo=repo)
   return RPCResponse(
     op=rpc_request.op,
@@ -80,17 +48,11 @@ async def public_vars_get_repo_v1(request: Request):
 
 async def public_vars_get_ffmpeg_version_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
+  vars_mod: PublicVarsModule = request.app.state.public_vars
   try:
-    stdout, stderr = await _run_command("ffmpeg", "-version")
-    if stdout:
-      version_line = stdout.decode().splitlines()[0]
-    else:
-      version_line = stderr.decode().splitlines()[0]
-  except FileNotFoundError:
-    version_line = "ffmpeg library not found (Windows)"
+    version_line = await vars_mod.get_ffmpeg_version()
   except Exception as e:
-    raise HTTPException(status_code=500, detail=f"Error checking ffmpeg: {e}")
-
+    raise HTTPException(status_code=500, detail=str(e))
   payload = PublicVarsFfmpegVersion1(ffmpeg_version=version_line)
   return RPCResponse(
     op=rpc_request.op,
@@ -100,41 +62,11 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
 
 async def public_vars_get_odbc_version_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  system = __import__("platform").system()
+  vars_mod: PublicVarsModule = request.app.state.public_vars
   try:
-    if system == "Windows":
-      stdout, stderr = await _run_command(
-        "cmd",
-        "/c",
-        "reg query \"HKLM\\SOFTWARE\\ODBC\\ODBCINST.INI\\ODBC Driver 18 for SQL Server\" /v Version",
-      )
-      output = stdout.decode() or stderr.decode()
-      version_line = ""
-      for line in output.splitlines():
-        if line.strip().startswith("Version"):
-          parts = line.split()
-          version_line = f"ODBC Driver 18 for SQL Server {parts[-1]}"
-          break
-      if not version_line:
-        version_line = "odbc library not found (Windows)"
-    else:
-      packages = ["msodbcsql18", "unixodbc", "libodbc2"]
-      stdout, stderr = await _run_command(
-        "dpkg-query",
-        "-W",
-        "-f",
-        "${Package} ${Version}\\n",
-        *packages,
-      )
-      if stdout:
-        version_line = stdout.decode().strip().replace("\n", "; ")
-      else:
-        version_line = stderr.decode().strip() or "odbc library not found"
-  except FileNotFoundError:
-    version_line = "odbc library not found" if system != "Windows" else "odbc library not found (Windows)"
+    version_line = await vars_mod.get_odbc_version()
   except Exception as e:
-    raise HTTPException(status_code=500, detail=f"Error checking odbc: {e}")
-
+    raise HTTPException(status_code=500, detail=str(e))
   payload = PublicVarsOdbcVersion1(odbc_version=version_line)
   return RPCResponse(
     op=rpc_request.op,
