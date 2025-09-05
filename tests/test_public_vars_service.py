@@ -7,49 +7,46 @@ pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
 sys.modules.setdefault('rpc', pkg)
 
-# Stub server modules to prevent importing full server app
+# Stub server package with minimal models
 server_pkg = types.ModuleType('server')
-modules_pkg = types.ModuleType('server.modules')
-db_module_pkg = types.ModuleType('server.modules.db_module')
 models_pkg = types.ModuleType('server.models')
+from pydantic import BaseModel
 
-class DbModule:  # minimal placeholder for import
-  pass
+class RPCRequest(BaseModel):
+  op: str
+  payload: dict | None = None
+  version: int = 1
 
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-server_pkg.modules = modules_pkg
-class AuthContext:
-  def __init__(self, **data):
-    self.role_mask = 0
-    self.__dict__.update(data)
+class RPCResponse(BaseModel):
+  op: str
+  payload: dict
+  version: int = 1
+
+class AuthContext(BaseModel):
+  role_mask: int = 0
+
+models_pkg.RPCRequest = RPCRequest
+models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
-
 sys.modules.setdefault('server', server_pkg)
-sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.db_module', db_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 from rpc.public.vars.services import public_vars_get_hostname_v1, public_vars_get_version_v1
 
 
-class DummyDbHostname:
-  async def run(self, op: str, args: dict):
-    assert op == "urn:public:vars:get_hostname:1"
-    assert args == {}
-    return types.SimpleNamespace(rows=[{"hostname": "example.com"}], rowcount=1)
+class DummyVarsHostnameModule:
+  async def get_hostname(self):
+    return "example.com"
 
 
-class DummyDbVersion:
-  async def run(self, op: str, args: dict):
-    assert op == "urn:public:vars:get_version:1"
-    assert args == {}
-    return types.SimpleNamespace(rows=[{"version": "1.2.3"}], rowcount=1)
+class DummyVarsVersionModule:
+  async def get_version(self):
+    return "1.2.3"
 
 
 app = FastAPI()
-app.state.db = DummyDbHostname()
+app.state.public_vars = DummyVarsHostnameModule()
 
 
 @app.post("/rpc")
@@ -69,7 +66,7 @@ def test_get_hostname_service():
 
 
 app_version = FastAPI()
-app_version.state.db = DummyDbVersion()
+app_version.state.public_vars = DummyVarsVersionModule()
 
 
 @app_version.post("/rpc")

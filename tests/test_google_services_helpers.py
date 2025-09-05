@@ -60,6 +60,14 @@ services_mod = importlib.util.module_from_spec(spec_services)
 sys.modules["rpc.auth.google.services"] = services_mod
 spec_services.loader.exec_module(services_mod)
 
+# restore real helpers for subsequent tests
+real_helpers_spec = importlib.util.spec_from_file_location(
+  "rpc.helpers", root_path / "rpc/helpers.py"
+)
+real_helpers = importlib.util.module_from_spec(real_helpers_spec)
+real_helpers_spec.loader.exec_module(real_helpers)
+sys.modules["rpc.helpers"] = real_helpers
+
 extract_identifiers = services_mod.extract_identifiers
 lookup_user = services_mod.lookup_user
 create_session = services_mod.create_session

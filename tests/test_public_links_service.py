@@ -7,50 +7,47 @@ pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
 sys.modules.setdefault('rpc', pkg)
 
-# Stub server modules to prevent importing full server app
+# Stub server package with minimal models
 server_pkg = types.ModuleType('server')
-modules_pkg = types.ModuleType('server.modules')
-db_module_pkg = types.ModuleType('server.modules.db_module')
 models_pkg = types.ModuleType('server.models')
+from pydantic import BaseModel
 
-class DbModule:  # minimal placeholder for import
-  pass
+class RPCRequest(BaseModel):
+  op: str
+  payload: dict | None = None
+  version: int = 1
 
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-server_pkg.modules = modules_pkg
-class AuthContext:
-  def __init__(self, **data):
-    self.role_mask = 0
-    self.__dict__.update(data)
+class RPCResponse(BaseModel):
+  op: str
+  payload: dict
+  version: int = 1
+
+class AuthContext(BaseModel):
+  role_mask: int = 0
+
+models_pkg.RPCRequest = RPCRequest
+models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
-
 sys.modules.setdefault('server', server_pkg)
-sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.db_module', db_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 from rpc.public.links.services import public_links_get_home_links_v1, public_links_get_navbar_routes_v1
 
 
-class DummyDb:
-  async def run(self, op: str, args: dict):
-    if op == "urn:public:links:get_home_links:1":
-      assert args == {}
-      return types.SimpleNamespace(rows=[{"title": "GitHub", "url": "https://github.com"}], rowcount=1)
-    if op == "urn:public:links:get_navbar_routes:1":
-      assert args == {"role_mask": 0}
-      rows = [
-        {"path": "/", "name": "Home", "icon": "home"},
-        {"path": "/gallery", "name": "Gallery", "icon": "gallery"},
-      ]
-      return types.SimpleNamespace(rows=rows, rowcount=2)
-    raise AssertionError(f"unexpected op {op}")
+class DummyLinksModule:
+  async def get_home_links(self):
+    return [{"title": "GitHub", "url": "https://github.com"}]
+  async def get_navbar_routes(self, role_mask):
+    assert role_mask == 0
+    return [
+      {"path": "/", "name": "Home", "icon": "home"},
+      {"path": "/gallery", "name": "Gallery", "icon": "gallery"},
+    ]
 
 
 app = FastAPI()
-app.state.db = DummyDb()
+app.state.public_links = DummyLinksModule()
 
 
 @app.post("/rpc")
