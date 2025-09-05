@@ -36,7 +36,7 @@ RPC_CALL_FUNC = [
   "\t\t\ttry {",
   "\t\t\t\tconst refreshReq = {",
   "\t\t\t\t\top: 'urn:auth:session:refresh_token:1',",
-  "\t\t\t\t\tpayload: null,",
+  "\t\t\t\t\tpayload: { fingerprint: getFingerprint() },",
   "\t\t\t\t\tversion: 1,",
   "\t\t\t\t\ttimestamp: new Date().toISOString(),",
   "\t\t\t\t};",
@@ -114,7 +114,7 @@ def write_interfaces_to_file(interfaces: List[str], output_dir: str) -> None:
   os.makedirs(output_dir, exist_ok=True)
   out_path = os.path.join(output_dir, 'RpcModels.tsx')
   with open(out_path, 'w') as f:
-    lines = HEADER_COMMENT + ['import axios from \"axios\";', '']
+    lines = HEADER_COMMENT + ['import axios from \"axios\";', 'import { getFingerprint } from \"./fingerprint\";', '']
     lines += interfaces + [''] + RPC_CALL_FUNC + ['']
     f.write("\n".join(lines))
   print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
