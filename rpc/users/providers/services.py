@@ -1,7 +1,6 @@
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
 import uuid
-from datetime import datetime, timezone
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
@@ -14,8 +13,12 @@ from .models import (
   UsersProvidersGetByProviderIdentifier1,
   UsersProvidersCreateFromProvider1,
 )
-from rpc.auth.google.services import exchange_code_for_tokens
-from rpc.auth.microsoft.services import exchange_code_for_tokens as ms_exchange_code_for_tokens
+from functools import partial
+from server.modules.oauth_module import (
+  TOKEN_ENDPOINTS,
+  exchange_code_for_tokens,
+)
+ms_exchange_code_for_tokens = partial(exchange_code_for_tokens, token_endpoint=TOKEN_ENDPOINTS["microsoft"])
 
 
 def normalize_provider_identifier(pid: str) -> str:
