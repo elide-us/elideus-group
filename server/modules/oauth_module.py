@@ -2,7 +2,8 @@ import base64, logging, uuid
 import aiohttp
 from datetime import datetime, timezone, timedelta
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from . import BaseModule
 
 from server.modules.auth_module import AuthModule
 try:
@@ -15,6 +16,16 @@ TOKEN_ENDPOINTS = {
   "google": "https://oauth2.googleapis.com/token",
   "microsoft": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
 }
+
+class OauthModule(BaseModule):
+  def __init__(self, app: FastAPI):
+    super().__init__(app)
+
+  async def startup(self):
+    self.mark_ready()
+
+  async def shutdown(self):
+    pass
 
 async def exchange_code_for_tokens(
   code: str,
