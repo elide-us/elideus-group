@@ -1,8 +1,6 @@
 from __future__ import annotations
-import asyncio
-import subprocess
-import msdblib as db
-from scriptlib import bump_version
+import asyncio, subprocess
+from scriptlib import connect, dump_schema, apply_schema, dump_data, bump_version
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
@@ -58,7 +56,7 @@ async def interactive_console(conn):
       case ['reconnect', dbname]:
         try:
           await conn.close()
-          conn = await db.connect(dbname)
+          conn = await connect(dbname)
         except Exception as e:
           print(f'Error reconnecting: {e}')
       case ['index', 'all']:
@@ -69,18 +67,18 @@ async def interactive_console(conn):
         except Exception as e:
           print(f'Error: {e}')
       case ['schema', 'dump']:
-        await db.dump_schema(conn)
+        await dump_schema(conn)
       case ['schema', 'dump', name]:
-        await db.dump_schema(conn, name)
+        await dump_schema(conn, name)
       case ['schema', 'apply', file]:
         try:
-          await db.apply_schema(conn, file)
+          await apply_schema(conn, file)
         except Exception as e:
           print(f'Error applying schema: {e}')
       case ['dump', 'data']:
-        await db.dump_data(conn)
+        await dump_data(conn)
       case ['dump', 'data', name]:
-        await db.dump_data(conn, name)
+        await dump_data(conn, name)
       case ['update', 'version', part] if part in {'major', 'minor', 'patch'}:
         async with conn.cursor() as cur:
           await cur.execute("SELECT element_value FROM system_config WHERE element_key='Version'")
@@ -92,7 +90,7 @@ async def interactive_console(conn):
         new_ver = bump_version(cur_ver, part)
         await _update_config(conn, 'Version', new_ver)
         print(f'Updated Version: {cur_ver} -> {new_ver}')
-        schema_file = await db.dump_schema(conn, new_ver)
+        schema_file = await dump_schema(conn, new_ver)
         _commit_and_tag(new_ver, schema_file)
       case _:
         try:
@@ -109,7 +107,7 @@ async def interactive_console(conn):
           print(f'Error: {e2}')
 
 async def main():
-  conn = await db.connect()
+  conn = await connect()
   try:
     await interactive_console(conn)
   finally:
