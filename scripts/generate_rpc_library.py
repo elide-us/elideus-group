@@ -1,8 +1,6 @@
 
 from __future__ import annotations
-import os
-import sys
-import inspect
+import os, sys, inspect
 from typing import List
 from pydantic import BaseModel
 from scriptlib import REPO_ROOT, HEADER_COMMENT, load_module, model_to_ts
