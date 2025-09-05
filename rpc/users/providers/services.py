@@ -13,12 +13,7 @@ from .models import (
   UsersProvidersGetByProviderIdentifier1,
   UsersProvidersCreateFromProvider1,
 )
-from functools import partial
-from server.modules.oauth_module import (
-  TOKEN_ENDPOINTS,
-  exchange_code_for_tokens,
-)
-ms_exchange_code_for_tokens = partial(exchange_code_for_tokens, token_endpoint=TOKEN_ENDPOINTS["microsoft"])
+from server.modules.oauth_module import OauthModule
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -35,6 +30,7 @@ async def users_providers_set_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
+  oauth: OauthModule = request.app.state.oauth
   profile = None
   if payload.code or (payload.id_token and payload.access_token):
     if payload.provider == "google":
@@ -51,7 +47,7 @@ async def users_providers_set_provider_v1(request: Request):
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
-        id_token, access_token = await exchange_code_for_tokens(
+        id_token, access_token = await oauth.exchange_code_for_tokens(
           payload.code,
           client_id,
           client_secret,
@@ -73,11 +69,12 @@ async def users_providers_set_provider_v1(request: Request):
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
-        id_token, access_token = await ms_exchange_code_for_tokens(
+        id_token, access_token = await oauth.exchange_code_for_tokens(
           payload.code,
           client_id,
           client_secret,
           redirect_uri,
+          token_endpoint=oauth.TOKEN_ENDPOINTS["microsoft"],
         )
       else:
         if not payload.id_token or not payload.access_token:
@@ -116,6 +113,7 @@ async def users_providers_link_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  oauth: OauthModule = request.app.state.oauth
   if payload.provider == "google":
     if not payload.code:
       raise HTTPException(status_code=400, detail="code required")
@@ -131,7 +129,7 @@ async def users_providers_link_provider_v1(request: Request):
     if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
     redirect_uri = res_redirect.rows[0]["value"]
-    id_token, access_token = await exchange_code_for_tokens(
+    id_token, access_token = await oauth.exchange_code_for_tokens(
       payload.code,
       client_id,
       client_secret,
@@ -151,11 +149,12 @@ async def users_providers_link_provider_v1(request: Request):
       if not res_redirect.rows:
         raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
       redirect_uri = res_redirect.rows[0]["value"]
-      id_token, access_token = await ms_exchange_code_for_tokens(
+      id_token, access_token = await oauth.exchange_code_for_tokens(
         payload.code,
         client_id,
         client_secret,
         redirect_uri,
+        token_endpoint=oauth.TOKEN_ENDPOINTS["microsoft"],
       )
     else:
       if not payload.id_token or not payload.access_token:

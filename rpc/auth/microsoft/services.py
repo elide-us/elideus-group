@@ -8,11 +8,7 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
-from server.modules.oauth_module import (
-  extract_identifiers as _extract_identifiers,
-  lookup_user,
-  create_session,
-)
+from server.modules.oauth_module import OauthModule
 from .models import AuthMicrosoftOauthLogin1
 
 
@@ -28,12 +24,6 @@ def normalize_provider_identifier(pid: str) -> str:
     except Exception:
       pass
     return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
-
-
-def extract_identifiers(provider_uid: str | None, payload: dict) -> list[str]:
-  return _extract_identifiers(provider_uid, payload, "microsoft")
-
-
 
 
 async def auth_microsoft_oauth_login_v1(request: Request):
@@ -55,6 +45,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
 
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  oauth: OauthModule = request.app.state.oauth
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token
@@ -64,8 +55,8 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     f"[auth_microsoft_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
 
-  identifiers = extract_identifiers(provider_uid, payload)
-  user = await lookup_user(db, provider, identifiers)
+  identifiers = oauth.extract_identifiers(provider_uid, payload, "microsoft")
+  user = await oauth.lookup_user(provider, identifiers)
 
   if not user or user.get("element_soft_deleted_at"):
     res = await db.run(
@@ -133,8 +124,8 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token, session_exp, rotation_token, rot_exp = await create_session(
-    auth, db, user_guid, provider, fingerprint, user_agent, ip_address
+  session_token, session_exp, rotation_token, rot_exp = await oauth.create_session(
+    user_guid, provider, fingerprint, user_agent, ip_address
   )
 
   payload = AuthMicrosoftOauthLogin1(

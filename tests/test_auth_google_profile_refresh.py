@@ -2,6 +2,9 @@ import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 import json
+from fastapi import FastAPI
+
+from server.modules.oauth_module import OauthModule
 
 class DummyAuth:
   def __init__(self, profile):
@@ -56,6 +59,9 @@ class DummyState:
     self.auth = auth
     self.db = db
     self.env = DummyEnv()
+    self.oauth = OauthModule(FastAPI())
+    self.oauth.auth = self.auth
+    self.oauth.db = self.db
 
 class DummyApp:
   def __init__(self, state):
@@ -122,12 +128,14 @@ def setup_module(mod):
     assert redirect_uri == "http://localhost:8000/userpage"
     return "id", "acc"
   svc_mod.exchange_code_for_tokens = fake_exchange
+  mod.fake_exchange = fake_exchange
   mod.auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
 def test_updates_profile_if_unedited():
   auth = DummyAuth({"email": "new@example.com", "username": "New"})
   db = DummyDb(True)
   state = DummyState(auth, db)
+  state.oauth.exchange_code_for_tokens = fake_exchange
   req = DummyRequest(state)
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)
@@ -139,6 +147,7 @@ def test_leaves_profile_if_edited():
   auth = DummyAuth({"email": "new@example.com", "username": "New"})
   db = DummyDb(False)
   state = DummyState(auth, db)
+  state.oauth.exchange_code_for_tokens = fake_exchange
   req = DummyRequest(state)
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert any(op == "urn:users:profile:update_if_unedited:1" for op, _ in db.calls)

@@ -8,6 +8,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
+from fastapi import FastAPI
+
+from server.modules.oauth_module import OauthModule
 
 import pytest
 from fastapi import HTTPException
@@ -87,6 +90,10 @@ class DummyState:
       self.auth = auth
     if env is not None:
       self.env = env
+    self.oauth = OauthModule(FastAPI())
+    if hasattr(self, 'auth'):
+      self.oauth.auth = self.auth
+    self.oauth.db = self.db
 
 class DummyApp:
   def __init__(self, state):
@@ -148,7 +155,6 @@ def test_link_provider_google_normalizes_identifier():
 
   async def fake_exchange(code, client_id, client_secret, redirect_uri):
     return "id", "acc"
-  svc_mod.exchange_code_for_tokens = fake_exchange
 
   class DummyAuth:
     def __init__(self):
@@ -190,6 +196,7 @@ def test_link_provider_google_normalizes_identifier():
   auth = DummyAuth()
   env = DummyEnv()
   req = DummyRequest(DummyState(db, auth, env))
+  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(users_providers_link_provider_v1(req))
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert ("urn:users:providers:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls

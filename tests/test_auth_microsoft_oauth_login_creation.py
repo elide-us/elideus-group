@@ -1,6 +1,9 @@
 import sys, types, pytest, importlib.util, importlib.machinery, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+from fastapi import FastAPI
+
+from server.modules.oauth_module import OauthModule
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -43,6 +46,9 @@ class DummyState:
   def __init__(self):
     self.auth = DummyAuth()
     self.db = DummyDb()
+    self.oauth = OauthModule(FastAPI())
+    self.oauth.auth = self.auth
+    self.oauth.db = self.db
 
 class DummyApp:
   def __init__(self):
