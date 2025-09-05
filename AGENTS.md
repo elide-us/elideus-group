@@ -1,152 +1,93 @@
 # AGENT Instructions
 
-This document provides instructions and background context for the Codex CLI code agent. It explains how to interact with the project’s build, test, and deployment workflows, as well as how to respect the layered security model.
+This document provides concise rules and operational guidance for the Codex CLI code agent. It is focused on coding agent rules; detailed architectural and security design is documented separately in **ARCHITECTURE.md**.
 
 ---
 
 ## Automation and Scripting
 
-The repository includes several scripts to automate builds, testing, and database management.
-These are the *canonical entry points* for automation and must be used to model workflows correctly.
-
-* **`dev.cmd`**
-  Provides different build workflows. Use this to model required build and test actions on Windows.
-
-* **`run_tests.py`**
-  Centralized entry point for running tests. Always use this when modeling test workflows.
-
-* **`mssql_cli.py`** and **`msdblib.py`**
-  Contain functions for SQL Server schema and data management. Use these utilities for schema dumps, migrations, and maintenance tasks.
-
-* **Docker considerations**
-  The Dockerfile and `buildx` process may be affected by changes, but there is no automated test coverage for these steps. Exercise caution when modifying anything related to container builds.
+* **`dev.cmd`** – Use for build/test actions on Windows.
+* **`run_tests.py`** – Canonical entry point for running tests.
+* **`mssql_cli.py`** and **`scriptlib.py`** – Utilities for schema migrations and maintenance tasks.
+* **Docker builds** – No automated test coverage; modify with caution.
 
 ---
 
 ## Coding Standards
 
-* Python scripts use **2-space indentation**.
-* TypeScript files use **4-space tabs**.
-* All tests, scripts, and documentation must be updated alongside code changes.
-* Linting and type-checking are required for the frontend (`npm lint`, `npm type-check`).
+* Python → 2-space indentation.
+* TypeScript → 4-space tabs.
+* Update tests, scripts, and docs with code changes.
+* Run `npm lint` and `npm type-check` for frontend.
 
 ---
 
 ## Database Management
 
-* Schema files are tracked in `/scripts`. When schema changes are required, generate a new version using the `schema dump` process from `mssql_cli.py`.
-* When data loads are needed, prefer a `.sql` script. Human developers will run the import using `mssql_cli.py`.
+* For data loads, generate a `.sql` file. Human developers will import manually using **SSMS**.
 
 ---
 
 ## Testing Details
 
 * Always regenerate RPC bindings before running tests.
-* Frontend: run `npm lint`, `npm type-check`, `npm test`.
-* Backend: run `pytest` against the `/tests` folder.
-
----
-
-## React Styling
-
-* All React components should use **ElideusTheme** for consistent styling.
-* Update `theme.d.ts` when adding or modifying theme variants.
+* Frontend: `npm lint`, `npm type-check`, `npm test`.
+* Backend: `pytest` in `/tests`.
 
 ---
 
 ## Tech Stack
 
-The project currently uses:
-
-* **Node 18 / React / TypeScript** → Frontend web app
-* **FastAPI on Python 3.12** → Backend RPC server
-* **Docker** → WSGI-compliant containerization
+* **Node 18 / React / TypeScript** – Frontend.
+* **FastAPI (Python 3.12)** – Backend RPC server.
+* **Docker** – Containerization.
 
 ---
 
-## Frontend Build
+## Module and Provider Rules
 
-* The Vite config groups bundles by top-level route prefixes (e.g., `system-*`). Update `vite.config.ts` when adding new route categories like `admin-*` to keep chunking consistent.
+* **Modules** = business logic. Implement modules when new functionality is required.
+* **Providers** = interchangeable backends. Implement when multiple providers are possible (e.g., Azure vs. AWS, MSSQL vs. Postgres).
+* Respect layering: **RPC → Service → Module → Provider → Data**.
+
+---
+
+## RPC Layer Rules
+
+* Keep RPC thin: expressive, mapping, and security-only.
+* Primary **role security** check occurs at the **domain level** (e.g., `urn:domain`).
+* **Feature enablement** check occurs at the **subdomain level** (e.g., `urn:domain:subdomain`).
+* Business logic must live in services/modules, never in RPC handlers.
 
 ---
 
 ## Module Initialization
 
-The **server module system** uses a **two-phase initialization pattern** to ensure clean startup ordering and dependency handling.
+* Two-phase startup:
 
-### Phase 1 — Instantiation
+  * **Instantiation**: load all `_module.py` files, attach to `app.state`.
+  * **Startup**: run `startup()` coroutines, await dependencies with `on_ready()`, call `mark_ready()`.
+* Always inherit from `BaseModule`.
+* Always `await on_ready()` before using a module in startup.
 
-* `server/modules/__init__.py` auto-loads every file ending in `_module.py`.
-* Each class is instantiated immediately and attached to `app.state` using the filename without the suffix.
+---
 
-  * Example: `db_module.py` → available as `app.state.db`.
-* At this stage, all module objects exist and can be referenced, but **none are “ready” yet**.
+## Solutions To Avoid
 
-### Phase 2 — Asynchronous Startup
-
-* Once all modules are instantiated, the system calls each module’s `startup()` coroutine.
-* Within `startup()`, a module may:
-
-  * Fetch other modules from `app.state`.
-  * Await their `on_ready()` to guarantee dependencies are initialized.
-  * Perform its own setup work.
-* When initialization completes, the module calls `mark_ready()`.
-* This signals all awaiting modules that the dependency is now safe to use.
-
-### Ordering Behavior
-
-* Modules with no dependencies complete their startup immediately and mark themselves ready.
-* Modules that depend on others will yield until their dependencies signal readiness.
-* This creates a **natural dependency graph**: startup order emerges automatically without explicit sequencing.
-
-### Contract
-
-* **Every module must inherit from `BaseModule`**.
-* Call `super().__init__(app)` in the constructor.
-* Consumers of a module must always `await on_ready()` before use in startup phase.
-* Modules may optionally expose helpers on `app.state` for use by others.
-
-This design ensures that startup is deterministic, deadlock-free, and extensible: modules only proceed when their dependencies are explicitly ready.
-
-### Solutions To Avoid
-
-- Do NOT add additional aliases for objects when you can reference them directly.
-- Do NOT make errors silently fail.
-- Do NOT provide meaningless defaults.
-- Do NOT invent environment variables.
+* Don’t add aliases when direct references exist.
+* Don’t suppress errors.
+* Don’t invent environment variables.
+* Don’t put business logic in RPC.
+* Don’t bypass modules by calling providers directly.
 
 ---
 
 ## File Structure
 
-### Python
-
-* `/` → build automation, configuration, main FastAPI entrypoint
-* `server/` → FastAPI server, modules, routes, helpers
-* `rpc/` → Pydantic models, RPC handlers, services
-
-### React
-
-* `frontend/` → React/TypeScript web app, compiled into `/static`
-
-### Special
-
-* `tests/` → Unit and process tests
-* `scripts/` → RPC-to-TS generation, schema, automation
-
----
-
-## 8. Key Security Principles
-
-* Do not bypass or merge domains.
-* Do not expose security details.
-* Always key state off GUID.
-* Respect boundaries: provider (external), client (user-owned), server (enforced).
-
-## 9. Additional Documentation
-
-When required, refer to the following documents for additional details:
-
-- RPC.md - Outlines the RPC namespace and associated security paradigms
-- ARCHITECTURE.md - Contains the system architecture and integrated security model including role definitions
-
+* `/` – Build automation, config, FastAPI entrypoint.
+* `server/` – Modules, routes, helpers.
+* `rpc/` – RPC handlers and services.
+* `frontend/` – React app.
+* `static/` – Generated frontend. 
+* `tests/` – Unit/process tests. NOT A PYTHON MODULE! 
+* `scripts/` – RPC-to-TS generation, schema, automation. NOT A PYTHON MODULE!
