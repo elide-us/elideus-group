@@ -90,28 +90,26 @@ const NavBar = (): JSX.Element => {
                                                 }
                                                 return (
                                                         <Fragment key={label}>
-                                                                {open && (
-                                                                        <Divider
-                                                                                component="li"
-                                                                                textAlign="left"
-                                                                                sx={{
-                                                                                        fontSize: '0.55rem',
-                                                                                        textTransform: 'uppercase',
-                                                                                        my: 0.5,
-                                                                                        mx: 1,
-                                                                                        '&::before, &::after': {
-                                                                                                borderColor: 'divider',
-                                                                                        },
-                                                                                }}
-                                                                        >
-                                                                                {label}
-                                                                        </Divider>
-                                                                )}
+                                                                <Divider
+                                                                        component="li"
+                                                                        textAlign="left"
+                                                                        sx={{
+                                                                                fontSize: '0.55rem',
+                                                                                textTransform: 'uppercase',
+                                                                                my: 0.5,
+                                                                                mx: 1,
+                                                                                '&::before, &::after': {
+                                                                                        borderColor: 'divider',
+                                                                                },
+                                                                        }}
+                                                                >
+                                                                        {open ? label : undefined}
+                                                                </Divider>
                                                                 {items.map(renderItem)}
                                                         </Fragment>
                                                 );
                                         };
-
+                            
                                         return (
                                                 <>
                                                         {publicRoutes.map(renderItem)}
