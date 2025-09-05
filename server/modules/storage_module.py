@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-import io, logging
+import base64, io, logging
 
 class StorageModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -138,6 +138,43 @@ class StorageModule(BaseModule):
     logging.debug("[StorageModule] Found %d files for %s", len(files), user_guid)
     return files
 
+  async def user_file_exists(self, user_guid: str, filename: str) -> bool:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    name = f"{user_guid}/{filename}"
+    logging.debug("[StorageModule] Checking file existence %s", name)
+    async for _ in self.client.list_blobs(name_starts_with=name):
+      logging.debug("[StorageModule] File exists %s", name)
+      return True
+    logging.debug("[StorageModule] File does not exist %s", name)
+    return False
+
+  async def ensure_user_file(self, user_guid: str, filename: str) -> None:
+    if not await self.user_file_exists(user_guid, filename):
+      logging.debug("[StorageModule] Missing file %s/%s", user_guid, filename)
+      raise FileNotFoundError(filename)
+
+  async def upload_files(self, user_guid: str, files: list[object]) -> None:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    await self.ensure_user_folder(user_guid)
+    for item in files:
+      name = getattr(item, "name", None) or item.get("name")  # type: ignore
+      b64 = getattr(item, "content_b64", None) or item.get("content_b64")  # type: ignore
+      ct = getattr(item, "content_type", None)
+      if not ct and isinstance(item, dict):
+        ct = item.get("content_type")
+      if not name or not b64:
+        continue
+      buffer = io.BytesIO(base64.b64decode(b64))
+      await self.write_buffer(buffer, user_guid, name, ct)
+
+  async def delete_files(self, user_guid: str, files: list[str]) -> None:
+    if not self.client:
+      raise RuntimeError("Storage client not initialized")
+    for name in files:
+      await self.delete_user_file(user_guid, name)
+
   async def delete_user_file(self, user_guid: str, filename: str) -> None:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
@@ -153,6 +190,7 @@ class StorageModule(BaseModule):
   async def move_file(self, user_guid: str, src: str, dst: str) -> None:
     if not self.client:
       raise RuntimeError("Storage client not initialized")
+    await self.ensure_user_file(user_guid, src)
     src_name = f"{user_guid}/{src}"
     dst_safe = dst.replace(" ", "_")
     dst_name = f"{user_guid}/{dst_safe}"
