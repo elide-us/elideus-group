@@ -109,7 +109,7 @@ const NavBar = (): JSX.Element => {
                                                         </Fragment>
                                                 );
                                         };
-
+                            
                                         return (
                                                 <>
                                                         {publicRoutes.map(renderItem)}
