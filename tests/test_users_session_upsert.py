@@ -58,7 +58,10 @@ def test_create_session_updates_existing(monkeypatch):
       if not fetch_calls:
         fetch_calls.append(1)
         return (1,)
-      return ("sess",)
+      if len(fetch_calls) == 1:
+        fetch_calls.append(1)
+        return ("sess",)
+      return ("dev",)
 
   @asynccontextmanager
   async def fake_tx():
@@ -69,7 +72,7 @@ def test_create_session_updates_existing(monkeypatch):
   args = {
     "access_token": "tok",
     "expires": datetime.now(timezone.utc),
-    "fingerprint": None,
+    "fingerprint": "fp",
     "user_agent": None,
     "ip_address": None,
     "user_guid": "user",
@@ -78,3 +81,5 @@ def test_create_session_updates_existing(monkeypatch):
   asyncio.run(handler(args))
   assert any("update users_sessions" in q for q in executed)
   assert not any("insert into users_sessions" in q for q in executed)
+  assert any("update sessions_devices" in q for q in executed)
+  assert not any("insert into sessions_devices" in q for q in executed)

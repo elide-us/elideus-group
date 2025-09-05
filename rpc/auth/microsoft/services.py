@@ -133,7 +133,7 @@ async def create_session(
   db: DbModule,
   user_guid: str,
   provider: str,
-  fingerprint: str | None,
+  fingerprint: str,
   user_agent: str | None,
   ip_address: str | None,
 ):
@@ -266,6 +266,8 @@ async def auth_microsoft_oauth_login_v1(request: Request):
       if updated.get("email"):
         user["email"] = updated["email"]
   fingerprint = req_payload.get("fingerprint")
+  if not fingerprint:
+    raise HTTPException(status_code=400, detail="Missing fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_token, session_exp, rotation_token, rot_exp = await create_session(

@@ -72,7 +72,7 @@ def test_auth_session_returns_db_profile(monkeypatch):
       self.headers = {"user-agent": "tester"}
       self.client = SimpleNamespace(host="127.0.0.1")
     async def json(self):
-      return {"provider": "google", "id_token": "id", "access_token": "acc"}
+      return {"provider": "google", "id_token": "id", "access_token": "acc", "fingerprint": "fp"}
 
   req = DummyRequest()
   resp = asyncio.run(auth_session_get_token_v1(req))

@@ -119,6 +119,8 @@ async def auth_session_get_token_v1(request: Request):
 
   roles, _ = await auth.get_user_roles(user_guid)
   fingerprint = body.get("fingerprint")
+  if not fingerprint:
+    raise HTTPException(status_code=400, detail="Missing fingerprint")
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_exp = datetime.now(timezone.utc) + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
@@ -183,12 +185,19 @@ async def auth_session_refresh_token_v1(request: Request):
   roles, _ = await auth.get_user_roles(user_guid)
   session_exp = datetime.now(timezone.utc) + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
   placeholder = uuid.uuid4().hex
+  try:
+    body = await request.json()
+  except Exception:
+    body = {}
+  fingerprint = body.get("fingerprint")
+  if not fingerprint:
+    raise HTTPException(status_code=400, detail="Missing fingerprint")
   res = await db.run(
     "db:auth:session:create_session:1",
     {
       "access_token": placeholder,
       "expires": session_exp,
-      "fingerprint": None,
+      "fingerprint": fingerprint,
       "user_agent": request.headers.get("user-agent"),
       "ip_address": request.client.host if request.client else None,
       "user_guid": user_guid,

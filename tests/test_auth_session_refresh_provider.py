@@ -45,6 +45,8 @@ class DummyRequest:
     self.headers = {}
     self.cookies = {"rotation_token": "rot-token"}
     self.client = SimpleNamespace(host="127.0.0.1")
+  async def json(self):
+    return {"fingerprint": "fp"}
 
 
 def _setup():

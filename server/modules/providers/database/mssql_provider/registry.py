@@ -573,7 +573,6 @@ async def _users_set_img(args: Dict[str, Any]):
 @register("db:auth:session:create_session:1")
 async def _auth_session_create_session(args: Dict[str, Any]):
     from uuid import uuid4
-    device_guid = str(uuid4())
     access_token = args["access_token"]
     expires = args["expires"]
     fingerprint = args.get("fingerprint")
@@ -581,6 +580,9 @@ async def _auth_session_create_session(args: Dict[str, Any]):
     ip_address = args.get("ip_address")
     user_guid = args["user_guid"]
     provider = args["provider"]
+
+    if not fingerprint:
+      raise ValueError("Missing device fingerprint")
 
     async with transaction() as cur:
       await cur.execute(
@@ -612,24 +614,43 @@ async def _auth_session_create_session(args: Dict[str, Any]):
           """,
           (session_guid, user_guid),
         )
+
       await cur.execute(
-        """
-          INSERT INTO sessions_devices (
-            element_guid, sessions_guid, providers_recid, element_token, element_token_iat, element_token_exp,
-            element_device_fingerprint, element_user_agent, element_ip_last_seen
-          ) VALUES (?, ?, ?, ?, SYSDATETIMEOFFSET(), ?, ?, ?, ?);
-        """,
-        (
-          device_guid,
-          session_guid,
-          provider_recid,
-          access_token,
-          expires,
-          fingerprint,
-          user_agent,
-          ip_address,
-        ),
+        "SELECT element_guid FROM sessions_devices WHERE sessions_guid = ? AND element_device_fingerprint = ?;",
+        (session_guid, fingerprint),
       )
+      row = await cur.fetchone()
+      if row:
+        device_guid = row[0]
+        await cur.execute(
+          """
+            UPDATE sessions_devices
+            SET element_token = ?, element_token_iat = SYSDATETIMEOFFSET(), element_token_exp = ?,
+                element_user_agent = ?, element_ip_last_seen = ?, element_revoked_at = NULL
+            WHERE element_guid = ?;
+          """,
+          (access_token, expires, user_agent, ip_address, device_guid),
+        )
+      else:
+        device_guid = str(uuid4())
+        await cur.execute(
+          """
+            INSERT INTO sessions_devices (
+              element_guid, sessions_guid, providers_recid, element_token, element_token_iat, element_token_exp,
+              element_device_fingerprint, element_user_agent, element_ip_last_seen
+            ) VALUES (?, ?, ?, ?, SYSDATETIMEOFFSET(), ?, ?, ?, ?);
+          """,
+          (
+            device_guid,
+            session_guid,
+            provider_recid,
+            access_token,
+            expires,
+            fingerprint,
+            user_agent,
+            ip_address,
+          ),
+        )
 
     return {"rows": [{"session_guid": session_guid, "device_guid": device_guid}], "rowcount": 1}
 
@@ -641,17 +662,16 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
         device_guid,
         session_guid,
         user_guid,
-        providers_recid,
-        provider_name,
-        session_created_at,
+        session_created_on AS session_created_at,
         element_token AS token,
         element_token_iat AS issued_at,
         element_token_exp AS expires_at,
         element_revoked_at AS revoked_at,
         element_device_fingerprint AS device_fingerprint,
         element_user_agent AS user_agent,
-        element_ip_last_seen AS ip_last_seen
-      FROM vw_account_user_security
+        element_ip_last_seen AS ip_last_seen,
+        user_roles AS roles
+      FROM vw_user_session_security
       WHERE element_token = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
