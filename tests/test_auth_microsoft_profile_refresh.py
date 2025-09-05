@@ -1,6 +1,9 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+from fastapi import FastAPI
+
+from server.modules.oauth_module import OauthModule
 import json
 
 
@@ -48,6 +51,9 @@ class DummyState:
   def __init__(self, auth, db):
     self.auth = auth
     self.db = db
+    self.oauth = OauthModule(FastAPI())
+    self.oauth.auth = self.auth
+    self.oauth.db = self.db
 
 
 class DummyApp:

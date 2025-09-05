@@ -8,12 +8,7 @@ from server.models import RPCResponse
 from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
-from server.modules.oauth_module import (
-  exchange_code_for_tokens,
-  extract_identifiers,
-  lookup_user,
-  create_session,
-)
+from server.modules.oauth_module import OauthModule
 from .models import AuthGoogleOauthLogin1, AuthGoogleOauthLoginPayload1
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -45,6 +40,7 @@ async def auth_google_oauth_login_v1(request: Request):
   env: EnvModule = request.app.state.env
   auth: AuthModule = request.app.state.auth
   db: DbModule = request.app.state.db
+  oauth: OauthModule = request.app.state.oauth
 
   # Get provider metadata
   google_provider = getattr(auth, "providers", {}).get("google")
@@ -67,7 +63,7 @@ async def auth_google_oauth_login_v1(request: Request):
   logging.debug("[auth_google_oauth_login_v1] GoogleClientId=%s", client_id)
   logging.debug("[auth_google_oauth_login_v1] redirect_uri=%s", redirect_uri)
 
-  id_token, access_token = await exchange_code_for_tokens(
+  id_token, access_token = await oauth.exchange_code_for_tokens(
     code,
     client_id,
     client_secret,
@@ -82,8 +78,8 @@ async def auth_google_oauth_login_v1(request: Request):
     f"[auth_google_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
 
-  identifiers = extract_identifiers(provider_uid, payload)
-  user = await lookup_user(db, provider, identifiers)
+  identifiers = oauth.extract_identifiers(provider_uid, payload)
+  user = await oauth.lookup_user(provider, identifiers)
 
   if user and user.get("element_soft_deleted_at"):
     res = await db.run(
@@ -182,8 +178,8 @@ async def auth_google_oauth_login_v1(request: Request):
   fingerprint = req_payload.fingerprint
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token, session_exp, rotation_token, rot_exp = await create_session(
-    auth, db, user_guid, provider, fingerprint, user_agent, ip_address
+  session_token, session_exp, rotation_token, rot_exp = await oauth.create_session(
+    user_guid, provider, fingerprint, user_agent, ip_address
   )
 
   payload = AuthGoogleOauthLogin1(

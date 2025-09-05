@@ -2,8 +2,9 @@ import sys, types, pytest, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 import json
-from fastapi import HTTPException
+from fastapi import HTTPException, FastAPI
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from server.modules.oauth_module import OauthModule
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -77,6 +78,9 @@ class DummyState:
     self.auth = DummyAuth()
     self.db = DummyDb()
     self.env = DummyEnv()
+    self.oauth = OauthModule(FastAPI())
+    self.oauth.auth = self.auth
+    self.oauth.db = self.db
 
 class DummyApp:
   def __init__(self):
@@ -144,10 +148,10 @@ def test_email_exists_prompt(monkeypatch):
     assert code == "auth-code"
     assert redirect_uri == "http://localhost:8000/userpage"
     return "id", "acc"
-  svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
   req = DummyRequest()
+  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   with pytest.raises(HTTPException) as exc:
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
@@ -213,10 +217,10 @@ def test_email_exists_confirm_links(monkeypatch):
     assert code == "auth-code"
     assert redirect_uri == "http://localhost:8000/userpage"
     return "id", "acc"
-  svc_mod.exchange_code_for_tokens = fake_exchange
   auth_google_oauth_login_v1 = svc_mod.auth_google_oauth_login_v1
 
   req = DummyRequest()
+  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   res = asyncio.run(auth_google_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
