@@ -37,17 +37,24 @@ class StorageModule:
     self.files = []
     self.uploads = []
     self.deleted = []
-    self.ensure_called = False
+    self.validated = []
     self.created = []
     self.moved = []
   async def list_user_files(self, user_guid):
     return self.files
-  async def ensure_user_folder(self, user_guid):
-    self.ensure_called = True
-  async def write_buffer(self, buffer, user_guid, filename, content_type=None):
-    self.uploads.append((user_guid, filename, content_type, buffer.getvalue()))
-  async def delete_user_file(self, user_guid, filename):
-    self.deleted.append((user_guid, filename))
+  async def upload_files(self, user_guid, files):
+    for item in files:
+      name = getattr(item, "name", None) or item.get("name")
+      ct = getattr(item, "content_type", None) or item.get("content_type")
+      b64 = getattr(item, "content_b64", None) or item.get("content_b64")
+      self.uploads.append((user_guid, name, ct, b64))
+  async def delete_files(self, user_guid, files):
+    for name in files:
+      self.deleted.append((user_guid, name))
+  async def ensure_user_file(self, user_guid, name):
+    self.validated.append((user_guid, name))
+    if not any(f.get("name") == name for f in self.files):
+      raise FileNotFoundError(name)
   async def create_folder(self, user_guid, path):
     self.created.append((user_guid, path))
   async def move_file(self, user_guid, src, dst):
@@ -182,6 +189,7 @@ def test_set_gallery_validates_file():
   req = DummyRequest(storage)
   resp = asyncio.run(storage_files_set_gallery_v1(req))
   assert resp.payload["name"] == "a.txt"
+  assert ("u1", "a.txt") in storage.validated
 
 
 def test_create_folder_calls_storage():
