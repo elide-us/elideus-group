@@ -1,8 +1,9 @@
 import types, sys, pathlib
-from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
+from types import SimpleNamespace
+from pydantic import BaseModel
 
 # Stub rpc package to avoid side effects from rpc.__init__
 pkg = types.ModuleType('rpc')
@@ -17,38 +18,33 @@ rpc_system_config_pkg = types.ModuleType('rpc.system.config')
 rpc_system_config_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/system/config')]
 sys.modules.setdefault('rpc.system.config', rpc_system_config_pkg)
 
-# Stub server modules to prevent importing full server app
+# Stub server.models
 server_pkg = types.ModuleType('server')
-modules_pkg = types.ModuleType('server.modules')
-db_module_pkg = types.ModuleType('server.modules.db_module')
 models_pkg = types.ModuleType('server.models')
 
-class DbModule:  # minimal placeholder for import
-  pass
+class RPCResponse(BaseModel):
+  op: str
+  payload: dict
+  version: int = 1
 
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-server_pkg.modules = modules_pkg
-class AuthContext:
-  def __init__(self, **data):
-    self.role_mask = 0
-    self.__dict__.update(data)
+class AuthContext(BaseModel):
+  user_guid: str = ''
+  roles: list[str] = []
+
+models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
-
 sys.modules.setdefault('server', server_pkg)
-sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.db_module', db_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 import importlib.util
 
 svc_spec = importlib.util.spec_from_file_location(
-  "rpc.system.config.services",
-  pathlib.Path(__file__).resolve().parent.parent / "rpc/system/config/services.py",
+  'rpc.system.config.services',
+  pathlib.Path(__file__).resolve().parent.parent / 'rpc/system/config/services.py',
 )
 svc = importlib.util.module_from_spec(svc_spec)
-sys.modules["rpc.system.config.services"] = svc
+sys.modules['rpc.system.config.services'] = svc
 svc_spec.loader.exec_module(svc)
 
 system_config_get_configs_v1 = svc.system_config_get_configs_v1
@@ -65,24 +61,26 @@ async def fake_get(request: Request):
 
 svc.unbox_request = fake_get
 
-class DummyDb:
+class DummySystemConfigModule:
   def __init__(self):
     self.calls = []
-  async def run(self, op: str, args: dict):
-    self.calls.append((op, args))
-    if op == 'urn:system:config:get_configs:1':
-      assert args == {}
-      rows = [{'element_key': 'LoggingLevel', 'element_value': '4'}]
-      return SimpleNamespace(rows=rows, rowcount=1)
-    if op == 'urn:system:config:upsert_config:1':
-      return SimpleNamespace(rows=[], rowcount=1)
-    if op == 'urn:system:config:delete_config:1':
-      return SimpleNamespace(rows=[], rowcount=1)
-    raise AssertionError(f'unexpected op {op}')
+  async def get_configs(self, user_guid, roles):
+    self.calls.append(('get_configs', user_guid, roles))
+    from rpc.system.config.models import SystemConfigConfigItem1, SystemConfigList1
+    item = SystemConfigConfigItem1(key='LoggingLevel', value='4')
+    return SystemConfigList1(items=[item])
+  async def upsert_config(self, user_guid, roles, key, value):
+    self.calls.append(('upsert_config', key, value))
+    from rpc.system.config.models import SystemConfigConfigItem1
+    return SystemConfigConfigItem1(key=key, value=value)
+  async def delete_config(self, user_guid, roles, key):
+    self.calls.append(('delete_config', key))
+    from rpc.system.config.models import SystemConfigDeleteConfig1
+    return SystemConfigDeleteConfig1(key=key)
 
-db = DummyDb()
 app = FastAPI()
-app.state.db = db
+mod = DummySystemConfigModule()
+app.state.system_config = mod
 
 @app.post('/rpc')
 async def rpc_endpoint(request: Request):
@@ -105,12 +103,12 @@ def test_get_configs_service():
   assert data['payload'] == {
     'items': [{'key': 'LoggingLevel', 'value': '4'}]
   }
-  assert ('urn:system:config:get_configs:1', {}) in db.calls
+  assert ('get_configs', 'u1', []) in mod.calls
 
 def test_upsert_and_delete_config_service():
   resp = client.post('/rpc', json={'op': 'urn:system:config:upsert_config:1', 'payload': {'key': 'LoggingLevel', 'value': '2'}})
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:system:config:delete_config:1', 'payload': {'key': 'LoggingLevel'}})
   assert resp.status_code == 200
-  assert ('urn:system:config:upsert_config:1', {'key': 'LoggingLevel', 'value': '2'}) in db.calls
-  assert ('urn:system:config:delete_config:1', {'key': 'LoggingLevel'}) in db.calls
+  assert ('upsert_config', 'LoggingLevel', '2') in mod.calls
+  assert ('delete_config', 'LoggingLevel') in mod.calls
