@@ -96,8 +96,7 @@ def main() -> None:
   if not args.test:
     asyncio.run(update_build_version())
 
-  subprocess.check_call([sys.executable, 'scripts/generate_rpc_library.py'], cwd=ROOT)
-  subprocess.check_call([sys.executable, 'scripts/generate_rpc_client.py'], cwd=ROOT)
+  subprocess.check_call([sys.executable, 'scripts/generate_rpc_bindings.py'], cwd=ROOT)
   
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'frontend')
   subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'frontend')
