@@ -20,7 +20,7 @@ RUN python3 -m venv $VIRTUAL_ENV \
 
 COPY . .
 
-RUN python3 scripts/generate_rpc_library.py && python3 scripts/generate_rpc_client.py
+RUN python3 scripts/generate_rpc_bindings.py
 
 WORKDIR /app/frontend
 

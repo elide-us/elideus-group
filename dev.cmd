@@ -35,9 +35,7 @@ IF ERRORLEVEL 1 EXIT /b 1
 EXIT /b 0
 
 :GENERATE_LIBS
-  python scripts\generate_rpc_library.py
-  IF ERRORLEVEL 1 EXIT /b 1
-  python scripts\generate_rpc_client.py
+  python scripts\generate_rpc_bindings.py
   IF ERRORLEVEL 1 EXIT /b 1
   EXIT /b 0
 

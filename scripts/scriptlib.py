@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, importlib.util, types, json, aioodbc, dotenv, re
+import os, importlib.util, types, json, dotenv, re
 from typing import Any, Union, get_origin, get_args
 from pydantic import BaseModel
 from pathlib import Path
@@ -414,6 +414,10 @@ async def apply_schema(conn, path: str):
   print('Schema applied.')
 
 async def connect(dbname=None):
+  try:
+    import aioodbc  # type: ignore
+  except Exception as e:
+    raise ImportError('aioodbc is required for database operations') from e
   dsn = os.getenv('AZURE_SQL_CONNECTION_STRING')
   if not dsn:
     raise RuntimeError('AZURE_SQL_CONNECTION_STRING not set')
