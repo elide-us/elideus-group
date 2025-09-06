@@ -382,6 +382,51 @@ def _db_support_users_enable_storage(args: Dict[str, Any]):
   return _support_users_enable_storage(args)
 
 
+# -------------------- STORAGE CACHE --------------------
+
+@register("db:storage:cache:list:1")
+def _storage_cache_list(args: Dict[str, Any]):
+  user_guid = args["user_guid"]
+  sql = """
+    SELECT
+      usc.element_path AS path,
+      usc.element_filename AS filename,
+      st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.users_guid = ? AND usc.element_deleted = 0
+    ORDER BY usc.element_path, usc.element_filename
+    FOR JSON PATH;
+  """
+  return ("json_many", sql, (user_guid,))
+
+
+@register("db:storage:cache:replace_user:1")
+async def _storage_cache_replace_user(args: Dict[str, Any]):
+  user_guid = args["user_guid"]
+  items: list[Dict[str, Any]] = args.get("items", [])
+  async with transaction() as cur:
+    await cur.execute("DELETE FROM users_storage_cache WHERE users_guid = ?;", (user_guid,))
+    for item in items:
+      path = item.get("path", "")
+      filename = item.get("filename", "")
+      mimetype = item.get("content_type", "application/octet-stream")
+      res = await fetch_json(
+        "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+        (mimetype,),
+      )
+      if not res.rows:
+        raise ValueError(f"Unknown storage mimetype: {mimetype}")
+      type_recid = res.rows[0]["recid"]
+      await cur.execute(
+        """INSERT INTO users_storage_cache
+          (users_guid, types_recid, element_path, element_filename, element_public, element_modified_on, element_deleted)
+          VALUES (?, ?, ?, ?, ?, NULL, 0);""",
+        (user_guid, type_recid, path, filename, item.get("public", 0)),
+      )
+  return DBResult(rows=[], rowcount=len(items))
+
+
 @register("urn:users:profile:set_optin:1")
 def _users_set_optin(args: Dict[str, Any]):
     guid = args["guid"]

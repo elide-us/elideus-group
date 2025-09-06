@@ -10,6 +10,7 @@ from .services import (
   storage_files_set_gallery_v1,
   storage_files_create_folder_v1,
   storage_files_move_file_v1,
+  storage_files_refresh_cache_v1,
 )
 
 
@@ -20,5 +21,6 @@ DISPATCHERS: dict[tuple[str, str], callable] = {
   ("set_gallery", "1"): storage_files_set_gallery_v1,
   ("create_folder", "1"): storage_files_create_folder_v1,
   ("move_file", "1"): storage_files_move_file_v1,
+  ("refresh_cache", "1"): storage_files_refresh_cache_v1,
 }
 

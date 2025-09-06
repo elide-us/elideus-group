@@ -3,6 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.storage_module import StorageModule
+from server.modules.storage_cache_module import StorageCacheModule
 
 from .models import (
   StorageFilesDeleteFiles1,
@@ -17,8 +18,8 @@ from .models import (
 
 async def storage_files_get_files_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  storage: StorageModule = request.app.state.storage
-  files = await storage.list_user_files(auth_ctx.user_guid)
+  cache: StorageCacheModule = request.app.state.storage_cache
+  files = await cache.list_user_files(auth_ctx.user_guid)
   payload = StorageFilesFiles1(files=[StorageFilesFileItem1(**f) for f in files])
   return RPCResponse(
     op=rpc_request.op,
@@ -86,6 +87,18 @@ async def storage_files_move_file_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def storage_files_refresh_cache_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  cache: StorageCacheModule = request.app.state.storage_cache
+  files = await cache.refresh_user_cache(auth_ctx.user_guid)
+  payload = StorageFilesFiles1(files=[StorageFilesFileItem1(**f) for f in files])
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
     version=rpc_request.version,
   )
 
