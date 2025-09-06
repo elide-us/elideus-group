@@ -115,3 +115,13 @@ class DbModule(BaseModule):
       raise ValueError("Missing config value for key: JwksCacheTime")
     return int(value)
 
+  async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
+    res = await self.run("db:storage:cache:list:1", {"user_guid": user_guid})
+    return res.rows
+
+  async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
+    await self.run(
+      "db:storage:cache:replace_user:1",
+      {"user_guid": user_guid, "items": items},
+    )
+

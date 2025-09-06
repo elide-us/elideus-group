@@ -31,6 +31,7 @@ sys.modules["server.models"] = models
 server_pkg = types.ModuleType("server")
 modules_pkg = types.ModuleType("server.modules")
 storage_module_pkg = types.ModuleType("server.modules.storage_module")
+storage_cache_module_pkg = types.ModuleType("server.modules.storage_cache_module")
 
 class StorageModule:
   def __init__(self):
@@ -62,6 +63,17 @@ class StorageModule:
 
 storage_module_pkg.StorageModule = StorageModule
 modules_pkg.storage_module = storage_module_pkg
+class StorageCacheModule:
+  def __init__(self, storage):
+    self.storage = storage
+    self.cache = []
+  async def list_user_files(self, user_guid):
+    return self.cache
+  async def refresh_user_cache(self, user_guid):
+    self.cache = self.storage.files
+    return self.cache
+storage_cache_module_pkg.StorageCacheModule = StorageCacheModule
+modules_pkg.storage_cache_module = storage_cache_module_pkg
 server_pkg.modules = modules_pkg
 models_pkg = types.ModuleType("server.models")
 class AuthContext:
@@ -74,6 +86,7 @@ server_pkg.models = models_pkg
 sys.modules.setdefault("server", server_pkg)
 sys.modules.setdefault("server.modules", modules_pkg)
 sys.modules.setdefault("server.modules.storage_module", storage_module_pkg)
+sys.modules.setdefault("server.modules.storage_cache_module", storage_cache_module_pkg)
 sys.modules.setdefault("server.models", models_pkg)
 
 # load real helpers then override for service import
@@ -104,6 +117,7 @@ storage_files_delete_files_v1 = svc_mod.storage_files_delete_files_v1
 storage_files_set_gallery_v1 = svc_mod.storage_files_set_gallery_v1
 storage_files_create_folder_v1 = svc_mod.storage_files_create_folder_v1
 storage_files_move_file_v1 = svc_mod.storage_files_move_file_v1
+storage_files_refresh_cache_v1 = svc_mod.storage_files_refresh_cache_v1
 
 class DummyAuth:
   def __init__(self):
@@ -111,8 +125,9 @@ class DummyAuth:
 
 
 class DummyState:
-  def __init__(self, storage):
+  def __init__(self, storage, cache):
     self.storage = storage
+    self.storage_cache = cache
     self.auth = DummyAuth()
 
 class DummyApp:
@@ -120,8 +135,8 @@ class DummyApp:
     self.state = state
 
 class DummyRequest:
-  def __init__(self, storage):
-    self.app = DummyApp(DummyState(storage))
+  def __init__(self, storage, cache):
+    self.app = DummyApp(DummyState(storage, cache))
     self.headers = {}
 
 
@@ -133,7 +148,9 @@ def test_get_files_returns_list():
   svc_mod.unbox_request = fake_get
   storage = StorageModule()
   storage.files = [{"name": "a.txt", "url": "http://x/a.txt", "content_type": "text/plain"}]
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  cache.cache = storage.files
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_get_files_v1(req))
   assert isinstance(resp, RPCResponse)
   assert resp.payload["files"][0]["name"] == "a.txt"
@@ -150,7 +167,8 @@ def test_upload_files_calls_storage():
     return rpc, auth, None
   svc_mod.unbox_request = fake_up
   storage = StorageModule()
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_upload_files_v1(req))
   assert storage.uploads and storage.uploads[0][1] == "a.txt"
   assert isinstance(resp, RPCResponse)
@@ -167,7 +185,8 @@ def test_delete_files_calls_storage():
     return rpc, auth, None
   svc_mod.unbox_request = fake_del
   storage = StorageModule()
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_delete_files_v1(req))
   assert ("u1", "a.txt") in storage.deleted
   assert ("u1", "b.txt") in storage.deleted
@@ -186,7 +205,8 @@ def test_set_gallery_validates_file():
   svc_mod.unbox_request = fake_set
   storage = StorageModule()
   storage.files = [{"name": "a.txt", "url": "http://x/a.txt"}]
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_set_gallery_v1(req))
   assert resp.payload["name"] == "a.txt"
   assert ("u1", "a.txt") in storage.validated
@@ -203,7 +223,8 @@ def test_create_folder_calls_storage():
     return rpc, auth, None
   svc_mod.unbox_request = fake_create
   storage = StorageModule()
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_create_folder_v1(req))
   assert ("u1", "a/b") in storage.created
   assert isinstance(resp, RPCResponse)
@@ -220,7 +241,23 @@ def test_move_file_calls_storage():
     return rpc, auth, None
   svc_mod.unbox_request = fake_move
   storage = StorageModule()
-  req = DummyRequest(storage)
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
   resp = asyncio.run(storage_files_move_file_v1(req))
   assert ("u1", "a.txt", "b/a.txt") in storage.moved
+  assert isinstance(resp, RPCResponse)
+
+
+def test_refresh_cache_updates_cache():
+  async def fake_refresh(request):
+    rpc = RPCRequest(op="urn:storage:files:refresh_cache:1", payload=None, version=1)
+    auth = SimpleNamespace(user_guid="u1", roles=["ROLE_STORAGE"], role_mask=0x2)
+    return rpc, auth, None
+  svc_mod.unbox_request = fake_refresh
+  storage = StorageModule()
+  storage.files = [{"name": "a.txt", "url": "http://x/a.txt", "content_type": "text/plain"}]
+  cache = StorageCacheModule(storage)
+  req = DummyRequest(storage, cache)
+  resp = asyncio.run(storage_files_refresh_cache_v1(req))
+  assert cache.cache and cache.cache[0]["name"] == "a.txt"
   assert isinstance(resp, RPCResponse)
