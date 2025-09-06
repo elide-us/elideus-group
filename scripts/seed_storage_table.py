@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import os
+from uuid import UUID
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
 from scriptlib import connect
 
@@ -14,11 +15,11 @@ async def _fetch_type_map(conn) -> dict[str, int]:
     rows = await cur.fetchall()
   return {m: recid for recid, m in rows}
 
-async def _fetch_user_guids(conn) -> set[str]:
+async def _fetch_user_guids(conn) -> set[UUID]:
   async with conn.cursor() as cur:
     await cur.execute("SELECT element_guid FROM account_users")
     rows = await cur.fetchall()
-  return {r[0] for r in rows}
+  return {UUID(str(r[0])) for r in rows}
 
 async def _show_cache_sample(conn, limit: int = 5) -> None:
   async with conn.cursor() as cur:
@@ -71,7 +72,11 @@ async def seed_storage_cache():
       if len(parts) < 2:
         _debug(f"skipping {name}: not enough path parts")
         continue
-      user_guid = parts[0]
+      try:
+        user_guid = UUID(parts[0])
+      except ValueError:
+        _debug(f"skipping {name}: invalid guid {parts[0]}")
+        continue
       if user_guid not in user_guids:
         _debug(f"skipping {name}: unknown user {user_guid}")
         continue
@@ -88,14 +93,14 @@ async def seed_storage_cache():
       async with conn.cursor() as cur:
         await cur.execute(
           "SELECT 1 FROM users_storage_cache WHERE users_guid=? AND element_path=? AND element_filename=?",
-          (user_guid, path, filename),
+          (str(user_guid), path, filename),
         )
         if await cur.fetchone():
           _debug(f"skipping {name}: already exists")
           continue
         await cur.execute(
           "INSERT INTO users_storage_cache (users_guid, types_recid, element_path, element_filename, element_public, element_deleted) VALUES (?, ?, ?, ?, 0, 0)",
-          (user_guid, types_recid, path, filename),
+          (str(user_guid), types_recid, path, filename),
         )
         inserted += 1
     await conn.commit()
