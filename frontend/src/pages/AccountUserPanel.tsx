@@ -14,10 +14,12 @@ import type {
 import {
     fetchProfile,
     fetchSetCredits,
-    fetchEnableStorage,
     fetchResetDisplay,
-    fetchCheckStorage,
 } from '../rpc/account/user';
+import {
+    fetchCreateUser as fetchProvisionCreateUser,
+    fetchCheckUser as fetchProvisionCheckUser,
+} from '../rpc/storage/provision';
 import {
     fetchRoles,
     fetchRoleMembers,
@@ -86,12 +88,12 @@ const AccountUserPanel = (): JSX.Element => {
         }, [guid]);
 
         useEffect(() => {
-                if (!guid) return;
+                if (!profile) return;
                 setStorageChecked(false);
                 if (assigned.some((r) => r.name === 'ROLE_STORAGE')) {
                         void (async () => {
                                 try {
-                                        const res = await fetchCheckStorage({ userGuid: guid });
+                                        const res = await fetchProvisionCheckUser();
                                         setStorageExists(Boolean(res.exists));
                                 } catch {
                                         setStorageExists(false);
@@ -103,7 +105,7 @@ const AccountUserPanel = (): JSX.Element => {
                         setStorageExists(false);
                         setStorageChecked(true);
                 }
-        }, [assigned, guid]);
+        }, [assigned, profile]);
 
         const moveRight = (): void => {
                 if (!selectedLeft) return;
@@ -123,27 +125,27 @@ const AccountUserPanel = (): JSX.Element => {
                 setSelectedRight('');
         };
 
-	const handleResetDisplay = async (): Promise<void> => {
-		if (!guid) return;
-		await fetchResetDisplay({ userGuid: guid });
-		const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
-		setProfile(prof);
-	};
+        const handleResetDisplay = async (): Promise<void> => {
+                if (!profile) return;
+                await fetchResetDisplay({ userGuid: profile.guid });
+                const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: profile.guid });
+                setProfile(prof);
+        };
 
         const handleEnableStorage = async (): Promise<void> => {
-                if (!guid) return;
-                await fetchEnableStorage({ userGuid: guid });
+                if (!profile) return;
+                await fetchProvisionCreateUser();
                 setStorageExists(true);
         };
 
-	const handleSave = async (): Promise<void> => {
-		if (!guid) return;
+        const handleSave = async (): Promise<void> => {
+                if (!profile) return;
                 const assignedNames = assigned.map((r) => r.name);
                 const toAdd = assignedNames.filter((r) => !initialAssigned.includes(r));
                 const toRemove = initialAssigned.filter((r) => !assignedNames.includes(r));
-                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: guid })));
-                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: guid })));
-                await fetchSetCredits({ userGuid: guid, credits });
+                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: profile.guid })));
+                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: profile.guid })));
+                await fetchSetCredits({ userGuid: profile.guid, credits });
                 setInitialAssigned(assignedNames);
                 setNotification(true);
         };
