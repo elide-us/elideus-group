@@ -65,14 +65,17 @@ const NavBar = (): JSX.Element => {
 			</Box>
                         <List sx={{ flexGrow: 1 }}>
                                 {(() => {
-                                        const publicRoutes = routes.filter((r) => r.path === '/' || r.path.startsWith('/gallery'));
-                                        const roleRoutes = routes.filter((r) => !(r.path === '/' || r.path.startsWith('/gallery')));
-                                        const userRoutes = roleRoutes.filter((r) => r.path.startsWith('/user'));
-                                        const accountRoutes = roleRoutes.filter((r) => r.path.startsWith('/account'));
-                                        const systemRoutes = roleRoutes.filter((r) => r.path.startsWith('/system'));
-                                        const serviceRoutes = roleRoutes.filter((r) => r.path.startsWith('/service'));
+					const publicRoutes = routes.filter((r) => r.path === '/' || r.path.startsWith('/gallery'));
+					const roleRoutes = routes.filter((r) => !(r.path === '/' || r.path.startsWith('/gallery')));
+					const userRoutes = roleRoutes.filter((r) => r.path.startsWith('/user'));
+					const accountRoutes = roleRoutes.filter((r) => r.path.startsWith('/account'));
+					const systemRoutes = roleRoutes.filter((r) => r.path.startsWith('/system'));
+					const serviceRoutes = roleRoutes.filter((r) => r.path.startsWith('/service'));
+					const otherRoutes = roleRoutes.filter(
+						(r) => !['/user', '/account', '/system', '/service'].some((p) => r.path.startsWith(p)),
+					);
 
-                                        const renderItem = (route: PublicLinksNavBarRoute1) => {
+					const renderItem = (route: PublicLinksNavBarRoute1) => {
                                                 const IconComp = iconMap[route.icon ?? ''] || defaultIcon;
                                                 return (
                                                         <ListItemButton component={Link} to={route.path} key={route.path}>
@@ -110,15 +113,16 @@ const NavBar = (): JSX.Element => {
                                                 );
                                         };
                             
-                                        return (
-                                                <>
-                                                        {publicRoutes.map(renderItem)}
-                                                        {renderSection('USER', userRoutes)}
-                                                        {renderSection('ACCOUNT', accountRoutes)}
-                                                        {renderSection('SYSTEM', systemRoutes)}
-                                                        {renderSection('SERVICE', serviceRoutes)}
-                                                </>
-                                        );
+					return (
+						<>
+							{publicRoutes.map(renderItem)}
+							{otherRoutes.map(renderItem)}
+							{renderSection('USER', userRoutes)}
+							{renderSection('ACCOUNT', accountRoutes)}
+							{renderSection('SYSTEM', systemRoutes)}
+							{renderSection('SERVICE', serviceRoutes)}
+						</>
+					);
                                 })()}
                         </List>
 			<Box sx={{ p: 1 }}>
