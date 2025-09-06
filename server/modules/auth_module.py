@@ -17,6 +17,90 @@ DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
 
 
+class RoleCache:
+  def __init__(self, db: DbModule | None = None):
+    self.db = db
+    self.roles: dict[str, int] = {}
+    self.role_names: list[str] = []
+    self.role_registered: int = 0
+    self._user_roles: dict[str, tuple[list[str], int]] = {}
+
+  async def load_roles(self):
+    logging.debug("[RoleCache] Loading roles from database")
+    try:
+      result = await self.db.run("db:system:roles:list:1", {})
+    except Exception as e:
+      logging.error("[RoleCache] Failed to load roles: %s", e)
+      return
+    rows = result.rows
+    if not rows:
+      logging.debug("[RoleCache] No roles returned")
+      return
+    self.roles.clear()
+    for r in rows:
+      self.roles[r["name"]] = int(r["mask"])
+    self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
+    self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
+    self._user_roles.clear()
+    logging.debug("[RoleCache] Loaded roles: %s", self.roles)
+
+  async def refresh_role_cache(self):
+    logging.debug("[RoleCache] Refreshing role cache")
+    await self.load_roles()
+
+  async def upsert_role(self, name: str, mask: int, display: str | None):
+    await self.db.run(
+      "db:security:roles:upsert_role:1",
+      {"name": name, "mask": mask, "display": display},
+    )
+    await self.refresh_role_cache()
+
+  async def delete_role(self, name: str):
+    await self.db.run(
+      "db:security:roles:delete_role:1",
+      {"name": name},
+    )
+    await self.refresh_role_cache()
+
+  def mask_to_names(self, mask: int) -> list[str]:
+    return [name for name, bit in self.roles.items() if mask & bit]
+
+  def names_to_mask(self, names: list[str]) -> int:
+    mask = 0
+    for name in names:
+      mask |= self.roles.get(name, 0)
+    return mask
+
+  def get_role_names(self, exclude_registered: bool = False) -> list[str]:
+    if exclude_registered:
+      return [n for n in self.role_names]
+    return list(self.roles.keys())
+
+  async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
+    if not refresh and guid in self._user_roles:
+      logging.debug("[RoleCache] Returning cached roles for %s", guid)
+      return self._user_roles[guid]
+    logging.debug("[RoleCache] Fetching roles for %s", guid)
+    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
+    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+    names = self.mask_to_names(mask)
+    self._user_roles[guid] = (names, mask)
+    logging.debug("[RoleCache] Roles for %s: %s (mask=%#018x)", guid, names, mask)
+    return names, mask
+
+  async def user_has_role(self, guid: str, required_mask: int) -> bool:
+    if not required_mask:
+      return True
+    if not guid:
+      return False
+    _, mask = await self.get_user_roles(guid)
+    return bool(mask & required_mask)
+
+  async def refresh_user_roles(self, guid: str):
+    logging.debug("[RoleCache] Refreshing user roles for %s", guid)
+    await self.get_user_roles(guid, refresh=True)
+
+
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -24,16 +108,30 @@ class AuthModule(BaseModule):
     self.jwt_secret: str | None = None
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
-    self.roles: dict[str, int] = {}
-    self.role_names: list[str] = []
-    self.role_registered: int = 0
-    self._user_roles: dict[str, tuple[list[str], int]] = {}
+    self.role_cache = RoleCache()
+
+  @property
+  def roles(self) -> dict[str, int]:
+    return self.role_cache.roles
+
+  @property
+  def role_names(self) -> list[str]:
+    return self.role_cache.role_names
+
+  @property
+  def role_registered(self) -> int:
+    return self.role_cache.role_registered
+
+  @property
+  def _user_roles(self) -> dict[str, tuple[list[str], int]]:
+    return self.role_cache._user_roles
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.role_cache.db = self.db
     self.jwt_secret = self.env.get("JWT_SECRET")
     self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
 
@@ -56,7 +154,7 @@ class AuthModule(BaseModule):
         await provider.startup()
         self.providers["google"] = provider
         logging.debug("[AuthModule] Google provider ready")
-      await self.load_roles()
+      await self.role_cache.load_roles()
       logging.info("Auth module loaded")
       self.mark_ready()
     except Exception as e:
@@ -185,86 +283,32 @@ class AuthModule(BaseModule):
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
 
   async def load_roles(self):
-    logging.debug("[AuthModule] Loading roles from database")
-    try:
-      result = await self.db.run("db:system:roles:list:1", {})
-    except Exception as e:
-      logging.error("[AuthModule] Failed to load roles: %s", e)
-      return
-    rows = result.rows
-    if not rows:
-      logging.debug("[AuthModule] No roles returned")
-      return
-    self.roles.clear()
-    for r in rows:
-      self.roles[r["name"]] = int(r["mask"])
-    self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
-    self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
-    self._user_roles.clear()
-    logging.debug("[AuthModule] Loaded roles: %s", self.roles)
+    await self.role_cache.load_roles()
 
   async def refresh_role_cache(self):
-    logging.debug("[AuthModule] Refreshing role cache")
-    await self.load_roles()
+    await self.role_cache.refresh_role_cache()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    await self.db.run(
-      "db:security:roles:upsert_role:1",
-      {"name": name, "mask": mask, "display": display},
-    )
-    await self.refresh_role_cache()
+    await self.role_cache.upsert_role(name, mask, display)
 
   async def delete_role(self, name: str):
-    await self.db.run(
-      "db:security:roles:delete_role:1",
-      {"name": name},
-    )
-    await self.refresh_role_cache()
+    await self.role_cache.delete_role(name)
 
   def mask_to_names(self, mask: int) -> list[str]:
-    return [name for name, bit in self.roles.items() if mask & bit]
+    return self.role_cache.mask_to_names(mask)
 
   def names_to_mask(self, names: list[str]) -> int:
-    mask = 0
-    for name in names:
-      mask |= self.roles.get(name, 0)
-    return mask
+    return self.role_cache.names_to_mask(names)
 
   def get_role_names(self, exclude_registered: bool = False) -> list[str]:
-    if exclude_registered:
-      return [n for n in self.role_names]
-    return list(self.roles.keys())
+    return self.role_cache.get_role_names(exclude_registered)
 
   async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
-    if not refresh and guid in self._user_roles:
-      logging.debug("[AuthModule] Returning cached roles for %s", guid)
-      return self._user_roles[guid]
-    logging.debug("[AuthModule] Fetching roles for %s", guid)
-    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
-    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
-    names = self.mask_to_names(mask)
-    self._user_roles[guid] = (names, mask)
-    logging.debug("[AuthModule] Roles for %s: %s (mask=%#018x)", guid, names, mask)
-    return names, mask
+    return await self.role_cache.get_user_roles(guid, refresh)
 
   async def user_has_role(self, guid: str, required_mask: int) -> bool:
-    """Check if a user possesses a required role mask.
-
-    Args:
-      guid: The user's GUID.
-      required_mask: Bitmask representing required roles.
-
-    Returns:
-      True if the user has at least one of the required roles, otherwise False.
-    """
-    if not required_mask:
-      return True
-    if not guid:
-      return False
-    _, mask = await self.get_user_roles(guid)
-    return bool(mask & required_mask)
+    return await self.role_cache.user_has_role(guid, required_mask)
 
   async def refresh_user_roles(self, guid: str):
-    logging.debug("[AuthModule] Refreshing user roles for %s", guid)
-    await self.get_user_roles(guid, refresh=True)
+    await self.role_cache.refresh_user_roles(guid)
 

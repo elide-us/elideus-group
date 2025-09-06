@@ -51,7 +51,7 @@ class DummyDb:
       return DBRes(self.roles, len(self.roles))
     return DBRes()
 
-class DummyAuth:
+class RoleCache:
   def __init__(self, db=None, roles=None):
     self.db = db
     self.roles = roles or {}
@@ -79,6 +79,11 @@ class DummyAuth:
 
   async def refresh_user_roles(self, guid):
     self.loaded = True
+
+class DummyAuth:
+  def __init__(self, db=None, roles=None):
+    self.db = db
+    self.role_cache = RoleCache(db, roles)
 
 
 class DummyRoleAdmin:
@@ -127,36 +132,36 @@ class DummyRoleAdmin:
 
   async def add_role_member(self, role, user_guid, actor_mask=None):
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      role_mask = self.auth.role_cache.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       "db:security:roles:add_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
-    await self.auth.refresh_user_roles(user_guid)
+    await self.auth.role_cache.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def remove_role_member(self, role, user_guid, actor_mask=None):
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      role_mask = self.auth.role_cache.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       "db:security:roles:remove_role_member:1",
       {"role": role, "user_guid": user_guid},
     )
-    await self.auth.refresh_user_roles(user_guid)
+    await self.auth.role_cache.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def upsert_role(self, name, mask, display, actor_mask=None):
     if actor_mask is not None:
       self._ensure_can_manage(actor_mask, mask)
-    await self.auth.upsert_role(name, mask, display)
+    await self.auth.role_cache.upsert_role(name, mask, display)
 
   async def delete_role(self, name, actor_mask=None):
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(name, 0)
+      role_mask = self.auth.role_cache.roles.get(name, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.auth.delete_role(name)
+    await self.auth.role_cache.delete_role(name)
 
 class DummyState:
   def __init__(self, db, auth=None):
@@ -251,7 +256,7 @@ def test_upsert_and_delete_role():
   helpers.unbox_request = fake_upsert
   svc_mod.unbox_request = fake_upsert
   resp = asyncio.run(account_role_upsert_role_v1(req))
-  assert auth.upsert_args == ("ROLE_NEW", 8, "New")
+  assert auth.role_cache.upsert_args == ("ROLE_NEW", 8, "New")
   assert (
     "db:security:roles:upsert_role:1",
     {"name": "ROLE_NEW", "mask": 8, "display": "New"},
@@ -272,7 +277,7 @@ def test_upsert_and_delete_role():
   helpers.unbox_request = fake_delete
   svc_mod.unbox_request = fake_delete
   resp2 = asyncio.run(account_role_delete_role_v1(req))
-  assert auth.delete_args == "ROLE_NEW"
+  assert auth.role_cache.delete_args == "ROLE_NEW"
   assert ("db:security:roles:delete_role:1", {"name": "ROLE_NEW"}) in db.calls
   assert isinstance(resp2, models_mod.RPCResponse)
 

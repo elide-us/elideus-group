@@ -14,17 +14,30 @@ class DummyDb:
       return types.SimpleNamespace(rows=self.roles)
     return types.SimpleNamespace(rows=[])
 
-class DummyAuth:
+class RoleCache:
   def __init__(self, roles=None):
     self.roles = roles or {}
-  async def on_ready(self):
-    pass
   async def refresh_user_roles(self, guid):
     pass
   async def upsert_role(self, name, mask, display):
     self.roles[name] = mask
   async def delete_role(self, name):
     self.roles.pop(name, None)
+
+class DummyAuth:
+  def __init__(self, roles=None):
+    self.role_cache = RoleCache(roles)
+  async def on_ready(self):
+    pass
+  @property
+  def roles(self):
+    return self.role_cache.roles
+  async def refresh_user_roles(self, guid):
+    await self.role_cache.refresh_user_roles(guid)
+  async def upsert_role(self, name, mask, display):
+    await self.role_cache.upsert_role(name, mask, display)
+  async def delete_role(self, name):
+    await self.role_cache.delete_role(name)
 
 async def make_module(roles, auth_roles):
   db = DummyDb(roles)
