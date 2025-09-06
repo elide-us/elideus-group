@@ -47,11 +47,9 @@ async def auth_session_refresh_token_v1(request: Request):
   rotation_token = request.cookies.get("rotation_token")
   if not rotation_token:
     raise HTTPException(status_code=401, detail="Missing rotation token")
-  try:
-    body = await request.json()
-  except Exception:
-    body = {}
-  fingerprint = body.get("fingerprint")
+  rpc_request, _auth_ctx, _ = await unbox_request(request)
+  req_payload = rpc_request.payload or {}
+  fingerprint = req_payload.get("fingerprint")
   if not fingerprint:
     raise HTTPException(status_code=400, detail="Missing fingerprint")
   session_mod = _get_session_module(request)
@@ -63,7 +61,7 @@ async def auth_session_refresh_token_v1(request: Request):
     user_agent,
     ip_address,
   )
-  return RPCResponse(op="urn:auth:session:refresh_token:1", payload={"token": session_token}, version=1)
+  return RPCResponse(op=rpc_request.op, payload={"token": session_token}, version=rpc_request.version)
 
 async def auth_session_invalidate_token_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)

@@ -8,10 +8,12 @@ def test_refresh_token_ignores_provider():
   spec.loader.exec_module(models)
   sys.modules["server.models"] = models
   RPCResponse = models.RPCResponse
+  RPCRequest = models.RPCRequest
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox(_req):
-    return None
+    rpc = RPCRequest(op="urn:auth:session:refresh_token:1", payload={"fingerprint": "fp"}, version=1)
+    return rpc, SimpleNamespace(), None
   helpers.unbox_request = fake_unbox
   sys.modules["rpc.helpers"] = helpers
 
