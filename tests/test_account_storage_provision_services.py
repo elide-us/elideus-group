@@ -7,13 +7,17 @@ pkg.__path__ = [str(root_path / "rpc")]
 sys.modules["rpc"] = pkg
 
 # ensure nested rpc packages exist
-storage_pkg = types.ModuleType("rpc.storage")
-storage_pkg.__path__ = [str(root_path / "rpc" / "storage")]
-sys.modules["rpc.storage"] = storage_pkg
+account_pkg = types.ModuleType("rpc.account")
+account_pkg.__path__ = [str(root_path / "rpc" / "account")]
+sys.modules["rpc.account"] = account_pkg
 
-provision_pkg = types.ModuleType("rpc.storage.provision")
-provision_pkg.__path__ = [str(root_path / "rpc" / "storage" / "provision")]
-sys.modules["rpc.storage.provision"] = provision_pkg
+storage_pkg = types.ModuleType("rpc.account.storage")
+storage_pkg.__path__ = [str(root_path / "rpc" / "account" / "storage")]
+sys.modules["rpc.account.storage"] = storage_pkg
+
+provision_pkg = types.ModuleType("rpc.account.storage.provision")
+provision_pkg.__path__ = [str(root_path / "rpc" / "account" / "storage" / "provision")]
+sys.modules["rpc.account.storage.provision"] = provision_pkg
 
 spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
 models = importlib.util.module_from_spec(spec)
@@ -56,10 +60,11 @@ sys.modules["rpc.helpers"] = helpers_stub
 
 # import services with stubbed helpers
 svc_spec = importlib.util.spec_from_file_location(
-  "rpc.storage.provision.services", "rpc/storage/provision/services.py",
+  "rpc.account.storage.provision.services",
+  "rpc/account/storage/provision/services.py",
 )
 svc_mod = importlib.util.module_from_spec(svc_spec)
-sys.modules["rpc.storage.provision.services"] = svc_mod
+sys.modules["rpc.account.storage.provision.services"] = svc_mod
 svc_spec.loader.exec_module(svc_mod)
 
 # restore real helpers
@@ -81,7 +86,7 @@ class DummyRequest:
 
 def test_create_user_calls_storage():
   async def fake_unbox(request):
-    rpc = RPCRequest(op="urn:storage:provision:create_user:1", payload=None, version=1)
+    rpc = RPCRequest(op="urn:account:storage:provision:create_user:1", payload=None, version=1)
     auth = types.SimpleNamespace(user_guid="u1")
     return rpc, auth, None
   svc_mod.unbox_request = fake_unbox
@@ -94,7 +99,7 @@ def test_create_user_calls_storage():
 
 def test_check_user_returns_status():
   async def fake_unbox(request):
-    rpc = RPCRequest(op="urn:storage:provision:check_user:1", payload=None, version=1)
+    rpc = RPCRequest(op="urn:account:storage:provision:check_user:1", payload=None, version=1)
     auth = types.SimpleNamespace(user_guid="u1")
     return rpc, auth, None
   svc_mod.unbox_request = fake_unbox

@@ -19,7 +19,7 @@ import {
 import {
     fetchCreateUser as fetchProvisionCreateUser,
     fetchCheckUser as fetchProvisionCheckUser,
-} from '../rpc/storage/provision';
+} from '../rpc/account/storage/provision';
 import {
     fetchRoles,
     fetchRoleMembers,

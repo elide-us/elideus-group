@@ -1,4 +1,4 @@
-"""Storage provision RPC handler."""
+"""Account storage provision RPC handler."""
 
 from fastapi import HTTPException, Request
 
