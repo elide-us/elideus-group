@@ -85,8 +85,9 @@ class DummyDb:
     return DBRes()
 
 
-class DummyAuth:
+class RoleCache:
   def __init__(self, db=None):
+    self.db = db
     self.loaded = False
     self.roles = {
       "ROLE_ACCOUNT_ADMIN": 1,
@@ -94,7 +95,6 @@ class DummyAuth:
       "ROLE_SERVICE_ADMIN": 0x4000000000000000,
     }
     self.user_roles: dict[str, int] = {}
-    self.db = db
     self.upsert_args = None
     self.delete_args = None
 
@@ -128,6 +128,33 @@ class DummyAuth:
   async def user_has_role(self, guid: str, mask: int) -> bool:
     return bool(self.user_roles.get(guid, 0) & mask)
 
+class DummyAuth:
+  def __init__(self, db=None):
+    self.role_cache = RoleCache(db)
+    self.db = db
+
+  @property
+  def roles(self):
+    return self.role_cache.roles
+
+  async def refresh_role_cache(self):
+    await self.role_cache.refresh_role_cache()
+
+  async def upsert_role(self, name, mask, display):
+    await self.role_cache.upsert_role(name, mask, display)
+
+  async def delete_role(self, name):
+    await self.role_cache.delete_role(name)
+
+  def get_role_names(self, exclude_registered=False):
+    return self.role_cache.get_role_names(exclude_registered)
+
+  def names_to_mask(self, names):
+    return self.role_cache.names_to_mask(names)
+
+  async def user_has_role(self, guid: str, mask: int) -> bool:
+    return await self.role_cache.user_has_role(guid, mask)
+
 
 class DummyRoleAdmin:
   def __init__(self, db, auth):
@@ -147,10 +174,10 @@ class DummyRoleAdmin:
     ]
 
   async def upsert_role(self, name, mask, display):
-    await self.auth.upsert_role(name, mask, display)
+    await self.auth.role_cache.upsert_role(name, mask, display)
 
   async def delete_role(self, name):
-    await self.auth.delete_role(name)
+    await self.auth.role_cache.delete_role(name)
 
 
 class DummyState:
@@ -200,7 +227,7 @@ def test_get_roles_allows_system_admin():
   async def fake_get(request):
     rpc = RPCRequest(op="urn:service:roles:get_roles:1", payload=None, version=1)
     auth = SimpleNamespace(user_guid="u1")
-    request.app.state.auth.user_roles["u1"] = 0x4000000000000000
+    request.app.state.auth.role_cache.user_roles["u1"] = 0x4000000000000000
     parts = rpc.op.split(":")
     return rpc, auth, parts
 
@@ -237,12 +264,12 @@ def test_upsert_role_calls_db_and_loads_roles():
   req = DummyRequest(DummyState(db, auth))
   resp = asyncio.run(service_roles_upsert_role_v1(req))
   assert isinstance(resp, RPCResponse)
-  assert auth.upsert_args == ("ROLE_NEW", 4, "New")
+  assert auth.role_cache.upsert_args == ("ROLE_NEW", 4, "New")
   assert (
     "db:security:roles:upsert_role:1",
     {"name": "ROLE_NEW", "mask": 4, "display": "New"},
   ) in db.calls
-  assert auth.loaded
+  assert auth.role_cache.loaded
 
 
 def test_delete_role_calls_db_and_loads_roles():
@@ -261,11 +288,11 @@ def test_delete_role_calls_db_and_loads_roles():
   req = DummyRequest(DummyState(db, auth))
   resp = asyncio.run(svc_mod.service_roles_delete_role_v1(req))
   assert isinstance(resp, RPCResponse)
-  assert auth.delete_args == "ROLE_OLD"
+  assert auth.role_cache.delete_args == "ROLE_OLD"
   assert (
     "db:security:roles:delete_role:1",
     {"name": "ROLE_OLD"},
   ) in db.calls
-  assert auth.loaded
+  assert auth.role_cache.loaded
 
 

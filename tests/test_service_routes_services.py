@@ -33,7 +33,7 @@ db_module_pkg.DbModule = DbModule
 modules_pkg.db_module = db_module_pkg
 
 
-class AuthModule:
+class RoleCache:
   def __init__(self):
     self.roles = {'ROLE_SERVICE_ADMIN': 1}
 
@@ -45,6 +45,20 @@ class AuthModule:
     for n in names:
       mask |= self.roles.get(n, 0)
     return mask
+
+class AuthModule:
+  def __init__(self):
+    self.role_cache = RoleCache()
+
+  @property
+  def roles(self):
+    return self.role_cache.roles
+
+  def mask_to_names(self, mask):
+    return self.role_cache.mask_to_names(mask)
+
+  def names_to_mask(self, names):
+    return self.role_cache.names_to_mask(names)
 
 
 auth_module_pkg.AuthModule = AuthModule

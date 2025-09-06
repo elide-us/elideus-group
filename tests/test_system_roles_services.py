@@ -30,7 +30,7 @@ class DbModule:
 db_module_pkg.DbModule = DbModule
 modules_pkg.db_module = db_module_pkg
 
-class AuthModule:
+class RoleCache:
   def __init__(self, db=None):
     self.db = db
     self.refreshed = False
@@ -51,6 +51,20 @@ class AuthModule:
     if self.db:
       await self.db.run('db:security:roles:delete_role:1', {'name': name})
     await self.refresh_role_cache()
+
+class AuthModule:
+  def __init__(self, db=None):
+    self.db = db
+    self.role_cache = RoleCache(db)
+
+  async def refresh_role_cache(self):
+    await self.role_cache.refresh_role_cache()
+
+  async def upsert_role(self, name, mask, display):
+    await self.role_cache.upsert_role(name, mask, display)
+
+  async def delete_role(self, name):
+    await self.role_cache.delete_role(name)
 
 auth_module_pkg.AuthModule = AuthModule
 modules_pkg.auth_module = auth_module_pkg
@@ -128,10 +142,10 @@ class DummyRoleAdmin:
     ]
 
   async def upsert_role(self, name, mask, display):
-    await self.auth.upsert_role(name, mask, display)
+    await self.auth.role_cache.upsert_role(name, mask, display)
 
   async def delete_role(self, name):
-    await self.auth.delete_role(name)
+    await self.auth.role_cache.delete_role(name)
 app = FastAPI()
 app.state.db = db
 app.state.auth = auth
@@ -167,4 +181,4 @@ def test_upsert_and_delete_role_service():
   assert resp.status_code == 200
   assert ('db:security:roles:upsert_role:1', {'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}) in db.calls
   assert ('db:security:roles:delete_role:1', {'name': 'ROLE_FOO'}) in db.calls
-  assert getattr(auth, 'refreshed', False)
+  assert auth.role_cache.refreshed
