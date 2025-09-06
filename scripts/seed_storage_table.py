@@ -101,6 +101,7 @@ async def seed_storage_cache():
     await conn.commit()
     _debug(f"inserted {inserted} records")
     await _show_cache_sample(conn)
+
   finally:
     if container:
       await container.close()
