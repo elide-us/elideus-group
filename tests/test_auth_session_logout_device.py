@@ -14,7 +14,8 @@ def _setup():
 
   helpers = types.ModuleType("rpc.helpers")
   async def fake_unbox(req):
-    rpc = RPCRequest(op=req.op, payload=None, version=1)
+    payload = {"fingerprint": "fp"} if req.op == "urn:auth:session:refresh_token:1" else None
+    rpc = RPCRequest(op=req.op, payload=payload, version=1)
     return rpc, SimpleNamespace(user_guid="user-guid", claims={}), None
   helpers.unbox_request = fake_unbox
   sys.modules["rpc.helpers"] = helpers
