@@ -15,17 +15,17 @@ import {
     fetchProfile,
     fetchSetCredits,
     fetchResetDisplay,
+    fetchEnableStorage,
+    fetchCheckStorage,
 } from '../rpc/account/user';
-import {
-    fetchCreateUser as fetchProvisionCreateUser,
-    fetchCheckUser as fetchProvisionCheckUser,
-} from '../rpc/account/storage/provision';
 import {
     fetchRoles,
     fetchRoleMembers,
     fetchAddRoleMember,
     fetchRemoveRoleMember,
 } from '../rpc/account/role';
+
+const STORAGE_ROLE_BIT = 2n;
 
 const AccountUserPanel = (): JSX.Element => {
         const { guid } = useParams();
@@ -90,10 +90,11 @@ const AccountUserPanel = (): JSX.Element => {
         useEffect(() => {
                 if (!profile) return;
                 setStorageChecked(false);
-                if (assigned.some((r) => r.name === 'ROLE_STORAGE')) {
+                const hasStorage = assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n);
+                if (hasStorage) {
                         void (async () => {
                                 try {
-                                        const res = await fetchProvisionCheckUser();
+                                        const res = await fetchCheckStorage({ userGuid: profile.guid });
                                         setStorageExists(Boolean(res.exists));
                                 } catch {
                                         setStorageExists(false);
@@ -134,8 +135,9 @@ const AccountUserPanel = (): JSX.Element => {
 
         const handleEnableStorage = async (): Promise<void> => {
                 if (!profile) return;
-                await fetchProvisionCreateUser();
-                setStorageExists(true);
+                await fetchEnableStorage({ userGuid: profile.guid });
+                const res = await fetchCheckStorage({ userGuid: profile.guid });
+                setStorageExists(Boolean(res.exists));
         };
 
         const handleSave = async (): Promise<void> => {
@@ -159,7 +161,7 @@ const AccountUserPanel = (): JSX.Element => {
 					<Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
 					<Typography>Email: {profile.email}</Typography>
 					<EditBox value={credits} onCommit={(val) => setCredits(Number(val))} width={120} />
-                                        <Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.some((r) => r.name === 'ROLE_STORAGE') || storageExists || !storageChecked}>Enable Storage</Button>
+                                        <Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists || !storageChecked}>Enable Storage</Button>
                                 </Stack>
                         )}
 			<Stack direction="row" spacing={2}>
