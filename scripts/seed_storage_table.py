@@ -2,9 +2,7 @@ from __future__ import annotations
 import asyncio
 import os
 from uuid import UUID
-
 from azure.storage.blob.aio import BlobServiceClient, ContainerClient
-
 from scriptlib import connect
 
 
@@ -108,6 +106,7 @@ async def seed_storage_cache():
     await conn.commit()
     _debug(f"inserted {inserted} records")
     await _show_cache_sample(conn)
+
   finally:
     if container:
       await container.close()
