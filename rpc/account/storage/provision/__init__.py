@@ -1,4 +1,4 @@
-"""Provision storage RPC namespace."""
+"""Account storage provision RPC namespace."""
 
 from .services import (
   storage_provision_create_user_v1,
