@@ -12,11 +12,11 @@ import type {
 	AccountRoleList1,
 } from '../shared/RpcModels';
 import {
-	fetchProfile,
-	fetchSetCredits,
-	fetchResetDisplay,
-	fetchEnableStorage,
-	fetchCheckStorage,
+        fetchProfile,
+        fetchSetCredits,
+        fetchResetDisplay,
+        fetchEnableStorage,
+        fetchCheckStorage,
 } from '../rpc/account/user';
 import {
 	fetchRoles,
@@ -32,12 +32,12 @@ const AccountUserPanel = (): JSX.Element => {
 		const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
 		const [assigned, setAssigned] = useState<AccountRoleRoleItem1[]>([]);
 		const [available, setAvailable] = useState<AccountRoleRoleItem1[]>([]);
-		const [credits, setCredits] = useState<number>(0);
-		const [notification, setNotification] = useState(false);
-		const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
-		const [selectedLeft, setSelectedLeft] = useState('');
-		const [selectedRight, setSelectedRight] = useState('');
-		const [storageExists, setStorageExists] = useState(false);
+                const [credits, setCredits] = useState<number>(0);
+                const [notification, setNotification] = useState(false);
+                const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
+                const [selectedLeft, setSelectedLeft] = useState('');
+                const [selectedRight, setSelectedRight] = useState('');
+                const [storageExists, setStorageExists] = useState(false);
 
 		const sortRoles = (a: AccountRoleRoleItem1, b: AccountRoleRoleItem1): number => {
 				const am = BigInt(a.mask);
@@ -47,51 +47,66 @@ const AccountUserPanel = (): JSX.Element => {
 				return 0;
 		};
 
-		useEffect(() => {
-				void (async () => {
-						if (!guid) return;
-						try {
-								const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
-								setProfile(prof);
-								setCredits(prof.credits);
-								const roleRes: AccountRoleList1 = await fetchRoles();
-								const sorted = [...roleRes.roles].sort(sortRoles);
-								const assignments: AccountRoleRoleItem1[] = [];
-								const avail: AccountRoleRoleItem1[] = [];
-								await Promise.all(
-										sorted.map(async (r) => {
-												try {
-														const members: AccountRoleMembers1 = await fetchRoleMembers({ role: r.name });
-														if (members.members.some((m) => m.guid === guid)) {
-																assignments.push(r);
-														} else {
-																avail.push(r);
-														}
-												} catch {
-														avail.push(r);
-												}
-										})
-								);
-								assignments.sort(sortRoles);
-								avail.sort(sortRoles);
-								setAssigned(assignments);
-								setAvailable(avail);
-								setInitialAssigned(assignments.map((r) => r.name));
-								try {
-									const res = await fetchCheckStorage({ userGuid: prof.guid });
-									setStorageExists(Boolean(res.exists));
-								} catch {
-									setStorageExists(false);
-								}
-						} catch {
-								setProfile(null);
-								setAssigned([]);
-								setAvailable([]);
-								setInitialAssigned([]);
-								setStorageExists(false);
-						}
-				})();
-		}, [guid]);
+                useEffect(() => {
+                                void (async () => {
+                                                if (!guid) return;
+                                                try {
+                                                                const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
+                                                                setProfile(prof);
+                                                                setCredits(prof.credits);
+                                                                const roleRes: AccountRoleList1 = await fetchRoles();
+                                                                const sorted = [...roleRes.roles].sort(sortRoles);
+                                                                const assignments: AccountRoleRoleItem1[] = [];
+                                                                const avail: AccountRoleRoleItem1[] = [];
+                                                                await Promise.all(
+                                                                                sorted.map(async (r) => {
+                                                                                                try {
+                                                                                                                const members: AccountRoleMembers1 = await fetchRoleMembers({ role: r.name });
+                                                                                                                if (members.members.some((m) => m.guid === guid)) {
+                                                                                                                               assignments.push(r);
+                                                                                                                } else {
+                                                                                                                               avail.push(r);
+                                                                                                                }
+                                                                                                } catch {
+                                                                                                                avail.push(r);
+                                                                                                }
+                                                                                })
+                                                                );
+                                                                assignments.sort(sortRoles);
+                                                                avail.sort(sortRoles);
+                                                                setAssigned(assignments);
+                                                                setAvailable(avail);
+                                                                setInitialAssigned(assignments.map((r) => r.name));
+                                                                setStorageExists(false);
+                                                } catch {
+                                                                setProfile(null);
+                                                                setCredits(0);
+                                                                setAssigned([]);
+                                                                setAvailable([]);
+                                                                setInitialAssigned([]);
+                                                                setStorageExists(false);
+                                                }
+                                })();
+                }, [guid]);
+
+                useEffect(() => {
+                                if (!profile) {
+                                                setStorageExists(false);
+                                                return;
+                                }
+                                if (assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n)) {
+                                                void (async () => {
+                                                                try {
+                                                                                const res = await fetchCheckStorage({ userGuid: profile.guid });
+                                                                                setStorageExists(Boolean(res.exists));
+                                                                } catch {
+                                                                                setStorageExists(false);
+                                                                }
+                                                })();
+                                } else {
+                                                setStorageExists(false);
+                                }
+                }, [profile, assigned]);
 
 		const moveRight = (): void => {
 				if (!selectedLeft) return;
@@ -125,27 +140,16 @@ const AccountUserPanel = (): JSX.Element => {
 				setStorageExists(Boolean(res.exists));
 		};
 
-		const handleSave = async (): Promise<void> => {
-				if (!profile) return;
-				const assignedNames = assigned.map((r) => r.name);
-				const toAdd = assignedNames.filter((r) => !initialAssigned.includes(r));
-				const toRemove = initialAssigned.filter((r) => !assignedNames.includes(r));
-				await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: profile.guid })));
-				await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: profile.guid })));
-				await fetchSetCredits({ userGuid: profile.guid, credits });
-				setInitialAssigned(assignedNames);
-				if (assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n)) {
-						try {
-								const res = await fetchCheckStorage({ userGuid: profile.guid });
-								setStorageExists(Boolean(res.exists));
-						} catch {
-								setStorageExists(false);
-						}
-				} else {
-						setStorageExists(false);
-				}
-				setNotification(true);
-		};
+                const handleSave = async (): Promise<void> => {
+                                if (!profile) return;
+                                const assignedNames = assigned.map((r) => r.name);
+                                const toAdd = assignedNames.filter((r) => !initialAssigned.includes(r));
+                                const toRemove = initialAssigned.filter((r) => !assignedNames.includes(r));
+                                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: profile.guid })));
+                                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: profile.guid })));
+                                setInitialAssigned(assignedNames);
+                                setNotification(true);
+                };
 
 	return (
 		<Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -154,9 +158,24 @@ const AccountUserPanel = (): JSX.Element => {
 				<Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
 					<Typography variant="h6">{profile.display_name}</Typography>
 					<Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
-					<Typography>Email: {profile.email}</Typography>
-					<EditBox value={credits} onCommit={(val) => setCredits(Number(val))} width={120} />
-										<Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists}>Enable Storage</Button>
+                                        <Typography>Email: {profile.email}</Typography>
+                                        <EditBox
+                                                value={credits}
+                                                onCommit={async (val) => {
+                                                                if (!profile) return;
+                                                                const num = Number(val);
+                                                                await fetchSetCredits({ userGuid: profile.guid, credits: num });
+                                                                setCredits(num);
+                                                }}
+                                                width={120}
+                                        />
+                                        <Button
+                                                variant="outlined"
+                                                onClick={handleEnableStorage}
+                                                disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists}
+                                        >
+                                                Enable Storage
+                                        </Button>
 								</Stack>
 						)}
 			<Stack direction="row" spacing={2}>
