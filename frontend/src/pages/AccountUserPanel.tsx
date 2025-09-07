@@ -77,22 +77,18 @@ const AccountUserPanel = (): JSX.Element => {
 								setAssigned(assignments);
 								setAvailable(avail);
 								setInitialAssigned(assignments.map((r) => r.name));
-								const hasStorage = assignments.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n);
-								if (hasStorage) {
-										try {
-												const res = await fetchCheckStorage({ userGuid: prof.guid });
-												setStorageExists(Boolean(res.exists));
-										} catch {
-												setStorageExists(false);
-										}
-								} else {
-										setStorageExists(false);
+								try {
+									const res = await fetchCheckStorage({ userGuid: prof.guid });
+									setStorageExists(Boolean(res.exists));
+								} catch {
+									setStorageExists(false);
 								}
 						} catch {
 								setProfile(null);
 								setAssigned([]);
 								setAvailable([]);
 								setInitialAssigned([]);
+								setStorageExists(false);
 						}
 				})();
 		}, [guid]);
