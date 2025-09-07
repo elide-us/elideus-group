@@ -37,7 +37,6 @@ const AccountUserPanel = (): JSX.Element => {
         const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
         const [selectedLeft, setSelectedLeft] = useState('');
         const [selectedRight, setSelectedRight] = useState('');
-        const [storageChecked, setStorageChecked] = useState(false);
         const [storageExists, setStorageExists] = useState(false);
 
         const sortRoles = (a: AccountRoleRoleItem1, b: AccountRoleRoleItem1): number => {
@@ -89,7 +88,6 @@ const AccountUserPanel = (): JSX.Element => {
 
         useEffect(() => {
                 if (!profile) return;
-                setStorageChecked(false);
                 const hasStorage = assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n);
                 if (hasStorage) {
                         void (async () => {
@@ -98,13 +96,10 @@ const AccountUserPanel = (): JSX.Element => {
                                         setStorageExists(Boolean(res.exists));
                                 } catch {
                                         setStorageExists(false);
-                                } finally {
-                                        setStorageChecked(true);
                                 }
                         })();
                 } else {
                         setStorageExists(false);
-                        setStorageChecked(true);
                 }
         }, [assigned, profile]);
 
@@ -161,7 +156,7 @@ const AccountUserPanel = (): JSX.Element => {
 					<Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
 					<Typography>Email: {profile.email}</Typography>
 					<EditBox value={credits} onCommit={(val) => setCredits(Number(val))} width={120} />
-                                        <Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists || !storageChecked}>Enable Storage</Button>
+                                        <Button variant="outlined" onClick={handleEnableStorage} disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists}>Enable Storage</Button>
                                 </Stack>
                         )}
 			<Stack direction="row" spacing={2}>
