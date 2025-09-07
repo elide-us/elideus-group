@@ -88,20 +88,24 @@ const AccountUserPanel = (): JSX.Element => {
 
         useEffect(() => {
                 if (!profile) return;
-                const hasStorage = assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n);
-                if (hasStorage) {
-                        void (async () => {
-                                try {
-                                        const res = await fetchCheckStorage({ userGuid: profile.guid });
-                                        setStorageExists(Boolean(res.exists));
-                                } catch {
-                                        setStorageExists(false);
-                                }
-                        })();
-                } else {
+                const storageRole = assigned.find((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n);
+                if (!storageRole) {
                         setStorageExists(false);
+                        return;
                 }
-        }, [assigned, profile]);
+                if (!initialAssigned.includes(storageRole.name)) {
+                        setStorageExists(false);
+                        return;
+                }
+                void (async () => {
+                        try {
+                                const res = await fetchCheckStorage({ userGuid: profile.guid });
+                                setStorageExists(Boolean(res.exists));
+                        } catch {
+                                setStorageExists(false);
+                        }
+                })();
+        }, [assigned, profile, initialAssigned]);
 
         const moveRight = (): void => {
                 if (!selectedLeft) return;
