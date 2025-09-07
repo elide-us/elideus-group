@@ -18,8 +18,12 @@ storage_module_pkg = types.ModuleType("server.modules.storage_module")
 class StorageModule:
   def __init__(self):
     self.calls = []
+    self.exists = False
   async def ensure_user_folder(self, guid):
     self.calls.append(("ensure_user_folder", guid))
+  async def user_folder_exists(self, guid):
+    self.calls.append(("user_folder_exists", guid))
+    return self.exists
 storage_module_pkg.StorageModule = StorageModule
 
 storage_cache_module_pkg = types.ModuleType("server.modules.storage_cache_module")
@@ -75,3 +79,15 @@ def test_enable_storage_refreshes_cache():
   assert db.calls[0][0] == "db:support:users:enable_storage:1"
   assert ("ensure_user_folder", "u1") in storage.calls
   assert ("refresh_user_cache", "u1") in cache.calls
+
+
+def test_check_storage_queries_storage_module():
+  db = DbModule()
+  storage = StorageModule()
+  cache = StorageCacheModule()
+  state = DummyState(db, storage, cache)
+  ua = UserAdminModule(DummyApp(state))
+  ua.storage = storage
+  exists = asyncio.run(ua.check_storage("u1"))
+  assert ("user_folder_exists", "u1") in storage.calls
+  assert exists is False
