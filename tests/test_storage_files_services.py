@@ -74,6 +74,7 @@ storage_files_delete_folder_v1 = services.storage_files_delete_folder_v1
 storage_files_rename_file_v1 = services.storage_files_rename_file_v1
 storage_files_get_metadata_v1 = services.storage_files_get_metadata_v1
 storage_files_get_usage_v1 = services.storage_files_get_usage_v1
+storage_files_get_folder_files_v1 = services.storage_files_get_folder_files_v1
 
 
 class DummyStorage:
@@ -84,6 +85,7 @@ class DummyStorage:
     self.renamed = None
     self.metadata_args = None
     self.usage_called = None
+    self.list_folder_args = None
 
   async def get_file_link(self, user_guid, name):
     self.link_args = (user_guid, name)
@@ -113,6 +115,14 @@ class DummyStorage:
     return {
       "total_size": 10,
       "by_type": [{"content_type": "text/plain", "size": 10}],
+    }
+
+  async def list_folder(self, user_guid, path):
+    self.list_folder_args = (user_guid, path)
+    return {
+      "path": path,
+      "files": [{"name": f"{path}/a.txt", "url": f"u/{path}/a.txt", "content_type": "text/plain"}],
+      "folders": [{"name": "sub", "empty": False}],
     }
 
 
@@ -175,5 +185,17 @@ def test_get_usage_returns_summary():
     "by_type": [{"content_type": "text/plain", "size": 10}],
   }
   assert storage.usage_called == "u123"
+  assert storage.reindexed == "u123"
+
+
+def test_get_folder_files_returns_contents():
+  req, storage = make_request("urn:storage:files:get_folder_files:1", {"path": "docs"})
+  resp = asyncio.run(storage_files_get_folder_files_v1(req))
+  assert resp.payload == {
+    "path": "docs",
+    "files": [{"name": "docs/a.txt", "url": "u/docs/a.txt", "content_type": "text/plain"}],
+    "folders": [{"name": "sub", "empty": False}],
+  }
+  assert storage.list_folder_args == ("u123", "docs")
   assert storage.reindexed == "u123"
 
