@@ -223,6 +223,13 @@ const SystemConfigPage = (): JSX.Element => {
                         error={Boolean(errors.AzureBlobContainerName)}
                         helperText={errors.AzureBlobContainerName}
                     />
+                    <TextField
+                        label="StorageCacheTime"
+                        value={config.StorageCacheTime || ''}
+                        onChange={(e) => save('StorageCacheTime', e.target.value)}
+                        error={Boolean(errors.StorageCacheTime)}
+                        helperText={errors.StorageCacheTime}
+                    />
                 </Stack>
             </TabPanel>
 
