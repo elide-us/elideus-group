@@ -166,11 +166,38 @@ class StorageModule(BaseModule):
 
   async def list_files_by_user(self, user_guid: str):
     """Return files belonging to ``user_guid``."""
-    raise NotImplementedError
+    assert self.db
+    rows = await self.db.list_storage_cache(user_guid)
+    out = []
+    for row in rows:
+      path = row.get("path") or ""
+      filename = row.get("filename", "")
+      name = f"{path}/{filename}" if path else filename
+      out.append({
+        "name": name,
+        "url": row.get("url") or name,
+        "content_type": row.get("content_type"),
+      })
+    return out
 
   async def list_files_by_folder(self, user_guid: str, folder: str):
     """Return files under ``folder`` for ``user_guid``."""
-    raise NotImplementedError
+    assert self.db
+    rows = await self.db.list_storage_cache(user_guid)
+    folder = folder.strip("/")
+    out = []
+    for row in rows:
+      path = row.get("path") or ""
+      if path != folder:
+        continue
+      filename = row.get("filename", "")
+      name = f"{path}/{filename}" if path else filename
+      out.append({
+        "name": name,
+        "url": row.get("url") or name,
+        "content_type": row.get("content_type"),
+      })
+    return out
 
   async def list_public_files(self):
     """Return files marked as publicly accessible."""

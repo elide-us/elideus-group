@@ -371,7 +371,8 @@ def _storage_cache_list(args: Dict[str, Any]):
     SELECT
       usc.element_path AS path,
       usc.element_filename AS filename,
-      st.element_mimetype AS content_type
+      st.element_mimetype AS content_type,
+      usc.element_url AS url
     FROM users_storage_cache usc
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.users_guid = ? AND usc.element_deleted = 0

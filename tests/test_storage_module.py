@@ -36,6 +36,14 @@ class DummyDb(BaseModule):
     return Res([])
 
 
+class DummyListDb:
+  def __init__(self, rows):
+    self.rows = rows
+
+  async def list_storage_cache(self, user_guid):
+    return self.rows
+
+
 def test_storage_module_startup_loads_connection_string_and_interval():
   app = FastAPI()
   app.state.env = DummyEnv(app)
@@ -53,3 +61,32 @@ def test_parse_duration_shorthand():
   assert StorageModule._parse_duration("10m") == 600
   assert StorageModule._parse_duration("1d") == 86400
   assert StorageModule._parse_duration("2w") == 1209600
+
+
+def test_list_files_by_user():
+  app = FastAPI()
+  mod = StorageModule(app)
+  mod.db = DummyListDb([
+    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
+    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
+  ])
+  files = asyncio.run(mod.list_files_by_user("u1"))
+  assert files == [
+    {"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
+    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+  ]
+
+
+def test_list_files_by_folder():
+  app = FastAPI()
+  mod = StorageModule(app)
+  mod.db = DummyListDb([
+    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
+    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
+    {"path": "docs", "filename": "c.txt", "content_type": "text/plain", "url": "u/docs/c.txt"},
+  ])
+  files = asyncio.run(mod.list_files_by_folder("u1", "/docs"))
+  assert files == [
+    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+    {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
+  ]
