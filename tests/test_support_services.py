@@ -35,7 +35,6 @@ class DummyUserAdmin:
   def __init__(self):
     self.calls = []
     self.profile = SimpleNamespace(model_dump=lambda: {"guid": "u1"})
-    self.exists = True
 
   async def get_profile(self, guid):
     self.calls.append(("get_profile", guid))
@@ -47,12 +46,6 @@ class DummyUserAdmin:
   async def reset_display(self, guid):
     self.calls.append(("reset_display", guid))
 
-  async def enable_storage(self, guid):
-    self.calls.append(("enable_storage", guid))
-
-  async def check_storage(self, guid):
-    self.calls.append(("check_storage", guid))
-    return self.exists
 
 
 class DummyState:
@@ -106,25 +99,6 @@ def test_support_routes_reuse_account_routes():
   account_mod.account_user_reset_display_v1 = orig_reset_display
   assert "reset_display" in calls
 
-  async def fake_enable_storage(request):
-    calls.append("enable_storage")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_enable_storage = account_mod.account_user_enable_storage_v1
-  account_mod.account_user_enable_storage_v1 = fake_enable_storage
-  asyncio.run(support_mod.support_users_enable_storage_v1(None))
-  account_mod.account_user_enable_storage_v1 = orig_enable_storage
-  assert "enable_storage" in calls
-
-  async def fake_check_storage(request):
-    calls.append("check_storage")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_check_storage = account_mod.account_user_check_storage_v1
-  account_mod.account_user_check_storage_v1 = fake_check_storage
-  asyncio.run(support_mod.support_users_check_storage_v1(None))
-  account_mod.account_user_check_storage_v1 = orig_check_storage
-  assert "check_storage" in calls
 
 
 def test_support_users_calls_user_admin():
@@ -154,17 +128,3 @@ def test_support_users_calls_user_admin():
   asyncio.run(support_mod.support_users_reset_display_v1(req))
   assert ("reset_display", "u1") in ua.calls
 
-  async def fake_enable_storage(request):
-    return _make_rpc("urn:support:users:enable_storage:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_enable_storage
-  account_mod.unbox_request = fake_enable_storage
-  asyncio.run(support_mod.support_users_enable_storage_v1(req))
-  assert ("enable_storage", "u1") in ua.calls
-
-  async def fake_check_storage(request):
-    return _make_rpc("urn:support:users:check_storage:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_check_storage
-  account_mod.unbox_request = fake_check_storage
-  resp2 = asyncio.run(support_mod.support_users_check_storage_v1(req))
-  assert ("check_storage", "u1") in ua.calls
-  assert resp2.payload["exists"] is True

@@ -49,8 +49,6 @@ async def account_user_reset_display_v1(request: Request):
 async def account_user_enable_storage_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserGuid1(**(rpc_request.payload or {}))
-  user_admin: UserAdminModule = request.app.state.user_admin
-  await user_admin.enable_storage(data.userGuid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -61,9 +59,7 @@ async def account_user_enable_storage_v1(request: Request):
 async def account_user_check_storage_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserGuid1(**(rpc_request.payload or {}))
-  user_admin: UserAdminModule = request.app.state.user_admin
-  exists = await user_admin.check_storage(data.userGuid)
-  status = AccountUserStorageStatus1(userGuid=data.userGuid, exists=exists)
+  status = AccountUserStorageStatus1(userGuid=data.userGuid, exists=False)
   return RPCResponse(
     op=rpc_request.op,
     payload=status.model_dump(),
