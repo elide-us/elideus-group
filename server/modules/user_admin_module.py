@@ -1,8 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
-from server.modules.storage_module import StorageModule
-from server.modules.storage_cache_module import StorageCacheModule
 from rpc.users.profile.models import UsersProfileProfile1
 import json
 
@@ -14,10 +12,6 @@ class UserAdminModule(BaseModule):
   async def startup(self):
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.storage: StorageModule = self.app.state.storage
-    await self.storage.on_ready()
-    self.storage_cache: StorageCacheModule = self.app.state.storage_cache
-    await self.storage_cache.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
@@ -45,11 +39,3 @@ class UserAdminModule(BaseModule):
       "db:users:profile:set_display:1",
       {"guid": guid, "display_name": "Default User"},
     )
-
-  async def enable_storage(self, guid: str) -> None:
-    await self.db.run("db:support:users:enable_storage:1", {"guid": guid})
-    await self.storage.ensure_user_folder(guid)
-    await self.storage_cache.refresh_user_cache(guid)
-
-  async def check_storage(self, guid: str) -> bool:
-    return await self.storage.user_folder_exists(guid)
