@@ -212,3 +212,59 @@ class StorageModule(BaseModule):
 
   async def get_usage(self, user_guid: str):
     raise NotImplementedError
+
+  async def get_storage_stats(self):
+    assert self.db
+    db_res = await self.db.run("db:storage:cache:count_rows:1", {})
+    db_rows = db_res.rows[0]["count"] if db_res.rows else 0
+    if not self.connection_string:
+      return {
+        "file_count": 0,
+        "total_bytes": 0,
+        "folder_count": 0,
+        "db_rows": db_rows,
+      }
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      return {
+        "file_count": 0,
+        "total_bytes": 0,
+        "folder_count": 0,
+        "db_rows": db_rows,
+      }
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    file_count = 0
+    total_bytes = 0
+    users: set[str] = set()
+    try:
+      async for blob in container.list_blobs():
+        name = getattr(blob, "name", "")
+        if not name:
+          continue
+        parts = name.split("/")
+        if len(parts) < 2:
+          continue
+        guid = parts[0]
+        try:
+          UUID(guid)
+        except Exception:
+          continue
+        if parts[-1] == ".init":
+          continue
+        users.add(guid)
+        file_count += 1
+        size = getattr(blob, "size", None)
+        if size is None:
+          size = getattr(getattr(blob, "properties", None), "content_length", 0)
+        total_bytes += size or 0
+    finally:
+      await container.close()
+      await bsc.close()
+    return {
+      "file_count": file_count,
+      "total_bytes": total_bytes,
+      "folder_count": len(users),
+      "db_rows": db_rows,
+    }

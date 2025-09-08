@@ -150,6 +150,12 @@ These calls expose system administration functionality. All System domain calls 
 | `urn:system:roles:upsert_role:1` | Create or update a system role.      |
 | `urn:system:roles:delete_role:1` | Delete a system role.                |
 
+### `storage`
+
+| Operation                           | Description                                        |
+| ----------------------------------- | -------------------------------------------------- |
+| `urn:system:storage:get_stats:1`    | Return counts and sizes for storage and cache.     |
+
 ## Service Domain
 
 All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management

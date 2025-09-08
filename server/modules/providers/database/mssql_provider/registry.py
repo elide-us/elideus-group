@@ -480,6 +480,17 @@ def _storage_cache_delete(args: Dict[str, Any]):
   return ("exec", sql, (user_guid, path, filename))
 
 
+@register("db:storage:cache:count_rows:1")
+def _storage_cache_count_rows(_: Dict[str, Any]):
+  sql = """
+    SELECT COUNT(*) AS count
+    FROM users_storage_cache
+    WHERE element_deleted = 0
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return ("json_one", sql, ())
+
+
 @register("urn:users:profile:set_optin:1")
 def _users_set_optin(args: Dict[str, Any]):
     guid = args["guid"]
