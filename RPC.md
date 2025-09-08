@@ -115,11 +115,20 @@ Calls for user storage management. All Storage domain calls require `ROLE_STORAG
 | Operation                          | Description                                                     |
 | ---------------------------------- | --------------------------------------------------------------- |
 | `urn:storage:files:get_files:1`    | Provide a list of files for the user.                           |
+| `urn:storage:files:get_link:1`     | Get a direct link to a file.                                   |
+| `urn:storage:files:get_folder_files:1` | Provide a list of files within a folder for the user.     |
 | `urn:storage:files:set_gallery:1`  | Flag a file for public inclusion in the gallery.                |
 | `urn:storage:files:upload_files:1` | Upload a file or files from the user into the moderation queue. |
 | `urn:storage:files:delete_files:1` | Delete a file or files specified by the user.                   |
 | `urn:storage:files:create_folder:1` | Create a folder at the specified path.                         |
+| `urn:storage:files:delete_folder:1` | Delete a folder at the specified path.                        |
+| `urn:storage:files:create_user_folder:1` | Create a root folder for the user.                       |
 | `urn:storage:files:move_file:1`    | Move a file to a new location within the user's storage.       |
+| `urn:storage:files:rename_file:1`  | Rename a file within the user's storage.                        |
+| `urn:storage:files:get_public_files:1` | List files flagged as public.                             |
+| `urn:storage:files:get_moderation_files:1` | List files flagged for moderation review.             |
+| `urn:storage:files:get_metadata:1` | Get detailed metadata about a file.                            |
+| `urn:storage:files:get_usage:1`    | Summarize storage utilization by type and total size.          |
 
 ## System Domain
 

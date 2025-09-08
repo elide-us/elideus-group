@@ -74,10 +74,10 @@ class StorageModule(BaseModule):
       except Exception as e:
         logging.error("[StorageModule] Reindex failed: %s", e)
 
-  async def reindex(self):
+  async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
     # Placeholder for future implementation
-    raise NotImplementedError
+    return
 
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
@@ -97,4 +97,37 @@ class StorageModule(BaseModule):
 
   async def list_flagged_for_moderation(self):
     """Return files that have been reported for moderation review."""
+    raise NotImplementedError
+
+  async def upload_files(self, user_guid: str, files):
+    raise NotImplementedError
+
+  async def delete_files(self, user_guid: str, names: list[str]):
+    raise NotImplementedError
+
+  async def set_gallery(self, user_guid: str, name: str, gallery: bool):
+    raise NotImplementedError
+
+  async def create_folder(self, user_guid: str, path: str):
+    raise NotImplementedError
+
+  async def delete_folder(self, user_guid: str, path: str):
+    raise NotImplementedError
+
+  async def create_user_folder(self, user_guid: str, path: str):
+    raise NotImplementedError
+
+  async def move_file(self, user_guid: str, src: str, dst: str):
+    raise NotImplementedError
+
+  async def get_file_link(self, user_guid: str, name: str) -> str:
+    raise NotImplementedError
+
+  async def rename_file(self, user_guid: str, old_name: str, new_name: str):
+    raise NotImplementedError
+
+  async def get_file_metadata(self, user_guid: str, name: str):
+    raise NotImplementedError
+
+  async def get_usage(self, user_guid: str):
     raise NotImplementedError
