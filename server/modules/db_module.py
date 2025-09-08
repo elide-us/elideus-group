@@ -125,3 +125,12 @@ class DbModule(BaseModule):
       {"user_guid": user_guid, "items": items},
     )
 
+  async def upsert_storage_cache(self, item: Dict[str, Any]):
+    await self.run("db:storage:cache:upsert:1", item)
+
+  async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
+    await self.run(
+      "db:storage:cache:delete:1",
+      {"user_guid": user_guid, "path": path, "filename": filename},
+    )
+
