@@ -362,26 +362,6 @@ def _db_support_users_set_credits(args: Dict[str, Any]):
   return _support_users_set_credits(args)
 
 
-@register("urn:support:users:enable_storage:1")
-def _support_users_enable_storage(args: Dict[str, Any]):
-  guid = args["guid"]
-  sql = """
-    MERGE users_enablements AS ue
-    USING (SELECT ? AS users_guid) AS src
-    ON ue.users_guid = src.users_guid
-    WHEN MATCHED THEN UPDATE SET element_enablements =
-      CONVERT(NVARCHAR(MAX), CONVERT(BIGINT, ue.element_enablements) | 1)
-    WHEN NOT MATCHED THEN INSERT (users_guid, element_enablements)
-      VALUES (src.users_guid, '1');
-  """
-  return ("exec", sql, (guid,))
-
-
-@register("db:support:users:enable_storage:1")
-def _db_support_users_enable_storage(args: Dict[str, Any]):
-  return _support_users_enable_storage(args)
-
-
 # -------------------- STORAGE CACHE --------------------
 
 @register("db:storage:cache:list:1")

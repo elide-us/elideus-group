@@ -1,8 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
-from rpc.users.profile.models import UsersProfileProfile1
-import json
 
 
 class UserAdminModule(BaseModule):
@@ -17,16 +15,22 @@ class UserAdminModule(BaseModule):
   async def shutdown(self):
     pass
 
-  async def get_profile(self, guid: str) -> UsersProfileProfile1:
+  async def get_displayname(self, guid: str) -> str:
     res = await self.db.run("db:users:profile:get_profile:1", {"guid": guid})
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
-    row["guid"] = str(row.get("guid", ""))
-    auth_providers = row.get("auth_providers")
-    if isinstance(auth_providers, str):
-      row["auth_providers"] = json.loads(auth_providers) if auth_providers else []
-    return UsersProfileProfile1(**row)
+    return row.get("display_name", "")
+
+  async def get_credits(self, guid: str) -> int:
+    res = await self.db.run("db:users:profile:get_profile:1", {"guid": guid})
+    if not res.rows:
+      raise HTTPException(status_code=404, detail="Profile not found")
+    row = res.rows[0]
+    credits = row.get("credits")
+    if credits is None:
+      raise HTTPException(status_code=404, detail="Credits not found")
+    return credits
 
   async def set_credits(self, guid: str, credits: int) -> None:
     await self.db.run(
