@@ -73,13 +73,3 @@ async def storage_files_move_file_v1(request: Request):
     version=rpc_request.version,
   )
 
-
-async def storage_files_refresh_cache_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = StorageFilesFiles1(files=[])
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=payload.model_dump(),
-    version=rpc_request.version,
-  )
-
