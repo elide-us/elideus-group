@@ -183,13 +183,6 @@ All Account domain calls require `ROLE_ACCOUNT_ADMIN`.
 | `urn:account:role:add_role_member:1`        | Add members to a role.                       |
 | `urn:account:role:remove_role_member:1`     | Remove members from a role.                  |
 
-### `storage`
-
-| Operation                                             | Description                              |
-| ----------------------------------------------------- | ---------------------------------------- |
-| `urn:account:storage:provision:create_user:1`         | Create a storage folder for a user.      |
-| `urn:account:storage:provision:check_user:1`          | Check if a user's storage folder exists. |
-
 ## Moderation Domain
 
 All Moderation domain calls require `ROLE_MODERATOR`.
