@@ -13,8 +13,9 @@ import {
 } from '@mui/material';
 import Notification from '../../components/Notification';
 import PageTitle from '../../components/PageTitle';
-import type { SystemConfigList1 } from '../../shared/RpcModels';
+import type { SystemConfigList1, SystemStorageStats1 } from '../../shared/RpcModels';
 import { fetchConfigs, fetchUpsertConfig } from '../../rpc/system/config';
+import { fetchStats as fetchStorageStats } from '../../rpc/system/storage';
 
 const AUTH_PROVIDERS = ['microsoft', 'discord', 'google', 'apple'];
 const GUID_REGEX = /^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/;
@@ -42,6 +43,7 @@ const SystemConfigPage = (): JSX.Element => {
     const [tab, setTab] = useState(0);
     const [notification, setNotification] = useState(false);
     const [forbidden, setForbidden] = useState(false);
+    const [stats, setStats] = useState<SystemStorageStats1 | null>(null);
 
     const handleNotificationClose = (): void => {
         setNotification(false);
@@ -67,6 +69,11 @@ const SystemConfigPage = (): JSX.Element => {
     useEffect(() => {
         void load();
     }, []);
+
+    const lookup = async (): Promise<void> => {
+        const res: SystemStorageStats1 = await fetchStorageStats();
+        setStats(res);
+    };
 
     const validate = (key: string, value: string): boolean => {
         let err = '';
@@ -230,6 +237,17 @@ const SystemConfigPage = (): JSX.Element => {
                         error={Boolean(errors.StorageCacheTime)}
                         helperText={errors.StorageCacheTime}
                     />
+                    <Button variant="outlined" onClick={() => { void lookup(); }}>
+                        Lookup
+                    </Button>
+                    {stats && (
+                        <Box>
+                            <Typography>Files: {stats.file_count}</Typography>
+                            <Typography>Total Bytes: {stats.total_bytes}</Typography>
+                            <Typography>User Folders: {stats.folder_count}</Typography>
+                            <Typography>DB Rows: {stats.db_rows}</Typography>
+                        </Box>
+                    )}
                 </Stack>
             </TabPanel>
 
