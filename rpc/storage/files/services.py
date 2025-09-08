@@ -14,6 +14,8 @@ from .models import (
   StorageFilesUploadFiles1,
   StorageFilesGetLink1,
   StorageFilesGetFolderFiles1,
+  StorageFilesFolderItem1,
+  StorageFilesFolderListing1,
   StorageFilesDeleteFolder1,
   StorageFilesCreateUserFolder1,
   StorageFilesRenameFile1,
@@ -178,9 +180,10 @@ async def storage_files_get_folder_files_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
   data = StorageFilesGetFolderFiles1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
-  files = await storage.list_files_by_folder(user_guid, data.path)
-  items = [StorageFilesFileItem1(**f) for f in files]
-  payload = StorageFilesFiles1(files=items)
+  res = await storage.list_folder(user_guid, data.path)
+  items = [StorageFilesFileItem1(**f) for f in res.get("files", [])]
+  folders = [StorageFilesFolderItem1(**f) for f in res.get("folders", [])]
+  payload = StorageFilesFolderListing1(path=res.get("path", ""), files=items, folders=folders)
   await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,

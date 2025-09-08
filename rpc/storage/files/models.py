@@ -49,6 +49,17 @@ class StorageFilesGetFolderFiles1(BaseModel):
   path: str
 
 
+class StorageFilesFolderItem1(BaseModel):
+  name: str
+  empty: bool
+
+
+class StorageFilesFolderListing1(BaseModel):
+  path: str
+  files: List[StorageFilesFileItem1]
+  folders: List[StorageFilesFolderItem1]
+
+
 class StorageFilesDeleteFolder1(BaseModel):
   path: str
 

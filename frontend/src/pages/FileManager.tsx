@@ -42,26 +42,37 @@ interface StorageFile {
     content_type?: string;
 }
 
+interface StorageFolder {
+    name: string;
+    empty: boolean;
+}
+
 const FileManager = (): JSX.Element => {
     const [files, setFiles] = useState<StorageFile[]>([]);
+    const [folders, setFolders] = useState<StorageFolder[]>([]);
     const { userData } = useContext(UserContext);
     const [notification, setNotification] = useState(false);
     const [notificationMsg, setNotificationMsg] = useState('');
     const [currentPath, setCurrentPath] = useState('');
     const [moveTarget, setMoveTarget] = useState<string | null>(null);
 
-    const load = useCallback(async (path: string = currentPath): Promise<void> => {
+    const load = useCallback(async (path: string): Promise<void> => {
         try {
-            const res: { files: StorageFile[] } = await fetchFolderFiles({ path });
+            const res: { path: string; files: StorageFile[]; folders: StorageFolder[] } =
+                await fetchFolderFiles({ path });
             setFiles(res.files);
+            setFolders(res.folders);
+            setCurrentPath(res.path);
         } catch {
             setFiles([]);
+            setFolders([]);
         }
-    }, [currentPath]);
+    }, []);
 
     useEffect(() => {
         if (!userData) {
             setFiles([]);
+            setFolders([]);
             return;
         }
         void load(currentPath);
@@ -69,13 +80,13 @@ const FileManager = (): JSX.Element => {
 
     const handleDelete = async (name: string): Promise<void> => {
         await fetchDeleteFiles({ files: [name] });
-        await load();
+        await load(currentPath);
     };
 
     const handleDeleteFolder = async (folder: string): Promise<void> => {
         const path = currentPath ? `${currentPath}/${folder}` : folder;
         await fetchDeleteFolder({ path });
-        await load();
+        await load(currentPath);
     };
 
     const handleSetGallery = async (name: string): Promise<void> => {
@@ -93,7 +104,7 @@ const FileManager = (): JSX.Element => {
         const base = name.split('/').pop() || name;
         const dst = moveTarget ? `${moveTarget}/${base}` : base;
         await fetchMoveFile({ src: name, dst });
-        await load();
+        await load(currentPath);
     };
 
     const getType = (file: StorageFile): string => {
@@ -130,32 +141,19 @@ const FileManager = (): JSX.Element => {
     useEffect(() => {
         setMoveTarget(null);
     }, [currentPath]);
-
-    const prefix = currentPath ? `${currentPath}/` : '';
-    const folderSet = new Set<string>();
-    const visibleFiles: StorageFile[] = [];
-    files.forEach((file) => {
-        if (!file.name.startsWith(prefix)) return;
-        const rest = file.name.slice(prefix.length);
-        const parts = rest.split('/');
-        if (parts.length > 1) folderSet.add(parts[0]);
-        else visibleFiles.push(file);
-    });
-    const folders = Array.from(folderSet);
     const parentPath = currentPath.split('/').slice(0, -1).join('/');
-    if (currentPath) folders.unshift('..');
+    const displayFolders = currentPath ? [{ name: '..', empty: false }, ...folders] : folders;
 
-    const isFolderEmpty = (folder: string): boolean => {
-        const fp = `${prefix}${folder}/`;
-        return !files.some((f) => f.name.startsWith(fp));
+    const navigateTo = (path: string): void => {
+        setCurrentPath(path);
     };
 
     return (
         <Box sx={{ p: 2 }}>
             <Stack spacing={2}>
                 <PageTitle>File Manager</PageTitle>
-                <FileUpload onComplete={() => load()} path={currentPath} />
-                <FolderManager path={currentPath} onPathChange={setCurrentPath} onRefresh={() => load()} />
+                <FileUpload onComplete={() => load(currentPath)} path={currentPath} />
+                <FolderManager path={currentPath} onPathChange={navigateTo} onRefresh={() => load(currentPath)} />
                 <Table size="small" sx={{ '& td, & th': { py: 0.5 } }}>
                     <TableHead>
                         <TableRow>
@@ -165,21 +163,26 @@ const FileManager = (): JSX.Element => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {folders.map((folder) => {
-                            const fullPath = folder === '..' ? parentPath : prefix + folder;
+                        {displayFolders.map((folder) => {
+                            const fullPath =
+                                folder.name === '..'
+                                    ? parentPath
+                                    : currentPath
+                                      ? `${currentPath}/${folder.name}`
+                                      : folder.name;
                             return (
                                 <TableRow
-                                    key={`folder-${folder}`}
+                                    key={`folder-${folder.name}`}
                                     hover
                                     sx={{ cursor: 'pointer' }}
-                                    onClick={() => setCurrentPath(fullPath)}
+                                    onClick={() => navigateTo(fullPath)}
                                 >
                                     <TableCell sx={{ width: '20%' }}>
                                         <IconButton size="small">
                                             <Folder />
                                         </IconButton>
                                     </TableCell>
-                                    <TableCell sx={{ width: '60%' }}>{folder}</TableCell>
+                                    <TableCell sx={{ width: '60%' }}>{folder.name}</TableCell>
                                     <TableCell sx={{ width: '20%' }}>
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <FormControlLabel
@@ -198,13 +201,13 @@ const FileManager = (): JSX.Element => {
                                                 }
                                                 label="Move to"
                                             />
-                                            {folder !== '..' && (
+                                            {folder.name !== '..' && (
                                                 <IconButton
                                                     size="small"
-                                                    disabled={!isFolderEmpty(folder)}
+                                                    disabled={!folder.empty}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        void handleDeleteFolder(folder);
+                                                        void handleDeleteFolder(folder.name);
                                                     }}
                                                 >
                                                     <Delete />
@@ -215,7 +218,7 @@ const FileManager = (): JSX.Element => {
                                 </TableRow>
                             );
                         })}
-                        {visibleFiles.map((file) => (
+                        {files.map((file) => (
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
                                 <TableCell sx={{ width: '60%' }}>{file.name}</TableCell>

@@ -77,16 +77,27 @@ def test_list_files_by_user():
   ]
 
 
-def test_list_files_by_folder():
+def test_list_folder_returns_files_and_folders():
   app = FastAPI()
   mod = StorageModule(app)
   mod.db = DummyListDb([
     {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
     {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
     {"path": "docs", "filename": "c.txt", "content_type": "text/plain", "url": "u/docs/c.txt"},
+    {"path": "docs/sub", "filename": "d.txt", "content_type": "text/plain", "url": "u/docs/sub/d.txt"},
   ])
-  files = asyncio.run(mod.list_files_by_folder("u1", "/docs"))
-  assert files == [
-    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
-    {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
-  ]
+  root = asyncio.run(mod.list_folder("u1", ""))
+  assert root == {
+    "path": "",
+    "files": [{"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}],
+    "folders": [{"name": "docs", "empty": False}],
+  }
+  docs = asyncio.run(mod.list_folder("u1", "/docs"))
+  assert docs == {
+    "path": "docs",
+    "files": [
+      {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+      {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
+    ],
+    "folders": [{"name": "sub", "empty": False}],
+  }

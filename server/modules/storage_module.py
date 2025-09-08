@@ -180,24 +180,33 @@ class StorageModule(BaseModule):
       })
     return out
 
-  async def list_files_by_folder(self, user_guid: str, folder: str):
-    """Return files under ``folder`` for ``user_guid``."""
+  async def list_folder(self, user_guid: str, folder: str):
+    """Return files and subfolders under ``folder`` for ``user_guid``."""
     assert self.db
     rows = await self.db.list_storage_cache(user_guid)
     folder = folder.strip("/")
-    out = []
+    prefix = f"{folder}/" if folder else ""
+    files: list[dict[str, str | None]] = []
+    folders: dict[str, bool] = {}
     for row in rows:
       path = row.get("path") or ""
-      if path != folder:
-        continue
-      filename = row.get("filename", "")
-      name = f"{path}/{filename}" if path else filename
-      out.append({
-        "name": name,
-        "url": row.get("url") or name,
-        "content_type": row.get("content_type"),
-      })
-    return out
+      if path == folder:
+        filename = row.get("filename", "")
+        if filename:
+          name = f"{path}/{filename}" if path else filename
+          files.append({
+            "name": name,
+            "url": row.get("url") or name,
+            "content_type": row.get("content_type"),
+          })
+      elif path.startswith(prefix):
+        rest = path[len(prefix):]
+        subfolder, *rem = rest.split("/", 1)
+        folders.setdefault(subfolder, True)
+        if rem or row.get("filename"):
+          folders[subfolder] = False
+    folder_items = [{"name": k, "empty": v} for k, v in folders.items()]
+    return {"path": folder, "files": files, "folders": folder_items}
 
   async def list_public_files(self):
     """Return files marked as publicly accessible."""
