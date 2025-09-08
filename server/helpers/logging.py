@@ -76,6 +76,8 @@ def update_logging_level(level: int = 3):
     2 → errors and warnings
     3 → errors, warnings and info
     ≥4 → errors, warnings, info and debug
+
+  Azure HTTP request/response logging is suppressed unless ``level >= 4``.
   """
   logger = logging.getLogger()
   logger.disabled = level <= 0
@@ -91,13 +93,13 @@ def update_logging_level(level: int = 3):
     log_level = logging.DEBUG
   logger.setLevel(log_level)
 
+  # Azure's HTTP policy logs request/response details at INFO.
+  # Only enable these verbose logs in debug mode.
   azure_logger = logging.getLogger('azure.core.pipeline.policies.http_logging_policy')
   azure_logger.disabled = level <= 0
   if level >= 4:
-    azure_level = logging.DEBUG
-  elif level == 3:
     azure_level = logging.INFO
-  elif level == 2:
+  elif level == 3:
     azure_level = logging.WARNING
   else:
     azure_level = logging.ERROR
