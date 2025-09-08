@@ -1,5 +1,4 @@
 import types, sys, asyncio, pathlib, importlib
-from types import SimpleNamespace
 
 root_path = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(root_path))
@@ -34,11 +33,14 @@ importlib.reload(support_mod)
 class DummyUserAdmin:
   def __init__(self):
     self.calls = []
-    self.profile = SimpleNamespace(model_dump=lambda: {"guid": "u1"})
 
-  async def get_profile(self, guid):
-    self.calls.append(("get_profile", guid))
-    return self.profile
+  async def get_displayname(self, guid):
+    self.calls.append(("get_displayname", guid))
+    return "User"
+
+  async def get_credits(self, guid):
+    self.calls.append(("get_credits", guid))
+    return 5
 
   async def set_credits(self, guid, credits):
     self.calls.append(("set_credits", guid, credits))
@@ -69,15 +71,25 @@ def _make_rpc(op, payload=None):
 def test_support_routes_reuse_account_routes():
   calls = []
 
-  async def fake_profile(request):
-    calls.append("get_profile")
+  async def fake_displayname(request):
+    calls.append("get_displayname")
     return RPCResponse(op="o", payload={}, version=1)
 
-  orig_profile = account_mod.account_user_get_profile_v1
-  account_mod.account_user_get_profile_v1 = fake_profile
-  asyncio.run(support_mod.support_users_get_profile_v1(None))
-  account_mod.account_user_get_profile_v1 = orig_profile
-  assert "get_profile" in calls
+  orig_displayname = account_mod.account_user_get_displayname_v1
+  account_mod.account_user_get_displayname_v1 = fake_displayname
+  asyncio.run(support_mod.support_users_get_displayname_v1(None))
+  account_mod.account_user_get_displayname_v1 = orig_displayname
+  assert "get_displayname" in calls
+
+  async def fake_credits(request):
+    calls.append("get_credits")
+    return RPCResponse(op="o", payload={}, version=1)
+
+  orig_credits = account_mod.account_user_get_credits_v1
+  account_mod.account_user_get_credits_v1 = fake_credits
+  asyncio.run(support_mod.support_users_get_credits_v1(None))
+  account_mod.account_user_get_credits_v1 = orig_credits
+  assert "get_credits" in calls
 
   async def fake_set_credits(request):
     calls.append("set_credits")
@@ -106,13 +118,21 @@ def test_support_users_calls_user_admin():
   state = DummyState(ua)
   req = DummyRequest(state)
 
-  async def fake_get_profile(request):
-    return _make_rpc("urn:support:users:get_profile:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_get_profile
-  account_mod.unbox_request = fake_get_profile
-  resp = asyncio.run(support_mod.support_users_get_profile_v1(req))
-  assert ("get_profile", "u1") in ua.calls
+  async def fake_get_displayname(request):
+    return _make_rpc("urn:support:users:get_displayname:1", {"userGuid": "u1"}), None, None
+  helpers.unbox_request = fake_get_displayname
+  account_mod.unbox_request = fake_get_displayname
+  resp = asyncio.run(support_mod.support_users_get_displayname_v1(req))
+  assert ("get_displayname", "u1") in ua.calls
   assert isinstance(resp, RPCResponse)
+
+  async def fake_get_credits(request):
+    return _make_rpc("urn:support:users:get_credits:1", {"userGuid": "u1"}), None, None
+  helpers.unbox_request = fake_get_credits
+  account_mod.unbox_request = fake_get_credits
+  resp2 = asyncio.run(support_mod.support_users_get_credits_v1(req))
+  assert ("get_credits", "u1") in ua.calls
+  assert isinstance(resp2, RPCResponse)
 
   async def fake_set_credits(request):
     return _make_rpc("urn:support:users:set_credits:1", {"userGuid": "u1", "credits": 5}), None, None

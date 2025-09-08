@@ -9,6 +9,9 @@ class SupportUsersSetCredits1(SupportUsersGuid1):
   credits: int
 
 
-class SupportUsersStorageStatus1(SupportUsersGuid1):
-  exists: bool
+class SupportUsersDisplayName1(SupportUsersGuid1):
+  displayName: str
 
+
+class SupportUsersCredits1(SupportUsersGuid1):
+  credits: int

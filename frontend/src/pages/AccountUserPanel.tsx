@@ -6,17 +6,17 @@ import PageTitle from '../components/PageTitle';
 import EditBox from '../components/EditBox';
 import Notification from '../components/Notification';
 import type {
-	UsersProfileProfile1,
-	AccountRoleRoleItem1,
-	AccountRoleMembers1,
-	AccountRoleList1,
+        AccountRoleRoleItem1,
+        AccountRoleMembers1,
+        AccountRoleList1,
+        AccountUserDisplayName1,
+        AccountUserCredits1,
 } from '../shared/RpcModels';
 import {
-        fetchProfile,
+        fetchDisplayname,
+        fetchCredits,
         fetchSetCredits,
         fetchResetDisplay,
-        fetchEnableStorage,
-        fetchCheckStorage,
 } from '../rpc/account/user';
 import {
 	fetchRoles,
@@ -25,19 +25,16 @@ import {
 	fetchRemoveRoleMember,
 } from '../rpc/account/role';
 
-const STORAGE_ROLE_BIT = 2n;
-
 const AccountUserPanel = (): JSX.Element => {
-		const { guid } = useParams();
-		const [profile, setProfile] = useState<UsersProfileProfile1 | null>(null);
-		const [assigned, setAssigned] = useState<AccountRoleRoleItem1[]>([]);
-		const [available, setAvailable] = useState<AccountRoleRoleItem1[]>([]);
+                const { guid } = useParams();
+                const [displayName, setDisplayName] = useState<string>('');
+                const [assigned, setAssigned] = useState<AccountRoleRoleItem1[]>([]);
+                const [available, setAvailable] = useState<AccountRoleRoleItem1[]>([]);
                 const [credits, setCredits] = useState<number>(0);
                 const [notification, setNotification] = useState(false);
                 const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
                 const [selectedLeft, setSelectedLeft] = useState('');
                 const [selectedRight, setSelectedRight] = useState('');
-                const [storageExists, setStorageExists] = useState(false);
 
 		const sortRoles = (a: AccountRoleRoleItem1, b: AccountRoleRoleItem1): number => {
 				const am = BigInt(a.mask);
@@ -51,9 +48,10 @@ const AccountUserPanel = (): JSX.Element => {
                                 void (async () => {
                                                 if (!guid) return;
                                                 try {
-                                                                const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: guid });
-                                                                setProfile(prof);
-                                                                setCredits(prof.credits);
+                                                                const nameRes: AccountUserDisplayName1 = await fetchDisplayname({ userGuid: guid });
+                                                                setDisplayName(nameRes.displayName);
+                                                                const creditRes: AccountUserCredits1 = await fetchCredits({ userGuid: guid });
+                                                                setCredits(creditRes.credits);
                                                                 const roleRes: AccountRoleList1 = await fetchRoles();
                                                                 const sorted = [...roleRes.roles].sort(sortRoles);
                                                                 const assignments: AccountRoleRoleItem1[] = [];
@@ -77,36 +75,15 @@ const AccountUserPanel = (): JSX.Element => {
                                                                 setAssigned(assignments);
                                                                 setAvailable(avail);
                                                                 setInitialAssigned(assignments.map((r) => r.name));
-                                                                setStorageExists(false);
                                                 } catch {
-                                                                setProfile(null);
+                                                                setDisplayName('');
                                                                 setCredits(0);
                                                                 setAssigned([]);
                                                                 setAvailable([]);
                                                                 setInitialAssigned([]);
-                                                                setStorageExists(false);
                                                 }
                                 })();
                 }, [guid]);
-
-                useEffect(() => {
-                                if (!profile) {
-                                                setStorageExists(false);
-                                                return;
-                                }
-                                if (assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n)) {
-                                                void (async () => {
-                                                                try {
-                                                                                const res = await fetchCheckStorage({ userGuid: profile.guid });
-                                                                                setStorageExists(Boolean(res.exists));
-                                                                } catch {
-                                                                                setStorageExists(false);
-                                                                }
-                                                })();
-                                } else {
-                                                setStorageExists(false);
-                                }
-                }, [profile, assigned]);
 
 		const moveRight = (): void => {
 				if (!selectedLeft) return;
@@ -117,36 +94,29 @@ const AccountUserPanel = (): JSX.Element => {
 				setSelectedLeft('');
 		};
 
-		const moveLeft = (): void => {
-				if (!selectedRight) return;
-				const role = assigned.find((r) => r.name === selectedRight);
-				if (!role) return;
-				setAvailable([...available, role].sort(sortRoles));
-				setAssigned(assigned.filter((r) => r.name !== selectedRight));
-				setSelectedRight('');
-		};
+                const moveLeft = (): void => {
+                                if (!selectedRight) return;
+                                const role = assigned.find((r) => r.name === selectedRight);
+                                if (!role) return;
+                                setAvailable([...available, role].sort(sortRoles));
+                                setAssigned(assigned.filter((r) => r.name !== selectedRight));
+                                setSelectedRight('');
+                };
 
-		const handleResetDisplay = async (): Promise<void> => {
-				if (!profile) return;
-				await fetchResetDisplay({ userGuid: profile.guid });
-				const prof: UsersProfileProfile1 = await fetchProfile({ userGuid: profile.guid });
-				setProfile(prof);
-		};
-
-		const handleEnableStorage = async (): Promise<void> => {
-				if (!profile) return;
-				await fetchEnableStorage({ userGuid: profile.guid });
-				const res = await fetchCheckStorage({ userGuid: profile.guid });
-				setStorageExists(Boolean(res.exists));
-		};
+                const handleResetDisplay = async (): Promise<void> => {
+                                if (!guid) return;
+                                await fetchResetDisplay({ userGuid: guid });
+                                const nameRes: AccountUserDisplayName1 = await fetchDisplayname({ userGuid: guid });
+                                setDisplayName(nameRes.displayName);
+                };
 
                 const handleSave = async (): Promise<void> => {
-                                if (!profile) return;
+                                if (!guid) return;
                                 const assignedNames = assigned.map((r) => r.name);
                                 const toAdd = assignedNames.filter((r) => !initialAssigned.includes(r));
                                 const toRemove = initialAssigned.filter((r) => !assignedNames.includes(r));
-                                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: profile.guid })));
-                                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: profile.guid })));
+                                await Promise.all(toAdd.map((r) => fetchAddRoleMember({ role: r, userGuid: guid })));
+                                await Promise.all(toRemove.map((r) => fetchRemoveRoleMember({ role: r, userGuid: guid })));
                                 setInitialAssigned(assignedNames);
                                 setNotification(true);
                 };
@@ -154,30 +124,22 @@ const AccountUserPanel = (): JSX.Element => {
 	return (
 		<Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 			<PageTitle>User Management</PageTitle>
-			{profile && (
-				<Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
-					<Typography variant="h6">{profile.display_name}</Typography>
-					<Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
-                                        <Typography>Email: {profile.email}</Typography>
+                        {displayName && (
+                                <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
+                                        <Typography variant="h6">{displayName}</Typography>
+                                        <Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
                                         <EditBox
                                                 value={credits}
                                                 onCommit={async (val) => {
-                                                                if (!profile) return;
+                                                                if (!guid) return;
                                                                 const num = Number(val);
-                                                                await fetchSetCredits({ userGuid: profile.guid, credits: num });
+                                                                await fetchSetCredits({ userGuid: guid, credits: num });
                                                                 setCredits(num);
                                                 }}
                                                 width={120}
                                         />
-                                        <Button
-                                                variant="outlined"
-                                                onClick={handleEnableStorage}
-                                                disabled={!assigned.some((r) => (BigInt(r.mask) & STORAGE_ROLE_BIT) !== 0n) || storageExists}
-                                        >
-                                                Enable Storage
-                                        </Button>
-								</Stack>
-						)}
+                                </Stack>
+                        )}
 			<Stack direction="row" spacing={2}>
 				<List sx={{ width: 200, border: 1 }}>
 					{available.map((r) => (

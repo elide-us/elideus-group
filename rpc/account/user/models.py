@@ -9,5 +9,9 @@ class AccountUserSetCredits1(AccountUserGuid1):
   credits: int
 
 
-class AccountUserStorageStatus1(AccountUserGuid1):
-  exists: bool
+class AccountUserDisplayName1(AccountUserGuid1):
+  displayName: str
+
+
+class AccountUserCredits1(AccountUserGuid1):
+  credits: int

@@ -26,10 +26,9 @@ All Support domain calls require `ROLE_SUPPORT`.
 
 | Operation                            | Description                                      |
 | ------------------------------------ | ------------------------------------------------ |
-| `urn:support:users:get_profile:1`      | Get a user's profile details.                    |
+| `urn:support:users:get_displayname:1`  | Get a user's display name.                       |
+| `urn:support:users:get_credits:1`      | Get a user's credit amount.                      |
 | `urn:support:users:set_credits:1`      | Moderator can set user credit amount.            |
-| `urn:support:users:enable_storage:1`   | Moderator can enable user storage.               |
-| `urn:support:users:check_storage:1`    | Check if user storage folder exists.             |
 | `urn:support:users:reset_display:1`    | Moderator reset of user display name to default. |
 
 ## Users Domain
@@ -182,6 +181,15 @@ All Account domain calls require `ROLE_ACCOUNT_ADMIN`.
 | `urn:account:role:get_role_members:1`       | Get members and non-members for a role.      |
 | `urn:account:role:add_role_member:1`        | Add members to a role.                       |
 | `urn:account:role:remove_role_member:1`     | Remove members from a role.                  |
+
+### `user`
+
+| Operation                                | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `urn:account:user:get_displayname:1`     | Get a user's display name.                |
+| `urn:account:user:get_credits:1`         | Get a user's credit amount.               |
+| `urn:account:user:set_credits:1`         | Set a user's credit amount.               |
+| `urn:account:user:reset_display:1`       | Reset a user's display name to default.   |
 
 ## Moderation Domain
 
