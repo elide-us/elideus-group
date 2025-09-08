@@ -1,6 +1,8 @@
 """Storage management module for indexing Azure Blob contents."""
 
 import asyncio, logging, re
+from uuid import UUID
+from azure.storage.blob.aio import BlobServiceClient
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
@@ -76,12 +78,91 @@ class StorageModule(BaseModule):
 
   async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
-    # Placeholder for future implementation
-    return
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    seen: dict[str, set[tuple[str, str]]] = {}
+    prefix = f"{user_guid}/" if user_guid else None
+    try:
+      iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
+      async for blob in iterator:
+        name = getattr(blob, "name", None)
+        if not name:
+          continue
+        parts = name.split("/")
+        if len(parts) < 2:
+          continue
+        guid = parts[0]
+        try:
+          UUID(guid)
+        except Exception:
+          continue
+        if user_guid and guid != user_guid:
+          continue
+        filename = parts[-1]
+        if filename == ".init":
+          continue
+        path = "/".join(parts[1:-1])
+        ct = None
+        if hasattr(blob, "content_settings") and blob.content_settings:
+          ct = getattr(blob.content_settings, "content_type", None)
+        if not ct:
+          ct = getattr(blob, "content_type", None)
+        created_on = getattr(blob, "creation_time", None) or getattr(blob, "created_on", None)
+        modified_on = getattr(blob, "last_modified", None)
+        url = f"{container.url}/{name}"
+        await self.db.upsert_storage_cache({
+          "user_guid": guid,
+          "path": path,
+          "filename": filename,
+          "content_type": ct or "application/octet-stream",
+          "public": 0,
+          "created_on": created_on,
+          "modified_on": modified_on,
+          "url": url,
+          "reported": 0,
+          "moderation_recid": None,
+        })
+        seen.setdefault(guid, set()).add((path, filename))
+      if user_guid:
+        existing = await self.db.list_storage_cache(user_guid)
+        for item in existing:
+          key = (item["path"], item["filename"])
+          if key not in seen.get(user_guid, set()):
+            await self.db.delete_storage_cache(user_guid, item["path"], item["filename"])
+      else:
+        for guid, items_seen in seen.items():
+          existing = await self.db.list_storage_cache(guid)
+          for item in existing:
+            key = (item["path"], item["filename"])
+            if key not in items_seen:
+              await self.db.delete_storage_cache(guid, item["path"], item["filename"])
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
-    raise NotImplementedError
+    assert self.db
+    await self.db.upsert_storage_cache({
+      "user_guid": user_guid,
+      "path": path,
+      "filename": filename,
+      "content_type": file_type,
+      "public": kwargs.get("public", 0),
+      "created_on": kwargs.get("created_on"),
+      "modified_on": kwargs.get("modified_on"),
+      "url": kwargs.get("url"),
+      "reported": kwargs.get("reported", 0),
+      "moderation_recid": kwargs.get("moderation_recid"),
+    })
 
   async def list_files_by_user(self, user_guid: str):
     """Return files belonging to ``user_guid``."""

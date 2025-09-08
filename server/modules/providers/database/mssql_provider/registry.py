@@ -407,6 +407,79 @@ async def _storage_cache_replace_user(args: Dict[str, Any]):
   return DBResult(rows=[], rowcount=len(items))
 
 
+@register("db:storage:cache:upsert:1")
+async def _storage_cache_upsert(args: Dict[str, Any]):
+  user_guid = args["user_guid"]
+  path = args.get("path", "")
+  filename = args.get("filename", "")
+  mimetype = args.get("content_type", "application/octet-stream")
+  public = args.get("public", 0)
+  created_on = args.get("created_on")
+  modified_on = args.get("modified_on")
+  url = args.get("url")
+  reported = args.get("reported", 0)
+  moderation_recid = args.get("moderation_recid")
+  res = await fetch_json(
+    "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (mimetype,),
+  )
+  if not res.rows:
+    res = await fetch_json(
+      "SELECT recid FROM storage_types WHERE element_mimetype = 'application/octet-stream' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+      (),
+    )
+  type_recid = res.rows[0]["recid"] if res.rows else 1
+  sql = """
+    MERGE users_storage_cache AS target
+    USING (SELECT ? AS users_guid, ? AS types_recid, ? AS element_path, ? AS element_filename,
+                  ? AS element_public, ? AS element_created_on, ? AS element_modified_on,
+                  ? AS element_deleted, ? AS element_url, ? AS element_reported, ? AS moderation_recid) AS src
+    ON target.users_guid = src.users_guid AND target.element_path = src.element_path AND target.element_filename = src.element_filename
+    WHEN MATCHED THEN UPDATE SET
+      types_recid = src.types_recid,
+      element_public = src.element_public,
+      element_created_on = src.element_created_on,
+      element_modified_on = src.element_modified_on,
+      element_deleted = src.element_deleted,
+      element_url = src.element_url,
+      element_reported = src.element_reported,
+      moderation_recid = src.moderation_recid
+    WHEN NOT MATCHED THEN
+      INSERT (users_guid, types_recid, element_path, element_filename, element_public,
+              element_created_on, element_modified_on, element_deleted, element_url,
+              element_reported, moderation_recid)
+      VALUES (src.users_guid, src.types_recid, src.element_path, src.element_filename,
+              src.element_public, src.element_created_on, src.element_modified_on,
+              src.element_deleted, src.element_url, src.element_reported, src.moderation_recid);
+  """
+  params = (
+    user_guid,
+    type_recid,
+    path,
+    filename,
+    public,
+    created_on,
+    modified_on,
+    0,
+    url,
+    reported,
+    moderation_recid,
+  )
+  return await exec_query(sql, params)
+
+
+@register("db:storage:cache:delete:1")
+def _storage_cache_delete(args: Dict[str, Any]):
+  user_guid = args["user_guid"]
+  path = args.get("path", "")
+  filename = args.get("filename", "")
+  sql = """
+    DELETE FROM users_storage_cache
+    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
+  """
+  return ("exec", sql, (user_guid, path, filename))
+
+
 @register("urn:users:profile:set_optin:1")
 def _users_set_optin(args: Dict[str, Any]):
     guid = args["guid"]
