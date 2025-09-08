@@ -39,3 +39,46 @@ class StorageFilesCreateFolder1(BaseModel):
 class StorageFilesMoveFile1(BaseModel):
   src: str
   dst: str
+
+
+class StorageFilesGetLink1(BaseModel):
+  name: str
+
+
+class StorageFilesGetFolderFiles1(BaseModel):
+  path: str
+
+
+class StorageFilesDeleteFolder1(BaseModel):
+  path: str
+
+
+class StorageFilesCreateUserFolder1(BaseModel):
+  path: str
+
+
+class StorageFilesRenameFile1(BaseModel):
+  old_name: str
+  new_name: str
+
+
+class StorageFilesGetMetadata1(BaseModel):
+  name: str
+
+
+class StorageFilesFileMetadata1(BaseModel):
+  name: str
+  size: int
+  content_type: Optional[str] = None
+  created_on: str
+  modified_on: str
+
+
+class StorageFilesUsageItem1(BaseModel):
+  content_type: str
+  size: int
+
+
+class StorageFilesUsage1(BaseModel):
+  total_size: int
+  by_type: List[StorageFilesUsageItem1]
