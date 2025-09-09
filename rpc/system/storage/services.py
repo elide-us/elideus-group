@@ -8,6 +8,8 @@ from .models import SystemStorageStats1
 async def system_storage_get_stats_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   storage: StorageModule = request.app.state.storage
+  if rpc_request.payload and rpc_request.payload.get("reindex"):
+    await storage.reindex()
   stats = await storage.get_storage_stats()
   payload = SystemStorageStats1(**stats)
   return RPCResponse(

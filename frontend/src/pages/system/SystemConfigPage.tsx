@@ -71,7 +71,7 @@ const SystemConfigPage = (): JSX.Element => {
     }, []);
 
     const lookup = async (): Promise<void> => {
-        const res: SystemStorageStats1 = await fetchStorageStats();
+        const res: SystemStorageStats1 = await fetchStorageStats({ reindex: true });
         setStats(res);
     };
 

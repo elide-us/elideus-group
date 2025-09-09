@@ -108,8 +108,6 @@ class StorageModule(BaseModule):
         if user_guid and guid != user_guid:
           continue
         filename = parts[-1]
-        if filename == ".init":
-          continue
         path = "/".join(parts[1:-1])
         # index folders along the path
         parent = ""
@@ -132,6 +130,8 @@ class StorageModule(BaseModule):
             fset.add(key)
           seen.setdefault(guid, set()).add(key)
           parent = f"{parent}/{folder_name}" if parent else folder_name
+        if filename == ".init":
+          continue
         ct = None
         if hasattr(blob, "content_settings") and blob.content_settings:
           ct = getattr(blob.content_settings, "content_type", None)
