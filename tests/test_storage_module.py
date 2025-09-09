@@ -153,11 +153,12 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   from types import SimpleNamespace
 
   class FakeBlob:
-    def __init__(self, name):
+    def __init__(self, name, metadata=None):
       self.name = name
       self.content_settings = SimpleNamespace(content_type = "text/plain")
       self.creation_time = None
       self.last_modified = None
+      self.metadata = metadata
 
   class FakeContainer:
     def __init__(self, blobs):
@@ -175,6 +176,7 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   fake_container = FakeContainer([
     FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/.init"),
     FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/file.txt"),
+    FakeBlob("123e4567-e89b-12d3-a456-426614174000/empty_test", {"hdi_isfolder": "true"}),
   ])
 
   class FakeBSC:
@@ -192,6 +194,7 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   asyncio.run(mod.reindex())
   assert any(u["filename"] == "docs" for u in app.state.db.upserts)
   assert any(u["filename"] == "file.txt" and u["path"] == "docs" for u in app.state.db.upserts)
+  assert any(u["filename"] == "empty_test" and u["content_type"] == "path/folder" for u in app.state.db.upserts)
 
 
 def test_get_storage_stats_counts_all_folders(monkeypatch):
