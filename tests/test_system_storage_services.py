@@ -66,6 +66,12 @@ svc.unbox_request = fake_unbox
 
 
 class DummyStorageModule:
+  def __init__(self):
+    self.reindex_called = False
+
+  async def reindex(self):
+    self.reindex_called = True
+
   async def get_storage_stats(self):
     return {
       'file_count': 5,
@@ -87,9 +93,13 @@ async def rpc_endpoint(request: Request):
 client = TestClient(app)
 
 
-def test_get_stats_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:storage:get_stats:1'})
+def test_get_stats_service_triggers_reindex():
+  resp = client.post('/rpc', json={
+    'op': 'urn:system:storage:get_stats:1',
+    'payload': {'reindex': True},
+  })
   assert resp.status_code == 200
+  assert app.state.storage.reindex_called is True
   assert resp.json()['payload'] == {
     'file_count': 5,
     'total_bytes': 10,
