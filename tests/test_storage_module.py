@@ -192,3 +192,65 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   asyncio.run(mod.reindex())
   assert any(u["filename"] == "docs" for u in app.state.db.upserts)
   assert any(u["filename"] == "file.txt" and u["path"] == "docs" for u in app.state.db.upserts)
+
+
+def test_get_storage_stats_counts_all_folders(monkeypatch):
+  class DummyDb:
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:storage:cache:count_rows:1":
+        return Res([{ "count": 10 }])
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+
+  app = FastAPI()
+  mod = StorageModule(app)
+  mod.db = DummyDb()
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name, size):
+      self.name = name
+      self.size = size
+
+  class FakeContainer:
+    def __init__(self, blobs):
+      self.blobs = blobs
+      self.url = "http://blob"
+    def list_blobs(self):
+      async def gen():
+        for b in self.blobs:
+          yield b
+      return gen()
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer([
+    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/file1.txt", 1),
+    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/sub/file2.txt", 2),
+  ])
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  stats = asyncio.run(mod.get_storage_stats())
+  assert stats == {
+    "file_count": 2,
+    "total_bytes": 3,
+    "folder_count": 2,
+    "db_rows": 10,
+  }
