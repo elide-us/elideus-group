@@ -54,8 +54,8 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
           return DBResult(rows=data, rowcount=len(data))
         return DBResult(rows=[data], rowcount=1)
   except Exception as e:
-    logging.debug(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
-    return DBResult()
+    logging.error(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
+    raise
 
 async def exec_query(query: str, params: tuple[Any, ...] = ()) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
@@ -65,5 +65,5 @@ async def exec_query(query: str, params: tuple[Any, ...] = ()) -> DBResult:
         await cur.execute(query, params)
         return DBResult(rowcount=cur.rowcount or 0)
   except Exception as e:
-    logging.debug(f"Exec failed:\n{query}\nArgs: {params}\nError: {e}")
-    return DBResult()
+    logging.error(f"Exec failed:\n{query}\nArgs: {params}\nError: {e}")
+    raise

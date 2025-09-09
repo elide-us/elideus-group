@@ -124,7 +124,7 @@ class StorageModule(BaseModule):
             logging.debug(
               "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
             )
-            await self.db.upsert_storage_cache({
+            res = await self.db.upsert_storage_cache({
               "user_guid": guid,
               "path": parent,
               "filename": folder_name,
@@ -136,6 +136,12 @@ class StorageModule(BaseModule):
               "reported": 0,
               "moderation_recid": None,
             })
+            if res.rowcount == 0:
+              logging.error(
+                "[StorageModule] Failed to upsert folder %s/%s",
+                parent or ".",
+                folder_name,
+              )
             fset.add(key)
             folders_indexed += 1
           parent = f"{parent}/{folder_name}" if parent else folder_name
@@ -147,7 +153,7 @@ class StorageModule(BaseModule):
             logging.debug(
               "[StorageModule] indexing folder %s/%s", path or ".", filename
             )
-            await self.db.upsert_storage_cache({
+            res = await self.db.upsert_storage_cache({
               "user_guid": guid,
               "path": path,
               "filename": filename,
@@ -159,6 +165,12 @@ class StorageModule(BaseModule):
               "reported": 0,
               "moderation_recid": None,
             })
+            if res.rowcount == 0:
+              logging.error(
+                "[StorageModule] Failed to upsert folder %s/%s",
+                path or ".",
+                filename,
+              )
             fset.add(key)
             folders_indexed += 1
           continue
@@ -175,7 +187,7 @@ class StorageModule(BaseModule):
         logging.debug(
           "[StorageModule] indexing file %s/%s", path or ".", filename
         )
-        await self.db.upsert_storage_cache({
+        res = await self.db.upsert_storage_cache({
           "user_guid": guid,
           "path": path,
           "filename": filename,
@@ -187,6 +199,12 @@ class StorageModule(BaseModule):
           "reported": 0,
           "moderation_recid": None,
         })
+        if res.rowcount == 0:
+          logging.error(
+            "[StorageModule] Failed to upsert file %s/%s",
+            path or ".",
+            filename,
+          )
         files_seen.setdefault(guid, set()).add((path, filename))
         files_indexed += 1
       if user_guid:
@@ -223,7 +241,7 @@ class StorageModule(BaseModule):
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
     assert self.db
-    await self.db.upsert_storage_cache({
+    res = await self.db.upsert_storage_cache({
       "user_guid": user_guid,
       "path": path,
       "filename": filename,
@@ -235,6 +253,12 @@ class StorageModule(BaseModule):
       "reported": kwargs.get("reported", 0),
       "moderation_recid": kwargs.get("moderation_recid"),
     })
+    if res.rowcount == 0:
+      logging.error(
+        "[StorageModule] Failed to upsert file %s/%s",
+        path or ".",
+        filename,
+      )
 
   async def list_files_by_user(self, user_guid: str):
     """Return files belonging to ``user_guid``."""

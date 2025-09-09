@@ -4,6 +4,7 @@ from uuid import UUID
 from ... import DBResult
 from .logic import init_pool, close_pool, transaction
 from .db_helpers import fetch_rows, fetch_json, exec_query
+import logging
 
 # handler can be:
 #  - sync: (mode, sql, params) -> provider will run it
@@ -483,7 +484,14 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
     reported,
     moderation_recid,
   )
-  return await exec_query(sql, params)
+  rc = await exec_query(sql, params)
+  if rc.rowcount == 0:
+    logging.error(
+      "[MSSQL] storage_cache_upsert affected 0 rows for %s/%s",
+      path or ".",
+      filename,
+    )
+  return rc
 
 
 @register("db:storage:cache:delete:1")
