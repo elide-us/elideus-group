@@ -330,7 +330,7 @@ class StorageModule(BaseModule):
     container = bsc.get_container_client(container_name)
     file_count = 0
     total_bytes = 0
-    users: set[str] = set()
+    folders: set[tuple[str, str]] = set()
     try:
       async for blob in container.list_blobs():
         name = getattr(blob, "name", "")
@@ -344,9 +344,12 @@ class StorageModule(BaseModule):
           UUID(guid)
         except Exception:
           continue
+        parent = ""
+        for folder_name in parts[1:-1]:
+          parent = f"{parent}/{folder_name}" if parent else folder_name
+          folders.add((guid, parent))
         if parts[-1] == ".init":
           continue
-        users.add(guid)
         file_count += 1
         size = getattr(blob, "size", None)
         if size is None:
@@ -358,6 +361,6 @@ class StorageModule(BaseModule):
     return {
       "file_count": file_count,
       "total_bytes": total_bytes,
-      "folder_count": len(users),
+      "folder_count": len(folders),
       "db_rows": db_rows,
     }
