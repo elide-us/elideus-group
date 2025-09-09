@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 import sys
 import types
+import pytest
 import server.modules.providers.database.mssql_provider  # ensure provider module loaded
 
 # stub server package
@@ -108,7 +109,7 @@ def test_fetch_rows_returns_empty_on_error(monkeypatch):
   assert res.rowcount == 0
 
 
-def test_fetch_json_returns_empty_on_error(monkeypatch):
+def test_fetch_json_raises_on_error(monkeypatch):
   class Cur:
     async def execute(self, q, p):
       raise Exception("boom")
@@ -124,12 +125,11 @@ def test_fetch_json_returns_empty_on_error(monkeypatch):
       return Conn()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  res = asyncio.run(db_helpers.fetch_json("SELECT 1"))
-  assert res.rows == []
-  assert res.rowcount == 0
+  with pytest.raises(Exception):
+    asyncio.run(db_helpers.fetch_json("SELECT 1"))
 
 
-def test_exec_query_returns_empty_on_error(monkeypatch):
+def test_exec_query_raises_on_error(monkeypatch):
   class Cur:
     async def execute(self, q, p):
       raise Exception("boom")
@@ -143,9 +143,8 @@ def test_exec_query_returns_empty_on_error(monkeypatch):
       return Conn()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  res = asyncio.run(db_helpers.exec_query("UPDATE x SET y=1"))
-  assert res.rows == []
-  assert res.rowcount == 0
+  with pytest.raises(Exception):
+    asyncio.run(db_helpers.exec_query("UPDATE x SET y=1"))
 
 
 def test_fetch_rows_stream(monkeypatch):

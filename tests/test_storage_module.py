@@ -135,6 +135,8 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
       return Res([])
     async def upsert_storage_cache(self, item):
       self.upserts.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
     async def list_storage_cache(self, user_guid):
       return []
     async def shutdown(self):
