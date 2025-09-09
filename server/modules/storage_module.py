@@ -89,6 +89,7 @@ class StorageModule(BaseModule):
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
     container = bsc.get_container_client(container_name)
     seen: dict[str, set[tuple[str, str]]] = {}
+    folder_seen: dict[str, set[tuple[str, str]]] = {}
     prefix = f"{user_guid}/" if user_guid else None
     try:
       iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
@@ -110,6 +111,27 @@ class StorageModule(BaseModule):
         if filename == ".init":
           continue
         path = "/".join(parts[1:-1])
+        # index folders along the path
+        parent = ""
+        fset = folder_seen.setdefault(guid, set())
+        for folder_name in parts[1:-1]:
+          key = (parent, folder_name)
+          if key not in fset:
+            await self.db.upsert_storage_cache({
+              "user_guid": guid,
+              "path": parent,
+              "filename": folder_name,
+              "content_type": "path/folder",
+              "public": 0,
+              "created_on": None,
+              "modified_on": None,
+              "url": None,
+              "reported": 0,
+              "moderation_recid": None,
+            })
+            fset.add(key)
+          seen.setdefault(guid, set()).add(key)
+          parent = f"{parent}/{folder_name}" if parent else folder_name
         ct = None
         if hasattr(blob, "content_settings") and blob.content_settings:
           ct = getattr(blob.content_settings, "content_type", None)
@@ -134,6 +156,8 @@ class StorageModule(BaseModule):
       if user_guid:
         existing = await self.db.list_storage_cache(user_guid)
         for item in existing:
+          if item.get("content_type") == "path/folder":
+            continue
           key = (item["path"], item["filename"])
           if key not in seen.get(user_guid, set()):
             await self.db.delete_storage_cache(user_guid, item["path"], item["filename"])
@@ -141,6 +165,8 @@ class StorageModule(BaseModule):
         for guid, items_seen in seen.items():
           existing = await self.db.list_storage_cache(guid)
           for item in existing:
+            if item.get("content_type") == "path/folder":
+              continue
             key = (item["path"], item["filename"])
             if key not in items_seen:
               await self.db.delete_storage_cache(guid, item["path"], item["filename"])
@@ -170,6 +196,8 @@ class StorageModule(BaseModule):
     rows = await self.db.list_storage_cache(user_guid)
     out = []
     for row in rows:
+      if row.get("content_type") == "path/folder":
+        continue
       path = row.get("path") or ""
       filename = row.get("filename", "")
       name = f"{path}/{filename}" if path else filename
@@ -190,21 +218,27 @@ class StorageModule(BaseModule):
     folders: dict[str, bool] = {}
     for row in rows:
       path = row.get("path") or ""
-      if path == folder:
-        filename = row.get("filename", "")
-        if filename:
-          name = f"{path}/{filename}" if path else filename
-          files.append({
-            "name": name,
-            "url": row.get("url") or name,
-            "content_type": row.get("content_type"),
-          })
-      elif path.startswith(prefix):
-        rest = path[len(prefix):]
-        subfolder, *rem = rest.split("/", 1)
-        folders.setdefault(subfolder, True)
-        if rem or row.get("filename"):
+      filename = row.get("filename", "")
+      ct = row.get("content_type")
+      if ct == "path/folder":
+        if path == folder:
+          folders[filename] = True
+        elif path.startswith(prefix):
+          subfolder = path[len(prefix):].split("/", 1)[0]
+          folders.setdefault(subfolder, True)
           folders[subfolder] = False
+        continue
+      if path == folder:
+        name = f"{path}/{filename}" if path else filename
+        files.append({
+          "name": name,
+          "url": row.get("url") or name,
+          "content_type": ct,
+        })
+      elif path.startswith(prefix):
+        subfolder = path[len(prefix):].split("/", 1)[0]
+        folders.setdefault(subfolder, True)
+        folders[subfolder] = False
     folder_items = [{"name": k, "empty": v} for k, v in folders.items()]
     return {"path": folder, "files": files, "folders": folder_items}
 
