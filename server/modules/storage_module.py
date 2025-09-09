@@ -92,7 +92,7 @@ class StorageModule(BaseModule):
       return
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
     container = bsc.get_container_client(container_name)
-    seen: dict[str, set[tuple[str, str]]] = {}
+    files_seen: dict[str, set[tuple[str, str]]] = {}
     folder_seen: dict[str, set[tuple[str, str]]] = {}
     files_indexed = 0
     folders_indexed = 0
@@ -121,6 +121,9 @@ class StorageModule(BaseModule):
         for folder_name in parts[1:-1][:4]:
           key = (parent, folder_name)
           if key not in fset:
+            logging.debug(
+              "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
+            )
             await self.db.upsert_storage_cache({
               "user_guid": guid,
               "path": parent,
@@ -135,7 +138,6 @@ class StorageModule(BaseModule):
             })
             fset.add(key)
             folders_indexed += 1
-          seen.setdefault(guid, set()).add(key)
           parent = f"{parent}/{folder_name}" if parent else folder_name
         if filename == ".init":
           continue
@@ -147,6 +149,9 @@ class StorageModule(BaseModule):
         created_on = getattr(blob, "creation_time", None) or getattr(blob, "created_on", None)
         modified_on = getattr(blob, "last_modified", None)
         url = f"{container.url}/{name}"
+        logging.debug(
+          "[StorageModule] indexing file %s/%s", path or ".", filename
+        )
         await self.db.upsert_storage_cache({
           "user_guid": guid,
           "path": path,
@@ -159,7 +164,7 @@ class StorageModule(BaseModule):
           "reported": 0,
           "moderation_recid": None,
         })
-        seen.setdefault(guid, set()).add((path, filename))
+        files_seen.setdefault(guid, set()).add((path, filename))
         files_indexed += 1
       if user_guid:
         existing = await self.db.list_storage_cache(user_guid)
@@ -167,10 +172,10 @@ class StorageModule(BaseModule):
           if item.get("content_type") == "path/folder":
             continue
           key = (item["path"], item["filename"])
-          if key not in seen.get(user_guid, set()):
+          if key not in files_seen.get(user_guid, set()):
             await self.db.delete_storage_cache(user_guid, item["path"], item["filename"])
       else:
-        for guid, items_seen in seen.items():
+        for guid, items_seen in files_seen.items():
           existing = await self.db.list_storage_cache(guid)
           for item in existing:
             if item.get("content_type") == "path/folder":
