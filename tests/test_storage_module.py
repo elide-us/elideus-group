@@ -2,6 +2,7 @@ import asyncio
 from fastapi import FastAPI
 
 from server.modules.storage_module import StorageModule
+import server.modules.storage_module as storage_module
 from server.modules import BaseModule
 
 
@@ -106,3 +107,88 @@ def test_list_folder_returns_files_and_folders():
     {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
   ]
   assert docs["folders"] == [{"name": "sub", "empty": False}]
+
+
+def test_reindex_indexes_files_and_folders(monkeypatch):
+  class DummyEnv(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+    async def startup(self):
+      self.mark_ready()
+    def get(self, key: str):
+      return "UseDevelopmentStorage=true"
+    async def shutdown(self):
+      pass
+
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.upserts = []
+    async def startup(self):
+      self.mark_ready()
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+    async def upsert_storage_cache(self, item):
+      self.upserts.append(item)
+    async def list_storage_cache(self, user_guid):
+      return []
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = DummyDb(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+  mod = StorageModule(app)
+  mod.env = app.state.env
+  mod.db = app.state.db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name):
+      self.name = name
+      self.content_settings = SimpleNamespace(content_type = "text/plain")
+      self.creation_time = None
+      self.last_modified = None
+
+  class FakeContainer:
+    def __init__(self, blobs):
+      self.blobs = blobs
+      self.url = "http://blob"
+    def list_blobs(self, name_starts_with=None):
+      async def gen():
+        for b in self.blobs:
+          if not name_starts_with or b.name.startswith(name_starts_with):
+            yield b
+      return gen()
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer([
+    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/.init"),
+    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/file.txt"),
+  ])
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  asyncio.run(mod.reindex())
+  assert any(u["filename"] == "docs" for u in app.state.db.upserts)
+  assert any(u["filename"] == "file.txt" and u["path"] == "docs" for u in app.state.db.upserts)
