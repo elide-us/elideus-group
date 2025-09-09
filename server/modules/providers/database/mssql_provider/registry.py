@@ -425,11 +425,28 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
     (mimetype,),
   )
   if not res.rows:
-    res = await fetch_json(
-      "SELECT recid FROM storage_types WHERE element_mimetype = 'application/octet-stream' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-      (),
-    )
-  type_recid = res.rows[0]["recid"] if res.rows else 1
+    if mimetype == "path/folder":
+      await exec_query(
+        """
+        MERGE storage_types AS target
+        USING (SELECT 16 AS recid, 'path/folder' AS element_mimetype, 'Folder' AS element_displaytype) AS src
+        ON target.element_mimetype = src.element_mimetype
+        WHEN NOT MATCHED THEN
+          INSERT (recid, element_mimetype, element_displaytype)
+          VALUES (src.recid, src.element_mimetype, src.element_displaytype);
+        """,
+        (),
+      )
+      res = await fetch_json(
+        "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+        (mimetype,),
+      )
+    else:
+      res = await fetch_json(
+        "SELECT recid FROM storage_types WHERE element_mimetype = 'application/octet-stream' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+        (),
+      )
+  type_recid = res.rows[0]["recid"] if res.rows else (16 if mimetype == "path/folder" else 1)
   sql = """
     MERGE users_storage_cache AS target
     USING (SELECT ? AS users_guid, ? AS types_recid, ? AS element_path, ? AS element_filename,

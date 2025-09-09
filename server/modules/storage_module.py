@@ -139,7 +139,30 @@ class StorageModule(BaseModule):
             fset.add(key)
             folders_indexed += 1
           parent = f"{parent}/{folder_name}" if parent else folder_name
-        if filename == ".init":
+        # handle explicit folder markers (Azure Storage Explorer etc.)
+        meta = getattr(blob, "metadata", {}) or {}
+        if meta.get("hdi_isfolder") == "true":
+          key = (path, filename)
+          if key not in fset:
+            logging.debug(
+              "[StorageModule] indexing folder %s/%s", path or ".", filename
+            )
+            await self.db.upsert_storage_cache({
+              "user_guid": guid,
+              "path": path,
+              "filename": filename,
+              "content_type": "path/folder",
+              "public": 0,
+              "created_on": None,
+              "modified_on": None,
+              "url": None,
+              "reported": 0,
+              "moderation_recid": None,
+            })
+            fset.add(key)
+            folders_indexed += 1
+          continue
+        if not filename or filename == ".init":
           continue
         ct = None
         if hasattr(blob, "content_settings") and blob.content_settings:
