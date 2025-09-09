@@ -60,7 +60,8 @@ const FileManager = (): JSX.Element => {
         try {
             const res: { path: string; files: StorageFile[]; folders: StorageFolder[] } =
                 await fetchFolderFiles({ path });
-            setFiles(res.files);
+            const filtered = res.files.filter((f) => f.content_type !== 'path/folder');
+            setFiles(filtered);
             setFolders(res.folders);
             setCurrentPath(res.path);
         } catch {

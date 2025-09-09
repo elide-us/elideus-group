@@ -69,6 +69,7 @@ def test_list_files_by_user():
   mod.db = DummyListDb([
     {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
     {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
+    {"path": "", "filename": "docs", "content_type": "path/folder", "url": None},
   ])
   files = asyncio.run(mod.list_files_by_user("u1"))
   assert files == [
@@ -82,22 +83,26 @@ def test_list_folder_returns_files_and_folders():
   mod = StorageModule(app)
   mod.db = DummyListDb([
     {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
+    {"path": "", "filename": "docs", "content_type": "path/folder", "url": None},
+    {"path": "", "filename": "empty", "content_type": "path/folder", "url": None},
     {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
     {"path": "docs", "filename": "c.txt", "content_type": "text/plain", "url": "u/docs/c.txt"},
+    {"path": "docs", "filename": "sub", "content_type": "path/folder", "url": None},
     {"path": "docs/sub", "filename": "d.txt", "content_type": "text/plain", "url": "u/docs/sub/d.txt"},
   ])
   root = asyncio.run(mod.list_folder("u1", ""))
-  assert root == {
-    "path": "",
-    "files": [{"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}],
-    "folders": [{"name": "docs", "empty": False}],
-  }
+  assert root["path"] == ""
+  assert root["files"] == [
+    {"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}
+  ]
+  assert sorted(root["folders"], key=lambda x: x["name"]) == [
+    {"name": "docs", "empty": False},
+    {"name": "empty", "empty": True},
+  ]
   docs = asyncio.run(mod.list_folder("u1", "/docs"))
-  assert docs == {
-    "path": "docs",
-    "files": [
-      {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
-      {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
-    ],
-    "folders": [{"name": "sub", "empty": False}],
-  }
+  assert docs["path"] == "docs"
+  assert docs["files"] == [
+    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+    {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
+  ]
+  assert docs["folders"] == [{"name": "sub", "empty": False}]
