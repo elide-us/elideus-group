@@ -78,6 +78,10 @@ class StorageModule(BaseModule):
 
   async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
+    logging.info(
+      "[StorageModule] Reindexing storage%s",
+      f" for {user_guid}" if user_guid else " for all users",
+    )
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
@@ -90,6 +94,8 @@ class StorageModule(BaseModule):
     container = bsc.get_container_client(container_name)
     seen: dict[str, set[tuple[str, str]]] = {}
     folder_seen: dict[str, set[tuple[str, str]]] = {}
+    files_indexed = 0
+    folders_indexed = 0
     prefix = f"{user_guid}/" if user_guid else None
     try:
       iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
@@ -109,10 +115,10 @@ class StorageModule(BaseModule):
           continue
         filename = parts[-1]
         path = "/".join(parts[1:-1])
-        # index folders along the path
+        # index folders along the path (up to 4 levels)
         parent = ""
         fset = folder_seen.setdefault(guid, set())
-        for folder_name in parts[1:-1]:
+        for folder_name in parts[1:-1][:4]:
           key = (parent, folder_name)
           if key not in fset:
             await self.db.upsert_storage_cache({
@@ -128,6 +134,7 @@ class StorageModule(BaseModule):
               "moderation_recid": None,
             })
             fset.add(key)
+            folders_indexed += 1
           seen.setdefault(guid, set()).add(key)
           parent = f"{parent}/{folder_name}" if parent else folder_name
         if filename == ".init":
@@ -153,6 +160,7 @@ class StorageModule(BaseModule):
           "moderation_recid": None,
         })
         seen.setdefault(guid, set()).add((path, filename))
+        files_indexed += 1
       if user_guid:
         existing = await self.db.list_storage_cache(user_guid)
         for item in existing:
@@ -171,8 +179,18 @@ class StorageModule(BaseModule):
             if key not in items_seen:
               await self.db.delete_storage_cache(guid, item["path"], item["filename"])
     finally:
+      logging.debug(
+        "[StorageModule] Reindex found %d files and %d folders%s",
+        files_indexed,
+        folders_indexed,
+        f" for {user_guid}" if user_guid else "",
+      )
       await container.close()
       await bsc.close()
+      logging.info(
+        "[StorageModule] Reindex complete%s",
+        f" for {user_guid}" if user_guid else "",
+      )
 
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
