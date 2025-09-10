@@ -46,10 +46,15 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
     async with logic._pool.acquire() as conn:
       async with conn.cursor() as cur:
         await cur.execute(query, params)
-        row = await cur.fetchone()
-        if not row or not row[0]:
+        parts: list[str] = []
+        while True:
+          row = await cur.fetchone()
+          if not row or not row[0]:
+            break
+          parts.append(row[0])
+        if not parts:
           return DBResult()
-        data = json.loads(row[0])
+        data = json.loads("".join(parts))
         if many and isinstance(data, list):
           return DBResult(rows=data, rowcount=len(data))
         return DBResult(rows=[data], rowcount=1)

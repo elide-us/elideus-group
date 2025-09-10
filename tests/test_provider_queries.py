@@ -129,6 +129,47 @@ def test_fetch_json_raises_on_error(monkeypatch):
     asyncio.run(db_helpers.fetch_json("SELECT 1"))
 
 
+def test_fetch_json_handles_multiple_rows(monkeypatch):
+  class Cur:
+    def __init__(self):
+      self._rows = [("{\"a\":1,\"b\":\"",), ("two\"}",)]
+      self._idx = 0
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    async def execute(self, q, p):
+      pass
+    async def fetchone(self):
+      if self._idx < len(self._rows):
+        r = self._rows[self._idx]
+        self._idx += 1
+        return r
+      return None
+
+  class Conn:
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    def cursor(self):
+      return Cur()
+
+  class Pool:
+    def acquire(self):
+      class _Ctx:
+        async def __aenter__(self_inner):
+          return Conn()
+        async def __aexit__(self_inner, exc_type, exc, tb):
+          pass
+      return _Ctx()
+
+  monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
+  res = asyncio.run(db_helpers.fetch_json("SELECT"))
+  assert res.rows == [{"a": 1, "b": "two"}]
+  assert res.rowcount == 1
+
+
 def test_exec_query_raises_on_error(monkeypatch):
   class Cur:
     async def execute(self, q, p):
