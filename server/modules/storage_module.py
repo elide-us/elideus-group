@@ -449,7 +449,10 @@ class StorageModule(BaseModule):
       return
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
     container = bsc.get_container_client(container_name)
-    blob_name = f"{user_guid}/{path.lstrip('/')}"
+    folder_path = path.lstrip("/")
+    blob_name = f"{user_guid}/{folder_path}"
+    init_name = f"{blob_name}/.init"
+    parent, folder_name = folder_path.rsplit("/", 1) if "/" in folder_path else ("", folder_path)
     try:
       await container.upload_blob(
         blob_name,
@@ -457,6 +460,31 @@ class StorageModule(BaseModule):
         metadata={"hdi_isfolder": "true"},
         overwrite=True,
       )
+      await container.upload_blob(
+        init_name,
+        b"",
+        overwrite=True,
+      )
+      try:
+        await self.db.upsert_storage_cache({
+          "user_guid": user_guid,
+          "path": parent,
+          "filename": folder_name,
+          "content_type": "path/folder",
+          "public": 0,
+          "created_on": None,
+          "modified_on": None,
+          "url": None,
+          "reported": 0,
+          "moderation_recid": None,
+        })
+      except Exception as e:
+        logging.error(
+          "[StorageModule] Failed to update cache for %s/%s: %s",
+          parent or ".",
+          folder_name,
+          e,
+        )
     finally:
       await container.close()
       await bsc.close()

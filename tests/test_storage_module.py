@@ -407,3 +407,78 @@ def test_upload_files_sets_created_on(monkeypatch):
   created_on = mod.db.upserts[0]["created_on"]
   assert isinstance(created_on, datetime)
   assert created_on.tzinfo == timezone.utc
+
+
+def test_create_folder_creates_marker_and_cache(monkeypatch):
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.upserts = []
+    async def startup(self):
+      self.mark_ready()
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+    async def upsert_storage_cache(self, item):
+      self.upserts.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+    async def list_storage_cache(self, user_guid):
+      return []
+    async def shutdown(self):
+      pass
+
+  class DummyEnv(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+    async def startup(self):
+      self.mark_ready()
+    def get(self, key: str):
+      return "UseDevelopmentStorage=true"
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = DummyDb(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+  mod = StorageModule(app)
+  mod.env = app.state.env
+  mod.db = app.state.db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  class FakeContainer:
+    def __init__(self):
+      self.uploads = []
+    async def upload_blob(self, name, data, **kwargs):
+      self.uploads.append((name, kwargs.get("metadata")))
+    async def close(self):
+      pass
+
+  class FakeBSC:
+    def __init__(self):
+      self.container = FakeContainer()
+    def get_container_client(self, name):
+      return self.container
+    async def close(self):
+      pass
+
+  from types import SimpleNamespace
+  bsc = FakeBSC()
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: bsc),
+  )
+
+  asyncio.run(mod.create_folder("u1", "/docs/new"))
+  assert ("u1/docs/new", {"hdi_isfolder": "true"}) in bsc.container.uploads
+  assert ("u1/docs/new/.init", None) in bsc.container.uploads
+  assert app.state.db.upserts[0]["filename"] == "new"
+  assert app.state.db.upserts[0]["path"] == "docs"
+  assert app.state.db.upserts[0]["content_type"] == "path/folder"
