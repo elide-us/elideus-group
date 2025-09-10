@@ -75,8 +75,8 @@ def test_list_files_by_user():
   ])
   files = asyncio.run(mod.list_files_by_user("u1"))
   assert files == [
-    {"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
-    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
+    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
   ]
 
 
@@ -95,7 +95,7 @@ def test_list_folder_returns_files_and_folders():
   root = asyncio.run(mod.list_folder("u1", ""))
   assert root["path"] == ""
   assert root["files"] == [
-    {"name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}
+    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}
   ]
   assert sorted(root["folders"], key=lambda x: x["name"]) == [
     {"name": "docs", "empty": False},
@@ -104,8 +104,8 @@ def test_list_folder_returns_files_and_folders():
   docs = asyncio.run(mod.list_folder("u1", "/docs"))
   assert docs["path"] == "docs"
   assert docs["files"] == [
-    {"name": "docs/b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
-    {"name": "docs/c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
+    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+    {"path": "docs", "name": "c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
   ]
   assert docs["folders"] == [{"name": "sub", "empty": False}]
 

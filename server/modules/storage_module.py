@@ -272,10 +272,11 @@ class StorageModule(BaseModule):
         continue
       path = row.get("path") or ""
       filename = row.get("filename", "")
-      name = f"{path}/{filename}" if path else filename
+      full_name = f"{path}/{filename}" if path else filename
       out.append({
-        "name": name,
-        "url": row.get("url") or name,
+        "path": path,
+        "name": filename,
+        "url": row.get("url") or full_name,
         "content_type": row.get("content_type"),
       })
     return out
@@ -301,10 +302,11 @@ class StorageModule(BaseModule):
           folders[subfolder] = False
         continue
       if path == folder:
-        name = f"{path}/{filename}" if path else filename
+        full_name = f"{path}/{filename}" if path else filename
         files.append({
-          "name": name,
-          "url": row.get("url") or name,
+          "path": path,
+          "name": filename,
+          "url": row.get("url") or full_name,
           "content_type": ct,
         })
       elif path.startswith(prefix):

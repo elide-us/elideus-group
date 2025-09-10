@@ -37,6 +37,7 @@ import AudioPreview from '../components/AudioPreview';
 import ImagePreview from '../components/ImagePreview';
 
 interface StorageFile {
+    path: string;
     name: string;
     url: string;
     content_type?: string;
@@ -79,7 +80,11 @@ const FileManager = (): JSX.Element => {
         void load(currentPath);
     }, [userData, currentPath, load]);
 
-    const handleDelete = async (name: string): Promise<void> => {
+    const getFullName = (file: StorageFile): string =>
+        file.path ? `${file.path}/${file.name}` : file.name;
+
+    const handleDelete = async (file: StorageFile): Promise<void> => {
+        const name = getFullName(file);
         await fetchDeleteFiles({ files: [name] });
         await load(currentPath);
     };
@@ -90,8 +95,8 @@ const FileManager = (): JSX.Element => {
         await load(currentPath);
     };
 
-    const handleSetGallery = async (name: string): Promise<void> => {
-        await fetchSetGallery({ name, gallery: true });
+    const handleSetGallery = async (file: StorageFile): Promise<void> => {
+        await fetchSetGallery({ name: getFullName(file), gallery: true });
     };
 
     const handleCopy = async (url: string): Promise<void> => {
@@ -100,11 +105,12 @@ const FileManager = (): JSX.Element => {
         setNotification(true);
     };
 
-    const handleMove = async (name: string): Promise<void> => {
+    const handleMove = async (file: StorageFile): Promise<void> => {
         if (moveTarget === null) return;
-        const base = name.split('/').pop() || name;
+        const src = getFullName(file);
+        const base = file.name;
         const dst = moveTarget ? `${moveTarget}/${base}` : base;
-        await fetchMoveFile({ src: name, dst });
+        await fetchMoveFile({ src, dst });
         await load(currentPath);
     };
 
@@ -231,12 +237,12 @@ const FileManager = (): JSX.Element => {
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Delete">
-                                            <IconButton size="small" onClick={() => void handleDelete(file.name)}>
+                                            <IconButton size="small" onClick={() => void handleDelete(file)}>
                                                 <Delete />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Publish">
-                                            <IconButton size="small" onClick={() => void handleSetGallery(file.name)}>
+                                            <IconButton size="small" onClick={() => void handleSetGallery(file)}>
                                                 <Publish />
                                             </IconButton>
                                         </Tooltip>
@@ -244,7 +250,7 @@ const FileManager = (): JSX.Element => {
                                             <IconButton
                                                 size="small"
                                                 disabled={moveTarget === null}
-                                                onClick={() => void handleMove(file.name)}
+                                                onClick={() => void handleMove(file)}
                                             >
                                                 <DriveFileMove />
                                             </IconButton>

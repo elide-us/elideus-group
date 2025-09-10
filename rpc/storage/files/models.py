@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class StorageFilesFileItem1(BaseModel):
+  path: str
   name: str
   url: str
   content_type: Optional[str] = None

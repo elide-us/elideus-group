@@ -126,7 +126,7 @@ class DummyStorage:
     self.list_folder_args = (user_guid, path)
     return {
       "path": path,
-      "files": [{"name": f"{path}/a.txt", "url": f"u/{path}/a.txt", "content_type": "text/plain"}],
+      "files": [{"path": path, "name": "a.txt", "url": f"u/{path}/a.txt", "content_type": "text/plain"}],
       "folders": [{"name": "sub", "empty": False}],
     }
 
@@ -146,7 +146,12 @@ def make_request(op, payload):
 def test_get_link_calls_storage():
   req, storage = make_request("urn:storage:files:get_link:1", {"name": "a.txt"})
   resp = asyncio.run(storage_files_get_link_v1(req))
-  assert resp.payload == {"name": "a.txt", "url": "https://example.com/a.txt", "content_type": None}
+  assert resp.payload == {
+    "path": "",
+    "name": "a.txt",
+    "url": "https://example.com/a.txt",
+    "content_type": None,
+  }
   assert storage.link_args == ("u123", "a.txt")
   assert storage.reindexed == "u123"
 
@@ -208,7 +213,9 @@ def test_get_folder_files_returns_contents():
   resp = asyncio.run(storage_files_get_folder_files_v1(req))
   assert resp.payload == {
     "path": "docs",
-    "files": [{"name": "docs/a.txt", "url": "u/docs/a.txt", "content_type": "text/plain"}],
+    "files": [
+      {"path": "docs", "name": "a.txt", "url": "u/docs/a.txt", "content_type": "text/plain"}
+    ],
     "folders": [{"name": "sub", "empty": False}],
   }
   assert storage.list_folder_args == ("u123", "docs")
