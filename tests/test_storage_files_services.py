@@ -70,6 +70,7 @@ services = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(services)
 
 storage_files_get_link_v1 = services.storage_files_get_link_v1
+storage_files_upload_files_v1 = services.storage_files_upload_files_v1
 storage_files_delete_folder_v1 = services.storage_files_delete_folder_v1
 storage_files_rename_file_v1 = services.storage_files_rename_file_v1
 storage_files_get_metadata_v1 = services.storage_files_get_metadata_v1
@@ -80,6 +81,7 @@ storage_files_get_folder_files_v1 = services.storage_files_get_folder_files_v1
 class DummyStorage:
   def __init__(self):
     self.link_args = None
+    self.upload_args = None
     self.deleted = None
     self.reindexed = None
     self.renamed = None
@@ -90,6 +92,9 @@ class DummyStorage:
   async def get_file_link(self, user_guid, name):
     self.link_args = (user_guid, name)
     return f"https://example.com/{name}"
+
+  async def upload_files(self, user_guid, files):
+    self.upload_args = (user_guid, files)
 
   async def delete_folder(self, user_guid, path):
     self.deleted = (user_guid, path)
@@ -144,6 +149,16 @@ def test_get_link_calls_storage():
   assert resp.payload == {"name": "a.txt", "url": "https://example.com/a.txt", "content_type": None}
   assert storage.link_args == ("u123", "a.txt")
   assert storage.reindexed == "u123"
+
+
+def test_upload_files_calls_storage():
+  payload = {"files": [{"name": "a.txt", "content_b64": "Zg=="}]}
+  req, storage = make_request("urn:storage:files:upload_files:1", payload)
+  resp = asyncio.run(storage_files_upload_files_v1(req))
+  assert storage.upload_args[0] == "u123"
+  assert [f.model_dump() for f in storage.upload_args[1]] == [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]
+  assert storage.reindexed == "u123"
+  assert resp.payload == {"files": [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]}
 
 
 def test_delete_folder_triggers_reindex():
