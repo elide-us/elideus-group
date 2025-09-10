@@ -19,6 +19,7 @@ from .services import (
   storage_files_get_usage_v1,
   storage_files_get_public_files_v1,
   storage_files_get_moderation_files_v1,
+  storage_files_report_file_v1,
 )
 
 
@@ -38,5 +39,6 @@ DISPATCHERS: dict[tuple[str, str], callable] = {
   ("get_usage", "1"): storage_files_get_usage_v1,
   ("get_public_files", "1"): storage_files_get_public_files_v1,
   ("get_moderation_files", "1"): storage_files_get_moderation_files_v1,
+  ("report_file", "1"): storage_files_report_file_v1,
 }
 

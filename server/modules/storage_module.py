@@ -318,11 +318,15 @@ class StorageModule(BaseModule):
 
   async def list_public_files(self):
     """Return files marked as publicly accessible."""
-    raise NotImplementedError
+    assert self.db
+    res = await self.db.run("db:storage:cache:list_public:1", {})
+    return res.rows
 
   async def list_flagged_for_moderation(self):
     """Return files that have been reported for moderation review."""
-    raise NotImplementedError
+    assert self.db
+    res = await self.db.run("db:storage:cache:list_reported:1", {})
+    return res.rows
 
   async def upload_files(self, user_guid: str, files):
     if not self.connection_string or not self.db:
@@ -389,7 +393,20 @@ class StorageModule(BaseModule):
     raise NotImplementedError
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
-    raise NotImplementedError
+    assert self.db
+    path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+    await self.db.run(
+      "db:storage:cache:set_public:1",
+      {"user_guid": user_guid, "path": path, "filename": filename, "public": 1 if gallery else 0},
+    )
+
+  async def report_file(self, user_guid: str, name: str):
+    assert self.db
+    path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+    await self.db.run(
+      "db:storage:cache:set_reported:1",
+      {"user_guid": user_guid, "path": path, "filename": filename, "reported": 1},
+    )
 
   async def create_folder(self, user_guid: str, path: str):
     if not self.connection_string or not self.db:
