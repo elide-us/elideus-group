@@ -205,6 +205,7 @@ All Account domain calls require `ROLE_ACCOUNT_ADMIN`.
 | `urn:account:user:get_credits:1`         | Get a user's credit amount.               |
 | `urn:account:user:set_credits:1`         | Set a user's credit amount.               |
 | `urn:account:user:reset_display:1`       | Reset a user's display name to default.   |
+| `urn:account:user:create_folder:1`       | Create a folder for the user in storage.  |
 
 ## Moderation Domain
 

@@ -330,13 +330,33 @@ class StorageModule(BaseModule):
     raise NotImplementedError
 
   async def create_folder(self, user_guid: str, path: str):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    blob_name = f"{user_guid}/{path.lstrip('/')}"
+    try:
+      await container.upload_blob(
+        blob_name,
+        b"",
+        metadata={"hdi_isfolder": "true"},
+        overwrite=True,
+      )
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def delete_folder(self, user_guid: str, path: str):
     raise NotImplementedError
 
   async def create_user_folder(self, user_guid: str, path: str):
-    raise NotImplementedError
+    await self.create_folder(user_guid, path)
 
   async def move_file(self, user_guid: str, src: str, dst: str):
     raise NotImplementedError

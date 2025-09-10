@@ -15,3 +15,7 @@ class AccountUserDisplayName1(AccountUserGuid1):
 
 class AccountUserCredits1(AccountUserGuid1):
   credits: int
+
+
+class AccountUserCreateFolder1(AccountUserGuid1):
+  path: str
