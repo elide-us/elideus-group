@@ -1,8 +1,10 @@
 """Storage management module for indexing Azure Blob contents."""
 
-import asyncio, logging, re
+import asyncio, logging, re, base64
+from datetime import datetime, timezone
 from uuid import UUID
 from azure.storage.blob.aio import BlobServiceClient
+from azure.storage.blob import ContentSettings
 from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
@@ -321,7 +323,65 @@ class StorageModule(BaseModule):
     raise NotImplementedError
 
   async def upload_files(self, user_guid: str, files):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    try:
+      for f in files:
+        name = getattr(f, "name", None)
+        if not name and isinstance(f, dict):
+          name = f.get("name")
+        content_b64 = getattr(f, "content_b64", None)
+        if not content_b64 and isinstance(f, dict):
+          content_b64 = f.get("content_b64")
+        if not name or not content_b64:
+          continue
+        blob_name = f"{user_guid}/{name.lstrip('/')}"
+        data = base64.b64decode(content_b64)
+        ct = getattr(f, "content_type", None)
+        if ct is None and isinstance(f, dict):
+          ct = f.get("content_type")
+        try:
+          await container.upload_blob(
+            blob_name,
+            data,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=ct) if ct else None,
+          )
+        except Exception as e:
+          logging.error("[StorageModule] Failed to upload %s: %s", blob_name, e)
+          continue
+        now = datetime.now(timezone.utc)
+        path = "/".join(name.split("/")[:-1])
+        filename = name.split("/")[-1]
+        url = f"{container.url}/{blob_name}"
+        try:
+          res = await self.db.upsert_storage_cache({
+            "user_guid": user_guid,
+            "path": path,
+            "filename": filename,
+            "content_type": ct or "application/octet-stream",
+            "public": 0,
+            "created_on": now,
+            "modified_on": now,
+            "url": url,
+            "reported": 0,
+            "moderation_recid": None,
+          })
+          if res.rowcount == 0:
+            logging.error("[StorageModule] Failed to upsert file %s/%s", path or '.', filename)
+        except Exception as e:
+          logging.error("[StorageModule] Failed to update cache for %s/%s: %s", path or '.', filename, e)
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def delete_files(self, user_guid: str, names: list[str]):
     raise NotImplementedError

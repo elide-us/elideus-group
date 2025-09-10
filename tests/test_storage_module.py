@@ -1,4 +1,5 @@
-import asyncio
+import asyncio, base64
+from datetime import datetime, timezone
 from fastapi import FastAPI
 
 from server.modules.storage_module import StorageModule
@@ -259,3 +260,69 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
     "folder_count": 2,
     "db_rows": 10,
   }
+
+
+def test_upload_files_sets_created_on(monkeypatch):
+  app = FastAPI()
+  mod = StorageModule(app)
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  class DummyDb:
+    def __init__(self):
+      self.upserts = []
+
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+
+    async def upsert_storage_cache(self, data):
+      self.upserts.append(data)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+
+  mod.db = DummyDb()
+
+  class FakeContainer:
+    def __init__(self):
+      self.uploads = []
+      self.url = "http://blob"
+
+    async def upload_blob(self, name, data, overwrite, content_settings=None):
+      self.uploads.append((name, data, getattr(content_settings, "content_type", None)))
+
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer()
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+
+    async def close(self):
+      pass
+
+  from types import SimpleNamespace
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  files = [{
+    "name": "docs/a.txt",
+    "content_b64": base64.b64encode(b"hello").decode(),
+    "content_type": "text/plain",
+  }]
+
+  asyncio.run(mod.upload_files("u1", files))
+
+  assert fake_container.uploads[0][0] == "u1/docs/a.txt"
+  created_on = mod.db.upserts[0]["created_on"]
+  assert isinstance(created_on, datetime)
+  assert created_on.tzinfo == timezone.utc
