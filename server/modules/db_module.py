@@ -134,3 +134,9 @@ class DbModule(BaseModule):
       {"user_guid": user_guid, "path": path, "filename": filename},
     )
 
+  async def delete_storage_cache_folder(self, user_guid: str, path: str):
+    await self.run(
+      "db:storage:cache:delete_folder:1",
+      {"user_guid": user_guid, "path": path},
+    )
+

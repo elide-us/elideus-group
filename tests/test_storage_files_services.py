@@ -71,6 +71,7 @@ spec.loader.exec_module(services)
 
 storage_files_get_link_v1 = services.storage_files_get_link_v1
 storage_files_upload_files_v1 = services.storage_files_upload_files_v1
+storage_files_delete_files_v1 = services.storage_files_delete_files_v1
 storage_files_delete_folder_v1 = services.storage_files_delete_folder_v1
 storage_files_rename_file_v1 = services.storage_files_rename_file_v1
 storage_files_move_file_v1 = services.storage_files_move_file_v1
@@ -84,6 +85,7 @@ class DummyStorage:
     self.link_args = None
     self.upload_args = None
     self.deleted = None
+    self.deleted_files = None
     self.reindexed = None
     self.renamed = None
     self.moved = None
@@ -97,6 +99,9 @@ class DummyStorage:
 
   async def upload_files(self, user_guid, files):
     self.upload_args = (user_guid, files)
+
+  async def delete_files(self, user_guid, files):
+    self.deleted_files = (user_guid, files)
 
   async def delete_folder(self, user_guid, path):
     self.deleted = (user_guid, path)
@@ -171,6 +176,13 @@ def test_upload_files_calls_storage():
   assert [f.model_dump() for f in storage.upload_args[1]] == [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]
   assert storage.reindexed == "u123"
   assert resp.payload == {"files": [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]}
+
+
+def test_delete_files_triggers_reindex():
+  req, storage = make_request("urn:storage:files:delete_files:1", {"files": ["a.txt"]})
+  _ = asyncio.run(storage_files_delete_files_v1(req))
+  assert storage.deleted_files == ("u123", ["a.txt"])
+  assert storage.reindexed == "u123"
 
 
 def test_delete_folder_triggers_reindex():
