@@ -25,6 +25,8 @@ class MssqlProvider(DbProviderBase):
       return await fetch_json(sql, params)
     if mode == "row_one":
       return await fetch_rows(sql, params, one=True)
+    if mode == "row_many":
+      return await fetch_rows(sql, params)
     if mode == "json_many":
       return await fetch_json(sql, params, many=True)
     if mode == "exec":

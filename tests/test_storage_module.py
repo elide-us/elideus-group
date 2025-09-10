@@ -5,6 +5,9 @@ from fastapi import FastAPI
 from server.modules.storage_module import StorageModule
 import server.modules.storage_module as storage_module
 from server.modules import BaseModule
+from server.modules.providers.database.mssql_provider import MssqlProvider
+import server.modules.providers.database.mssql_provider as mssql_provider
+from server.modules.providers import DBResult
 
 
 class DummyEnv(BaseModule):
@@ -63,6 +66,28 @@ def test_parse_duration_shorthand():
   assert StorageModule._parse_duration("10m") == 600
   assert StorageModule._parse_duration("1d") == 86400
   assert StorageModule._parse_duration("2w") == 1209600
+
+
+def test_list_public_files(monkeypatch):
+  app = FastAPI()
+  provider = MssqlProvider()
+
+  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
+    assert not one
+    return DBResult(rows=[
+      {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
+      {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
+    ], rowcount=2)
+
+  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
+
+  mod = StorageModule(app)
+  mod.db = provider
+  rows = asyncio.run(mod.list_public_files())
+  assert rows == [
+    {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
+    {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
+  ]
 
 
 def test_list_files_by_user():
