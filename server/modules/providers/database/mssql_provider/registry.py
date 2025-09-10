@@ -416,7 +416,10 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
   filename = args.get("filename", "")
   mimetype = args.get("content_type", "application/octet-stream")
   public = args.get("public", 0)
+  from datetime import datetime
   created_on = args.get("created_on")
+  if created_on is None:
+    created_on = datetime.utcnow()
   modified_on = args.get("modified_on")
   url = args.get("url")
   reported = args.get("reported", 0)
