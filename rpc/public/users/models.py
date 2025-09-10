@@ -9,6 +9,7 @@ class PublicUsersProfile1(BaseModel):
 class PublicUsersPublishedFile1(BaseModel):
   path: str
   filename: str
+  url: str
 
 class PublicUsersPublishedFiles1(BaseModel):
   files: list[PublicUsersPublishedFile1]

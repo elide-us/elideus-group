@@ -156,6 +156,8 @@ def test_get_link_calls_storage():
     "name": "a.txt",
     "url": "https://example.com/a.txt",
     "content_type": None,
+    "user_guid": None,
+    "display_name": None,
   }
   assert storage.link_args == ("u123", "a.txt")
   assert storage.reindexed == "u123"
@@ -229,7 +231,7 @@ def test_get_folder_files_returns_contents():
   assert resp.payload == {
     "path": "docs",
     "files": [
-      {"path": "docs", "name": "a.txt", "url": "u/docs/a.txt", "content_type": "text/plain"}
+      {"path": "docs", "name": "a.txt", "url": "u/docs/a.txt", "content_type": "text/plain", "user_guid": None, "display_name": None}
     ],
     "folders": [{"name": "sub", "empty": False}],
   }

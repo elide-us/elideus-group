@@ -10,6 +10,7 @@ from .models import (
   StorageFilesFileItem1,
   StorageFilesCreateFolder1,
   StorageFilesSetGallery1,
+  StorageFilesReportFile1,
   StorageFilesMoveFile1,
   StorageFilesUploadFiles1,
   StorageFilesGetLink1,
@@ -238,6 +239,19 @@ async def storage_files_get_usage_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def storage_files_report_file_v1(request: Request):
+  rpc_request, _auth_ctx, _user_ctx = await unbox_request(request)
+  data = StorageFilesReportFile1(**(rpc_request.payload or {}))
+  storage: StorageModule = request.app.state.storage
+  await storage.report_file(data.guid, data.name)
+  await storage.reindex()
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=data.model_dump(),
     version=rpc_request.version,
   )
 

@@ -8,6 +8,8 @@ class StorageFilesFileItem1(BaseModel):
   name: str
   url: str
   content_type: Optional[str] = None
+  user_guid: Optional[str] = None
+  display_name: Optional[str] = None
 
 
 class StorageFilesFiles1(BaseModel):
@@ -31,6 +33,11 @@ class StorageFilesDeleteFiles1(BaseModel):
 class StorageFilesSetGallery1(BaseModel):
   name: str
   gallery: bool
+
+
+class StorageFilesReportFile1(BaseModel):
+  guid: str
+  name: str
 
 
 class StorageFilesCreateFolder1(BaseModel):

@@ -40,7 +40,7 @@ class DummyPublicUsersModule:
 
   async def get_published_files(self, guid: str):
     assert guid == '123'
-    return [{'path': '/a', 'filename': 'file.txt'}]
+    return [{'path': '/a', 'filename': 'file.txt', 'url': 'http://example/a/file.txt'}]
 
 app = FastAPI()
 app.state.public_users = DummyPublicUsersModule()
@@ -71,5 +71,5 @@ def test_get_published_files_service():
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
-    'files': [{'path': '/a', 'filename': 'file.txt'}]
+    'files': [{'path': '/a', 'filename': 'file.txt', 'url': 'http://example/a/file.txt'}]
   }

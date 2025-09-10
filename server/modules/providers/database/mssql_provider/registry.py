@@ -509,6 +509,68 @@ def _storage_cache_delete(args: Dict[str, Any]):
   return ("exec", sql, (user_guid, path, filename))
 
 
+@register("db:storage:cache:set_public:1")
+def _storage_cache_set_public(args: Dict[str, Any]):
+  guid = str(UUID(args["user_guid"]))
+  path = args.get("path", "")
+  filename = args.get("filename", "")
+  public = 1 if args.get("public") else 0
+  sql = """
+    UPDATE users_storage_cache
+    SET element_public = ?
+    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
+  """
+  return ("exec", sql, (public, guid, path, filename))
+
+
+@register("db:storage:cache:set_reported:1")
+def _storage_cache_set_reported(args: Dict[str, Any]):
+  guid = str(UUID(args["user_guid"]))
+  path = args.get("path", "")
+  filename = args.get("filename", "")
+  reported = 1 if args.get("reported") else 0
+  sql = """
+    UPDATE users_storage_cache
+    SET element_reported = ?
+    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
+  """
+  return ("exec", sql, (reported, guid, path, filename))
+
+
+@register("db:storage:cache:list_public:1")
+def _storage_cache_list_public(_: Dict[str, Any]):
+  sql = """
+    SELECT usc.users_guid AS user_guid,
+           au.element_display AS display_name,
+           usc.element_path AS path,
+           usc.element_filename AS name,
+           usc.element_url AS url,
+           st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN account_users au ON au.element_guid = usc.users_guid
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
+    ORDER BY usc.element_created_on;
+  """
+  return ("row_many", sql, ())
+
+
+@register("db:storage:cache:list_reported:1")
+def _storage_cache_list_reported(_: Dict[str, Any]):
+  sql = """
+    SELECT usc.users_guid AS user_guid,
+           usc.element_path AS path,
+           usc.element_filename AS name,
+           usc.element_url AS url,
+           st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.element_reported = 1 AND usc.element_deleted = 0
+    ORDER BY usc.element_created_on;
+  """
+  return ("row_many", sql, ())
+
+
 @register("db:storage:cache:count_rows:1")
 def _storage_cache_count_rows(_: Dict[str, Any]):
   sql = """
@@ -802,9 +864,10 @@ def _public_users_get_published_files(args: Dict[str, Any]):
     sql = """
       SELECT
         element_path AS path,
-        element_filename AS filename
+        element_filename AS filename,
+        element_url AS url
       FROM users_storage_cache
-      WHERE users_guid = ? AND element_public = 1 AND element_deleted = 0
+      WHERE users_guid = ? AND element_public = 1 AND element_deleted = 0 AND ISNULL(element_reported,0) = 0
       ORDER BY element_created_on;
     """
     return ("row_many", sql, (guid,))
