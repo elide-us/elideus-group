@@ -200,6 +200,87 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   assert any(u["filename"] == "empty_test" and u["content_type"] == "path/folder" for u in app.state.db.upserts)
 
 
+def test_move_file_copies_and_updates_cache(monkeypatch):
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.deleted = None
+      self.upserted = None
+    async def startup(self):
+      self.mark_ready()
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+    async def delete_storage_cache(self, user_guid, path, filename):
+      self.deleted = (user_guid, path, filename)
+    async def upsert_storage_cache(self, item):
+      self.upserted = item
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  db = DummyDb(app)
+  asyncio.run(db.startup())
+  mod = StorageModule(app)
+  mod.db = db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name):
+      self.name = name
+      self.url = f"http://blob/{name}"
+      self.copied = None
+      self.deleted = False
+      self.content_settings = SimpleNamespace(content_type="text/plain")
+      self.creation_time = "now"
+      self.last_modified = "later"
+    async def get_blob_properties(self):
+      return self
+    async def start_copy_from_url(self, url):
+      self.copied = url
+    async def delete_blob(self):
+      self.deleted = True
+
+  blobs = {
+    "u1/a.txt": FakeBlob("u1/a.txt"),
+    "u1/docs/b.txt": FakeBlob("u1/docs/b.txt"),
+  }
+
+  class FakeContainer:
+    def get_blob_client(self, name):
+      return blobs[name]
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer()
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  asyncio.run(mod.move_file("u1", "a.txt", "docs/b.txt"))
+  assert blobs["u1/docs/b.txt"].copied == blobs["u1/a.txt"].url
+  assert blobs["u1/a.txt"].deleted
+  assert db.deleted == ("u1", "", "a.txt")
+  assert db.upserted["path"] == "docs" and db.upserted["filename"] == "b.txt"
+
+
 def test_get_storage_stats_counts_all_folders(monkeypatch):
   class DummyDb:
     async def run(self, op, args):

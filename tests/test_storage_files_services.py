@@ -73,6 +73,7 @@ storage_files_get_link_v1 = services.storage_files_get_link_v1
 storage_files_upload_files_v1 = services.storage_files_upload_files_v1
 storage_files_delete_folder_v1 = services.storage_files_delete_folder_v1
 storage_files_rename_file_v1 = services.storage_files_rename_file_v1
+storage_files_move_file_v1 = services.storage_files_move_file_v1
 storage_files_get_metadata_v1 = services.storage_files_get_metadata_v1
 storage_files_get_usage_v1 = services.storage_files_get_usage_v1
 storage_files_get_folder_files_v1 = services.storage_files_get_folder_files_v1
@@ -85,6 +86,7 @@ class DummyStorage:
     self.deleted = None
     self.reindexed = None
     self.renamed = None
+    self.moved = None
     self.metadata_args = None
     self.usage_called = None
     self.list_folder_args = None
@@ -104,6 +106,9 @@ class DummyStorage:
 
   async def rename_file(self, user_guid, old_name, new_name):
     self.renamed = (user_guid, old_name, new_name)
+
+  async def move_file(self, user_guid, src, dst):
+    self.moved = (user_guid, src, dst)
 
   async def get_file_metadata(self, user_guid, name):
     self.metadata_args = (user_guid, name)
@@ -180,6 +185,16 @@ def test_rename_file_calls_storage():
   )
   _ = asyncio.run(storage_files_rename_file_v1(req))
   assert storage.renamed == ("u123", "a.txt", "b.txt")
+  assert storage.reindexed == "u123"
+
+
+def test_move_file_calls_storage():
+  req, storage = make_request(
+    "urn:storage:files:move_file:1",
+    {"src": "a.txt", "dst": "docs/b.txt"},
+  )
+  _ = asyncio.run(storage_files_move_file_v1(req))
+  assert storage.moved == ("u123", "a.txt", "docs/b.txt")
   assert storage.reindexed == "u123"
 
 
