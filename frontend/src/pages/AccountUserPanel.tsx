@@ -17,6 +17,7 @@ import {
         fetchCredits,
         fetchSetCredits,
         fetchResetDisplay,
+        fetchCreateFolder,
 } from '../rpc/account/user';
 import {
 	fetchRoles,
@@ -35,6 +36,7 @@ const AccountUserPanel = (): JSX.Element => {
                 const [initialAssigned, setInitialAssigned] = useState<string[]>([]);
                 const [selectedLeft, setSelectedLeft] = useState('');
                 const [selectedRight, setSelectedRight] = useState('');
+                const hasStorageRole = assigned.some((r) => r.name === 'ROLE_STORAGE');
 
 		const sortRoles = (a: AccountRoleRoleItem1, b: AccountRoleRoleItem1): number => {
 				const am = BigInt(a.mask);
@@ -110,6 +112,11 @@ const AccountUserPanel = (): JSX.Element => {
                                 setDisplayName(nameRes.displayName);
                 };
 
+                const handleCreateFolder = async (): Promise<void> => {
+                                if (!guid) return;
+                                await fetchCreateFolder({ userGuid: guid, path: '/' });
+                };
+
                 const handleSave = async (): Promise<void> => {
                                 if (!guid) return;
                                 const assignedNames = assigned.map((r) => r.name);
@@ -128,6 +135,9 @@ const AccountUserPanel = (): JSX.Element => {
                                 <Stack spacing={2} sx={{ mb: 4, alignItems: 'center' }}>
                                         <Typography variant="h6">{displayName}</Typography>
                                         <Button variant="outlined" onClick={handleResetDisplay}>Reset Display Name</Button>
+                                        {hasStorageRole && (
+                                                <Button variant="outlined" onClick={handleCreateFolder}>Create Storage Folder</Button>
+                                        )}
                                         <EditBox
                                                 value={credits}
                                                 onCommit={async (val) => {
