@@ -147,7 +147,8 @@ async def storage_files_get_link_v1(request: Request):
   data = StorageFilesGetLink1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   url = await storage.get_file_link(user_guid, data.name)
-  item = StorageFilesFileItem1(name=data.name, url=url)
+  path, filename = data.name.rsplit('/', 1) if '/' in data.name else ('', data.name)
+  item = StorageFilesFileItem1(path=path, name=filename, url=url)
   await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
