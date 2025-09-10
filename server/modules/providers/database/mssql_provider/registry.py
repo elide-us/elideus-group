@@ -509,6 +509,23 @@ def _storage_cache_delete(args: Dict[str, Any]):
   return ("exec", sql, (user_guid, path, filename))
 
 
+@register("db:storage:cache:delete_folder:1")
+def _storage_cache_delete_folder(args: Dict[str, Any]):
+  user_guid = args["user_guid"]
+  path = args.get("path", "").lstrip("/")
+  parent, name = path.rsplit("/", 1) if "/" in path else ("", path)
+  like = f"{path}/%" if path else "%"
+  sql = """
+    DELETE FROM users_storage_cache
+    WHERE users_guid = ? AND (
+      (element_path = ? AND element_filename = ?)
+      OR element_path = ?
+      OR element_path LIKE ?
+    );
+  """
+  return ("exec", sql, (user_guid, parent, name, path, like))
+
+
 @register("db:storage:cache:set_public:1")
 def _storage_cache_set_public(args: Dict[str, Any]):
   guid = str(UUID(args["user_guid"]))

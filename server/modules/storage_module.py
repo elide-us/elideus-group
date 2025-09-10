@@ -390,7 +390,37 @@ class StorageModule(BaseModule):
       await bsc.close()
 
   async def delete_files(self, user_guid: str, names: list[str]):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    try:
+      for name in names:
+        blob_name = f"{user_guid}/{name.lstrip('/')}"
+        path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+        blob = container.get_blob_client(blob_name)
+        try:
+          await blob.delete_blob()
+        except Exception as e:
+          logging.error("[StorageModule] Failed to delete %s: %s", blob_name, e)
+        try:
+          await self.db.delete_storage_cache(user_guid, path, filename)
+        except Exception as e:
+          logging.error(
+            "[StorageModule] Failed to delete cache for %s/%s: %s",
+            path or '.',
+            filename,
+            e,
+          )
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
@@ -432,7 +462,41 @@ class StorageModule(BaseModule):
       await bsc.close()
 
   async def delete_folder(self, user_guid: str, path: str):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    prefix = f"{user_guid}/{path.lstrip('/')}"
+    try:
+      async for blob in container.list_blobs(name_starts_with=prefix):
+        try:
+          await container.delete_blob(blob.name)
+        except Exception as e:
+          logging.error("[StorageModule] Failed to delete %s: %s", blob.name, e)
+        parts = blob.name.split("/")
+        if len(parts) < 2:
+          continue
+        file_path = "/".join(parts[1:-1])
+        filename = parts[-1]
+        try:
+          await self.db.delete_storage_cache(user_guid, file_path, filename)
+        except Exception as e:
+          logging.error(
+            "[StorageModule] Failed to delete cache for %s/%s: %s",
+            file_path or '.',
+            filename,
+            e,
+          )
+      await self.db.delete_storage_cache_folder(user_guid, path.lstrip('/'))
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def create_user_folder(self, user_guid: str, path: str):
     await self.create_folder(user_guid, path)
