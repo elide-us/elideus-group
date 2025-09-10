@@ -31,6 +31,7 @@ account_user_get_displayname_v1 = svc_mod.account_user_get_displayname_v1
 account_user_get_credits_v1 = svc_mod.account_user_get_credits_v1
 account_user_set_credits_v1 = svc_mod.account_user_set_credits_v1
 account_user_reset_display_v1 = svc_mod.account_user_reset_display_v1
+account_user_create_folder_v1 = svc_mod.account_user_create_folder_v1
 
 
 class DummyUserAdmin:
@@ -53,9 +54,18 @@ class DummyUserAdmin:
 
 
 
+class DummyStorage:
+  def __init__(self):
+    self.calls = []
+
+  async def create_user_folder(self, guid, path):
+    self.calls.append((guid, path))
+
+
 class DummyState:
-  def __init__(self, user_admin):
+  def __init__(self, user_admin=None, storage=None):
     self.user_admin = user_admin
+    self.storage = storage
 
 class DummyApp:
   def __init__(self, state):
@@ -73,7 +83,8 @@ def _make_rpc(op, payload=None):
 
 def test_account_user_calls_user_admin():
   ua = DummyUserAdmin()
-  state = DummyState(ua)
+  storage = DummyStorage()
+  state = DummyState(ua, storage)
   req = DummyRequest(state)
 
   async def fake_get_displayname(request):
@@ -105,4 +116,14 @@ def test_account_user_calls_user_admin():
   svc_mod.unbox_request = fake_reset_display
   asyncio.run(account_user_reset_display_v1(req))
   assert ("reset_display", "u1") in ua.calls
+
+  async def fake_create_folder(request):
+    return _make_rpc(
+      "urn:account:user:create_folder:1",
+      {"userGuid": "u1", "path": "docs"},
+    ), None, None
+  helpers.unbox_request = fake_create_folder
+  svc_mod.unbox_request = fake_create_folder
+  asyncio.run(account_user_create_folder_v1(req))
+  assert ("u1", "docs") in storage.calls
 
