@@ -421,7 +421,49 @@ class StorageModule(BaseModule):
     await self.create_folder(user_guid, path)
 
   async def move_file(self, user_guid: str, src: str, dst: str):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    src_blob_name = f"{user_guid}/{src.lstrip('/')}"
+    dst_blob_name = f"{user_guid}/{dst.lstrip('/')}"
+    src_path, src_filename = src.rsplit('/', 1) if '/' in src else ('', src)
+    dst_path, dst_filename = dst.rsplit('/', 1) if '/' in dst else ('', dst)
+    src_blob = container.get_blob_client(src_blob_name)
+    dst_blob = container.get_blob_client(dst_blob_name)
+    try:
+      props = await src_blob.get_blob_properties()
+      await dst_blob.start_copy_from_url(src_blob.url)
+      await src_blob.delete_blob()
+      await self.db.delete_storage_cache(user_guid, src_path, src_filename)
+      ct = None
+      if getattr(props, "content_settings", None):
+        ct = getattr(props.content_settings, "content_type", None)
+      created_on = getattr(props, "creation_time", None) or getattr(props, "created_on", None)
+      modified_on = getattr(props, "last_modified", None)
+      await self.db.upsert_storage_cache({
+        "user_guid": user_guid,
+        "path": dst_path,
+        "filename": dst_filename,
+        "content_type": ct or "application/octet-stream",
+        "public": 0,
+        "created_on": created_on,
+        "modified_on": modified_on,
+        "url": dst_blob.url,
+        "reported": 0,
+        "moderation_recid": None,
+      })
+    except Exception as e:
+      logging.error("[StorageModule] Failed to move %s to %s: %s", src, dst, e)
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def get_file_link(self, user_guid: str, name: str) -> str:
     raise NotImplementedError
