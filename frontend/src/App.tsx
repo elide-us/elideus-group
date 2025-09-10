@@ -17,6 +17,7 @@ const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
 const AccountUserPanel = lazy(() => import("./pages/AccountUserPanel"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const PublicProfile = lazy(() => import("./pages/PublicProfile"));
 
 function App(): JSX.Element {
 	return (
@@ -46,10 +47,11 @@ function App(): JSX.Element {
                                                                 <Route path="/service-roles" element={<ServiceRolesPage />} />
 								<Route path="/account-roles" element={<AccountRolesPage />} />
 								<Route path="/account-users" element={<AccountUsersPage />} />
-								<Route path="/account-users/:guid" element={<AccountUserPanel />} />
-								<Route path="/file-manager" element={<FileManager />} />
-								<Route path="/privacy-policy" element={<PrivacyPolicy />} />
-							</Routes>
+                                                                <Route path="/account-users/:guid" element={<AccountUserPanel />} />
+                                                                <Route path="/file-manager" element={<FileManager />} />
+                                                                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                                                                <Route path="/profile/:guid" element={<PublicProfile />} />
+                                                        </Routes>
 						</Suspense>
 					</Container>
 				</Router>

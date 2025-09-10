@@ -778,6 +778,41 @@ def _public_vars_get_repo(args: Dict[str, Any]):
 def _db_public_vars_get_repo(args: Dict[str, Any]):
   return _public_vars_get_repo(args)
 
+@register("urn:public:users:get_profile:1")
+def _public_users_get_profile(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    sql = """
+      SELECT TOP 1
+        au.element_display AS display_name,
+        CASE WHEN au.element_optin = 1 THEN au.element_email ELSE NULL END AS email,
+        up.element_base64 AS profile_image
+      FROM account_users au
+      LEFT JOIN users_profileimg up ON up.users_guid = au.element_guid
+      WHERE au.element_guid = ?;
+    """
+    return ("row_one", sql, (guid,))
+
+@register("db:public:users:get_profile:1")
+def _db_public_users_get_profile(args: Dict[str, Any]):
+  return _public_users_get_profile(args)
+
+@register("urn:public:users:get_published_files:1")
+def _public_users_get_published_files(args: Dict[str, Any]):
+    guid = str(UUID(args["guid"]))
+    sql = """
+      SELECT
+        element_path AS path,
+        element_filename AS filename
+      FROM users_storage_cache
+      WHERE users_guid = ? AND element_public = 1 AND element_deleted = 0
+      ORDER BY element_created_on;
+    """
+    return ("row_many", sql, (guid,))
+
+@register("db:public:users:get_published_files:1")
+def _db_public_users_get_published_files(args: Dict[str, Any]):
+  return _public_users_get_published_files(args)
+
 @register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
   """Insert or update a user's profile image."""
