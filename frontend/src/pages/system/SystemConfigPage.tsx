@@ -244,7 +244,7 @@ const SystemConfigPage = (): JSX.Element => {
                         <Box>
                             <Typography>Files: {stats.file_count}</Typography>
                             <Typography>Total Bytes: {stats.total_bytes}</Typography>
-                            <Typography>User Folders: {stats.folder_count}</Typography>
+                            <Typography>User Folders: {stats.user_folder_count}</Typography>
                             <Typography>DB Rows: {stats.db_rows}</Typography>
                         </Box>
                     )}
