@@ -7,60 +7,38 @@
 import axios from "axios";
 import { getFingerprint } from "./fingerprint";
 
-export interface ServiceRoutesDeleteRoute1 {
-	path: string;
+export interface SystemStorageStats1 {
+	file_count: number;
+	total_bytes: number;
+	folder_count: number;
+	user_folder_count: number;
+	db_rows: number;
 }
-export interface ServiceRoutesList1 {
-	routes: ServiceRoutesRouteItem1[];
-}
-export interface ServiceRoutesRouteItem1 {
-	path: string;
-	name: string;
-	icon: string | null;
-	sequence: number;
-	required_roles: string[];
-}
-export interface ServiceRolesDeleteRole1 {
+export interface SystemRolesDeleteRole1 {
 	name: string;
 }
-export interface ServiceRolesList1 {
-	roles: ServiceRolesRoleItem1[];
+export interface SystemRolesList1 {
+	roles: SystemRolesRoleItem1[];
 }
-export interface ServiceRolesRoleItem1 {
+export interface SystemRolesRoleItem1 {
 	name: string;
 	mask: string;
 	display: any;
 }
-export interface ServiceRolesUpsertRole1 {
+export interface SystemRolesUpsertRole1 {
 	name: string;
 	mask: string;
 	display: any;
 }
-export interface AuthMicrosoftOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
+export interface SystemConfigConfigItem1 {
+	key: string;
+	value: string;
 }
-export interface AuthProvidersUnlinkLastProvider1 {
-	guid: string;
-	provider: string;
+export interface SystemConfigDeleteConfig1 {
+	key: string;
 }
-export interface AuthGoogleOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
-}
-export interface AuthGoogleOauthLoginPayload1 {
-	provider: string;
-	code: string;
-	confirm: any;
-	reauthToken: any;
-	fingerprint: string;
-}
-export interface DiscordCommandTextUwuResponse1 {
-	message: string;
+export interface SystemConfigList1 {
+	items: SystemConfigConfigItem1[];
 }
 export interface StorageFilesCreateFolder1 {
 	path: string;
@@ -142,6 +120,35 @@ export interface StorageFilesUsageItem1 {
 	content_type: string;
 	size: number;
 }
+export interface ServiceRolesDeleteRole1 {
+	name: string;
+}
+export interface ServiceRolesList1 {
+	roles: ServiceRolesRoleItem1[];
+}
+export interface ServiceRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface ServiceRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface ServiceRoutesDeleteRoute1 {
+	path: string;
+}
+export interface ServiceRoutesList1 {
+	routes: ServiceRoutesRouteItem1[];
+}
+export interface ServiceRoutesRouteItem1 {
+	path: string;
+	name: string;
+	icon: string | null;
+	sequence: number;
+	required_roles: string[];
+}
 export interface UsersProfileAuthProvider1 {
 	name: string;
 	display: string;
@@ -196,6 +203,32 @@ export interface UsersProvidersUnlinkProvider1 {
 	provider: string;
 	new_default: any;
 }
+export interface AuthMicrosoftOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLoginPayload1 {
+	provider: string;
+	code: string;
+	confirm: any;
+	reauthToken: any;
+	fingerprint: string;
+}
+export interface AuthProvidersUnlinkLastProvider1 {
+	guid: string;
+	provider: string;
+}
+export interface DiscordCommandTextUwuResponse1 {
+	message: string;
+}
 export interface PublicVarsFfmpegVersion1 {
 	ffmpeg_version: string;
 }
@@ -238,33 +271,6 @@ export interface PublicLinksNavBarRoute1 {
 }
 export interface PublicLinksNavBarRoutes1 {
 	routes: PublicLinksNavBarRoute1[];
-}
-export interface SupportUsersCredits1 {
-	userGuid: string;
-	credits: number;
-}
-export interface SupportUsersDisplayName1 {
-	userGuid: string;
-	displayName: string;
-}
-export interface SupportUsersGuid1 {
-	userGuid: string;
-}
-export interface SupportUsersSetCredits1 {
-	userGuid: string;
-	credits: number;
-}
-export interface SupportRolesMembers1 {
-	members: SupportRolesUserItem1[];
-	nonMembers: SupportRolesUserItem1[];
-}
-export interface SupportRolesRoleMemberUpdate1 {
-	role: string;
-	userGuid: string;
-}
-export interface SupportRolesUserItem1 {
-	guid: string;
-	displayName: string;
 }
 export interface AccountRoleDeleteRole1 {
 	name: string;
@@ -313,37 +319,32 @@ export interface AccountUserSetCredits1 {
 	userGuid: string;
 	credits: number;
 }
-export interface SystemStorageStats1 {
-	file_count: number;
-	total_bytes: number;
-	folder_count: number;
-	db_rows: number;
+export interface SupportRolesMembers1 {
+	members: SupportRolesUserItem1[];
+	nonMembers: SupportRolesUserItem1[];
 }
-export interface SystemConfigConfigItem1 {
-	key: string;
-	value: string;
+export interface SupportRolesRoleMemberUpdate1 {
+	role: string;
+	userGuid: string;
 }
-export interface SystemConfigDeleteConfig1 {
-	key: string;
+export interface SupportRolesUserItem1 {
+	guid: string;
+	displayName: string;
 }
-export interface SystemConfigList1 {
-	items: SystemConfigConfigItem1[];
+export interface SupportUsersCredits1 {
+	userGuid: string;
+	credits: number;
 }
-export interface SystemRolesDeleteRole1 {
-	name: string;
+export interface SupportUsersDisplayName1 {
+	userGuid: string;
+	displayName: string;
 }
-export interface SystemRolesList1 {
-	roles: SystemRolesRoleItem1[];
+export interface SupportUsersGuid1 {
+	userGuid: string;
 }
-export interface SystemRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
+export interface SupportUsersSetCredits1 {
+	userGuid: string;
+	credits: number;
 }
 
 export async function rpcCall<T>(op: string, payload: any = null): Promise<T> {

@@ -77,6 +77,7 @@ class DummyStorageModule:
       'file_count': 5,
       'total_bytes': 10,
       'folder_count': 2,
+      'user_folder_count': 1,
       'db_rows': 7,
     }
 
@@ -104,6 +105,7 @@ def test_get_stats_service_triggers_reindex():
     'file_count': 5,
     'total_bytes': 10,
     'folder_count': 2,
+    'user_folder_count': 1,
     'db_rows': 7,
   }
 

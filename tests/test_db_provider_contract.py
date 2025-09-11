@@ -3,7 +3,7 @@ from uuid import UUID
 
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
-from server.modules.providers import DBResult
+from server.modules.providers import DBResult, DbRunMode
 
 
 def test_run_json_one(monkeypatch):
@@ -13,7 +13,7 @@ def test_run_json_one(monkeypatch):
     assert op == "test:json_one"
     def handler(args):
       assert args == {}
-      return ("json_one", "select 1", ())
+      return (DbRunMode.JSON_ONE, "select 1", ())
     return handler
 
   async def fake_fetch_json(sql, params, *, many=False):
@@ -38,7 +38,7 @@ def test_run_row_one(monkeypatch):
     assert op == "test:row_one"
     def handler(args):
       assert args == {}
-      return ("row_one", "select 1", ())
+      return (DbRunMode.ROW_ONE, "select 1", ())
     return handler
 
   async def fake_fetch_rows(sql, params, *, one=False, stream=False):
@@ -81,7 +81,7 @@ def test_run_json_many(monkeypatch):
     assert op == "test:json_many"
     def handler(args):
       assert args == {}
-      return ("json_many", "select", ())
+      return (DbRunMode.JSON_MANY, "select", ())
     return handler
 
   async def fake_fetch_json(sql, params, *, many=False):
@@ -104,7 +104,7 @@ def test_run_exec(monkeypatch):
     assert op == "test:exec"
     def handler(args):
       assert args == {}
-      return ("exec", "update", (1,))
+      return (DbRunMode.EXEC, "update", (1,))
     return handler
 
   async def fake_exec_query(sql, params):

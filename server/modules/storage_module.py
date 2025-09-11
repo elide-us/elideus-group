@@ -595,6 +595,7 @@ class StorageModule(BaseModule):
         "file_count": 0,
         "total_bytes": 0,
         "folder_count": 0,
+        "user_folder_count": 0,
         "db_rows": db_rows,
       }
     res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
@@ -604,6 +605,7 @@ class StorageModule(BaseModule):
         "file_count": 0,
         "total_bytes": 0,
         "folder_count": 0,
+        "user_folder_count": 0,
         "db_rows": db_rows,
       }
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
@@ -611,6 +613,7 @@ class StorageModule(BaseModule):
     file_count = 0
     total_bytes = 0
     folders: set[tuple[str, str]] = set()
+    users: set[str] = set()
     try:
       async for blob in container.list_blobs():
         name = getattr(blob, "name", "")
@@ -624,6 +627,7 @@ class StorageModule(BaseModule):
           UUID(guid)
         except Exception:
           continue
+        users.add(guid)
         parent = ""
         for folder_name in parts[1:-1]:
           parent = f"{parent}/{folder_name}" if parent else folder_name
@@ -642,5 +646,6 @@ class StorageModule(BaseModule):
       "file_count": file_count,
       "total_bytes": total_bytes,
       "folder_count": len(folders),
+      "user_folder_count": len(users),
       "db_rows": db_rows,
     }

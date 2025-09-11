@@ -364,6 +364,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
     "file_count": 2,
     "total_bytes": 3,
     "folder_count": 2,
+    "user_folder_count": 1,
     "db_rows": 10,
   }
 
@@ -507,3 +508,69 @@ def test_create_folder_creates_marker_and_cache(monkeypatch):
   assert app.state.db.upserts[0]["filename"] == "new"
   assert app.state.db.upserts[0]["path"] == "docs"
   assert app.state.db.upserts[0]["content_type"] == "path/folder"
+
+
+def test_get_storage_stats_counts_user_folders(monkeypatch):
+  class DummyDb:
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:storage:cache:count_rows:1":
+        return Res([{ "count": 0 }])
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+
+  app = FastAPI()
+  mod = StorageModule(app)
+  mod.db = DummyDb()
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  class FakeBlob:
+    def __init__(self, name, size=0):
+      self.name = name
+      self.size = size
+
+  blobs = [
+    FakeBlob("11111111-1111-1111-1111-111111111111/file.txt", 1),
+    FakeBlob("22222222-2222-2222-2222-222222222222/docs/a.txt", 1),
+    FakeBlob("33333333-3333-3333-3333-333333333333/docs/sub/b.txt", 1),
+    FakeBlob("44444444-4444-4444-4444-444444444444/.init", 0),
+    FakeBlob("notguid/skip.txt", 1),
+  ]
+
+  class FakeContainer:
+    def __init__(self):
+      self.url = "http://blob"
+    def list_blobs(self):
+      async def gen():
+        for b in blobs:
+          yield b
+      return gen()
+    async def close(self):
+      pass
+
+  class FakeBSC:
+    def __init__(self):
+      self.container = FakeContainer()
+    def get_container_client(self, name):
+      return self.container
+    async def close(self):
+      pass
+
+  from types import SimpleNamespace
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  stats = asyncio.run(mod.get_storage_stats())
+  assert stats == {
+    "file_count": 3,
+    "total_bytes": 3,
+    "folder_count": 3,
+    "user_folder_count": 4,
+    "db_rows": 0,
+  }
