@@ -1,7 +1,7 @@
 # providers/database/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
 from uuid import UUID
-from ... import DBResult
+from ... import DBResult, DbRunMode
 from .logic import init_pool, close_pool, transaction
 from .db_helpers import fetch_rows, fetch_json, exec_query
 import logging
@@ -44,7 +44,7 @@ def _users_select(provider_args: Dict[str, Any]):
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
       WHERE ap.element_name = ? AND ua.element_identifier = ?;
     """
-    return ("row_one", sql, (provider, identifier))
+    return (DbRunMode.ROW_ONE, sql, (provider, identifier))
 
 @register("db:users:providers:get_by_provider_identifier:1")
 def _db_users_select(provider_args: Dict[str, Any]):
@@ -61,7 +61,7 @@ def _users_select_any(provider_args: Dict[str, Any]):
       JOIN account_users au ON au.element_guid = ua.users_guid
       WHERE ua.element_identifier = ?;
     """
-    return ("row_one", sql, (identifier,))
+    return (DbRunMode.ROW_ONE, sql, (identifier,))
 
 @register("db:users:providers:get_any_by_provider_identifier:1")
 def _db_users_select_any(provider_args: Dict[str, Any]):
@@ -239,7 +239,7 @@ def _users_soft_delete_account(args: Dict[str, Any]):
       SET element_soft_deleted_at = SYSDATETIMEOFFSET()
       WHERE element_guid = ?;
     """
-    return ("exec", sql, (guid,))
+    return (DbRunMode.EXEC, sql, (guid,))
 
 @register("db:users:providers:soft_delete_account:1")
 def _db_users_soft_delete_account(args: Dict[str, Any]):
@@ -254,7 +254,7 @@ def _users_get_user_by_email(args: Dict[str, Any]):
       FROM account_users
       WHERE element_email = ?;
     """
-    return ("row_one", sql, (email,))
+    return (DbRunMode.ROW_ONE, sql, (email,))
 
 @register("db:users:providers:get_user_by_email:1")
 def _db_users_get_user_by_email(args: Dict[str, Any]):
@@ -284,14 +284,14 @@ def _users_profile(args: Dict[str, Any]):
       FROM vw_account_user_profile v
       WHERE v.user_guid = ?;
     """
-    return ("row_one", sql, (guid,))
+    return (DbRunMode.ROW_ONE, sql, (guid,))
 
 @register("urn:auth:providers:unlink_last_provider:1")
 def _auth_unlink_last_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
     sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
-    return ("exec", sql, (guid, provider))
+    return (DbRunMode.EXEC, sql, (guid, provider))
 
 @register("db:auth:providers:unlink_last_provider:1")
 def _db_auth_unlink_last_provider(args: Dict[str, Any]):
@@ -304,7 +304,7 @@ def _auth_ms_oauth_relink(args: Dict[str, Any]):
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;"
-    return ("row_one", sql, (identifier, email, display, img))
+    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
 
 @register("db:auth:microsoft:oauth_relink:1")
 def _db_auth_ms_oauth_relink(args: Dict[str, Any]):
@@ -317,7 +317,7 @@ def _auth_google_oauth_relink(args: Dict[str, Any]):
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;"
-    return ("row_one", sql, (identifier, email, display, img))
+    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
 
 @register("db:auth:google:oauth_relink:1")
 def _db_auth_google_oauth_relink(args: Dict[str, Any]):
@@ -338,7 +338,7 @@ def _users_set_display(args: Dict[str, Any]):
       SET element_display = ?
       WHERE element_guid = ?;
     """
-    return ("exec", sql, (display_name, guid))
+    return (DbRunMode.EXEC, sql, (display_name, guid))
 
 
 @register("db:users:profile:set_display:1")
@@ -355,7 +355,7 @@ def _support_users_set_credits(args: Dict[str, Any]):
     SET element_credits = ?
     WHERE users_guid = ?;
   """
-  return ("exec", sql, (credits, guid))
+  return (DbRunMode.EXEC, sql, (credits, guid))
 
 
 @register("db:support:users:set_credits:1")
@@ -380,7 +380,7 @@ def _storage_cache_list(args: Dict[str, Any]):
     ORDER BY usc.element_path, usc.element_filename
     FOR JSON PATH;
   """
-  return ("json_many", sql, (user_guid,))
+  return (DbRunMode.JSON_MANY, sql, (user_guid,))
 
 
 @register("db:storage:cache:replace_user:1")
@@ -506,7 +506,7 @@ def _storage_cache_delete(args: Dict[str, Any]):
     DELETE FROM users_storage_cache
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return ("exec", sql, (user_guid, path, filename))
+  return (DbRunMode.EXEC, sql, (user_guid, path, filename))
 
 
 @register("db:storage:cache:delete_folder:1")
@@ -523,7 +523,7 @@ def _storage_cache_delete_folder(args: Dict[str, Any]):
       OR element_path LIKE ?
     );
   """
-  return ("exec", sql, (user_guid, parent, name, path, like))
+  return (DbRunMode.EXEC, sql, (user_guid, parent, name, path, like))
 
 
 @register("db:storage:cache:set_public:1")
@@ -537,7 +537,7 @@ def _storage_cache_set_public(args: Dict[str, Any]):
     SET element_public = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return ("exec", sql, (public, guid, path, filename))
+  return (DbRunMode.EXEC, sql, (public, guid, path, filename))
 
 
 @register("db:storage:cache:set_reported:1")
@@ -551,7 +551,7 @@ def _storage_cache_set_reported(args: Dict[str, Any]):
     SET element_reported = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return ("exec", sql, (reported, guid, path, filename))
+  return (DbRunMode.EXEC, sql, (reported, guid, path, filename))
 
 
 @register("db:storage:cache:list_public:1")
@@ -569,7 +569,7 @@ def _storage_cache_list_public(_: Dict[str, Any]):
     WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
     ORDER BY usc.element_created_on;
   """
-  return ("row_many", sql, ())
+  return (DbRunMode.ROW_MANY, sql, ())
 
 
 @register("db:storage:cache:list_reported:1")
@@ -585,7 +585,7 @@ def _storage_cache_list_reported(_: Dict[str, Any]):
     WHERE usc.element_reported = 1 AND usc.element_deleted = 0
     ORDER BY usc.element_created_on;
   """
-  return ("row_many", sql, ())
+  return (DbRunMode.ROW_MANY, sql, ())
 
 
 @register("db:storage:cache:count_rows:1")
@@ -596,7 +596,7 @@ def _storage_cache_count_rows(_: Dict[str, Any]):
     WHERE element_deleted = 0
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, ())
+  return (DbRunMode.JSON_ONE, sql, ())
 
 
 @register("urn:users:profile:set_optin:1")
@@ -608,7 +608,7 @@ def _users_set_optin(args: Dict[str, Any]):
       SET element_optin = ?
       WHERE element_guid = ?;
     """
-    return ("exec", sql, (display_email, guid))
+    return (DbRunMode.EXEC, sql, (display_email, guid))
 
 @register("db:users:profile:set_optin:1")
 def _db_users_set_optin(args: Dict[str, Any]):
@@ -673,7 +673,7 @@ def _users_get_roles(args: Dict[str, Any]):
     WHERE users_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, (guid,))
+  return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:users:profile:get_roles:1")
 def _db_users_get_roles(args: Dict[str, Any]):
@@ -711,7 +711,7 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
       SET element_rotkey = ?, element_rotkey_iat = ?, element_rotkey_exp = ?
       WHERE element_guid = ?;
     """
-    return ("exec", sql, (rotkey, iat, exp, guid))
+    return (DbRunMode.EXEC, sql, (rotkey, iat, exp, guid))
 
 @register("db:users:session:get_rotkey:1")
 def _users_session_get_rotkey(args: Dict[str, Any]):
@@ -725,7 +725,7 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
       WHERE au.element_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-  return ("json_one", sql, (guid,))
+  return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("urn:public:links:get_home_links:1")
 def _public_links_get_home_links(args: Dict[str, Any]):
@@ -737,7 +737,7 @@ def _public_links_get_home_links(args: Dict[str, Any]):
       ORDER BY element_sequence
       FOR JSON PATH;
     """
-    return ("json_many", sql, ())
+    return (DbRunMode.JSON_MANY, sql, ())
 
 @register("db:public:links:get_home_links:1")
 def _db_public_links_get_home_links(args: Dict[str, Any]):
@@ -756,7 +756,7 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
       ORDER BY element_sequence
       FOR JSON PATH;
     """
-    return ("json_many", sql, (mask,))
+    return (DbRunMode.JSON_MANY, sql, (mask,))
 
 @register("db:public:links:get_navbar_routes:1")
 def _db_public_links_get_navbar_routes(args: Dict[str, Any]):
@@ -777,7 +777,7 @@ def _service_routes_get_routes(_: Dict[str, Any]):
     ORDER BY element_sequence
     FOR JSON PATH;
   """
-  return ("json_many", sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 @register("db:service:routes:get_routes:1")
 def _db_service_routes_get_routes(args: Dict[str, Any]):
@@ -809,7 +809,7 @@ async def _db_service_routes_upsert_route(args: Dict[str, Any]):
 def _service_routes_delete_route(args: Dict[str, Any]):
   path = args["path"]
   sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
-  return ("exec", sql, (path,))
+  return (DbRunMode.EXEC, sql, (path,))
 
 @register("db:service:routes:delete_route:1")
 def _db_service_routes_delete_route(args: Dict[str, Any]):
@@ -823,7 +823,7 @@ def _public_vars_get_hostname(args: Dict[str, Any]):
     WHERE element_key = 'hostname'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, ())
+  return (DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:vars:get_hostname:1")
 def _db_public_vars_get_hostname(args: Dict[str, Any]):
@@ -837,7 +837,7 @@ def _public_vars_get_version(args: Dict[str, Any]):
     WHERE element_key = 'version'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, ())
+  return (DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:vars:get_version:1")
 def _db_public_vars_get_version(args: Dict[str, Any]):
@@ -851,7 +851,7 @@ def _public_vars_get_repo(args: Dict[str, Any]):
     WHERE element_key = 'repo'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, ())
+  return (DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:vars:get_repo:1")
 def _db_public_vars_get_repo(args: Dict[str, Any]):
@@ -869,7 +869,7 @@ def _public_users_get_profile(args: Dict[str, Any]):
       LEFT JOIN users_profileimg up ON up.users_guid = au.element_guid
       WHERE au.element_guid = ?;
     """
-    return ("row_one", sql, (guid,))
+    return (DbRunMode.ROW_ONE, sql, (guid,))
 
 @register("db:public:users:get_profile:1")
 def _db_public_users_get_profile(args: Dict[str, Any]):
@@ -887,7 +887,7 @@ def _public_users_get_published_files(args: Dict[str, Any]):
       WHERE users_guid = ? AND element_public = 1 AND element_deleted = 0 AND ISNULL(element_reported,0) = 0
       ORDER BY element_created_on;
     """
-    return ("row_many", sql, (guid,))
+    return (DbRunMode.ROW_MANY, sql, (guid,))
 
 @register("db:public:users:get_published_files:1")
 def _db_public_users_get_published_files(args: Dict[str, Any]):
@@ -1024,7 +1024,7 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
       WHERE element_token = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return ("json_one", sql, (token,))
+    return (DbRunMode.JSON_ONE, sql, (token,))
 
 @register("db:auth:session:update_session:1")
 def _auth_session_update_session(args: Dict[str, Any]):
@@ -1036,7 +1036,7 @@ def _auth_session_update_session(args: Dict[str, Any]):
       SET element_ip_last_seen = ?, element_user_agent = ?
       WHERE element_token = ?;
     """
-  return ("exec", sql, (ip_address, user_agent, token))
+  return (DbRunMode.EXEC, sql, (ip_address, user_agent, token))
 
 @register("db:auth:session:update_device_token:1")
 def _auth_session_update_device_token(args: Dict[str, Any]):
@@ -1048,7 +1048,7 @@ def _auth_session_update_device_token(args: Dict[str, Any]):
     SET element_token = ?
     WHERE element_guid = ?;
   """
-  return ("exec", sql, (token, device_guid))
+  return (DbRunMode.EXEC, sql, (token, device_guid))
 
 @register("db:auth:session:revoke_device_token:1")
 def _auth_session_revoke_device_token(args: Dict[str, Any]):
@@ -1058,7 +1058,7 @@ def _auth_session_revoke_device_token(args: Dict[str, Any]):
     SET element_revoked_at = SYSDATETIMEOFFSET()
     WHERE element_token = ?;
   """
-  return ("exec", sql, (token,))
+  return (DbRunMode.EXEC, sql, (token,))
 
 @register("db:auth:session:revoke_all_device_tokens:1")
 def _auth_session_revoke_all_device_tokens(args: Dict[str, Any]):
@@ -1070,7 +1070,7 @@ def _auth_session_revoke_all_device_tokens(args: Dict[str, Any]):
     JOIN users_sessions us ON us.element_guid = sd.sessions_guid
     WHERE us.users_guid = ?;
   """
-  return ("exec", sql, (guid,))
+  return (DbRunMode.EXEC, sql, (guid,))
 
 @register("db:auth:session:revoke_provider_tokens:1")
 def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
@@ -1084,7 +1084,7 @@ def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
     JOIN auth_providers ap ON ap.recid = sd.providers_recid
     WHERE us.users_guid = ? AND ap.element_name = ?;
   """
-  return ("exec", sql, (guid, provider))
+  return (DbRunMode.EXEC, sql, (guid, provider))
 
 # -------------------- SYSTEM CONFIG --------------------
 
@@ -1098,7 +1098,7 @@ def _config_get(args: Dict[str, Any]):
     WHERE element_key = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return ("json_one", sql, (key,))
+  return (DbRunMode.JSON_ONE, sql, (key,))
 
 @register("db:system:config:upsert_config:1")
 @register("urn:system:config:upsert_config:1")
@@ -1125,14 +1125,14 @@ def _config_list(_: Dict[str, Any]):
     ORDER BY element_key
     FOR JSON PATH;
   """
-  return ("json_many", sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 @register("db:system:config:delete_config:1")
 @register("urn:system:config:delete_config:1")
 def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
-  return ("exec", sql, (key,))
+  return (DbRunMode.EXEC, sql, (key,))
 
 
 # -------------------- SECURITY ROLES --------------------
@@ -1145,7 +1145,7 @@ def _system_roles_list(_: Dict[str, Any]):
     ORDER BY element_mask
     FOR JSON PATH;
   """
-  return ("json_many", sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:security:roles:upsert_role:1")
@@ -1190,7 +1190,7 @@ def _security_roles_get_members(args: Dict[str, Any]):
     ORDER BY au.element_display
     FOR JSON PATH;
   """
-  return ("json_many", sql, (role,))
+  return (DbRunMode.JSON_MANY, sql, (role,))
 
 
 @register("db:security:roles:get_role_non_members:1")
@@ -1205,7 +1205,7 @@ def _security_roles_get_non_members(args: Dict[str, Any]):
     ORDER BY au.element_display
     FOR JSON PATH;
   """
-  return ("json_many", sql, (role,))
+  return (DbRunMode.JSON_MANY, sql, (role,))
 
 
 @register("db:security:roles:add_role_member:1")
@@ -1219,7 +1219,7 @@ def _security_roles_add_member(args: Dict[str, Any]):
     WHEN MATCHED THEN UPDATE SET element_roles = ur.element_roles | src.element_mask
     WHEN NOT MATCHED THEN INSERT (users_guid, element_roles) VALUES (src.users_guid, src.element_mask);
   """
-  return ("exec", sql, (user_guid, role))
+  return (DbRunMode.EXEC, sql, (user_guid, role))
 
 
 @register("db:security:roles:remove_role_member:1")
@@ -1232,4 +1232,4 @@ def _security_roles_remove_member(args: Dict[str, Any]):
     UPDATE users_roles SET element_roles = element_roles & ~@mask WHERE users_guid = ?;
     DELETE FROM users_roles WHERE users_guid = ? AND element_roles = 0;
   """
-  return ("exec", sql, (role, user_guid, user_guid))
+  return (DbRunMode.EXEC, sql, (role, user_guid, user_guid))
