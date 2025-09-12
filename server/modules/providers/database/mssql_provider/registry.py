@@ -1,6 +1,6 @@
 # providers/database/mssql_provider/registry.py
 from typing import Any, Awaitable, Callable, Dict, Tuple
-from uuid import UUID
+from uuid import UUID, uuid5, NAMESPACE_URL
 from ... import DBResult, DbRunMode
 from .logic import init_pool, close_pool, transaction
 from .db_helpers import fetch_rows, fetch_json, exec_query
@@ -322,6 +322,20 @@ def _auth_google_oauth_relink(args: Dict[str, Any]):
 @register("db:auth:google:oauth_relink:1")
 def _db_auth_google_oauth_relink(args: Dict[str, Any]):
   return _auth_google_oauth_relink(args)
+
+@register("urn:auth:discord:oauth_relink:1")
+def _auth_discord_oauth_relink(args: Dict[str, Any]):
+    raw_id = args["provider_identifier"]
+    identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
+    email = args.get("email")
+    display = args.get("display_name")
+    img = args.get("profile_image", "")
+    sql = "EXEC auth_oauth_relink @provider='discord', @identifier=?, @email=?, @display=?, @image=?;"
+    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+
+@register("db:auth:discord:oauth_relink:1")
+def _db_auth_discord_oauth_relink(args: Dict[str, Any]):
+  return _auth_discord_oauth_relink(args)
 
 
 @register("db:users:profile:get_profile:1")
