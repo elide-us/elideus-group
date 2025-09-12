@@ -7,33 +7,6 @@
 import axios from "axios";
 import { getFingerprint } from "./fingerprint";
 
-export interface UsersProvidersCreateFromProvider1 {
-	provider: string;
-	provider_identifier: string;
-	provider_email: string;
-	provider_displayname: string;
-	provider_profile_image: any;
-}
-export interface UsersProvidersGetByProviderIdentifier1 {
-	provider: string;
-	provider_identifier: string;
-}
-export interface UsersProvidersLinkProvider1 {
-	provider: string;
-	code: any;
-	id_token: any;
-	access_token: any;
-}
-export interface UsersProvidersSetProvider1 {
-	provider: string;
-	code: any;
-	id_token: any;
-	access_token: any;
-}
-export interface UsersProvidersUnlinkProvider1 {
-	provider: string;
-	new_default: any;
-}
 export interface UsersProfileAuthProvider1 {
 	name: string;
 	display: string;
@@ -61,34 +34,32 @@ export interface UsersProfileSetProfileImage1 {
 	image_b64: string;
 	provider: string;
 }
-export interface ServiceRolesDeleteRole1 {
-	name: string;
+export interface UsersProvidersCreateFromProvider1 {
+	provider: string;
+	provider_identifier: string;
+	provider_email: string;
+	provider_displayname: string;
+	provider_profile_image: any;
 }
-export interface ServiceRolesList1 {
-	roles: ServiceRolesRoleItem1[];
+export interface UsersProvidersGetByProviderIdentifier1 {
+	provider: string;
+	provider_identifier: string;
 }
-export interface ServiceRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
+export interface UsersProvidersLinkProvider1 {
+	provider: string;
+	code: any;
+	id_token: any;
+	access_token: any;
 }
-export interface ServiceRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
+export interface UsersProvidersSetProvider1 {
+	provider: string;
+	code: any;
+	id_token: any;
+	access_token: any;
 }
-export interface ServiceRoutesDeleteRoute1 {
-	path: string;
-}
-export interface ServiceRoutesList1 {
-	routes: ServiceRoutesRouteItem1[];
-}
-export interface ServiceRoutesRouteItem1 {
-	path: string;
-	name: string;
-	icon: string | null;
-	sequence: number;
-	required_roles: string[];
+export interface UsersProvidersUnlinkProvider1 {
+	provider: string;
+	new_default: any;
 }
 export interface SystemRolesDeleteRole1 {
 	name: string;
@@ -122,6 +93,29 @@ export interface SystemStorageStats1 {
 	folder_count: number;
 	user_folder_count: number;
 	db_rows: number;
+}
+export interface AuthMicrosoftOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthProvidersUnlinkLastProvider1 {
+	guid: string;
+	provider: string;
+}
+export interface AuthGoogleOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
+	credits: number;
+	profile_image: string | null;
+}
+export interface AuthGoogleOauthLoginPayload1 {
+	provider: string;
+	code: string;
+	confirm: any;
+	reauthToken: any;
+	fingerprint: string;
 }
 export interface PublicUsersProfile1 {
 	display_name: string;
@@ -166,6 +160,20 @@ export interface PublicVarsRepo1 {
 export interface PublicVarsVersion1 {
 	version: string;
 }
+export interface PublicGalleryFileItem1 {
+	path: string;
+	name: string;
+	url: string;
+	content_type: string | null;
+	user_guid: string | null;
+	display_name: string | null;
+}
+export interface PublicGalleryFiles1 {
+	files: PublicGalleryFileItem1[];
+}
+export interface DiscordCommandTextUwuResponse1 {
+	message: string;
+}
 export interface SupportUsersCredits1 {
 	userGuid: string;
 	credits: number;
@@ -193,50 +201,34 @@ export interface SupportRolesUserItem1 {
 	guid: string;
 	displayName: string;
 }
-export interface AuthGoogleOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
+export interface ServiceRolesDeleteRole1 {
+	name: string;
 }
-export interface AuthGoogleOauthLoginPayload1 {
-	provider: string;
-	code: string;
-	confirm: any;
-	reauthToken: any;
-	fingerprint: string;
+export interface ServiceRolesList1 {
+	roles: ServiceRolesRoleItem1[];
 }
-export interface AuthProvidersUnlinkLastProvider1 {
-	guid: string;
-	provider: string;
+export interface ServiceRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
 }
-export interface AuthMicrosoftOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
-	credits: number;
-	profile_image: string | null;
+export interface ServiceRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
 }
-export interface DiscordCommandTextUwuResponse1 {
-	message: string;
-}
-export interface AccountUserCreateFolder1 {
-	userGuid: string;
+export interface ServiceRoutesDeleteRoute1 {
 	path: string;
 }
-export interface AccountUserCredits1 {
-	userGuid: string;
-	credits: number;
+export interface ServiceRoutesList1 {
+	routes: ServiceRoutesRouteItem1[];
 }
-export interface AccountUserDisplayName1 {
-	userGuid: string;
-	displayName: string;
-}
-export interface AccountUserGuid1 {
-	userGuid: string;
-}
-export interface AccountUserSetCredits1 {
-	userGuid: string;
-	credits: number;
+export interface ServiceRoutesRouteItem1 {
+	path: string;
+	name: string;
+	icon: string | null;
+	sequence: number;
+	required_roles: string[];
 }
 export interface AccountRoleDeleteRole1 {
 	name: string;
@@ -265,6 +257,25 @@ export interface AccountRoleUpsertRole1 {
 export interface AccountRoleUserItem1 {
 	guid: string;
 	displayName: string;
+}
+export interface AccountUserCreateFolder1 {
+	userGuid: string;
+	path: string;
+}
+export interface AccountUserCredits1 {
+	userGuid: string;
+	credits: number;
+}
+export interface AccountUserDisplayName1 {
+	userGuid: string;
+	displayName: string;
+}
+export interface AccountUserGuid1 {
+	userGuid: string;
+}
+export interface AccountUserSetCredits1 {
+	userGuid: string;
+	credits: number;
 }
 export interface StorageFilesCreateFolder1 {
 	path: string;

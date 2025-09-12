@@ -14,6 +14,7 @@ import {
     PermDataSetting as PermDataSettingIcon,
     Groups as GroupsIcon,
     Person as PersonIcon,
+    Publish as PublishIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -33,6 +34,7 @@ export const iconMap: Record<string, ElementType> = {
     groups: GroupsIcon,
     support: PersonIcon,
     person: PersonIcon,
+    publish: PublishIcon,
 };
 
 export const defaultIcon = AdjustIcon;

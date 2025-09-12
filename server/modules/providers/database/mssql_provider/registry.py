@@ -587,6 +587,24 @@ def _storage_cache_list_public(_: Dict[str, Any]):
   return (DbRunMode.ROW_MANY, sql, ())
 
 
+@register("db:public:gallery:get_public_files:1")
+def _public_gallery_get_public_files(_: Dict[str, Any]):
+  sql = """
+    SELECT usc.users_guid AS user_guid,
+           au.element_display AS display_name,
+           usc.element_path AS path,
+           usc.element_filename AS name,
+           usc.element_url AS url,
+           st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN account_users au ON au.element_guid = usc.users_guid
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
+    ORDER BY usc.element_created_on;
+  """
+  return (DbRunMode.ROW_MANY, sql, ())
+
+
 @register("db:storage:cache:list_reported:1")
 def _storage_cache_list_reported(_: Dict[str, Any]):
   sql = """
