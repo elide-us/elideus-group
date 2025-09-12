@@ -98,7 +98,12 @@ const FileManager = (): JSX.Element => {
     };
 
     const handleSetGallery = async (file: StorageFile): Promise<void> => {
-        await fetchSetGallery({ name: getFullName(file), gallery: !file.gallery });
+        const gallery = !file.gallery;
+        await fetchSetGallery({ name: getFullName(file), gallery });
+        setNotificationMsg(
+            gallery ? 'File published to gallery' : 'File removed from gallery',
+        );
+        setNotification(true);
         await load(currentPath);
     };
 
@@ -232,8 +237,10 @@ const FileManager = (): JSX.Element => {
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
                                 <TableCell sx={{ width: '60%' }}>
-                                    {file.name}
-                                    {file.gallery && <Publish fontSize="small" sx={{ ml: 1 }} />}
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        {file.gallery && <Publish fontSize="small" />}
+                                        <span>{file.name}</span>
+                                    </Stack>
                                 </TableCell>
                                 <TableCell sx={{ width: '20%' }}>
                                     <Stack direction="row" spacing={1}>
