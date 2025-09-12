@@ -12,6 +12,7 @@ from server.modules.db_module import DbModule
 from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -154,6 +155,12 @@ class AuthModule(BaseModule):
         await provider.startup()
         self.providers["google"] = provider
         logging.debug("[AuthModule] Google provider ready")
+      if "discord" in providers_cfg:
+        logging.debug("[AuthModule] Loading Discord provider")
+        provider = DiscordAuthProvider()
+        await provider.startup()
+        self.providers["discord"] = provider
+        logging.debug("[AuthModule] Discord provider ready")
       await self.role_cache.load_roles()
       logging.info("Auth module loaded")
       self.mark_ready()
