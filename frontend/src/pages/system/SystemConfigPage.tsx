@@ -44,6 +44,8 @@ const SystemConfigPage = (): JSX.Element => {
     const [notification, setNotification] = useState(false);
     const [forbidden, setForbidden] = useState(false);
     const [stats, setStats] = useState<SystemStorageStats1 | null>(null);
+    const [newKey, setNewKey] = useState('');
+    const [newValue, setNewValue] = useState('');
 
     const handleNotificationClose = (): void => {
         setNotification(false);
@@ -148,6 +150,7 @@ const SystemConfigPage = (): JSX.Element => {
                 <Tab label="Storage" />
                 <Tab label="Logging" />
                 <Tab label="DevOps" />
+                <Tab label="Misc" />
             </Tabs>
 
             <TabPanel value={tab} index={0}>
@@ -300,6 +303,50 @@ const SystemConfigPage = (): JSX.Element => {
                     />
                     <Typography>Version: {config.Version || ''}</Typography>
                     <Typography>LastVersion: {config.LastVersion || ''}</Typography>
+                </Stack>
+            </TabPanel>
+
+            <TabPanel value={tab} index={4}>
+                <Stack spacing={2} sx={{ maxWidth: 600 }}>
+                    {Object.keys(config)
+                        .sort()
+                        .map((k) => (
+                            <Box key={k} sx={{ display: 'flex', gap: 1 }}>
+                                <TextField label="Key" value={k} disabled sx={{ flex: 1 }} />
+                                <TextField
+                                    label="Value"
+                                    value={config[k] || ''}
+                                    onChange={(e) => save(k, e.target.value)}
+                                    sx={{ flex: 1 }}
+                                />
+                            </Box>
+                        ))}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                            label="Key"
+                            value={newKey}
+                            onChange={(e) => setNewKey(e.target.value)}
+                            sx={{ flex: 1 }}
+                        />
+                        <TextField
+                            label="Value"
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            sx={{ flex: 1 }}
+                        />
+                        <Button
+                            variant="outlined"
+                            onClick={() => {
+                                if (newKey) {
+                                    void save(newKey, newValue);
+                                    setNewKey('');
+                                    setNewValue('');
+                                }
+                            }}
+                        >
+                            Add
+                        </Button>
+                    </Box>
                 </Stack>
             </TabPanel>
 
