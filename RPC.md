@@ -106,6 +106,13 @@ User focused calls used by the React application.
 | `urn:public:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version.                   |
 | `urn:public:vars:get_odbc_version:1`   | Return the installed Linux MSSQL ODBC driver versions. |
 
+### `users`
+
+| Operation                                  | Description                                      |
+| ------------------------------------------- | ------------------------------------------------ |
+| `urn:public:users:get_profile:1`            | Retrieve a user's public profile.                |
+| `urn:public:users:get_published_files:1`    | List files a user has published to the gallery.  |
+
 ## Storage Domain
 
 Calls for user storage management. All Storage domain calls require `ROLE_STORAGE`.

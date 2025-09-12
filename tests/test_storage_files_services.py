@@ -78,6 +78,8 @@ storage_files_move_file_v1 = services.storage_files_move_file_v1
 storage_files_get_metadata_v1 = services.storage_files_get_metadata_v1
 storage_files_get_usage_v1 = services.storage_files_get_usage_v1
 storage_files_get_folder_files_v1 = services.storage_files_get_folder_files_v1
+storage_files_set_gallery_v1 = services.storage_files_set_gallery_v1
+storage_files_get_public_files_v1 = services.storage_files_get_public_files_v1
 
 
 class DummyStorage:
@@ -92,6 +94,8 @@ class DummyStorage:
     self.metadata_args = None
     self.usage_called = None
     self.list_folder_args = None
+    self.gallery_args = None
+    self.list_public_called = False
 
   async def get_file_link(self, user_guid, name):
     self.link_args = (user_guid, name)
@@ -145,6 +149,15 @@ class DummyStorage:
       }],
       "folders": [{"name": "sub", "empty": False}],
     }
+
+  async def set_gallery(self, user_guid, name, gallery):
+    self.gallery_args = (user_guid, name, gallery)
+
+  async def list_public_files(self):
+    self.list_public_called = True
+    return [
+      {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}
+    ]
 
 
 def make_request(op, payload):
@@ -256,4 +269,34 @@ def test_get_folder_files_returns_contents():
   }
   assert storage.list_folder_args == ("u123", "docs")
   assert storage.reindexed == "u123"
+
+
+def test_set_gallery_updates_flag():
+  req, storage = make_request(
+    "urn:storage:files:set_gallery:1", {"name": "a.txt", "gallery": True}
+  )
+  resp = asyncio.run(storage_files_set_gallery_v1(req))
+  assert resp.payload == {"name": "a.txt", "gallery": True}
+  assert storage.gallery_args == ("u123", "a.txt", True)
+  assert storage.reindexed == "u123"
+
+
+def test_get_public_files_lists_files():
+  req, storage = make_request("urn:storage:files:get_public_files:1", {})
+  resp = asyncio.run(storage_files_get_public_files_v1(req))
+  assert resp.payload == {
+    "files": [
+      {
+        "path": "",
+        "name": "a.txt",
+        "url": "u/a.txt",
+        "content_type": "text/plain",
+        "user_guid": None,
+        "display_name": None,
+        "gallery": None,
+      }
+    ]
+  }
+  assert storage.list_public_called
+  assert storage.reindexed is None
 
