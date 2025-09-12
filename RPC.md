@@ -111,7 +111,7 @@ User focused calls used by the React application.
 | Operation                                  | Description                                      |
 | ------------------------------------------- | ------------------------------------------------ |
 | `urn:public:users:get_profile:1`            | Retrieve a user's public profile.                |
-| `urn:public:users:get_published_files:1`    | List files a user has published to the gallery.  |
+| `urn:public:users:get_published_files:1`    | List files a user has published to the gallery including content type.  |
 
 ## Storage Domain
 

@@ -913,12 +913,14 @@ def _public_users_get_published_files(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     sql = """
       SELECT
-        element_path AS path,
-        element_filename AS filename,
-        element_url AS url
-      FROM users_storage_cache
-      WHERE users_guid = ? AND element_public = 1 AND element_deleted = 0 AND ISNULL(element_reported,0) = 0
-      ORDER BY element_created_on;
+        usc.element_path AS path,
+        usc.element_filename AS filename,
+        usc.element_url AS url,
+        st.element_mimetype AS content_type
+      FROM users_storage_cache usc
+      JOIN storage_types st ON st.recid = usc.types_recid
+      WHERE usc.users_guid = ? AND usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
+      ORDER BY usc.element_created_on;
     """
     return (DbRunMode.ROW_MANY, sql, (guid,))
 

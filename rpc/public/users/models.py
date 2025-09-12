@@ -10,6 +10,7 @@ class PublicUsersPublishedFile1(BaseModel):
   path: str
   filename: str
   url: str
+  content_type: Optional[str] = None
 
 class PublicUsersPublishedFiles1(BaseModel):
   files: list[PublicUsersPublishedFile1]
