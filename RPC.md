@@ -69,6 +69,13 @@ Authentication and session management calls.
 | `urn:auth:google:oauth_login:1` | Exchange a Google OAuth authorization code for tokens, validate them, create a user record if necessary, and start a user session. Returns bearer and profile data. |
 | `urn:auth:google:oauth_relink:1` | Reactivate or relink an existing Google account and refresh user data. |
 
+### `discord`
+
+| Operation                       | Description                                               |
+| ------------------------------ | --------------------------------------------------------- |
+| `urn:auth:discord:oauth_login:1` | Placeholder endpoint for future Discord OAuth login flow. |
+| `urn:auth:discord:oauth_relink:1` | Placeholder for relinking Discord accounts.               |
+
 ### `providers`
 
 | Operation                           | Description                                                       |
