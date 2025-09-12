@@ -84,7 +84,6 @@ async def storage_files_set_gallery_v1(request: Request):
   data = StorageFilesSetGallery1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.set_gallery(user_guid, data.name, data.gallery)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),

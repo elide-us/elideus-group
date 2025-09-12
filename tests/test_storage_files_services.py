@@ -96,6 +96,7 @@ class DummyStorage:
     self.list_folder_args = None
     self.gallery_args = None
     self.list_public_called = False
+    self.gallery_state = {}
 
   async def get_file_link(self, user_guid, name):
     self.link_args = (user_guid, name)
@@ -112,6 +113,8 @@ class DummyStorage:
 
   async def reindex(self, user_guid=None):
     self.reindexed = user_guid
+    for k in list(self.gallery_state.keys()):
+      self.gallery_state[k] = False
 
   async def rename_file(self, user_guid, old_name, new_name):
     self.renamed = (user_guid, old_name, new_name)
@@ -138,6 +141,7 @@ class DummyStorage:
 
   async def list_folder(self, user_guid, path):
     self.list_folder_args = (user_guid, path)
+    gallery = self.gallery_state.get((path, "a.txt"), False)
     return {
       "path": path,
       "files": [{
@@ -145,13 +149,15 @@ class DummyStorage:
         "name": "a.txt",
         "url": f"u/{path}/a.txt",
         "content_type": "text/plain",
-        "gallery": False,
+        "gallery": gallery,
       }],
       "folders": [{"name": "sub", "empty": False}],
     }
 
   async def set_gallery(self, user_guid, name, gallery):
     self.gallery_args = (user_guid, name, gallery)
+    path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+    self.gallery_state[(path, filename)] = gallery
 
   async def list_public_files(self):
     self.list_public_called = True
@@ -278,7 +284,6 @@ def test_set_gallery_updates_flag():
   resp = asyncio.run(storage_files_set_gallery_v1(req))
   assert resp.payload == {"name": "a.txt", "gallery": True}
   assert storage.gallery_args == ("u123", "a.txt", True)
-  assert storage.reindexed == "u123"
 
 
 def test_get_public_files_lists_files():
@@ -299,4 +304,35 @@ def test_get_public_files_lists_files():
   }
   assert storage.list_public_called
   assert storage.reindexed is None
+
+
+def test_published_file_listed_with_gallery_flag():
+  storage = DummyStorage()
+  # publish the file
+  req1 = types.SimpleNamespace()
+  req1.app = types.SimpleNamespace(state=types.SimpleNamespace(storage=storage))
+  req1.state = types.SimpleNamespace(
+    rpc_request=RPCRequest(
+      op="urn:storage:files:set_gallery:1",
+      payload={"name": "docs/a.txt", "gallery": True},
+      version=1,
+    ),
+    auth_ctx=AuthContext(user_guid="u123"),
+  )
+  req1.headers = {}
+  asyncio.run(storage_files_set_gallery_v1(req1))
+  # list folder contents
+  req2 = types.SimpleNamespace()
+  req2.app = types.SimpleNamespace(state=types.SimpleNamespace(storage=storage))
+  req2.state = types.SimpleNamespace(
+    rpc_request=RPCRequest(
+      op="urn:storage:files:get_folder_files:1",
+      payload={"path": "docs"},
+      version=1,
+    ),
+    auth_ctx=AuthContext(user_guid="u123"),
+  )
+  req2.headers = {}
+  resp = asyncio.run(storage_files_get_folder_files_v1(req2))
+  assert resp.payload["files"][0]["gallery"] is True
 
