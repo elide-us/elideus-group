@@ -136,7 +136,13 @@ class DummyStorage:
     self.list_folder_args = (user_guid, path)
     return {
       "path": path,
-      "files": [{"path": path, "name": "a.txt", "url": f"u/{path}/a.txt", "content_type": "text/plain"}],
+      "files": [{
+        "path": path,
+        "name": "a.txt",
+        "url": f"u/{path}/a.txt",
+        "content_type": "text/plain",
+        "gallery": False,
+      }],
       "folders": [{"name": "sub", "empty": False}],
     }
 
@@ -163,6 +169,7 @@ def test_get_link_calls_storage():
     "content_type": None,
     "user_guid": None,
     "display_name": None,
+    "gallery": None,
   }
   assert storage.link_args == ("u123", "a.txt")
   assert storage.reindexed == "u123"
@@ -243,7 +250,7 @@ def test_get_folder_files_returns_contents():
   assert resp.payload == {
     "path": "docs",
     "files": [
-      {"path": "docs", "name": "a.txt", "url": "u/docs/a.txt", "content_type": "text/plain", "user_guid": None, "display_name": None}
+      {"path": "docs", "name": "a.txt", "url": "u/docs/a.txt", "content_type": "text/plain", "user_guid": None, "display_name": None, "gallery": False}
     ],
     "folders": [{"name": "sub", "empty": False}],
   }

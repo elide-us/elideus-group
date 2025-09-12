@@ -19,6 +19,7 @@ import {
     Publish,
     DriveFileMove,
     Folder,
+    Unpublished,
 } from '@mui/icons-material';
 import {
     fetchFolderFiles,
@@ -41,6 +42,7 @@ interface StorageFile {
     name: string;
     url: string;
     content_type?: string;
+    gallery?: boolean;
 }
 
 interface StorageFolder {
@@ -96,7 +98,8 @@ const FileManager = (): JSX.Element => {
     };
 
     const handleSetGallery = async (file: StorageFile): Promise<void> => {
-        await fetchSetGallery({ name: getFullName(file), gallery: true });
+        await fetchSetGallery({ name: getFullName(file), gallery: !file.gallery });
+        await load(currentPath);
     };
 
     const handleCopy = async (url: string): Promise<void> => {
@@ -228,7 +231,10 @@ const FileManager = (): JSX.Element => {
                         {files.map((file) => (
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
-                                <TableCell sx={{ width: '60%' }}>{file.name}</TableCell>
+                                <TableCell sx={{ width: '60%' }}>
+                                    {file.name}
+                                    {file.gallery && <Publish fontSize="small" sx={{ ml: 1 }} />}
+                                </TableCell>
                                 <TableCell sx={{ width: '20%' }}>
                                     <Stack direction="row" spacing={1}>
                                         <Tooltip title="Get link">
@@ -241,9 +247,9 @@ const FileManager = (): JSX.Element => {
                                                 <Delete />
                                             </IconButton>
                                         </Tooltip>
-                                        <Tooltip title="Publish">
+                                        <Tooltip title={file.gallery ? 'Unpublish' : 'Publish'}>
                                             <IconButton size="small" onClick={() => void handleSetGallery(file)}>
-                                                <Publish />
+                                                {file.gallery ? <Unpublished /> : <Publish />}
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Move">

@@ -47,20 +47,21 @@ const Gallery = (): JSX.Element => {
 	                            <Tab label="Misc" />
 	                    </Tabs>
 	                    <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 2 }}>
-	                            {files.filter((f) => getType(f.content_type) === value).map((f, idx) => {
-	                                    const name = f.path ? `${f.path}/${f.name}` : f.name;
-	                                    return (
-	                                            <Postcard
-	                                                    key={idx}
-	                                                    src={f.url}
-	                                                    guid={f.user_guid}
-	                                                    displayName={f.display_name}
-	                                                    onReport={() => handleReport(f.user_guid, name)}
-	                                            />
-	                                    );
-	                            })}
-	                    </Stack>
-	            </div>
+                                    {files.filter((f) => getType(f.content_type) === value).map((f, idx) => {
+                                            const name = f.path ? `${f.path}/${f.name}` : f.name;
+                                            return (
+                                                    <Postcard
+                                                            key={idx}
+                                                            src={f.url}
+                                                            guid={f.user_guid}
+                                                            displayName={f.display_name}
+                                                            contentType={f.content_type}
+                                                            onReport={() => handleReport(f.user_guid, name)}
+                                                    />
+                                            );
+                                    })}
+                            </Stack>
+                    </div>
 	    );
 };
 

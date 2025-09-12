@@ -10,6 +10,7 @@ class StorageFilesFileItem1(BaseModel):
   content_type: Optional[str] = None
   user_guid: Optional[str] = None
   display_name: Optional[str] = None
+  gallery: Optional[bool] = None
 
 
 class StorageFilesFiles1(BaseModel):

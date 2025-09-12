@@ -278,6 +278,7 @@ class StorageModule(BaseModule):
         "name": filename,
         "url": row.get("url") or full_name,
         "content_type": row.get("content_type"),
+        "gallery": bool(row.get("public")),
       })
     return out
 
@@ -308,6 +309,7 @@ class StorageModule(BaseModule):
           "name": filename,
           "url": row.get("url") or full_name,
           "content_type": ct,
+          "gallery": bool(row.get("public")),
         })
       elif path.startswith(prefix):
         subfolder = path[len(prefix):].split("/", 1)[0]

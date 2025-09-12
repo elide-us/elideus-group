@@ -94,14 +94,14 @@ def test_list_files_by_user():
   app = FastAPI()
   mod = StorageModule(app)
   mod.db = DummyListDb([
-    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
-    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
+    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt", "public": 0},
+    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt", "public": 0},
     {"path": "", "filename": "docs", "content_type": "path/folder", "url": None},
   ])
   files = asyncio.run(mod.list_files_by_user("u1"))
   assert files == [
-    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
-    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
+    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain", "gallery": False},
+    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain", "gallery": False},
   ]
 
 
@@ -109,18 +109,18 @@ def test_list_folder_returns_files_and_folders():
   app = FastAPI()
   mod = StorageModule(app)
   mod.db = DummyListDb([
-    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt"},
-    {"path": "", "filename": "docs", "content_type": "path/folder", "url": None},
-    {"path": "", "filename": "empty", "content_type": "path/folder", "url": None},
-    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt"},
-    {"path": "docs", "filename": "c.txt", "content_type": "text/plain", "url": "u/docs/c.txt"},
-    {"path": "docs", "filename": "sub", "content_type": "path/folder", "url": None},
-    {"path": "docs/sub", "filename": "d.txt", "content_type": "text/plain", "url": "u/docs/sub/d.txt"},
+    {"path": "", "filename": "a.txt", "content_type": "text/plain", "url": "u/a.txt", "public": 0},
+    {"path": "", "filename": "docs", "content_type": "path/folder", "url": None, "public": 0},
+    {"path": "", "filename": "empty", "content_type": "path/folder", "url": None, "public": 0},
+    {"path": "docs", "filename": "b.txt", "content_type": "text/plain", "url": "u/docs/b.txt", "public": 0},
+    {"path": "docs", "filename": "c.txt", "content_type": "text/plain", "url": "u/docs/c.txt", "public": 0},
+    {"path": "docs", "filename": "sub", "content_type": "path/folder", "url": None, "public": 0},
+    {"path": "docs/sub", "filename": "d.txt", "content_type": "text/plain", "url": "u/docs/sub/d.txt", "public": 0},
   ])
   root = asyncio.run(mod.list_folder("u1", ""))
   assert root["path"] == ""
   assert root["files"] == [
-    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"}
+    {"path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain", "gallery": False}
   ]
   assert sorted(root["folders"], key=lambda x: x["name"]) == [
     {"name": "docs", "empty": False},
@@ -129,8 +129,8 @@ def test_list_folder_returns_files_and_folders():
   docs = asyncio.run(mod.list_folder("u1", "/docs"))
   assert docs["path"] == "docs"
   assert docs["files"] == [
-    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain"},
-    {"path": "docs", "name": "c.txt", "url": "u/docs/c.txt", "content_type": "text/plain"},
+    {"path": "docs", "name": "b.txt", "url": "u/docs/b.txt", "content_type": "text/plain", "gallery": False},
+    {"path": "docs", "name": "c.txt", "url": "u/docs/c.txt", "content_type": "text/plain", "gallery": False},
   ]
   assert docs["folders"] == [{"name": "sub", "empty": False}]
 
