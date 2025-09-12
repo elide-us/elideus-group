@@ -426,10 +426,9 @@ class StorageModule(BaseModule):
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
-    path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
     await self.db.run(
-      "db:storage:cache:set_public:1",
-      {"user_guid": user_guid, "path": path, "filename": filename, "public": 1 if gallery else 0},
+      "db:storage:files:set_gallery:1",
+      {"user_guid": user_guid, "name": name, "gallery": 1 if gallery else 0},
     )
 
   async def report_file(self, user_guid: str, name: str):

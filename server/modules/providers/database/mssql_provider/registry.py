@@ -541,6 +541,20 @@ def _storage_cache_set_public(args: Dict[str, Any]):
   return (DbRunMode.EXEC, sql, (public, guid, path, filename))
 
 
+@register("db:storage:files:set_gallery:1")
+def _storage_files_set_gallery(args: Dict[str, Any]):
+  guid = str(UUID(args["user_guid"]))
+  name = args.get("name", "")
+  path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+  gallery = 1 if args.get("gallery") else 0
+  sql = """
+    UPDATE users_storage_cache
+    SET element_public = ?
+    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
+  """
+  return (DbRunMode.EXEC, sql, (gallery, guid, path, filename))
+
+
 @register("db:storage:cache:set_reported:1")
 def _storage_cache_set_reported(args: Dict[str, Any]):
   guid = str(UUID(args["user_guid"]))
