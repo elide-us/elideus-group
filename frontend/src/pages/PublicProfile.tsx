@@ -49,19 +49,21 @@ const PublicProfile = (): JSX.Element => {
 	        <Stack direction="row" spacing={2} flexWrap="wrap">
 	            {files.map((f, idx) => {
 	                const name = f.path ? `${f.path}/${f.filename}` : f.filename;
-	                return (
-	                    <Postcard
-	                        key={idx}
-	                        src={f.url}
-	                        guid={guid as string}
-	                        displayName={profile?.display_name ?? ''}
-	                        onReport={() => {
-	                            if (guid) void fetchReportFile({ guid, name });
-	                        }}
-	                    />
-	                );
-	            })}
-	        </Stack>
+                        return (
+                            <Postcard
+                                key={idx}
+                                src={f.url}
+                                guid={guid as string}
+                                displayName={profile?.display_name ?? ''}
+                                filename={f.filename}
+                                contentType={f.content_type}
+                                onReport={() => {
+                                    if (guid) void fetchReportFile({ guid, name });
+                                }}
+                            />
+                        );
+                    })}
+                </Stack>
 	    </div>
 	);
 };

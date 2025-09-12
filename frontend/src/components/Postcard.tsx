@@ -5,11 +5,12 @@ interface PostcardProps {
     src: string;
     guid: string;
     displayName: string;
+    filename: string;
     onReport: () => void;
-    contentType?: string;
+    contentType?: string | null;
 }
 
-const Postcard = ({ src, guid, displayName, onReport, contentType }: PostcardProps): JSX.Element => {
+const Postcard = ({ src, guid, displayName, filename, onReport, contentType }: PostcardProps): JSX.Element => {
     const isVideo = contentType?.startsWith('video/');
     const isAudio = contentType?.startsWith('audio/');
     return (
@@ -31,9 +32,16 @@ const Postcard = ({ src, guid, displayName, onReport, contentType }: PostcardPro
                     <FlagIcon fontSize="small" />
                 </IconButton>
             </Box>
-            <Link href={`/profile/${guid}`} underline="hover">
-                {displayName}
-            </Link>
+            <Box sx={{ mt: 1 }}>
+                <Box>{filename}</Box>
+                <Link
+                    href={`/profile/${guid}`}
+                    underline="hover"
+                    sx={{ fontSize: '0.8rem', color: 'text.secondary' }}
+                >
+                    {displayName}
+                </Link>
+            </Box>
         </Box>
     );
 };
