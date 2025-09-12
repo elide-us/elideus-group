@@ -96,6 +96,7 @@ class StorageModule(BaseModule):
     container = bsc.get_container_client(container_name)
     files_seen: dict[str, set[tuple[str, str]]] = {}
     folder_seen: dict[str, set[tuple[str, str]]] = {}
+    public_map: dict[str, dict[tuple[str, str], int]] = {}
     files_indexed = 0
     folders_indexed = 0
     prefix = f"{user_guid}/" if user_guid else None
@@ -117,6 +118,13 @@ class StorageModule(BaseModule):
           continue
         filename = parts[-1]
         path = "/".join(parts[1:-1])
+        if guid not in public_map:
+          rows = await self.db.list_storage_cache(guid)
+          public_map[guid] = {
+            (r.get("path") or "", r.get("filename")): r.get("public", 0)
+            for r in rows
+            if r.get("content_type") != "path/folder"
+          }
         # index folders along the path (up to 4 levels)
         parent = ""
         fset = folder_seen.setdefault(guid, set())
@@ -189,12 +197,13 @@ class StorageModule(BaseModule):
         logging.debug(
           "[StorageModule] indexing file %s/%s", path or ".", filename
         )
+        public_val = public_map.get(guid, {}).get((path, filename), 0)
         res = await self.db.upsert_storage_cache({
           "user_guid": guid,
           "path": path,
           "filename": filename,
           "content_type": ct or "application/octet-stream",
-          "public": 0,
+          "public": public_val,
           "created_on": created_on,
           "modified_on": modified_on,
           "url": url,
@@ -208,24 +217,19 @@ class StorageModule(BaseModule):
             filename,
           )
         files_seen.setdefault(guid, set()).add((path, filename))
+        public_map.setdefault(guid, {})[(path, filename)] = public_val
         files_indexed += 1
       if user_guid:
-        existing = await self.db.list_storage_cache(user_guid)
-        for item in existing:
-          if item.get("content_type") == "path/folder":
-            continue
-          key = (item["path"], item["filename"])
+        existing = public_map.get(user_guid, {})
+        for key in list(existing.keys()):
           if key not in files_seen.get(user_guid, set()):
-            await self.db.delete_storage_cache(user_guid, item["path"], item["filename"])
+            await self.db.delete_storage_cache(user_guid, key[0], key[1])
       else:
         for guid, items_seen in files_seen.items():
-          existing = await self.db.list_storage_cache(guid)
-          for item in existing:
-            if item.get("content_type") == "path/folder":
-              continue
-            key = (item["path"], item["filename"])
+          existing = public_map.get(guid, {})
+          for key in list(existing.keys()):
             if key not in items_seen:
-              await self.db.delete_storage_cache(guid, item["path"], item["filename"])
+              await self.db.delete_storage_cache(guid, key[0], key[1])
     finally:
       logging.debug(
         "[StorageModule] Reindex found %d files and %d folders%s",
