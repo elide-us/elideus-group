@@ -56,6 +56,7 @@ const Gallery = (): JSX.Element => {
                                                             src={f.url}
                                                             guid={f.user_guid}
                                                             displayName={f.display_name}
+                                                            filename={f.name}
                                                             contentType={f.content_type}
                                                             onReport={() => handleReport(f.user_guid, name)}
                                                     />
