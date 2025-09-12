@@ -2,7 +2,8 @@ import { useState, useEffect, type JSX } from 'react';
 import { Tabs, Tab, Stack } from '@mui/material';
 import PageTitle from '../components/PageTitle';
 import Postcard from '../components/Postcard';
-import { fetchPublicFiles, fetchReportFile } from '../rpc/storage/files';
+import { fetchPublicFiles } from '../rpc/public/gallery';
+import { fetchReportFile } from '../rpc/storage/files';
 
 const Gallery = (): JSX.Element => {
 	    const [value, setValue] = useState(0);
