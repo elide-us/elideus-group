@@ -51,10 +51,10 @@ def test_get_auth_providers():
   async def fake_run(op, args):
     assert op == "db:system:config:get_config:1"
     assert args == {"key": "AuthProviders"}
-    return DBResult(rows=[{"value": "microsoft,google"}], rowcount=1)
+    return DBResult(rows=[{"value": "microsoft,google,discord"}], rowcount=1)
 
   db.run = fake_run
-  assert asyncio.run(db.get_auth_providers()) == ["microsoft", "google"]
+  assert asyncio.run(db.get_auth_providers()) == ["microsoft", "google", "discord"]
 
 
 def test_get_jwks_cache_time():
