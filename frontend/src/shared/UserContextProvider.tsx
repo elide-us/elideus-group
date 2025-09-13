@@ -48,30 +48,35 @@ const setUserData = useCallback((data: AuthTokens) => {
                                                 refreshed.current = false;
                                                 return;
                                 }
-                                if (refreshed.current || userData.provider !== 'microsoft') return;
-                                refreshed.current = true;
-                                const msal = new PublicClientApplication(msalConfig);
-                                const init = async () => {
-                                                try {
-                                                                await msal.initialize();
-                                                                const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
-                                                                if (!account) return;
-const result = await msal.acquireTokenSilent({
-...loginRequest,
-account
-});
-const data = await fetchMicrosoftOauthLogin({
-idToken: result.idToken,
-accessToken: result.accessToken,
-provider: 'microsoft',
-fingerprint: getFingerprint(),
-}) as AuthMicrosoftOauthLogin1;
-                                                                setUserData({ provider: 'microsoft', ...data });
-                                                } catch {
-                                                                /* silent token acquisition failed */
-                                                }
-                                };
-                                void init();
+                                if (refreshed.current) return;
+                                if (userData.provider === 'microsoft') {
+                                                refreshed.current = true;
+                                                const msal = new PublicClientApplication(msalConfig);
+                                                const init = async () => {
+                                                                try {
+                                                                                await msal.initialize();
+                                                                                const account = msal.getActiveAccount() || msal.getAllAccounts()[0];
+                                                                                if (!account) return;
+                                const result = await msal.acquireTokenSilent({
+                                ...loginRequest,
+                                account
+                                });
+                                const data = await fetchMicrosoftOauthLogin({
+                                idToken: result.idToken,
+                                accessToken: result.accessToken,
+                                provider: 'microsoft',
+                                fingerprint: getFingerprint(),
+                                }) as AuthMicrosoftOauthLogin1;
+                                                                                setUserData({ provider: 'microsoft', ...data });
+                                                                } catch {
+                                                                                /* silent token acquisition failed */
+                                                                }
+                                                };
+                                                void init();
+                                } else if (userData.provider === 'discord') {
+                                                refreshed.current = true;
+                                                setUserData(userData);
+                                }
                 }, [userData, setUserData]);
 
                useEffect(() => {
