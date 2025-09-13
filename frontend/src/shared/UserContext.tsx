@@ -1,8 +1,16 @@
 import { createContext } from 'react';
-import type { AuthMicrosoftOauthLogin1, AuthGoogleOauthLogin1 } from './RpcModels';
+import type {
+        AuthMicrosoftOauthLogin1,
+        AuthGoogleOauthLogin1,
+        AuthDiscordOauthLogin1,
+} from './RpcModels';
 
-export type AuthTokens = (AuthMicrosoftOauthLogin1 | AuthGoogleOauthLogin1) & {
-	provider: string;
+export type AuthTokens = (
+        | AuthMicrosoftOauthLogin1
+        | AuthGoogleOauthLogin1
+        | AuthDiscordOauthLogin1
+) & {
+        provider: string;
 };
 
 export interface UserContext {
