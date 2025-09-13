@@ -73,7 +73,7 @@ Authentication and session management calls.
 
 | Operation                       | Description                                               |
 | ------------------------------ | --------------------------------------------------------- |
-| `urn:auth:discord:oauth_login:1` | Placeholder endpoint for future Discord OAuth login flow. |
+| `urn:auth:discord:oauth_login:1` | Exchange Discord authorization code for tokens and create a session. |
 | `urn:auth:discord:oauth_relink:1` | Placeholder for relinking Discord accounts.               |
 
 ### `providers`
