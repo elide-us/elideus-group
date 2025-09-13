@@ -163,6 +163,30 @@ def test_handle_auth_login_selects_provider():
   assert module.providers["a"].called is False
 
 
+def test_handle_auth_login_allows_missing_id_token():
+  app = FastAPI()
+  module = AuthModule(app)
+
+  class FakeProvider:
+    requires_id_token = False
+
+    async def verify_id_token(self, token, access_token):
+      return {"sub": "xyz"}
+
+    async def fetch_user_profile(self, token):
+      return {"email": "user@example.com", "username": "User"}
+
+    def extract_guid(self, payload):
+      return payload.get("sub")
+
+  module.providers["discord"] = FakeProvider()
+
+  guid, profile, payload = asyncio.run(module.handle_auth_login("discord", None, "access"))
+  assert guid == "xyz"
+  assert profile["username"] == "User"
+  assert payload["sub"] == "xyz"
+
+
 def test_jwks_refresh_failure(monkeypatch):
   provider = MicrosoftAuthProvider(api_id="api", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
 

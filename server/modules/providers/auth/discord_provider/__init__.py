@@ -6,6 +6,7 @@ from server.modules.providers import AuthProviderBase
 
 
 class DiscordAuthProvider(AuthProviderBase):
+  requires_id_token = False
   """Placeholder Discord OAuth provider.
 
   This provider will handle Discord's OAuth flow and user profile retrieval

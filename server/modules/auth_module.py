@@ -179,7 +179,7 @@ class AuthModule(BaseModule):
     if not strategy:
       logging.error("[AuthModule] Unsupported auth provider %s", provider)
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported auth provider")
-    if not id_token or not access_token:
+    if not access_token or (getattr(strategy, "requires_id_token", True) and not id_token):
       logging.error("[AuthModule] Missing credentials for provider %s", provider)
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing credentials")
     payload = await strategy.verify_id_token(id_token, access_token)
