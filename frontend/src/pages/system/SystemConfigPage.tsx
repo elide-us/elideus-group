@@ -153,7 +153,7 @@ const SystemConfigPage = (): JSX.Element => {
                 <Tab label="Storage" />
                 <Tab label="Logging" />
                 <Tab label="DevOps" />
-                <Tab label="Misc" />
+                <Tab label="Advanced" />
             </Tabs>
 
             <TabPanel value={tab} index={0}>
