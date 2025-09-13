@@ -24,6 +24,7 @@ import {
     fetchUnlinkProvider
 } from "../rpc/users/providers";
 import googleConfig from "../config/google";
+import discordConfig from "../config/discord";
 import { msalConfig, loginRequest } from "../config/msal";
 import EditBox from "../components/EditBox";
 
@@ -119,6 +120,33 @@ const UserPage = (): JSX.Element => {
                     client.requestCode();
                 });
                 await fetchSetProvider({ provider: next, code });
+            } else if (next === "discord") {
+                const authorizeUrl = `${discordConfig.authorizeEndpoint}?response_type=code&client_id=${encodeURIComponent(discordConfig.clientId)}&scope=${encodeURIComponent(discordConfig.scope)}&redirect_uri=${encodeURIComponent(discordConfig.redirectUri)}`;
+                const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
+                if (!authWindow) throw new Error("Failed to open Discord login window");
+                const code = await new Promise<string>((resolve, reject) => {
+                    const interval = setInterval(() => {
+                        if (authWindow.closed) {
+                            clearInterval(interval);
+                            reject(new Error("Login window closed"));
+                            return;
+                        }
+                        try {
+                            const url = new URL(authWindow.location.href);
+                            if (url.origin === window.location.origin) {
+                                const codeParam = url.searchParams.get("code");
+                                if (codeParam) {
+                                    clearInterval(interval);
+                                    authWindow.close();
+                                    resolve(codeParam);
+                                }
+                            }
+                        } catch {
+                            // Ignore cross-origin access errors until redirect
+                        }
+                    }, 500);
+                });
+                await fetchSetProvider({ provider: next, code });
             } else if (next === "microsoft") {
                 await pca.initialize();
                 const loginResponse = await pca.loginPopup(loginRequest);
@@ -148,6 +176,7 @@ const UserPage = (): JSX.Element => {
     };
 
   const handleUnlink = async (name: string): Promise<void> => {
+    if (!["microsoft", "google", "discord"].includes(name)) return;
     const isLast = providers.length <= 1;
     if (isLast && !window.confirm("This will delete your account. Continue?"))
       return;
@@ -180,7 +209,7 @@ const UserPage = (): JSX.Element => {
   };
 
   const handleLink = async (name: string): Promise<void> => {
-    if (name !== "microsoft" && name !== "google") return;
+    if (!["microsoft", "google", "discord"].includes(name)) return;
     try {
       if (name === "google") {
         if (!window.google) throw new Error("Google API not loaded");
@@ -197,6 +226,33 @@ const UserPage = (): JSX.Element => {
           client.requestCode();
         });
         console.debug("[UserPage] authorization code received", code);
+        await fetchLinkProvider({ provider: name, code });
+      } else if (name === "discord") {
+        const authorizeUrl = `${discordConfig.authorizeEndpoint}?response_type=code&client_id=${encodeURIComponent(discordConfig.clientId)}&scope=${encodeURIComponent(discordConfig.scope)}&redirect_uri=${encodeURIComponent(discordConfig.redirectUri)}`;
+        const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
+        if (!authWindow) throw new Error("Failed to open Discord login window");
+        const code = await new Promise<string>((resolve, reject) => {
+          const interval = setInterval(() => {
+            if (authWindow.closed) {
+              clearInterval(interval);
+              reject(new Error("Login window closed"));
+              return;
+            }
+            try {
+              const url = new URL(authWindow.location.href);
+              if (url.origin === window.location.origin) {
+                const codeParam = url.searchParams.get("code");
+                if (codeParam) {
+                  clearInterval(interval);
+                  authWindow.close();
+                  resolve(codeParam);
+                }
+              }
+            } catch {
+              // Ignore cross-origin access errors until redirect
+            }
+          }, 500);
+        });
         await fetchLinkProvider({ provider: name, code });
       } else {
         await pca.initialize();
@@ -225,7 +281,7 @@ const UserPage = (): JSX.Element => {
   const allProviders = [
     { name: "microsoft", display: "Microsoft", enabled: true },
     { name: "google", display: "Google", enabled: true },
-    { name: "discord", display: "Discord", enabled: false },
+    { name: "discord", display: "Discord", enabled: true },
     { name: "apple", display: "Apple", enabled: false }
   ];
 
