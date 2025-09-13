@@ -99,6 +99,9 @@ const SystemConfigPage = (): JSX.Element => {
                     err = 'Should end with .apps.googleusercontent.com';
                 }
                 break;
+            case 'DiscordClientId':
+                if (!value.trim()) err = 'Required.';
+                break;
             case 'JwksCacheTime':
                 if (Number.isNaN(Number(value)) || Number(value) < 60) {
                     err = 'Must be >= 60.';
@@ -212,6 +215,13 @@ const SystemConfigPage = (): JSX.Element => {
                         onChange={(e) => save('GoogleClientId', e.target.value)}
                         error={Boolean(errors.GoogleClientId)}
                         helperText={errors.GoogleClientId}
+                    />
+                    <TextField
+                        label="DiscordClientId"
+                        value={config.DiscordClientId || ''}
+                        onChange={(e) => save('DiscordClientId', e.target.value)}
+                        error={Boolean(errors.DiscordClientId)}
+                        helperText={errors.DiscordClientId}
                     />
                     <TextField
                         label="JwksCacheTime"
