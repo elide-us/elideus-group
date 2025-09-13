@@ -23,6 +23,8 @@ async def _fetch_openid_config() -> Dict[str, Any]:
       return config
 
 class MicrosoftAuthProvider(AuthProvider):
+  requires_id_token = True
+
   def __init__(self, *, api_id: str, jwks_uri: str, jwks_expiry: timedelta):
     super().__init__(audience=api_id, issuer=MICROSOFT_ISSUER, jwks_uri=jwks_uri, jwks_expiry=jwks_expiry)
 

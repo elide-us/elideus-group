@@ -5,7 +5,6 @@ from fastapi import HTTPException, status
 
 from server.modules.providers import AuthProviderBase
 
-
 AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 TOKEN_URL = "https://discord.com/api/oauth2/token"
 USERINFO_URL = "https://discord.com/api/users/@me"

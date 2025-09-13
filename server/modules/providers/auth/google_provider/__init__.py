@@ -25,6 +25,8 @@ async def _fetch_openid_config() -> Dict[str, Any]:
 
 
 class GoogleAuthProvider(AuthProvider):
+  requires_id_token = True
+
   def __init__(self, *, api_id: str, jwks_uri: str, jwks_expiry: timedelta):
     super().__init__(audience=api_id, issuer=GOOGLE_ISSUER, jwks_uri=jwks_uri, jwks_expiry=jwks_expiry)
     self.userinfo_endpoint: str | None = None

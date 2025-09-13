@@ -52,8 +52,10 @@ class LifecycleProvider(BaseProvider):
 
 
 class AuthProviderBase(LifecycleProvider):
+  requires_id_token = True
+
   @abstractmethod
-  async def verify_id_token(self, id_token: str, access_token: str | None = None) -> Dict[str, Any]: ...
+  async def verify_id_token(self, id_token: str | None, access_token: str | None = None) -> Dict[str, Any]: ...
 
   @abstractmethod
   async def fetch_user_profile(self, access_token: str) -> Dict[str, Any]: ...
@@ -104,7 +106,9 @@ class AuthProvider(AuthProviderBase):
       logging.debug("[AuthProvider] Using cached JWKS")
     return self._jwks
 
-  async def verify_id_token(self, id_token: str, access_token: str | None = None) -> Dict[str, Any]:
+  async def verify_id_token(self, id_token: str | None, access_token: str | None = None) -> Dict[str, Any]:
+    if not id_token:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ID token.")
     logging.debug("[AuthProvider] Verifying ID token %s", id_token[:40])
     jwks = await self._get_jwks()
     try:
