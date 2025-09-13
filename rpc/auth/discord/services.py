@@ -48,9 +48,9 @@ async def auth_discord_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
   client_id = getattr(discord_provider, "audience")
 
-  client_secret = env.get("DISCORD_SECRET")
+  client_secret = env.get("DISCORD_AUTH_SECRET")
   if not client_secret:
-    raise HTTPException(status_code=500, detail="DISCORD_SECRET not configured")
+    raise HTTPException(status_code=500, detail="DISCORD_AUTH_SECRET not configured")
 
   res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
   if not res_redirect.rows:
@@ -64,7 +64,7 @@ async def auth_discord_oauth_login_v1(request: Request):
     client_id,
     client_secret,
     redirect_uri,
-    token_endpoint=OauthModule.TOKEN_ENDPOINTS["discord"],
+    provider=provider,
   )
 
   provider_uid, profile, payload = await auth.handle_auth_login(

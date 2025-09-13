@@ -109,3 +109,8 @@ def test_extract_guid():
   payload = {"id": "42"}
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "discord:42"))
   assert provider.extract_guid(payload) == expected
+
+
+def test_requires_id_token_is_false():
+  provider = discord_provider.DiscordAuthProvider()
+  assert provider.requires_id_token is False

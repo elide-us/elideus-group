@@ -41,6 +41,21 @@ class OauthModule(BaseModule):
     redirect_uri: str,
     provider: str = "google",
   ) -> tuple[str | None, str]:
+    """Exchange an authorization code for tokens.
+
+    Args:
+      code: Authorization code from the provider.
+      client_id: OAuth client ID.
+      client_secret: OAuth client secret.
+      redirect_uri: Redirect URI registered with the provider.
+      provider: Provider identifier from the ``auth_providers`` table
+        (e.g., ``"discord"`` or its numeric ID) used to select the token
+        endpoint.
+
+    Returns:
+      A tuple of ``(id_token, access_token)``. ``id_token`` may be ``None``
+      for providers that do not issue one.
+    """
     token_endpoint = self.TOKEN_ENDPOINTS.get(provider)
     if not token_endpoint:
       raise HTTPException(status_code=400, detail="Unsupported auth provider")

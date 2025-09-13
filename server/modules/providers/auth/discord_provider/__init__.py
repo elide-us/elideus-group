@@ -12,6 +12,7 @@ USERINFO_URL = "https://discord.com/api/users/@me"
 
 class DiscordAuthProvider(AuthProviderBase):
   """Discord OAuth provider."""
+  requires_id_token = False
 
   async def startup(self) -> None:
     logging.debug("[DiscordAuthProvider] startup")
