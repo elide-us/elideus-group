@@ -52,7 +52,10 @@ async def users_providers_set_provider_v1(request: Request):
           client_id,
           client_secret,
           redirect_uri,
+          payload.provider,
         )
+        if not id_token:
+          raise HTTPException(status_code=400, detail="Missing id_token")
       else:
         id_token, access_token = payload.id_token, payload.access_token
     elif payload.provider == "microsoft":
@@ -74,8 +77,10 @@ async def users_providers_set_provider_v1(request: Request):
           client_id,
           client_secret,
           redirect_uri,
-          token_endpoint=oauth.TOKEN_ENDPOINTS["microsoft"],
+          payload.provider,
         )
+        if not id_token:
+          raise HTTPException(status_code=400, detail="Missing id_token")
       else:
         if not payload.id_token or not payload.access_token:
           raise HTTPException(status_code=400, detail="id_token and access_token required")
@@ -134,7 +139,10 @@ async def users_providers_link_provider_v1(request: Request):
       client_id,
       client_secret,
       redirect_uri,
+      payload.provider,
     )
+    if not id_token:
+      raise HTTPException(status_code=400, detail="Missing id_token")
   elif payload.provider == "microsoft":
     ms_provider = getattr(auth, "providers", {}).get("microsoft")
     if not ms_provider or not ms_provider.audience:
@@ -154,8 +162,10 @@ async def users_providers_link_provider_v1(request: Request):
         client_id,
         client_secret,
         redirect_uri,
-        token_endpoint=oauth.TOKEN_ENDPOINTS["microsoft"],
+        payload.provider,
       )
+      if not id_token:
+        raise HTTPException(status_code=400, detail="Missing id_token")
     else:
       if not payload.id_token or not payload.access_token:
         raise HTTPException(status_code=400, detail="id_token and access_token required")

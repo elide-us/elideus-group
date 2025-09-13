@@ -17,6 +17,7 @@ class OauthModule(BaseModule):
   TOKEN_ENDPOINTS = {
     "google": "https://oauth2.googleapis.com/token",
     "microsoft": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+    "discord": "https://discord.com/api/oauth2/token",
   }
 
   def __init__(self, app: FastAPI):
@@ -38,9 +39,11 @@ class OauthModule(BaseModule):
     client_id: str,
     client_secret: str,
     redirect_uri: str,
-    token_endpoint: str | None = None,
-  ) -> tuple[str, str]:
-    token_endpoint = token_endpoint or self.TOKEN_ENDPOINTS["google"]
+    provider: str = "google",
+  ) -> tuple[str | None, str]:
+    token_endpoint = self.TOKEN_ENDPOINTS.get(provider)
+    if not token_endpoint:
+      raise HTTPException(status_code=400, detail="Unsupported auth provider")
     data = {
       "code": code,
       "client_id": client_id,
@@ -64,9 +67,11 @@ class OauthModule(BaseModule):
         token_data = await resp.json()
     id_token = token_data.get("id_token")
     access_token = token_data.get("access_token")
-    if not id_token or not access_token:
-      logging.error("[exchange_code_for_tokens] missing tokens in response")
+    if not access_token:
+      logging.error("[exchange_code_for_tokens] missing access token in response")
       raise HTTPException(status_code=400, detail="Invalid token response")
+    if not id_token:
+      logging.warning("[exchange_code_for_tokens] id_token missing in response")
     return id_token, access_token
 
   def extract_identifiers(

@@ -68,7 +68,10 @@ async def auth_google_oauth_login_v1(request: Request):
     client_id,
     client_secret,
     redirect_uri,
+    provider,
   )
+  if not id_token:
+    raise HTTPException(status_code=400, detail="Missing id_token")
 
   provider_uid, profile, payload = await auth.handle_auth_login(
     provider, id_token, access_token

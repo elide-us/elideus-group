@@ -153,7 +153,8 @@ def test_link_provider_google_normalizes_identifier():
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
 
-  async def fake_exchange(code, client_id, client_secret, redirect_uri):
+  async def fake_exchange(code, client_id, client_secret, redirect_uri, provider):
+    assert provider == "google"
     return "id", "acc"
 
   class DummyAuth:
