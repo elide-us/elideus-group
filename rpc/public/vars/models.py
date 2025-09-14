@@ -19,3 +19,11 @@ class PublicVarsFfmpegVersion1(BaseModel):
 
 class PublicVarsOdbcVersion1(BaseModel):
   odbc_version: str
+
+
+class PublicVarsVersions1(BaseModel):
+  hostname: str
+  version: str
+  repo: str | None = None
+  ffmpeg_version: str | None = None
+  odbc_version: str | None = None

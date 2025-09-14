@@ -3,19 +3,24 @@ import asyncio, subprocess
 from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
+from .auth_module import AuthModule
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
+    self.auth: AuthModule | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
+    self.auth = self.app.state.auth
+    await self.auth.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
     self.db = None
+    self.auth = None
 
   async def _run_command(self, *cmd: str):
     try:
@@ -88,3 +93,18 @@ class PublicVarsModule(BaseModule):
     except Exception as e:
       raise RuntimeError(f"Error checking odbc: {e}")
     return version_line
+
+  async def get_versions(self, role_mask: int) -> dict:
+    version = await self.get_version()
+    hostname = await self.get_hostname()
+    repo = await self.get_repo()
+    res = {"version": version, "hostname": hostname, "repo": repo}
+    required_mask = 0
+    if self.auth:
+      required_mask = self.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+    if role_mask & required_mask:
+      ffmpeg_version = await self.get_ffmpeg_version()
+      odbc_version = await self.get_odbc_version()
+      res["ffmpeg_version"] = ffmpeg_version
+      res["odbc_version"] = odbc_version
+    return res
