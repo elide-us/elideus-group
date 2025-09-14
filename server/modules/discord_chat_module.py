@@ -1,0 +1,114 @@
+"""Discord chat utilities module."""
+
+import logging, time, discord
+from datetime import datetime, timedelta, timezone
+from fastapi import FastAPI
+from typing import List
+
+from . import BaseModule
+from .discord_module import DiscordModule
+
+
+class DiscordChatModule(BaseModule):
+  def __init__(self, app: FastAPI):
+    super().__init__(app)
+    self.discord: DiscordModule | None = None
+
+  async def startup(self):
+    self.discord = self.app.state.discord
+    await self.discord.on_ready()
+    self.app.state.discord_chat = self
+    logging.info("[DiscordChatModule] loaded")
+    self.mark_ready()
+
+  async def shutdown(self):
+    logging.info("[DiscordChatModule] shutdown")
+
+  async def fetch_channel_history_backwards(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> List[discord.Message]:
+    assert self.discord and self.discord.bot
+    start = time.perf_counter()
+    guild = self.discord.bot.get_guild(guild_id)
+    channel = guild.get_channel(channel_id) if guild else None
+    if not channel:
+      return []
+    after = datetime.now(timezone.utc) - timedelta(hours=hours)
+    messages: List[discord.Message] = []
+    async for msg in channel.history(limit=max_messages, after=after, oldest_first=False):
+      messages.append(msg)
+    messages.reverse()
+    elapsed = time.perf_counter() - start
+    logging.info(
+      "[DiscordChatModule] fetch_channel_history_backwards",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "hours": hours,
+        "messages_collected": len(messages),
+        "elapsed": elapsed,
+      },
+    )
+    return messages
+
+  def estimate_tokens(self, text: str) -> int:
+    try:
+      import tiktoken
+      enc = tiktoken.get_encoding("cl100k_base")
+      return len(enc.encode(text))
+    except Exception:
+      return len(text.split())
+
+  def summarize_persona_stub(self, _text: str) -> List[str]:
+    return ["[[STUB: Persona summary output here]]"]
+
+  def uwu_persona_stub(self, _summary: List[str], _user_id: int) -> str:
+    return "[[STUB: uwu persona output here]]"
+
+  async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
+    start = time.perf_counter()
+    messages = await self.fetch_channel_history_backwards(guild_id, channel_id, hours, max_messages)
+    lines = [f"{m.author.name}: {m.content}" for m in messages if getattr(m, "content", None)]
+    raw_text_blob = "\n".join(lines)
+    tokens = self.estimate_tokens(raw_text_blob)
+    elapsed = time.perf_counter() - start
+    logging.info(
+      "[DiscordChatModule] summarize_channel",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "hours": hours,
+        "messages_collected": len(messages),
+        "token_count_estimate": tokens,
+        "elapsed": elapsed,
+      },
+    )
+    return {
+      "messages_collected": len(messages),
+      "token_count_estimate": tokens,
+      "raw_text_blob": raw_text_blob,
+    }
+
+  async def uwu_chat(self, guild_id: int, channel_id: int, user_id: int, hours: int = 1, max_messages: int = 12) -> dict:
+    hours = max(hours, 1)
+    max_messages = max(max_messages, 12)
+    start = time.perf_counter()
+    summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
+    summary_lines = self.summarize_persona_stub(summary["raw_text_blob"])
+    uwu_response = self.uwu_persona_stub(summary_lines, user_id)
+    elapsed = time.perf_counter() - start
+    logging.info(
+      "[DiscordChatModule] uwu_chat",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "user_id": user_id,
+        "hours": hours,
+        "messages_collected": summary["messages_collected"],
+        "token_count_estimate": summary["token_count_estimate"],
+        "elapsed": elapsed,
+      },
+    )
+    return {
+      "token_count_estimate": summary["token_count_estimate"],
+      "summary_lines": summary_lines,
+      "uwu_response_text": uwu_response,
+    }
