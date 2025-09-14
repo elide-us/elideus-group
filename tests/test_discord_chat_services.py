@@ -30,6 +30,8 @@ class StubModule:
     self.args = None
     self.uwu_called = False
     self.uwu_args = None
+    self.updated = False
+    self.update_args = None
 
   async def on_ready(self):
     pass
@@ -54,7 +56,11 @@ class StubModule:
   async def log_conversation(self, persona, guild_id, channel_id, input_data, output_data):
     self.called = True
     self.args = (persona, guild_id, channel_id, input_data, output_data)
+    return 42
 
+  async def update_conversation_output(self, recid, output_data):
+    self.updated = True
+    self.update_args = (recid, output_data)
 
 def test_uwu_chat_logs_conversation():
   app = FastAPI()
@@ -79,6 +85,7 @@ def test_uwu_chat_logs_conversation():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:uwu_chat:1'})
   assert resp.status_code == 200
   assert module.called
+  assert module.updated
   assert module.uwu_called
   data = resp.json()
   expected = {
@@ -88,7 +95,8 @@ def test_uwu_chat_logs_conversation():
   }
   assert data["payload"] == expected
   assert module.uwu_args == (1, 2, 3, 'hey')
-  assert module.args == ('uwu', 1, 2, 'hey', 'uwu hey')
+  assert module.args == ('uwu', 1, 2, 'hey', '')
+  assert module.update_args == (42, 'uwu hey')
 
   chat_services.unbox_request = original
 
