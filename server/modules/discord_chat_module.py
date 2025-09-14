@@ -7,16 +7,20 @@ from typing import List
 
 from . import BaseModule
 from .discord_module import DiscordModule
+from .db_module import DbModule
 
 
 class DiscordChatModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.discord: DiscordModule | None = None
+    self.db: DbModule | None = None
 
   async def startup(self):
     self.discord = self.app.state.discord
     await self.discord.on_ready()
+    self.db = self.app.state.db
+    await self.db.on_ready()
     self.app.state.discord_chat = self
     logging.info("[DiscordChatModule] loaded")
     self.mark_ready()
@@ -68,6 +72,36 @@ class DiscordChatModule(BaseModule):
 
   def uwu_persona_stub(self, _summary: List[str], _user_id: int) -> str:
     return "[[STUB: uwu persona output here]]"
+
+  async def log_conversation(
+    self,
+    persona: str,
+    guild_id: int,
+    channel_id: int,
+    input_data: str,
+    output_data: str,
+  ):
+    if not self.db:
+      return
+    try:
+      res = await self.db.run(
+        "db:assistant:personas:upsert:1",
+        {"name": persona, "metadata": None},
+      )
+      recid = res.rows[0]["recid"] if res.rows else None
+      if recid is not None:
+        await self.db.run(
+          "db:assistant:conversations:insert:1",
+          {
+            "personas_recid": recid,
+            "guild_id": str(guild_id),
+            "channel_id": str(channel_id),
+            "input_data": input_data,
+            "output_data": output_data,
+          },
+        )
+    except Exception:
+      logging.exception("[DiscordChatModule] log_conversation failed")
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()

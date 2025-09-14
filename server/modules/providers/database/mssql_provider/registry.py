@@ -1302,3 +1302,55 @@ def _security_roles_remove_member(args: Dict[str, Any]):
     DELETE FROM users_roles WHERE users_guid = ? AND element_roles = 0;
   """
   return (DbRunMode.EXEC, sql, (role, user_guid, user_guid))
+
+@register("db:assistant:personas:upsert:1")
+def _assistant_personas_upsert(args: Dict[str, Any]):
+  name = args["name"]
+  metadata = args.get("metadata")
+  sql = """
+    DECLARE @recid INT;
+    SELECT @recid = recid FROM assistant_personas WHERE element_name = ?;
+    IF @recid IS NULL
+    BEGIN
+      INSERT INTO assistant_personas (element_name, element_metadata) VALUES (?, ?);
+      SET @recid = SCOPE_IDENTITY();
+    END
+    ELSE
+    BEGIN
+      UPDATE assistant_personas SET element_metadata = ? WHERE recid = @recid;
+    END
+    SELECT @recid AS recid;
+  """
+  return (DbRunMode.ROW_ONE, sql, (name, name, metadata, metadata))
+
+@register("db:assistant:conversations:insert:1")
+def _assistant_conversations_insert(args: Dict[str, Any]):
+  personas_recid = args["personas_recid"]
+  guild_id = args.get("guild_id")
+  channel_id = args.get("channel_id")
+  input_data = args.get("input_data")
+  output_data = args.get("output_data")
+  sql = """
+    INSERT INTO assistant_conversations (
+      personas_recid,
+      element_guild_id,
+      element_channel_id,
+      element_input,
+      element_output
+    ) VALUES (?, ?, ?, ?, ?);
+    SELECT SCOPE_IDENTITY() AS recid;
+  """
+  return (DbRunMode.ROW_ONE, sql, (personas_recid, guild_id, channel_id, input_data, output_data))
+
+@register("db:assistant:conversations:list_by_time:1")
+def _assistant_conversations_list_by_time(args: Dict[str, Any]):
+  personas_recid = args["personas_recid"]
+  start = args["start"]
+  end = args["end"]
+  sql = """
+    SELECT recid, element_guild_id, element_channel_id, element_input, element_output, element_created_on
+    FROM assistant_conversations
+    WHERE personas_recid = ? AND element_created_on BETWEEN ? AND ?
+    ORDER BY element_created_on;
+  """
+  return (DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
