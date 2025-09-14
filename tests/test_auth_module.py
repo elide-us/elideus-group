@@ -190,6 +190,39 @@ def test_handle_auth_login_allows_missing_id_token():
   assert payload["sub"] == "xyz"
 
 
+def test_startup_loads_discord_provider_with_audience():
+  app = FastAPI()
+  module = AuthModule(app)
+
+  class DummyEnv:
+    async def on_ready(self):
+      return None
+    def get(self, k):
+      assert k == "JWT_SECRET"
+      return "secret"
+
+  class DummyDb:
+    async def on_ready(self):
+      return None
+    async def get_jwks_cache_time(self):
+      return 60
+    async def get_auth_providers(self):
+      return ["discord"]
+    async def get_discord_client_id(self):
+      return "dcid"
+
+  app.state.env = DummyEnv()
+  app.state.db = DummyDb()
+
+  async def fake_load_roles():
+    return None
+  module.role_cache.load_roles = fake_load_roles
+
+  asyncio.run(module.startup())
+  assert module.providers["discord"].audience == "dcid"
+  asyncio.run(module.shutdown())
+
+
 def test_jwks_refresh_failure(monkeypatch):
   provider = MicrosoftAuthProvider(api_id="api", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
 
