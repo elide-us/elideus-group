@@ -1307,13 +1307,14 @@ def _security_roles_remove_member(args: Dict[str, Any]):
 def _assistant_personas_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
-    SELECT recid FROM assistant_personas WHERE element_name = ?;
+    SELECT recid, element_metadata FROM assistant_personas WHERE element_name = ?;
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
+  persona = args.get("persona")
   guild_id = args.get("guild_id")
   channel_id = args.get("channel_id")
   input_data = args.get("input_data")
@@ -1321,14 +1322,15 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
   sql = """
     INSERT INTO assistant_conversations (
       personas_recid,
+      element_persona,
       element_guild_id,
       element_channel_id,
       element_input,
       element_output
-    ) VALUES (?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?);
     SELECT SCOPE_IDENTITY() AS recid;
   """
-  return (DbRunMode.ROW_ONE, sql, (personas_recid, guild_id, channel_id, input_data, output_data))
+  return (DbRunMode.ROW_ONE, sql, (personas_recid, persona, guild_id, channel_id, input_data, output_data))
 
 @register("db:assistant:conversations:list_by_time:1")
 def _assistant_conversations_list_by_time(args: Dict[str, Any]):

@@ -85,13 +85,31 @@ class DiscordChatModule(BaseModule):
     )
     return [line.strip() for line in content.splitlines() if line.strip()]
 
+  async def get_persona_instructions(self, name: str) -> str:
+    if not self.db:
+      return ""
+    try:
+      res = await self.db.run(
+        "db:assistant:personas:get_by_name:1",
+        {"name": name},
+      )
+      if res.rows:
+        row = res.rows[0]
+        instructions = row.get("instructions") or row.get("element_metadata")
+        if isinstance(instructions, dict):
+          return instructions.get("instructions", "")
+        return instructions or ""
+    except Exception:
+      logging.exception("[DiscordChatModule] get_persona_instructions failed")
+    return ""
+
   async def uwu_persona(self, summary: List[str], user_id: int, user_message: str) -> str:
     openai = getattr(self.app.state, "openai", None)
     if not openai or not getattr(openai, "client", None):
       return "[[STUB: uwu persona output here]]"
     await openai.on_ready()
     prompt_context = "\n".join(summary)
-    role = f"You are a playful catgirl assistant responding to user {user_id} in uwu style."
+    role = await self.get_persona_instructions("uwu")
     msg = await openai.fetch_chat([], role, user_message, 120, prompt_context)
     return getattr(
       msg,
@@ -120,6 +138,7 @@ class DiscordChatModule(BaseModule):
           "db:assistant:conversations:insert:1",
           {
             "personas_recid": recid,
+            "persona": persona,
             "guild_id": str(guild_id),
             "channel_id": str(channel_id),
             "input_data": input_data,
