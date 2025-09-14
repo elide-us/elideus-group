@@ -234,6 +234,7 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 ## Discord Domain
 
 All Discord domain calls require `ROLE_DISCORD_BOT`.
+Requests must include the `x-discord-id` header identifying the caller.
 
 Currently exposes placeholder Discord command operations.
 
@@ -242,4 +243,5 @@ Currently exposes placeholder Discord command operations.
 | Operation                                | Description                      |
 | ---------------------------------------- | -------------------------------- |
 | `urn:discord:command:text_uwu:1`         | Stub command returning "uwu" text. |
+| `urn:discord:command:get_roles:1`        | List security roles for a Discord user. |
 
