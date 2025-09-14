@@ -1,6 +1,6 @@
 """Discord integration module."""
 
-import logging, discord, json, asyncio
+import logging, discord, json, asyncio, time
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -19,6 +19,10 @@ class DiscordModule(BaseModule):
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
     self._task: asyncio.Task | None = None
+    self._user_counts: dict[int, int] = {}
+    self._guild_counts: dict[int, int] = {}
+    self.USER_RATE_LIMIT = 100
+    self.GUILD_RATE_LIMIT = 1000
     
   async def startup(self):
     self.env: EnvModule = self.app.state.env
@@ -65,6 +69,16 @@ class DiscordModule(BaseModule):
     intents.message_content = True
     return commands.Bot(command_prefix=prefix, intents=intents)
 
+  def _bump_rate_limits(self, guild_id: int, user_id: int):
+    u = self._user_counts.get(user_id, 0) + 1
+    g = self._guild_counts.get(guild_id, 0) + 1
+    self._user_counts[user_id] = u
+    self._guild_counts[guild_id] = g
+    if u >= int(self.USER_RATE_LIMIT * 0.8):
+      logging.info("[DiscordBot] user nearing rate limit", extra={"user_id": user_id, "count": u})
+    if g >= int(self.GUILD_RATE_LIMIT * 0.8):
+      logging.info("[DiscordBot] guild nearing rate limit", extra={"guild_id": guild_id, "count": g})
+
   async def send_sys_message(self, message: str):
     if not self.bot or not self.syschan:
       return
@@ -99,7 +113,8 @@ class DiscordModule(BaseModule):
     @self.bot.command(name="rpc")
     async def rpc_command(ctx, *, op: str):
       from rpc.handler import handle_rpc_request
-
+      start = time.perf_counter()
+      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
       body = json.dumps({"op": op}).encode()
 
       async def receive():
@@ -121,18 +136,35 @@ class DiscordModule(BaseModule):
       try:
         resp = await handle_rpc_request(req)
         payload = resp.payload
-
         if hasattr(payload, "model_dump"):
           data = json.dumps(payload.model_dump())
         else:
           data = str(payload)
         await ctx.send(data)
+        elapsed = time.perf_counter() - start
+        logging.info(
+          "[DiscordBot] rpc",
+          extra={
+            "guild_id": ctx.guild.id,
+            "channel_id": ctx.channel.id,
+            "user_id": ctx.author.id,
+            "op": op,
+            "elapsed": elapsed,
+          },
+        )
       except Exception as e:
+        elapsed = time.perf_counter() - start
+        logging.exception(
+          "[DiscordBot] rpc failed",
+          extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "op": op, "elapsed": elapsed},
+        )
         await ctx.send(f"Error: {e}")
 
     @self.bot.command(name="summarize")
     async def summarize_command(ctx, hours: str):
       from rpc.handler import handle_rpc_request
+      start = time.perf_counter()
+      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
 
       try:
         hrs = int(hours)
@@ -178,11 +210,18 @@ class DiscordModule(BaseModule):
           data = payload
         else:
           data = {"summary": str(payload)}
+        if not data.get("messages_collected"):
+          await ctx.send("No messages found in the specified time range")
+          return
+        if data.get("cap_hit"):
+          await ctx.send("Channel too active to summarize; message cap hit")
+          return
         summary_text = data.get("summary") or json.dumps(data)
         await ctx.author.send(summary_text)
         if ctx.author.dm_channel:
           async for _ in ctx.author.dm_channel.history(limit=1):
             break
+        elapsed = time.perf_counter() - start
         logging.info(
           "[DiscordBot] summarize",
           extra={
@@ -192,15 +231,24 @@ class DiscordModule(BaseModule):
             "hours": hrs,
             "token_count_estimate": data.get("token_count_estimate"),
             "messages_collected": data.get("messages_collected"),
+            "cap_hit": data.get("cap_hit"),
+            "elapsed": elapsed,
           },
         )
         logging.debug("[DiscordBot] summarize response", extra=data)
-      except Exception as e:
-        await ctx.send(f"Error: {e}")
+      except Exception:
+        elapsed = time.perf_counter() - start
+        logging.exception(
+          "[DiscordBot] summarize failed",
+          extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "hours": hrs, "elapsed": elapsed},
+        )
+        await ctx.send("Failed to fetch messages. Please try again later.")
 
     @self.bot.command(name="uwu")
     async def uwu_command(ctx, *, text: str):
       from rpc.handler import handle_rpc_request
+      start = time.perf_counter()
+      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
 
       body = json.dumps({
         "op": "urn:discord:chat:uwu_chat:1",
@@ -242,6 +290,7 @@ class DiscordModule(BaseModule):
         await ctx.send(response_text)
         async for _ in ctx.channel.history(limit=1):
           break
+        elapsed = time.perf_counter() - start
         logging.info(
           "[DiscordBot] uwu",
           extra={
@@ -249,9 +298,15 @@ class DiscordModule(BaseModule):
             "channel_id": ctx.channel.id,
             "user_id": ctx.author.id,
             "token_count_estimate": data.get("token_count_estimate"),
+            "elapsed": elapsed,
           },
         )
         logging.debug("[DiscordBot] uwu response", extra=data)
       except Exception as e:
+        elapsed = time.perf_counter() - start
+        logging.exception(
+          "[DiscordBot] uwu failed",
+          extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "elapsed": elapsed},
+        )
         await ctx.send(f"Error: {e}")
 
