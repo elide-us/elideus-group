@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 # Stub rpc package to avoid side effects from rpc.__init__
 pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
+pkg.HANDLERS = {}
 sys.modules.setdefault('rpc', pkg)
 
 # Load server models
@@ -27,6 +28,8 @@ class StubModule:
   def __init__(self):
     self.called = False
     self.args = None
+    self.uwu_called = False
+    self.uwu_args = None
 
   async def on_ready(self):
     pass
@@ -37,6 +40,15 @@ class StubModule:
       'messages_collected': 1,
       'token_count_estimate': 2,
       'cap_hit': False,
+    }
+
+  async def uwu_chat(self, guild_id, channel_id, user_id, message, hours=1, max_messages=12):
+    self.uwu_called = True
+    self.uwu_args = (guild_id, channel_id, user_id, message)
+    return {
+      'token_count_estimate': 2,
+      'summary_lines': ['hi'],
+      'uwu_response_text': 'uwu hey',
     }
 
   async def log_conversation(self, persona, guild_id, channel_id, input_data, output_data):
@@ -51,7 +63,7 @@ def test_uwu_chat_logs_conversation():
 
   async def fake_unbox(request):
     return (
-      RPCRequest(op='urn:discord:chat:uwu_chat:1', payload={'message': 'hey', 'guild_id': 1, 'channel_id': 2}),
+      RPCRequest(op='urn:discord:chat:uwu_chat:1', payload={'message': 'hey', 'guild_id': 1, 'channel_id': 2, 'user_id': 3}),
       AuthContext(),
       [],
     )
@@ -67,12 +79,16 @@ def test_uwu_chat_logs_conversation():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:uwu_chat:1'})
   assert resp.status_code == 200
   assert module.called
+  assert module.uwu_called
   data = resp.json()
-  assert data["payload"] == {"message": "uwu hey"}
-  assert module.args[1] == 1
-  assert module.args[2] == 2
-  assert module.args[3] == 'hey'
-  assert module.args[4] == 'uwu hey'
+  expected = {
+    "uwu_response_text": "uwu hey",
+    "summary_lines": ["hi"],
+    "token_count_estimate": 2,
+  }
+  assert data["payload"] == expected
+  assert module.uwu_args == (1, 2, 3, 'hey')
+  assert module.args == ('uwu', 1, 2, 'hey', 'uwu hey')
 
   chat_services.unbox_request = original
 

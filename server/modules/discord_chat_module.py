@@ -81,14 +81,14 @@ class DiscordChatModule(BaseModule):
     content = msg.get("content", "")
     return [line.strip() for line in content.splitlines() if line.strip()]
 
-  async def uwu_persona(self, summary: List[str], user_id: int) -> str:
+  async def uwu_persona(self, summary: List[str], user_id: int, user_message: str) -> str:
     openai = getattr(self.app.state, "openai", None)
     if not openai or not getattr(openai, "client", None):
       return "[[STUB: uwu persona output here]]"
     await openai.on_ready()
-    prompt = "\n".join(summary)
+    prompt_context = "\n".join(summary)
     role = f"You are a playful catgirl assistant responding to user {user_id} in uwu style."
-    msg = await openai.fetch_chat([], role, prompt, 120)
+    msg = await openai.fetch_chat([], role, user_message, 120, prompt_context)
     return msg.get("content", "")
 
   async def log_conversation(
@@ -148,13 +148,21 @@ class DiscordChatModule(BaseModule):
       "cap_hit": history["cap_hit"],
     }
 
-  async def uwu_chat(self, guild_id: int, channel_id: int, user_id: int, hours: int = 1, max_messages: int = 12) -> dict:
+  async def uwu_chat(
+    self,
+    guild_id: int,
+    channel_id: int,
+    user_id: int,
+    message: str,
+    hours: int = 1,
+    max_messages: int = 12,
+  ) -> dict:
     hours = max(hours, 1)
     max_messages = max(max_messages, 12)
     start = time.perf_counter()
     summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
     summary_lines = await self.summarize_persona(summary["raw_text_blob"])
-    uwu_response = await self.uwu_persona(summary_lines, user_id)
+    uwu_response = await self.uwu_persona(summary_lines, user_id, message)
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] uwu_chat",
@@ -165,6 +173,7 @@ class DiscordChatModule(BaseModule):
         "hours": hours,
         "messages_collected": summary["messages_collected"],
         "token_count_estimate": summary["token_count_estimate"],
+        "input_length": len(message),
         "elapsed": elapsed,
       },
     )

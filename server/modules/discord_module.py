@@ -298,10 +298,14 @@ class DiscordModule(BaseModule):
             "channel_id": ctx.channel.id,
             "user_id": ctx.author.id,
             "token_count_estimate": data.get("token_count_estimate"),
+            "message_length": len(text),
             "elapsed": elapsed,
           },
         )
-        logging.debug("[DiscordBot] uwu response", extra=data)
+        debug_data = dict(data)
+        if "message" in debug_data:
+          debug_data["response_message"] = debug_data.pop("message")
+        logging.debug("[DiscordBot] uwu response", extra=debug_data)
       except Exception as e:
         elapsed = time.perf_counter() - start
         logging.exception(
