@@ -24,7 +24,7 @@ import {
     fetchUnlinkProvider
 } from "../rpc/users/providers";
 import googleConfig from "../config/google";
-import discordConfig from "../config/discord";
+import { getDiscordAuthorizeUrl } from "../config/discord";
 import { msalConfig, loginRequest } from "../config/msal";
 import EditBox from "../components/EditBox";
 
@@ -121,7 +121,7 @@ const UserPage = (): JSX.Element => {
                 });
                 await fetchSetProvider({ provider: next, code });
             } else if (next === "discord") {
-                const authorizeUrl = `${discordConfig.authorizeEndpoint}?response_type=code&client_id=${encodeURIComponent(discordConfig.clientId)}&scope=${encodeURIComponent(discordConfig.scope)}&redirect_uri=${encodeURIComponent(discordConfig.redirectUri)}`;
+                const authorizeUrl = getDiscordAuthorizeUrl();
                 const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
                 if (!authWindow) throw new Error("Failed to open Discord login window");
                 const code = await new Promise<string>((resolve, reject) => {
@@ -228,7 +228,7 @@ const UserPage = (): JSX.Element => {
         console.debug("[UserPage] authorization code received", code);
         await fetchLinkProvider({ provider: name, code });
       } else if (name === "discord") {
-        const authorizeUrl = `${discordConfig.authorizeEndpoint}?response_type=code&client_id=${encodeURIComponent(discordConfig.clientId)}&scope=${encodeURIComponent(discordConfig.scope)}&redirect_uri=${encodeURIComponent(discordConfig.redirectUri)}`;
+        const authorizeUrl = getDiscordAuthorizeUrl();
         const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
         if (!authWindow) throw new Error("Failed to open Discord login window");
         const code = await new Promise<string>((resolve, reject) => {

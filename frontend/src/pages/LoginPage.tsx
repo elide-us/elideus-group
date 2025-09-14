@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { msalConfig, loginRequest } from '../config/msal';
 import googleConfig from '../config/google';
-import discordConfig from '../config/discord';
+import { getDiscordAuthorizeUrl } from '../config/discord';
 import UserContext from '../shared/UserContext';
 import Notification from '../components/Notification';
 import { fetchOauthLogin as fetchMicrosoftOauthLogin } from '../rpc/auth/microsoft';
@@ -60,7 +60,7 @@ const LoginPage = (): JSX.Element => {
 
         const handleDiscordLogin = async (): Promise<void> => {
                 try {
-                        const authorizeUrl = `${discordConfig.authorizeEndpoint}?response_type=code&client_id=${encodeURIComponent(discordConfig.clientId)}&scope=${encodeURIComponent(discordConfig.scope)}&redirect_uri=${encodeURIComponent(discordConfig.redirectUri)}`;
+                        const authorizeUrl = getDiscordAuthorizeUrl();
                         const authWindow = window.open(authorizeUrl, 'discordOAuth', 'width=500,height=600');
                         if (!authWindow) throw new Error('Failed to open Discord login window');
                         const code = await new Promise<string>((resolve, reject) => {
