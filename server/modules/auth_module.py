@@ -157,7 +157,10 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Google provider ready")
       if "discord" in providers_cfg:
         logging.debug("[AuthModule] Loading Discord provider")
+        discord_client_id = await self.db.get_discord_client_id()
+        logging.debug("[AuthModule] DiscordClientId=%s", discord_client_id)
         provider = DiscordAuthProvider()
+        provider.audience = discord_client_id
         await provider.startup()
         self.providers["discord"] = provider
         logging.debug("[AuthModule] Discord provider ready")
