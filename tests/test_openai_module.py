@@ -2,7 +2,7 @@ import asyncio
 from fastapi import FastAPI
 from types import SimpleNamespace
 
-from server.modules.openai_module import OpenaiModule
+from server.modules.openai_module import OpenaiModule, SummaryQueue
 
 
 def test_fetch_chat_message_order_and_return():
@@ -30,3 +30,17 @@ def test_fetch_chat_message_order_and_return():
     {"role": "user", "content": "user"},
   ]
   assert res == {"content": "reply"}
+
+
+def test_summary_queue_executes_in_order():
+  q = SummaryQueue(delay=0)
+  called: list[int] = []
+
+  async def func(x):
+    called.append(x)
+
+  async def run():
+    await asyncio.gather(q.add(func, 1), q.add(func, 2))
+
+  asyncio.run(run())
+  assert called == [1, 2]
