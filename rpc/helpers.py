@@ -30,7 +30,7 @@ def _get_token_from_request(request: Request) -> str | None:
   return header.split(' ', 1)[1].strip()
 
 def _get_discord_id_from_request(request: Request) -> str | None:
-  return request.headers.get('x-discord-id')
+  return request.headers.get('x-discord-id') or request.headers.get('x-discord-user-id')
 
 async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext]:
   body = await request.json()
