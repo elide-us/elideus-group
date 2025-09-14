@@ -1,5 +1,5 @@
 from __future__ import annotations
-import logging, uuid
+import logging
 
 from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request
@@ -30,6 +30,9 @@ def _get_token_from_request(request: Request) -> str | None:
   return header.split(' ', 1)[1].strip()
 
 def _get_discord_id_from_request(request: Request) -> str | None:
+  ctx = getattr(request.state, 'discord_ctx', None)
+  if ctx and getattr(ctx, 'author', None):
+    return str(getattr(ctx.author, 'id', ''))
   return request.headers.get('x-discord-id') or request.headers.get('x-discord-user-id')
 
 async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext]:
@@ -63,9 +66,10 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
       if not discord_id:
         raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
       _auth: AuthModule = request.app.state.auth
-      guid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
+      guid, roles, mask = await _auth.get_discord_user_security(discord_id)
+      if not guid:
+        raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
       auth_ctx.user_guid = guid
-      roles, mask = await _auth.get_user_roles(guid)
       auth_ctx.roles = roles
       auth_ctx.role_mask = mask
       rpc_request.user_guid = guid

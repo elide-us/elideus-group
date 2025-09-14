@@ -81,6 +81,13 @@ def test_mssql_get_by_access_token_uses_security_view():
   assert "vw_user_session_security" in sql
   assert "user_roles" in sql
 
+def test_mssql_discord_get_security_uses_security_view():
+  handler = get_mssql_handler("db:auth:discord:get_security:1")
+  _, sql, _ = handler({"discord_id": "42"})
+  sql = sql.lower()
+  assert "vw_user_session_security" in sql
+  assert "auth_providers" in sql
+
 
 def test_mssql_support_users_set_credits_updates_table():
   handler = get_mssql_handler("db:support:users:set_credits:1")

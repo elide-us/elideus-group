@@ -116,6 +116,7 @@ class DiscordModule(BaseModule):
         "app": self.app,
       }
       req = Request(scope, receive)
+      req.state.discord_ctx = ctx
 
       try:
         resp = await handle_rpc_request(req)
