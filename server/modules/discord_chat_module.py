@@ -3,7 +3,7 @@
 import logging, time, discord
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
-from typing import List, Any
+from typing import List, Any, Optional
 
 from . import BaseModule
 from .discord_module import DiscordModule
@@ -123,10 +123,10 @@ class DiscordChatModule(BaseModule):
     guild_id: int,
     channel_id: int,
     input_data: str,
-    output_data: str,
-  ):
+    output_data: str = "",
+  ) -> Optional[int]:
     if not self.db:
-      return
+      return None
     try:
       res = await self.db.run(
         "db:assistant:personas:get_by_name:1",
@@ -134,7 +134,7 @@ class DiscordChatModule(BaseModule):
       )
       recid = res.rows[0]["recid"] if res.rows else None
       if recid is not None:
-        await self.db.run(
+        res2 = await self.db.run(
           "db:assistant:conversations:insert:1",
           {
             "personas_recid": recid,
@@ -145,8 +145,21 @@ class DiscordChatModule(BaseModule):
             "output_data": output_data,
           },
         )
+        return res2.rows[0]["recid"] if res2.rows else None
     except Exception:
       logging.exception("[DiscordChatModule] log_conversation failed")
+    return None
+
+  async def update_conversation_output(self, recid: int, output_data: str):
+    if not self.db:
+      return
+    try:
+      await self.db.run(
+        "db:assistant:conversations:update_output:1",
+        {"recid": recid, "output_data": output_data},
+      )
+    except Exception:
+      logging.exception("[DiscordChatModule] update_conversation_output failed")
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()

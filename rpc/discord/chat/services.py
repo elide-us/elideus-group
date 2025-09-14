@@ -47,14 +47,18 @@ async def discord_chat_uwu_chat_v1(request: Request):
   req = DiscordChatUwuChatRequest1(**payload_dict)
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
-  await module.log_conversation(
+  conv_id = await module.log_conversation(
     "uwu",
     req.guild_id,
     req.channel_id,
     req.message,
-    result.get("uwu_response_text", ""),
+    "",
   )
+  result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
+  if conv_id:
+    await module.update_conversation_output(
+      conv_id, result.get("uwu_response_text", "")
+    )
   payload = DiscordChatUwuChatResponse1(**result)
   return RPCResponse(
     op=rpc_request.op,

@@ -1332,6 +1332,17 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
   """
   return (DbRunMode.ROW_ONE, sql, (personas_recid, persona, guild_id, channel_id, input_data, output_data))
 
+@register("db:assistant:conversations:update_output:1")
+def _assistant_conversations_update_output(args: Dict[str, Any]):
+  recid = args["recid"]
+  output_data = args.get("output_data")
+  sql = """
+    UPDATE assistant_conversations
+    SET element_output = ?
+    WHERE recid = ?;
+  """
+  return (DbRunMode.EXEC, sql, (output_data, recid))
+
 @register("db:assistant:conversations:list_by_time:1")
 def _assistant_conversations_list_by_time(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
