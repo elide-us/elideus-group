@@ -3,7 +3,7 @@
 import logging, time, discord
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
-from typing import List
+from typing import List, Any
 
 from . import BaseModule
 from .discord_module import DiscordModule
@@ -85,8 +85,8 @@ class DiscordChatModule(BaseModule):
       return
     try:
       res = await self.db.run(
-        "db:assistant:personas:upsert:1",
-        {"name": persona, "metadata": None},
+        "db:assistant:personas:get_by_name:1",
+        {"name": persona},
       )
       recid = res.rows[0]["recid"] if res.rows else None
       if recid is not None:

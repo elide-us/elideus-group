@@ -1303,25 +1303,13 @@ def _security_roles_remove_member(args: Dict[str, Any]):
   """
   return (DbRunMode.EXEC, sql, (role, user_guid, user_guid))
 
-@register("db:assistant:personas:upsert:1")
-def _assistant_personas_upsert(args: Dict[str, Any]):
+@register("db:assistant:personas:get_by_name:1")
+def _assistant_personas_get_by_name(args: Dict[str, Any]):
   name = args["name"]
-  metadata = args.get("metadata")
   sql = """
-    DECLARE @recid INT;
-    SELECT @recid = recid FROM assistant_personas WHERE element_name = ?;
-    IF @recid IS NULL
-    BEGIN
-      INSERT INTO assistant_personas (element_name, element_metadata) VALUES (?, ?);
-      SET @recid = SCOPE_IDENTITY();
-    END
-    ELSE
-    BEGIN
-      UPDATE assistant_personas SET element_metadata = ? WHERE recid = @recid;
-    END
-    SELECT @recid AS recid;
+    SELECT recid FROM assistant_personas WHERE element_name = ?;
   """
-  return (DbRunMode.ROW_ONE, sql, (name, name, metadata, metadata))
+  return (DbRunMode.ROW_ONE, sql, (name,))
 
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
