@@ -130,3 +130,128 @@ class DiscordModule(BaseModule):
       except Exception as e:
         await ctx.send(f"Error: {e}")
 
+    @self.bot.command(name="summarize")
+    async def summarize_command(ctx, hours: str):
+      from rpc.handler import handle_rpc_request
+
+      try:
+        hrs = int(hours)
+      except ValueError:
+        await ctx.send("Usage: !summarize <hours>")
+        return
+      if hrs < 1 or hrs > 336:
+        await ctx.send("Hours must be between 1 and 336")
+        return
+
+      body = json.dumps({
+        "op": "urn:discord:chat:summarize_channel:1",
+        "payload": {
+          "guild_id": ctx.guild.id,
+          "channel_id": ctx.channel.id,
+          "hours": hrs,
+        },
+      }).encode()
+
+      async def receive():
+        nonlocal body
+        data = body
+        body = b""
+        return {"type": "http.request", "body": data, "more_body": False}
+
+      scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/rpc",
+        "headers": [(b"content-type", b"application/json")],
+        "app": self.app,
+      }
+      req = Request(scope, receive)
+      req.state.discord_ctx = ctx
+
+      try:
+        resp = await handle_rpc_request(req)
+        payload = resp.payload
+
+        if hasattr(payload, "model_dump"):
+          data = payload.model_dump()
+        elif isinstance(payload, dict):
+          data = payload
+        else:
+          data = {"summary": str(payload)}
+        summary_text = data.get("summary") or json.dumps(data)
+        await ctx.author.send(summary_text)
+        if ctx.author.dm_channel:
+          async for _ in ctx.author.dm_channel.history(limit=1):
+            break
+        logging.info(
+          "[DiscordBot] summarize",
+          extra={
+            "guild_id": ctx.guild.id,
+            "channel_id": ctx.channel.id,
+            "user_id": ctx.author.id,
+            "hours": hrs,
+            "token_count_estimate": data.get("token_count_estimate"),
+            "messages_collected": data.get("messages_collected"),
+          },
+        )
+        logging.debug("[DiscordBot] summarize response", extra=data)
+      except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+    @self.bot.command(name="uwu")
+    async def uwu_command(ctx, *, text: str):
+      from rpc.handler import handle_rpc_request
+
+      body = json.dumps({
+        "op": "urn:discord:chat:uwu_chat:1",
+        "payload": {
+          "guild_id": ctx.guild.id,
+          "channel_id": ctx.channel.id,
+          "user_id": ctx.author.id,
+          "message": text,
+        },
+      }).encode()
+
+      async def receive():
+        nonlocal body
+        data = body
+        body = b""
+        return {"type": "http.request", "body": data, "more_body": False}
+
+      scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/rpc",
+        "headers": [(b"content-type", b"application/json")],
+        "app": self.app,
+      }
+      req = Request(scope, receive)
+      req.state.discord_ctx = ctx
+
+      try:
+        resp = await handle_rpc_request(req)
+        payload = resp.payload
+
+        if hasattr(payload, "model_dump"):
+          data = payload.model_dump()
+        elif isinstance(payload, dict):
+          data = payload
+        else:
+          data = {"message": str(payload)}
+        response_text = data.get("uwu_response_text") or data.get("message") or json.dumps(data)
+        await ctx.send(response_text)
+        async for _ in ctx.channel.history(limit=1):
+          break
+        logging.info(
+          "[DiscordBot] uwu",
+          extra={
+            "guild_id": ctx.guild.id,
+            "channel_id": ctx.channel.id,
+            "user_id": ctx.author.id,
+            "token_count_estimate": data.get("token_count_estimate"),
+          },
+        )
+        logging.debug("[DiscordBot] uwu response", extra=data)
+      except Exception as e:
+        await ctx.send(f"Error: {e}")
+
