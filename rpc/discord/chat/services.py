@@ -27,6 +27,13 @@ async def discord_chat_summarize_channel_v1(request: Request):
     "token_count_estimate": summary.get("token_count_estimate"),
     "cap_hit": summary.get("cap_hit"),
   }
+  await module.log_conversation(
+    "summary",
+    guild_id,
+    channel_id,
+    f"hours={hours}",
+    payload["summary"] or "",
+  )
   return RPCResponse(
     op=rpc_request.op,
     payload=payload,
@@ -36,8 +43,20 @@ async def discord_chat_summarize_channel_v1(request: Request):
 
 async def discord_chat_uwu_chat_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  req = DiscordChatUwuChatRequest1(**(rpc_request.payload or {}))
+  payload_dict = rpc_request.payload or {}
+  req = DiscordChatUwuChatRequest1(**payload_dict)
+  guild_id = payload_dict.get("guild_id")
+  channel_id = payload_dict.get("channel_id")
   payload = DiscordChatUwuChatResponse1(message=f"uwu {req.message}")
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
+  await module.log_conversation(
+    "uwu",
+    guild_id,
+    channel_id,
+    req.message,
+    payload.message,
+  )
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
