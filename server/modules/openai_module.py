@@ -42,14 +42,14 @@ class OpenaiModule(BaseModule):
     if not self.client:
       logging.warning("[OpenaiModule] client not initialized")
       return {"content": ""}
+    messages = [{"role": "system", "content": role}]
+    if prompt_context:
+      messages.append({"role": "user", "content": prompt_context})
+    messages.append({"role": "user", "content": prompt})
     completion = await self.client.chat.completions.create(
       model="gpt-4o-mini",
       max_tokens=tokens,
       tools=schemas,
-      messages=[
-        {"role": "user", "content": prompt_context},
-        {"role": "system", "content": role},
-        {"role": "user", "content": prompt},
-      ],
+      messages=messages,
     )
-    return completion.choices[0].message
+    return {"content": completion.choices[0].message.content}
