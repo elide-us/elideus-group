@@ -17,7 +17,10 @@ async def handle_discord_request(parts: list[str], request: Request) -> RPCRespo
   auth: AuthModule = request.app.state.auth
   required_mask = auth.roles.get("ROLE_DISCORD_BOT", 0)
   if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
-    raise HTTPException(status_code=403, detail='Forbidden')
+    raise HTTPException(
+      status_code=403,
+      detail='You must have the Discord bot role assigned to use this bot.'
+    )
 
   subdomain = parts[0]
   handler = HANDLERS.get(subdomain)
