@@ -217,10 +217,20 @@ class DiscordModule(BaseModule):
           await ctx.send("Channel too active to summarize; message cap hit")
           return
         summary_text = data.get("summary") or json.dumps(data)
-        await ctx.author.send(summary_text)
-        if ctx.author.dm_channel:
-          async for _ in ctx.author.dm_channel.history(limit=1):
-            break
+        from .openai_module import send_to_discord_user
+        try:
+          openai = getattr(self.app.state, "openai", None)
+          if openai and getattr(openai, "summary_queue", None):
+            await openai.summary_queue.add(send_to_discord_user, ctx.author, summary_text)
+          else:
+            await send_to_discord_user(ctx.author, summary_text)
+          if ctx.author.dm_channel:
+            async for _ in ctx.author.dm_channel.history(limit=1):
+              break
+        except discord.errors.HTTPException:
+          await ctx.send("Failed to send summary. Please try again later.")
+          logging.exception("[DiscordBot] summarize send failed")
+          return
         elapsed = time.perf_counter() - start
         logging.info(
           "[DiscordBot] summarize",
