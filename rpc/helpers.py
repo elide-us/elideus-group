@@ -1,5 +1,5 @@
 from __future__ import annotations
-import logging
+import logging, uuid
 
 from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request
@@ -29,6 +29,9 @@ def _get_token_from_request(request: Request) -> str | None:
     return None
   return header.split(' ', 1)[1].strip()
 
+def _get_discord_id_from_request(request: Request) -> str | None:
+  return request.headers.get('x-discord-id')
+
 async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext]:
   body = await request.json()
   rpc_request = RPCRequest(**body)
@@ -53,7 +56,23 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
     rpc_request.role_mask = mask
     logging.debug("[RPC] Resolved roles for %s: %s (mask=%#018x)", auth_ctx.user_guid, roles, mask)
   else:
-    if domain not in ('public', 'auth'):
+    if domain == 'discord':
+      discord_id = _get_discord_id_from_request(request)
+      if not discord_id:
+        raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
+      _auth: AuthModule = request.app.state.auth
+      guid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
+      auth_ctx.user_guid = guid
+      roles, mask = await _auth.get_user_roles(guid)
+      auth_ctx.roles = roles
+      auth_ctx.role_mask = mask
+      rpc_request.user_guid = guid
+      rpc_request.roles = roles
+      rpc_request.role_mask = mask
+      if not (mask & _auth.role_registered):
+        raise HTTPException(status_code=403, detail='Forbidden')
+      logging.debug("[RPC] Resolved roles for %s: %s (mask=%#018x)", guid, roles, mask)
+    elif domain not in ('public', 'auth'):
       raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
 
   return rpc_request, auth_ctx
