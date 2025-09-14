@@ -245,3 +245,10 @@ Currently exposes placeholder Discord command operations.
 | `urn:discord:command:text_uwu:1`         | Stub command returning "uwu" text. |
 | `urn:discord:command:get_roles:1`        | List security roles for a Discord user. |
 
+
+### `chat`
+
+| Operation                                   | Description                     |
+| ------------------------------------------- | ------------------------------- |
+| `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
+| `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
