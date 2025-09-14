@@ -204,6 +204,61 @@ def test_link_provider_google_normalizes_identifier():
   asyncio.run(auth.providers["google"].shutdown())
 
 
+def test_link_provider_discord_normalizes_identifier():
+  async def fake_get(request):
+    rpc = RPCRequest(
+      op="urn:users:providers:link_provider:1",
+      payload={"provider": "discord", "code": "authcode"},
+      version=1,
+    )
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+
+  async def fake_exchange(code, client_id, client_secret, redirect_uri, provider):
+    assert provider == "discord"
+    return None, "acc"
+
+  class DummyAuth:
+    def __init__(self):
+      class Provider:
+        audience = "client-id"
+        requires_id_token = False
+      self.providers = {"discord": Provider()}
+
+    async def handle_auth_login(self, provider, id_token, access_token):
+      return "discord-id", {}, {}
+
+  class DummyDb:
+    def __init__(self):
+      self.calls = []
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "db:system:config:get_config:1":
+        key = args["key"]
+        if key == "Hostname":
+          return DBRes(rows=[{"value": "redirect"}])
+      return DBRes()
+
+  class DummyEnv:
+    async def on_ready(self):
+      return None
+    def get(self, k):
+      assert k == "DISCORD_AUTH_SECRET"
+      return "secret"
+
+  db = DummyDb()
+  auth = DummyAuth()
+  env = DummyEnv()
+  req = DummyRequest(DummyState(db, auth, env))
+  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
+  asyncio.run(users_providers_link_provider_v1(req))
+  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "discord-id"))
+  assert (
+    "db:users:providers:link_provider:1",
+    {"guid": "u1", "provider": "discord", "provider_identifier": expected},
+  ) in db.calls
+
+
 def test_link_provider_microsoft_normalizes_identifier():
   async def fake_get(request):
     rpc = RPCRequest(

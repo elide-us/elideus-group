@@ -58,6 +58,31 @@ async def users_providers_set_provider_v1(request: Request):
           raise HTTPException(status_code=400, detail="Missing id_token")
       else:
         id_token, access_token = payload.id_token, payload.access_token
+    elif payload.provider == "discord":
+      discord_provider = getattr(auth, "providers", {}).get("discord")
+      if not discord_provider or not getattr(discord_provider, "audience", None):
+        raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
+      if payload.code:
+        client_id = getattr(discord_provider, "audience")
+        env = request.app.state.env
+        client_secret = env.get("DISCORD_AUTH_SECRET")
+        if not client_secret:
+          raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
+        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+        if not res_redirect.rows:
+          raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
+        redirect_uri = res_redirect.rows[0]["value"]
+        id_token, access_token = await oauth.exchange_code_for_tokens(
+          payload.code,
+          client_id,
+          client_secret,
+          redirect_uri,
+          payload.provider,
+        )
+      else:
+        if not payload.access_token:
+          raise HTTPException(status_code=400, detail="access_token required")
+        id_token, access_token = payload.id_token, payload.access_token
     elif payload.provider == "microsoft":
       ms_provider = getattr(auth, "providers", {}).get("microsoft")
       if not ms_provider or not ms_provider.audience:
@@ -143,6 +168,32 @@ async def users_providers_link_provider_v1(request: Request):
     )
     if not id_token:
       raise HTTPException(status_code=400, detail="Missing id_token")
+  elif payload.provider == "discord":
+    discord_provider = getattr(auth, "providers", {}).get("discord")
+    if not discord_provider or not getattr(discord_provider, "audience", None):
+      raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
+    if payload.code:
+      client_id = getattr(discord_provider, "audience")
+      env = request.app.state.env
+      client_secret = env.get("DISCORD_AUTH_SECRET")
+      if not client_secret:
+        raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
+      res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+      if not res_redirect.rows:
+        raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
+      redirect_uri = res_redirect.rows[0]["value"]
+      id_token, access_token = await oauth.exchange_code_for_tokens(
+        payload.code,
+        client_id,
+        client_secret,
+        redirect_uri,
+        payload.provider,
+      )
+    else:
+      if not payload.access_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+      id_token = payload.id_token
+      access_token = payload.access_token
   elif payload.provider == "microsoft":
     ms_provider = getattr(auth, "providers", {}).get("microsoft")
     if not ms_provider or not ms_provider.audience:
