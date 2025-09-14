@@ -337,6 +337,26 @@ def _auth_discord_oauth_relink(args: Dict[str, Any]):
 def _db_auth_discord_oauth_relink(args: Dict[str, Any]):
   return _auth_discord_oauth_relink(args)
 
+@register("urn:auth:discord:get_security:1")
+def _auth_discord_get_security(args: Dict[str, Any]):
+  raw_id = args["discord_id"]
+  identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
+  sql = """
+    SELECT TOP 1
+      v.user_guid,
+      v.user_roles
+    FROM vw_user_session_security v
+    JOIN users_auth ua ON ua.users_guid = v.user_guid
+    JOIN auth_providers ap ON ap.recid = ua.providers_recid
+    WHERE ap.element_name = 'discord' AND ua.element_identifier = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return (DbRunMode.JSON_ONE, sql, (identifier,))
+
+@register("db:auth:discord:get_security:1")
+def _db_auth_discord_get_security(args: Dict[str, Any]):
+  return _auth_discord_get_security(args)
+
 
 @register("db:users:profile:get_profile:1")
 def _db_users_profile(args: Dict[str, Any]):

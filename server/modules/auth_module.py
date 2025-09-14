@@ -313,6 +313,16 @@ class AuthModule(BaseModule):
   def get_role_names(self, exclude_registered: bool = False) -> list[str]:
     return self.role_cache.get_role_names(exclude_registered)
 
+  async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
+    res = await self.db.run("db:auth:discord:get_security:1", {"discord_id": discord_id})
+    if not res.rows:
+      return "", [], 0
+    row = res.rows[0]
+    guid = row.get("user_guid")
+    mask = int(row.get("user_roles", 0) or 0)
+    names = self.role_cache.mask_to_names(mask)
+    return guid, names, mask
+
   async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
     return await self.role_cache.get_user_roles(guid, refresh)
 

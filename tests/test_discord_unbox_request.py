@@ -28,8 +28,9 @@ class AuthModule:
   def __init__(self):
     self.roles = {"ROLE_REGISTERED": 0x1}
     self.role_registered = 0x1
-  async def get_user_roles(self, guid: str):
-    return (["ROLE_REGISTERED"], 0x1)
+  async def get_discord_user_security(self, discord_id: str):
+    guid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
+    return (guid, ["ROLE_REGISTERED"], 0x1)
 auth_module_pkg.AuthModule = AuthModule
 modules_pkg.auth_module = auth_module_pkg
 sys.modules['server.modules.auth_module'] = auth_module_pkg
@@ -108,5 +109,36 @@ def test_unbox_request_with_payload_discord_id():
   assert resp.status_code == 200
   data = resp.json()
   expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:123'))
+  assert data['user_guid'] == expected_guid
+  assert data['roles'] == ['ROLE_REGISTERED']
+
+
+def test_unbox_request_with_context_discord_id():
+  if 'rpc.helpers' in sys.modules:
+    del sys.modules['rpc.helpers']
+  helpers = importlib.import_module('rpc.helpers')
+
+  app = FastAPI()
+  app.state.auth = AuthModule()
+
+  class DummyCtx:
+    class Author:
+      id = 555
+    author = Author()
+
+  @app.post('/rpc')
+  async def endpoint(request: Request):
+    request.state.discord_ctx = DummyCtx()
+    rpc_request, auth_ctx, _ = await helpers.unbox_request(request)
+    return {'user_guid': rpc_request.user_guid, 'roles': auth_ctx.roles}
+
+  client = TestClient(app)
+  resp = client.post(
+    '/rpc',
+    json={'op': 'urn:discord:command:get_roles:1'},
+  )
+  assert resp.status_code == 200
+  data = resp.json()
+  expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:555'))
   assert data['user_guid'] == expected_guid
   assert data['roles'] == ['ROLE_REGISTERED']
