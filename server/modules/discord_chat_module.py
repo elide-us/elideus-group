@@ -67,11 +67,29 @@ class DiscordChatModule(BaseModule):
     except Exception:
       return len(text.split())
 
-  def summarize_persona_stub(self, _text: str) -> List[str]:
-    return ["[[STUB: Persona summary output here]]"]
+  async def summarize_persona(self, text: str) -> List[str]:
+    openai = getattr(self.app.state, "openai", None)
+    if not openai or not getattr(openai, "client", None):
+      return ["[[STUB: Persona summary output here]]"]
+    await openai.on_ready()
+    msg = await openai.fetch_chat(
+      [],
+      "Summarize the following conversation into bullet points.",
+      text,
+      300,
+    )
+    content = msg.get("content", "")
+    return [line.strip() for line in content.splitlines() if line.strip()]
 
-  def uwu_persona_stub(self, _summary: List[str], _user_id: int) -> str:
-    return "[[STUB: uwu persona output here]]"
+  async def uwu_persona(self, summary: List[str], user_id: int) -> str:
+    openai = getattr(self.app.state, "openai", None)
+    if not openai or not getattr(openai, "client", None):
+      return "[[STUB: uwu persona output here]]"
+    await openai.on_ready()
+    prompt = "\n".join(summary)
+    role = f"You are a playful catgirl assistant responding to user {user_id} in uwu style."
+    msg = await openai.fetch_chat([], role, prompt, 120)
+    return msg.get("content", "")
 
   async def log_conversation(
     self,
@@ -135,8 +153,8 @@ class DiscordChatModule(BaseModule):
     max_messages = max(max_messages, 12)
     start = time.perf_counter()
     summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
-    summary_lines = self.summarize_persona_stub(summary["raw_text_blob"])
-    uwu_response = self.uwu_persona_stub(summary_lines, user_id)
+    summary_lines = await self.summarize_persona(summary["raw_text_blob"])
+    uwu_response = await self.uwu_persona(summary_lines, user_id)
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] uwu_chat",
