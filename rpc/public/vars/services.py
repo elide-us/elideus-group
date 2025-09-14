@@ -10,6 +10,7 @@ from .models import (
   PublicVarsRepo1,
   PublicVarsVersion1,
   PublicVarsOdbcVersion1,
+  PublicVarsVersions1,
 )
 
 
@@ -47,8 +48,13 @@ async def public_vars_get_repo_v1(request: Request):
   )
 
 async def public_vars_get_ffmpeg_version_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   vars_mod: PublicVarsModule = request.app.state.public_vars
+  required_mask = 0
+  if vars_mod.auth:
+    required_mask = vars_mod.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+  if not (auth_ctx.role_mask & required_mask):
+    raise HTTPException(status_code=403, detail="Forbidden")
   try:
     version_line = await vars_mod.get_ffmpeg_version()
   except Exception as e:
@@ -61,8 +67,13 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
   )
 
 async def public_vars_get_odbc_version_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
+  rpc_request, auth_ctx, _ = await unbox_request(request)
   vars_mod: PublicVarsModule = request.app.state.public_vars
+  required_mask = 0
+  if vars_mod.auth:
+    required_mask = vars_mod.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+  if not (auth_ctx.role_mask & required_mask):
+    raise HTTPException(status_code=403, detail="Forbidden")
   try:
     version_line = await vars_mod.get_odbc_version()
   except Exception as e:
@@ -71,6 +82,17 @@ async def public_vars_get_odbc_version_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
+
+async def public_vars_get_versions_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  vars_mod: PublicVarsModule = request.app.state.public_vars
+  data = await vars_mod.get_versions(auth_ctx.role_mask)
+  payload = PublicVarsVersions1(**data)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(exclude_none=True),
     version=rpc_request.version,
   )
 

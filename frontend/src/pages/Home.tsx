@@ -1,64 +1,22 @@
 import { Box, Typography, Link, CardMedia } from '@mui/material';
 import { useEffect, useState } from 'react';
-import type { PublicLinksLinkItem1 } from '../shared/RpcModels';
+import type { PublicLinksLinkItem1, PublicVarsVersions1 } from '../shared/RpcModels';
 import Logo from '../assets/elideus_group_green.png';
-import {
-        fetchHostname,
-        fetchVersion,
-        fetchRepo,
-        fetchFfmpegVersion,
-        fetchOdbcVersion,
-} from '../rpc/public/vars';
+import { fetchVersions } from '../rpc/public/vars';
 import { fetchHomeLinks } from '../rpc/public/links';
+import BottomBar from '../components/BottomBar';
 
 const Home = (): JSX.Element => {
-	const [hostname, setHostname] = useState('');
-	const [version, setVersion] = useState('');
-        const [repo, setRepo] = useState('');
-        const [ffmpegVersion, setFfmpegVersion] = useState<string | null>(null);
-        const [odbcVersion, setOdbcVersion] = useState<string | null>(null);
+        const [info, setInfo] = useState<PublicVarsVersions1 | null>(null);
         const [links, setLinks] = useState<PublicLinksLinkItem1[]>([]);
 
 	useEffect(() => {
 		void (async () => {
-			try {
-				const host = await fetchHostname();
-				const cleanHost = host.hostname.replace(/^"|"$/g, '');
-				setHostname(cleanHost);
-			} catch {
-				setHostname('unknown');
-			}
-
-			try {
-				const repoInfo = await fetchRepo();
-				const cleanRepo = repoInfo.repo.replace(/^"|"$/g, '');
-				setRepo(cleanRepo);
-			} catch {
-				setRepo('unknown');
-			}
-
-			try {
-				const versionInfo = await fetchVersion();
-				const cleanVersion = versionInfo.version.replace(/^"|"$/g, '');
-				setVersion(cleanVersion);
-			} catch {
-				setVersion('v0.0.0');
-			}
-
                         try {
-                                const ffmpegInfo = await fetchFfmpegVersion();
-                                const cleanFfmpeg = ffmpegInfo.ffmpeg_version.replace(/^"|"$/g, '');
-                                setFfmpegVersion(cleanFfmpeg);
+                                const versions = await fetchVersions();
+                                setInfo(versions);
                         } catch {
-                                setFfmpegVersion('unknown');
-                        }
-
-                        try {
-                                const odbcInfo = await fetchOdbcVersion();
-                                const cleanOdbc = odbcInfo.odbc_version.replace(/^"|"$/g, '');
-                                setOdbcVersion(cleanOdbc);
-                        } catch {
-                                setOdbcVersion('unknown');
+                                setInfo(null);
                         }
 
 			try {
@@ -97,52 +55,10 @@ const Home = (): JSX.Element => {
 					</Link>
 				))}
 			</Box>
-			<Typography variant="body1" sx={{ marginTop: '20px' }}>
-				{version} running on {hostname}
-			</Typography>
-                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
-                                {ffmpegVersion ? ffmpegVersion : 'Loading version...'}
-                        </Typography>
-                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
-                                {odbcVersion ? odbcVersion : 'Loading version...'}
-                        </Typography>
-                        <Typography variant="body1" sx={{ marginTop: '4px' }}>
-                                GitHub:{' '}
-				<Link
-					href={repo}
-					target="_blank"
-					rel="noopener noreferrer"
-					underline="none"
-					sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
-				>
-					repo
-				</Link>
-					{' '}-{' '}
-				<Link
-					href={repo ? `${repo}/actions` : ''}
-					target="_blank"
-					rel="noopener noreferrer"
-					underline="none"
-					sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
-				>
-					build
-				</Link>
-			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '20px' }}>
-				Contact us at:{' '}
-				<Link
-					href="mailto:contact@elideusgroup.com"
-					underline="none"
-					sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
-				>
-					contact@elideusgroup.com
-				</Link>
-			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '4px' }}>
-				<Link href="/privacy-policy" underline="none">Privacy Policy</Link>
-			</Typography>
-		</Box>
-	);
+                        <Box sx={{ flexGrow: 1 }} />
+                        <BottomBar info={info} />
+                </Box>
+        );
 };
 
 export default Home;
