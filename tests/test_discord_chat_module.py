@@ -35,8 +35,8 @@ def test_uwu_chat(monkeypatch):
 
     async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context=""):
       if role == "Summarize the following conversation into bullet points.":
-        return SimpleNamespace(content="hi\nbye")
-      return SimpleNamespace(content="uwu hi")
+        return {"content": "hi\nbye"}
+      return {"content": "uwu hi"}
 
   app.state.openai = DummyOpenAI()
   module = DiscordChatModule(app)
