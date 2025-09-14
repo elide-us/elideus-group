@@ -37,7 +37,7 @@ def test_uwu_chat(monkeypatch):
 
   module.summarize_channel = dummy_summarize  # type: ignore
 
-  res = asyncio.run(module.uwu_chat(1, 2, 3))
+  res = asyncio.run(module.uwu_chat(1, 2, 3, "hey"))
   assert res["token_count_estimate"] == 5
   assert res["summary_lines"] == ["[[STUB: Persona summary output here]]"]
   assert res["uwu_response_text"] == "[[STUB: uwu persona output here]]"
