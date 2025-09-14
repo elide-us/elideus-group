@@ -206,3 +206,86 @@ class OauthModule(BaseModule):
     logging.debug(f"[create_session] session_token={session_token[:40]}")
     return session_token, session_exp, rotation_token, rot_exp
 
+  async def resolve_user(
+    self,
+    provider: str,
+    provider_uid: str,
+    profile: dict,
+    payload: dict,
+    confirm: bool | None = None,
+    reauth_token: str | None = None,
+  ):
+    identifiers = self.extract_identifiers(provider_uid, payload, provider)
+    user = await self.lookup_user(provider, identifiers)
+
+    if user and user.get("element_soft_deleted_at"):
+      res = await self.db.run(
+        f"db:auth:{provider}:oauth_relink:1",
+        {
+          "provider_identifier": provider_uid,
+          "email": profile["email"],
+          "display_name": profile["username"],
+          "profile_image": profile.get("profilePicture"),
+          "confirm": confirm,
+          "reauth_token": reauth_token,
+        },
+      )
+      user = res.rows[0] if res.rows else None
+
+    if not user:
+      res = await self.db.run(
+        "db:users:providers:get_any_by_provider_identifier:1",
+        {"provider": provider, "provider_identifier": provider_uid},
+      )
+      if res.rows:
+        res2 = await self.db.run(
+          f"db:auth:{provider}:oauth_relink:1",
+          {
+            "provider_identifier": provider_uid,
+            "email": profile["email"],
+            "display_name": profile["username"],
+            "profile_image": profile.get("profilePicture"),
+            "confirm": confirm,
+            "reauth_token": reauth_token,
+          },
+        )
+        user = res2.rows[0] if res2.rows else None
+
+    if not user:
+      res = await self.db.run(
+        f"db:auth:{provider}:oauth_relink:1",
+        {
+          "provider_identifier": provider_uid,
+          "email": profile["email"],
+          "display_name": profile["username"],
+          "profile_image": profile.get("profilePicture"),
+          "confirm": confirm,
+          "reauth_token": reauth_token,
+        },
+      )
+      user = res.rows[0] if res.rows else None
+
+    if not user:
+      res = await self.db.run(
+        "db:users:providers:create_from_provider:1",
+        {
+          "provider": provider,
+          "provider_identifier": provider_uid,
+          "provider_email": profile["email"],
+          "provider_displayname": profile["username"],
+          "provider_profile_image": profile.get("profilePicture"),
+        },
+      )
+      user = res.rows[0] if res.rows else None
+      if not user:
+        res = await self.db.run(
+          "db:users:providers:get_by_provider_identifier:1",
+          {"provider": provider, "provider_identifier": provider_uid},
+        )
+        user = res.rows[0] if res.rows else None
+      if not user:
+        logging.debug("[resolve_user] failed to create user")
+        raise HTTPException(status_code=500, detail="Unable to create user")
+
+    return user
+

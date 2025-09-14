@@ -75,79 +75,14 @@ async def auth_discord_oauth_login_v1(request: Request):
     f"[auth_discord_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
 
-  identifiers = oauth.extract_identifiers(provider_uid, payload)
-  user = await oauth.lookup_user(provider, identifiers)
-
-  if user and user.get("element_soft_deleted_at"):
-    res = await db.run(
-      f"db:auth:{provider}:oauth_relink:1",
-      {
-        "provider_identifier": provider_uid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-        "profile_image": profile.get("profilePicture"),
-        "confirm": confirm,
-        "reauth_token": reauth_token,
-      },
-    )
-    user = res.rows[0] if res.rows else None
-
-  if not user:
-    res = await db.run(
-      "db:users:providers:get_any_by_provider_identifier:1",
-      {"provider": provider, "provider_identifier": provider_uid},
-    )
-    if res.rows:
-      res2 = await db.run(
-        f"db:auth:{provider}:oauth_relink:1",
-        {
-          "provider_identifier": provider_uid,
-          "email": profile["email"],
-          "display_name": profile["username"],
-          "profile_image": profile.get("profilePicture"),
-          "confirm": confirm,
-          "reauth_token": reauth_token,
-        },
-      )
-      user = res2.rows[0] if res2.rows else None
-
-  if not user:
-    res = await db.run(
-      f"db:auth:{provider}:oauth_relink:1",
-      {
-        "provider_identifier": provider_uid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-        "profile_image": profile.get("profilePicture"),
-        "confirm": confirm,
-        "reauth_token": reauth_token,
-      },
-    )
-    user = res.rows[0] if res.rows else None
-
-  if not user:
-    logging.debug("[auth_discord_oauth_login_v1] user not found, creating new user")
-    res = await db.run(
-      "db:users:providers:create_from_provider:1",
-      {
-        "provider": provider,
-        "provider_identifier": provider_uid,
-        "provider_email": profile["email"],
-        "provider_displayname": profile["username"],
-        "provider_profile_image": profile.get("profilePicture"),
-      },
-    )
-    user = res.rows[0] if res.rows else None
-    if not user:
-      logging.debug("[auth_discord_oauth_login_v1] fetching user after creation")
-      res = await db.run(
-        "db:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": provider_uid},
-      )
-      user = res.rows[0] if res.rows else None
-    if not user:
-      logging.debug("[auth_discord_oauth_login_v1] failed to create user")
-      raise HTTPException(status_code=500, detail="Unable to create user")
+  user = await oauth.resolve_user(
+    provider,
+    provider_uid,
+    profile,
+    payload,
+    confirm=confirm,
+    reauth_token=reauth_token,
+  )
 
   user_guid = user["guid"]
   new_img = profile.get("profilePicture")

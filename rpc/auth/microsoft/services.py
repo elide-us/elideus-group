@@ -55,46 +55,14 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     f"[auth_microsoft_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
   )
 
-  identifiers = oauth.extract_identifiers(provider_uid, payload, "microsoft")
-  user = await oauth.lookup_user(provider, identifiers)
-
-  if not user or user.get("element_soft_deleted_at"):
-    res = await db.run(
-      f"db:auth:{provider}:oauth_relink:1",
-      {
-        "provider_identifier": provider_uid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-        "profile_image": profile.get("profilePicture"),
-        "confirm": req_payload.get("confirm"),
-        "reauth_token": req_payload.get("reauthToken") or req_payload.get("reAuthToken"),
-      },
-    )
-    user = res.rows[0] if res.rows else None
-
-  if not user:
-    logging.debug("[auth_microsoft_oauth_login_v1] user not found, creating new user")
-    res = await db.run(
-      "db:users:providers:create_from_provider:1",
-      {
-        "provider": provider,
-        "provider_identifier": provider_uid,
-        "provider_email": profile["email"],
-        "provider_displayname": profile["username"],
-        "provider_profile_image": profile.get("profilePicture"),
-      },
-    )
-    user = res.rows[0] if res.rows else None
-    if not user:
-      logging.debug("[auth_microsoft_oauth_login_v1] fetching user after creation")
-      res = await db.run(
-        "db:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": provider_uid},
-      )
-      user = res.rows[0] if res.rows else None
-    if not user:
-      logging.debug("[auth_microsoft_oauth_login_v1] failed to create user")
-      raise HTTPException(status_code=500, detail="Unable to create user")
+  user = await oauth.resolve_user(
+    provider,
+    provider_uid,
+    profile,
+    payload,
+    confirm=req_payload.get("confirm"),
+    reauth_token=req_payload.get("reauthToken") or req_payload.get("reAuthToken"),
+  )
 
   user_guid = user["guid"]
   new_img = profile.get("profilePicture")
