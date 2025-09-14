@@ -45,6 +45,15 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `generate_rpc_bindings.py` generates RPC TypeScript models and client accessors.
 - `scriptlib.py` handles common RPC namespace generation functions and version helpers.
 - `msdblib.py` handles most of the mssql querying operations.
-  Schema dumps now record NVARCHAR field lengths for accurate
-  recreation across environments.
+Schema dumps now record NVARCHAR field lengths for accurate
+recreation across environments.
+
+### Seeding Personas
+Personas for the assistant are defined in `scripts/data/assistant_personas.json`. Load them into the database with:
+
+```bash
+python scripts/seed_personas.py
+```
+
+When updating personas, modify the JSON file to keep the source data in sync.
 
