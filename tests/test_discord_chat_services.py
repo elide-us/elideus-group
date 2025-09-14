@@ -67,6 +67,10 @@ def test_uwu_chat_logs_conversation():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:uwu_chat:1'})
   assert resp.status_code == 200
   assert module.called
+  data = resp.json()
+  assert data["payload"] == {"message": "uwu hey"}
+  assert module.args[1] == 1
+  assert module.args[2] == 2
   assert module.args[3] == 'hey'
   assert module.args[4] == 'uwu hey'
 
@@ -96,6 +100,16 @@ def test_summarize_channel_logs_conversation():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
   assert resp.status_code == 200
   assert module.called
+  data = resp.json()
+  expected = {
+    "summary": "hi",
+    "messages_collected": 1,
+    "token_count_estimate": 2,
+    "cap_hit": False,
+  }
+  assert data["payload"] == expected
   assert module.args[0] == 'summary'
+  assert module.args[1] == 1
+  assert module.args[2] == 2
 
   chat_services.unbox_request = original
