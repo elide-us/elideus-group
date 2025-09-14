@@ -68,8 +68,15 @@ const UserPage = (): JSX.Element => {
           ...res,
           guid: normalizeGuid(res.guid)
         };
+        const name =
+          profileData.display_name?.trim() ||
+          profileData.email?.split("@")[0] ||
+          "User";
+        const email = profileData.email?.trim() || "";
+        profileData.display_name = name;
+        profileData.email = email;
         setProfile(profileData);
-        setDisplayName(profileData.display_name);
+        setDisplayName(name);
         setDisplayEmail(profileData.display_email);
         setProvider(profileData.default_provider);
         setProviders(profileData.auth_providers?.map((p) => p.name) ?? []);
@@ -164,11 +171,18 @@ const UserPage = (): JSX.Element => {
                 ...res,
                 guid: normalizeGuid(res.guid)
             };
+            const name =
+                profileData.display_name?.trim() ||
+                profileData.email?.split("@")[0] ||
+                "User";
+            const email = profileData.email?.trim() || "";
+            profileData.display_name = name;
+            profileData.email = email;
             setProfile(profileData);
-            setDisplayName(profileData.display_name);
+            setDisplayName(name);
             setDisplayEmail(profileData.display_email);
             setProviders(profileData.auth_providers?.map((p) => p.name) ?? []);
-            if (userData) setUserData({ ...userData, display_name: profileData.display_name });
+            if (userData) setUserData({ ...userData, display_name: name });
         } catch (err) {
             console.error("Failed to set provider", err);
             setProvider(prev);
@@ -313,7 +327,12 @@ const UserPage = (): JSX.Element => {
                     : undefined
                 }
                 sx={{ width: 80, height: 80 }}
-              />
+              >
+                {!profile.profile_image &&
+                  (profile.display_name || profile.email || "U")
+                    .charAt(0)
+                    .toUpperCase()}
+              </Avatar>
 
               <EditBox value={displayName} onCommit={commitDisplayName} />
 

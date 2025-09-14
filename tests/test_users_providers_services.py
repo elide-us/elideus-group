@@ -143,6 +143,29 @@ def test_set_provider_missing_provider_raises():
   assert exc.value.status_code == 400
 
 
+def test_set_provider_defaults_blank_profile():
+  async def fake_get(request):
+    rpc = RPCRequest(
+      op="urn:users:providers:set_provider:1",
+      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
+      version=1,
+    )
+    return rpc, SimpleNamespace(user_guid="u1"), None
+  svc_mod.unbox_request = fake_get
+  db = DummyDb()
+  class DummyAuth:
+    def __init__(self):
+      self.providers = {"microsoft": SimpleNamespace(audience="client")}
+    async def handle_auth_login(self, provider, id_token, access_token):
+      return "pid", {"email": "", "username": ""}, {}
+  req = DummyRequest(DummyState(db, auth=DummyAuth()))
+  asyncio.run(users_providers_set_provider_v1(req))
+  assert (
+    "db:users:profile:update_if_unedited:1",
+    {"guid": "u1", "email": "", "display_name": "User"},
+  ) in db.calls
+
+
 def test_link_provider_google_normalizes_identifier():
   async def fake_get(request):
     rpc = RPCRequest(
