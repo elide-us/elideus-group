@@ -57,3 +57,14 @@ python scripts/seed_personas.py
 
 When updating personas, modify the JSON file to keep the source data in sync.
 
+### Conversation Logging
+
+Two tables record persona definitions and usage:
+
+| Table | Purpose |
+| ----- | ------- |
+| `assistant_personas` | Stores persona names and metadata. |
+| `assistant_conversations` | Logs each interaction including guild/channel IDs, input text, output text, and timestamps. |
+
+The Discord chat module upserts the persona and writes a conversation record whenever `!summarize` or `!uwu` is executed.
+

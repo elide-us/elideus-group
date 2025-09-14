@@ -252,3 +252,15 @@ Currently exposes placeholder Discord command operations.
 | ------------------------------------------- | ------------------------------- |
 | `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
 | `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
+
+#### Usage Examples
+
+```text
+!summarize 24
+```
+Summarize the last 24 hours of messages in the current channel and send the result as a DM.
+
+```text
+!uwu hello there
+```
+Reply in-channel with a playful uwu-styled message.
