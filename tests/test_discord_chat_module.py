@@ -13,7 +13,7 @@ def test_summarize_channel(monkeypatch):
 
   async def dummy_fetch(guild_id, channel_id, hours, max_messages=5000):
     msg = SimpleNamespace(content="hello", author=SimpleNamespace(name="Alice"))
-    return [msg]
+    return {"messages": [msg], "cap_hit": False}
 
   module.fetch_channel_history_backwards = dummy_fetch  # type: ignore
 
@@ -32,6 +32,7 @@ def test_uwu_chat(monkeypatch):
       "messages_collected": 12,
       "token_count_estimate": 5,
       "raw_text_blob": "text",
+      "cap_hit": False,
     }
 
   module.summarize_channel = dummy_summarize  # type: ignore

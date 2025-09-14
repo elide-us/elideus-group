@@ -24,18 +24,23 @@ class DiscordChatModule(BaseModule):
   async def shutdown(self):
     logging.info("[DiscordChatModule] shutdown")
 
-  async def fetch_channel_history_backwards(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> List[discord.Message]:
+  async def fetch_channel_history_backwards(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     assert self.discord and self.discord.bot
     start = time.perf_counter()
     guild = self.discord.bot.get_guild(guild_id)
     channel = guild.get_channel(channel_id) if guild else None
     if not channel:
-      return []
+      return {"messages": [], "cap_hit": False}
     after = datetime.now(timezone.utc) - timedelta(hours=hours)
     messages: List[discord.Message] = []
-    async for msg in channel.history(limit=max_messages, after=after, oldest_first=False):
-      messages.append(msg)
+    try:
+      async for msg in channel.history(limit=max_messages, after=after, oldest_first=False):
+        messages.append(msg)
+    except Exception:
+      logging.exception("[DiscordChatModule] fetch_channel_history_backwards failed")
+      raise
     messages.reverse()
+    cap_hit = len(messages) >= max_messages
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] fetch_channel_history_backwards",
@@ -44,10 +49,11 @@ class DiscordChatModule(BaseModule):
         "channel_id": channel_id,
         "hours": hours,
         "messages_collected": len(messages),
+        "cap_hit": cap_hit,
         "elapsed": elapsed,
       },
     )
-    return messages
+    return {"messages": messages, "cap_hit": cap_hit}
 
   def estimate_tokens(self, text: str) -> int:
     try:
@@ -65,7 +71,8 @@ class DiscordChatModule(BaseModule):
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()
-    messages = await self.fetch_channel_history_backwards(guild_id, channel_id, hours, max_messages)
+    history = await self.fetch_channel_history_backwards(guild_id, channel_id, hours, max_messages)
+    messages = history["messages"]
     lines = [f"{m.author.name}: {m.content}" for m in messages if getattr(m, "content", None)]
     raw_text_blob = "\n".join(lines)
     tokens = self.estimate_tokens(raw_text_blob)
@@ -78,6 +85,7 @@ class DiscordChatModule(BaseModule):
         "hours": hours,
         "messages_collected": len(messages),
         "token_count_estimate": tokens,
+        "cap_hit": history["cap_hit"],
         "elapsed": elapsed,
       },
     )
@@ -85,6 +93,7 @@ class DiscordChatModule(BaseModule):
       "messages_collected": len(messages),
       "token_count_estimate": tokens,
       "raw_text_blob": raw_text_blob,
+      "cap_hit": history["cap_hit"],
     }
 
   async def uwu_chat(self, guild_id: int, channel_id: int, user_id: int, hours: int = 1, max_messages: int = 12) -> dict:
