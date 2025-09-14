@@ -92,6 +92,14 @@ class DbModule(BaseModule):
       raise ValueError("Missing config value for key: GoogleClientId")
     return value
 
+  async def get_discord_client_id(self) -> str:
+    res = await self.run("db:system:config:get_config:1", {"key": "DiscordClientId"})
+    value = res.rows[0]["value"] if res.rows else None
+    logging.debug("[DbModule] DiscordClientId=%s", value)
+    if not value:
+      raise ValueError("Missing config value for key: DiscordClientId")
+    return value
+
   async def get_google_api_secret(self) -> str:
     # Refactored: read Google OAuth client secret from environment
     env: EnvModule = self.app.state.env

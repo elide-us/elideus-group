@@ -18,6 +18,19 @@ def test_get_google_client_id():
   assert asyncio.run(db.get_google_client_id()) == "gid"
 
 
+def test_get_discord_client_id():
+  app = FastAPI()
+  db = DbModule(app)
+
+  async def fake_run(op, args):
+    assert op == "db:system:config:get_config:1"
+    assert args == {"key": "DiscordClientId"}
+    return DBResult(rows=[{"value": "did"}], rowcount=1)
+
+  db.run = fake_run
+  assert asyncio.run(db.get_discord_client_id()) == "did"
+
+
 def test_get_google_api_secret():
   app = FastAPI()
   db = DbModule(app)

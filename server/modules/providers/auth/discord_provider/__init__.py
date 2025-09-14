@@ -14,6 +14,10 @@ class DiscordAuthProvider(AuthProviderBase):
   """Discord OAuth provider."""
   requires_id_token = False
 
+  def __init__(self, *, audience: str | None = None):
+    super().__init__()
+    self.audience = audience
+
   async def startup(self) -> None:
     logging.debug("[DiscordAuthProvider] startup")
 
