@@ -121,12 +121,16 @@ async def users_providers_set_provider_v1(request: Request):
     },
   )
   if profile:
+    raw_email = (profile.get("email") or "").strip()
+    raw_name = (profile.get("username") or "").strip()
+    email = raw_email
+    display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
     await db.run(
       "db:users:profile:update_if_unedited:1",
       {
         "guid": auth_ctx.user_guid,
-        "email": profile.get("email"),
-        "display_name": profile.get("username"),
+        "email": email,
+        "display_name": display_name,
       },
     )
   return RPCResponse(
