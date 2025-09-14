@@ -67,6 +67,11 @@ def test_discord_handler_rejects_missing_role():
   client = _get_client(False)
   resp = client.post('/rpc', json={'op': 'urn:discord:command:text_uwu:1'})
   assert resp.status_code == 403
+  data = resp.json()
+  assert (
+    data['detail']
+    == 'You must have the Discord bot role assigned to use this bot.'
+  )
 
 def test_discord_handler_allows_role():
   client = _get_client(True)
