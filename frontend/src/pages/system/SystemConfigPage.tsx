@@ -158,39 +158,50 @@ const SystemConfigPage = (): JSX.Element => {
 
             <TabPanel value={tab} index={0}>
                 <Stack spacing={2} sx={{ maxWidth: 600 }}>
-                    <Autocomplete
-                        multiple
-                        freeSolo
-                        options={AUTH_PROVIDERS}
-                        value={providers}
-                        onChange={(_e, newValue) => {
-                            const v = newValue.join(',');
-                            void save('AuthProviders', v);
-                        }}
-                        renderTags={(value, getTagProps) =>
-                            value.map((option, index) => {
-                                const { key, ...tagProps } = getTagProps({ index });
-                                return (
-                                    <Chip
-                                        key={key}
-                                        {...tagProps}
-                                        label={option}
-                                        color={AUTH_PROVIDERS.includes(option) ? 'default' : 'error'}
-                                    />
-                                );
-                            })
-                        }
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="AuthProviders"
-                                error={Boolean(errors.AuthProviders)}
-                                helperText={errors.AuthProviders}
-                            />
-                        )}
-                    />
+                    <Stack direction="row" spacing={2} alignItems="flex-start">
+                        <Autocomplete
+                            multiple
+                            freeSolo
+                            options={AUTH_PROVIDERS}
+                            value={providers}
+                            onChange={(_e, newValue) => {
+                                const v = newValue.join(',');
+                                void save('AuthProviders', v);
+                            }}
+                            renderTags={(value, getTagProps) =>
+                                value.map((option, index) => {
+                                    const { key, ...tagProps } = getTagProps({ index });
+                                    return (
+                                        <Chip
+                                            key={key}
+                                            {...tagProps}
+                                            label={option}
+                                            color={AUTH_PROVIDERS.includes(option) ? 'default' : 'error'}
+                                        />
+                                    );
+                                })
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="AuthProviders"
+                                    error={Boolean(errors.AuthProviders)}
+                                    helperText={errors.AuthProviders}
+                                />
+                            )}
+                        />
+                        <TextField
+                            label="JwksCacheTime"
+                            type="number"
+                            sx={{ width: 100 }}
+                            value={config.JwksCacheTime || ''}
+                            onChange={(e) => save('JwksCacheTime', e.target.value)}
+                            error={Boolean(errors.JwksCacheTime)}
+                            helperText={errors.JwksCacheTime}
+                        />
+                    </Stack>
                     <TextField
-                        label="Hostname"
+                        label="Redirect"
                         type="url"
                         value={config.Hostname || ''}
                         onChange={(e) => save('Hostname', e.target.value.replace(/\/$/, ''))}
@@ -204,11 +215,6 @@ const SystemConfigPage = (): JSX.Element => {
                         error={Boolean(errors.MsApiId)}
                         helperText={errors.MsApiId}
                     />
-                    <Typography variant="caption">
-                        Example: https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={
-                            config.MsApiId || '<MsApiId>'
-                        }
-                    </Typography>
                     <TextField
                         label="GoogleClientId"
                         value={config.GoogleClientId || ''}
@@ -222,14 +228,6 @@ const SystemConfigPage = (): JSX.Element => {
                         onChange={(e) => save('DiscordClientId', e.target.value)}
                         error={Boolean(errors.DiscordClientId)}
                         helperText={errors.DiscordClientId}
-                    />
-                    <TextField
-                        label="JwksCacheTime"
-                        type="number"
-                        value={config.JwksCacheTime || ''}
-                        onChange={(e) => save('JwksCacheTime', e.target.value)}
-                        error={Boolean(errors.JwksCacheTime)}
-                        helperText={errors.JwksCacheTime || 'How often to refetch provider JWKS.'}
                     />
                 </Stack>
             </TabPanel>
