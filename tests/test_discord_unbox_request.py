@@ -85,3 +85,28 @@ def test_unbox_request_with_discord_user_id():
   expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:99'))
   assert data['user_guid'] == expected_guid
   assert data['roles'] == ['ROLE_REGISTERED']
+
+
+def test_unbox_request_with_payload_discord_id():
+  if 'rpc.helpers' in sys.modules:
+    del sys.modules['rpc.helpers']
+  helpers = importlib.import_module('rpc.helpers')
+
+  app = FastAPI()
+  app.state.auth = AuthModule()
+
+  @app.post('/rpc')
+  async def endpoint(request: Request):
+    rpc_request, auth_ctx, _ = await helpers.unbox_request(request)
+    return {'user_guid': rpc_request.user_guid, 'roles': auth_ctx.roles}
+
+  client = TestClient(app)
+  resp = client.post(
+    '/rpc',
+    json={'op': 'urn:discord:command:get_roles:1', 'payload': {'discord_id': '123'}},
+  )
+  assert resp.status_code == 200
+  data = resp.json()
+  expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:123'))
+  assert data['user_guid'] == expected_guid
+  assert data['roles'] == ['ROLE_REGISTERED']
