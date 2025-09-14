@@ -234,7 +234,7 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 ## Discord Domain
 
 All Discord domain calls require `ROLE_DISCORD_BOT`.
-Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller.
+Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
 Currently exposes placeholder Discord command operations.
 

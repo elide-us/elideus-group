@@ -58,6 +58,8 @@ async def _process_rpcrequest(request: Request) -> tuple[RPCRequest, AuthContext
   else:
     if domain == 'discord':
       discord_id = _get_discord_id_from_request(request)
+      if not discord_id and rpc_request.payload:
+        discord_id = rpc_request.payload.get('discord_id')
       if not discord_id:
         raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
       _auth: AuthModule = request.app.state.auth
