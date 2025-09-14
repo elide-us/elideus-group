@@ -78,7 +78,11 @@ class DiscordChatModule(BaseModule):
       text,
       300,
     )
-    content = msg.get("content", "")
+    content = getattr(
+      msg,
+      "content",
+      msg.get("content", "") if isinstance(msg, dict) else "",
+    )
     return [line.strip() for line in content.splitlines() if line.strip()]
 
   async def uwu_persona(self, summary: List[str], user_id: int, user_message: str) -> str:
@@ -89,7 +93,11 @@ class DiscordChatModule(BaseModule):
     prompt_context = "\n".join(summary)
     role = f"You are a playful catgirl assistant responding to user {user_id} in uwu style."
     msg = await openai.fetch_chat([], role, user_message, 120, prompt_context)
-    return msg.get("content", "")
+    return getattr(
+      msg,
+      "content",
+      msg.get("content", "") if isinstance(msg, dict) else "",
+    )
 
   async def log_conversation(
     self,

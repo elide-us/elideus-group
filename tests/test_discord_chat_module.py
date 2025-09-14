@@ -25,6 +25,20 @@ def test_summarize_channel(monkeypatch):
 def test_uwu_chat(monkeypatch):
   app = FastAPI()
   app.state.discord = SimpleNamespace(on_ready=lambda: None)
+
+  class DummyOpenAI:
+    def __init__(self):
+      self.client = object()
+
+    async def on_ready(self):
+      pass
+
+    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context=""):
+      if role == "Summarize the following conversation into bullet points.":
+        return SimpleNamespace(content="hi\nbye")
+      return SimpleNamespace(content="uwu hi")
+
+  app.state.openai = DummyOpenAI()
   module = DiscordChatModule(app)
 
   async def dummy_summarize(guild_id, channel_id, hours, max_messages=5000):
@@ -39,5 +53,5 @@ def test_uwu_chat(monkeypatch):
 
   res = asyncio.run(module.uwu_chat(1, 2, 3, "hey"))
   assert res["token_count_estimate"] == 5
-  assert res["summary_lines"] == ["[[STUB: Persona summary output here]]"]
-  assert res["uwu_response_text"] == "[[STUB: uwu persona output here]]"
+  assert res["summary_lines"] == ["hi", "bye"]
+  assert res["uwu_response_text"] == "uwu hi"
