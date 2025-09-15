@@ -8,6 +8,11 @@ class DiscordChatSummarizeChannelRequest1(BaseModel):
 
 class DiscordChatSummarizeChannelResponse1(BaseModel):
   summary: str
+  messages_collected: int | None = None
+  token_count_estimate: int | None = None
+  cap_hit: bool | None = None
+  model: str | None = None
+  role: str | None = None
 
 
 class DiscordChatUwuChatRequest1(BaseModel):

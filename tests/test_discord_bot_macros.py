@@ -77,6 +77,8 @@ def test_summarize_macro_dm(monkeypatch):
         "summary": "hi",
         "messages_collected": 1,
         "token_count_estimate": 2,
+        "model": "gpt",
+        "role": "role",
       }
     return DummyResp()
   dummy_handle.called = False

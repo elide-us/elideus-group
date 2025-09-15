@@ -32,6 +32,8 @@ class StubModule:
     self.uwu_args = None
     self.updated = False
     self.update_args = None
+    self.summary_called = False
+    self.summary_args = None
 
   async def on_ready(self):
     pass
@@ -42,6 +44,18 @@ class StubModule:
       'messages_collected': 1,
       'token_count_estimate': 2,
       'cap_hit': False,
+    }
+
+  async def summarize_chat(self, guild_id, channel_id, hours, max_messages=5000):
+    self.summary_called = True
+    self.summary_args = (guild_id, channel_id, hours)
+    return {
+      'token_count_estimate': 2,
+      'messages_collected': 1,
+      'cap_hit': False,
+      'summary_text': 'hi',
+      'model': 'gpt',
+      'role': 'role',
     }
 
   async def uwu_chat(self, guild_id, channel_id, user_id, message, hours=1, max_messages=12):
@@ -124,16 +138,18 @@ def test_summarize_channel_logs_conversation():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
   assert resp.status_code == 200
   assert module.called
+  assert module.summary_called
   data = resp.json()
   expected = {
     "summary": "hi",
     "messages_collected": 1,
     "token_count_estimate": 2,
     "cap_hit": False,
+    "model": "gpt",
+    "role": "role",
   }
   assert data["payload"] == expected
-  assert module.args[0] == 'summary'
-  assert module.args[1] == 1
-  assert module.args[2] == 2
+  assert module.args == ('summarize', 1, 2, 'summarize 1', '')
+  assert module.update_args == (42, 'hi')
 
   chat_services.unbox_request = original

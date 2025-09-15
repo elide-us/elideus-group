@@ -57,6 +57,8 @@ def test_summarize_command(monkeypatch):
         "summary": "hi",
         "messages_collected": 1,
         "token_count_estimate": 2,
+        "model": "gpt",
+        "role": "role",
       }
     return DummyResp()
   dummy_handle.called = False
@@ -110,6 +112,8 @@ def test_summarize_command_empty_history(monkeypatch):
         "messages_collected": 0,
         "token_count_estimate": 0,
         "cap_hit": False,
+        "model": "gpt",
+        "role": "role",
       }
     return DummyResp()
   import importlib
@@ -140,6 +144,8 @@ def test_summarize_command_cap_hit(monkeypatch):
         "messages_collected": 5000,
         "token_count_estimate": 2,
         "cap_hit": True,
+        "model": "gpt",
+        "role": "role",
       }
     return DummyResp()
   import importlib

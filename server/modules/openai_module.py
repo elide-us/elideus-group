@@ -126,4 +126,9 @@ class OpenaiModule(BaseModule):
       tools=schemas,
       messages=messages,
     )
-    return {"content": completion.choices[0].message.content}
+    choice = completion.choices[0].message
+    return {
+      "content": choice.content,
+      "model": getattr(completion, "model", ""),
+      "role": getattr(choice, "role", ""),
+    }

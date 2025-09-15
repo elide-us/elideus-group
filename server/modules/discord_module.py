@@ -242,6 +242,8 @@ class DiscordModule(BaseModule):
             "token_count_estimate": data.get("token_count_estimate"),
             "messages_collected": data.get("messages_collected"),
             "cap_hit": data.get("cap_hit"),
+            "model": data.get("model"),
+            "role": data.get("role"),
             "elapsed": elapsed,
           },
         )

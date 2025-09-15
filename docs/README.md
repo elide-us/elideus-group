@@ -3,7 +3,7 @@
 ## Commands
 
 ### `!summarize`
-Summarize recent messages in the current channel and send the result as a DM.
+Summarize recent messages in the current channel using the `summarize` persona and send the result as a DM.
 
 Example:
 ```text
