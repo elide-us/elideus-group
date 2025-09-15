@@ -11,6 +11,7 @@ try:
 except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
+from server.modules.discord_module import DiscordModule
 
 
 class OauthModule(BaseModule):
@@ -22,12 +23,16 @@ class OauthModule(BaseModule):
 
   def __init__(self, app: FastAPI):
     super().__init__(app)
+    self.discord: DiscordModule | None = None
 
   async def startup(self):
     self.auth: AuthModule = self.app.state.auth
     await self.auth.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.discord = getattr(self.app.state, "discord", None)
+    if self.discord:
+      await self.discord.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
