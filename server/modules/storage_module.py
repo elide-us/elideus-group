@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
+from .discord_module import DiscordModule
 
 
 class StorageModule(BaseModule):
@@ -26,6 +27,7 @@ class StorageModule(BaseModule):
     self.connection_string: str | None = None
     self._reindex_task: asyncio.Task | None = None
     self.reindex_interval = 15 * 60
+    self.discord: DiscordModule | None = None
 
   @staticmethod
   def _parse_duration(value: str) -> int:
@@ -41,6 +43,9 @@ class StorageModule(BaseModule):
     await self.env.on_ready()
     self.db = self.app.state.db
     await self.db.on_ready()
+    self.discord = getattr(self.app.state, "discord", None)
+    if self.discord:
+      await self.discord.on_ready()
     try:
       self.connection_string = self.env.get("AZURE_BLOB_CONNECTION_STRING")
       if not self.connection_string:

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
+from .discord_module import DiscordModule
 
 
 async def send_to_discord(channel, text: str, max_message_size: int = 1998, delay: float = 1.0):
@@ -82,10 +83,14 @@ class OpenaiModule(BaseModule):
     self.db: DbModule | None = None
     self.client: AsyncOpenAI | None = None
     self.summary_queue = SummaryQueue()
+    self.discord: DiscordModule | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
+    self.discord = getattr(self.app.state, "discord", None)
+    if self.discord:
+      await self.discord.on_ready()
     self.client = await self.init_openai_client()
     self.app.state.openai = self
     logging.info("[OpenaiModule] loaded")
