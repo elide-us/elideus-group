@@ -64,7 +64,7 @@ Two tables record persona definitions and usage:
 | Table | Purpose |
 | ----- | ------- |
 | `assistant_personas` | Stores persona names and metadata. |
-| `assistant_conversations` | Logs each interaction including guild/channel IDs, input text, output text, and timestamps. |
+| `assistant_conversations` | Logs each interaction including guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps. |
 
-The Discord chat module upserts the persona and writes a conversation record whenever `!summarize` or `!uwu` is executed.
+The OpenAI module records conversation details whenever `!summarize` or `!uwu` is executed.
 

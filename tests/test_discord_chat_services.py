@@ -26,12 +26,8 @@ from rpc.discord.chat import services as chat_services
 
 class StubModule:
   def __init__(self):
-    self.called = False
-    self.args = None
     self.uwu_called = False
     self.uwu_args = None
-    self.updated = False
-    self.update_args = None
     self.summary_called = False
     self.summary_args = None
 
@@ -67,16 +63,7 @@ class StubModule:
       'uwu_response_text': 'uwu hey',
     }
 
-  async def log_conversation(self, persona, guild_id, channel_id, input_data, output_data):
-    self.called = True
-    self.args = (persona, guild_id, channel_id, input_data, output_data)
-    return 42
-
-  async def update_conversation_output(self, recid, output_data):
-    self.updated = True
-    self.update_args = (recid, output_data)
-
-def test_uwu_chat_logs_conversation():
+def test_uwu_chat_handler():
   app = FastAPI()
   module = StubModule()
   app.state.discord_chat = module
@@ -98,8 +85,6 @@ def test_uwu_chat_logs_conversation():
   client = TestClient(app)
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:uwu_chat:1'})
   assert resp.status_code == 200
-  assert module.called
-  assert module.updated
   assert module.uwu_called
   data = resp.json()
   expected = {
@@ -109,13 +94,11 @@ def test_uwu_chat_logs_conversation():
   }
   assert data["payload"] == expected
   assert module.uwu_args == (1, 2, 3, 'hey')
-  assert module.args == ('uwu', 1, 2, 'hey', '')
-  assert module.update_args == (42, 'uwu hey')
 
   chat_services.unbox_request = original
 
 
-def test_summarize_channel_logs_conversation():
+def test_summarize_channel_handler():
   app = FastAPI()
   module = StubModule()
   app.state.discord_chat = module
@@ -137,7 +120,6 @@ def test_summarize_channel_logs_conversation():
   client = TestClient(app)
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
   assert resp.status_code == 200
-  assert module.called
   assert module.summary_called
   data = resp.json()
   expected = {
@@ -149,7 +131,5 @@ def test_summarize_channel_logs_conversation():
     "role": "role",
   }
   assert data["payload"] == expected
-  assert module.args == ('summarize', 1, 2, 'summarize 1', '')
-  assert module.update_args == (42, 'hi')
 
   chat_services.unbox_request = original

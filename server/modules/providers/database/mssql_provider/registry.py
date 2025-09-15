@@ -1311,26 +1311,51 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 
+@register("db:assistant:models:get_by_name:1")
+def _assistant_models_get_by_name(args: Dict[str, Any]):
+  name = args["name"]
+  sql = """
+    SELECT recid FROM assistant_models WHERE element_name = ?;
+  """
+  return (DbRunMode.ROW_ONE, sql, (name,))
+
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
-  persona = args.get("persona")
+  models_recid = args["models_recid"]
   guild_id = args.get("guild_id")
   channel_id = args.get("channel_id")
+  user_id = args.get("user_id")
   input_data = args.get("input_data")
   output_data = args.get("output_data")
+  tokens = args.get("tokens")
   sql = """
     INSERT INTO assistant_conversations (
       personas_recid,
-      element_persona,
+      models_recid,
       element_guild_id,
       element_channel_id,
+      element_user_id,
       element_input,
-      element_output
-    ) VALUES (?, ?, ?, ?, ?, ?);
+      element_output,
+      element_tokens
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
     SELECT SCOPE_IDENTITY() AS recid;
   """
-  return (DbRunMode.ROW_ONE, sql, (personas_recid, persona, guild_id, channel_id, input_data, output_data))
+  return (
+    DbRunMode.ROW_ONE,
+    sql,
+    (
+      personas_recid,
+      models_recid,
+      guild_id,
+      channel_id,
+      user_id,
+      input_data,
+      output_data,
+      tokens,
+    ),
+  )
 
 @register("db:assistant:conversations:update_output:1")
 def _assistant_conversations_update_output(args: Dict[str, Any]):
@@ -1338,7 +1363,8 @@ def _assistant_conversations_update_output(args: Dict[str, Any]):
   output_data = args.get("output_data")
   sql = """
     UPDATE assistant_conversations
-    SET element_output = ?
+    SET element_output = ?,
+        element_modified_on = sysutcdatetime()
     WHERE recid = ?;
   """
   return (DbRunMode.EXEC, sql, (output_data, recid))
@@ -1349,7 +1375,16 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
   start = args["start"]
   end = args["end"]
   sql = """
-    SELECT recid, element_guild_id, element_channel_id, element_input, element_output, element_created_on
+    SELECT recid,
+           element_guild_id,
+           element_channel_id,
+           element_user_id,
+           element_input,
+           element_output,
+           element_tokens,
+           element_created_on,
+           element_modified_on,
+           models_recid
     FROM assistant_conversations
     WHERE personas_recid = ? AND element_created_on BETWEEN ? AND ?
     ORDER BY element_created_on;

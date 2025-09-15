@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from types import SimpleNamespace
 
 from server.modules.openai_module import OpenaiModule, SummaryQueue
+from server.modules.providers import DBResult
 
 
 def test_fetch_chat_message_order_and_return():
@@ -47,3 +48,66 @@ def test_summary_queue_executes_in_order():
 
   asyncio.run(run())
   assert called == [1, 2]
+
+
+def test_fetch_chat_logs_conversation():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyCreate:
+    async def create(self, model, max_tokens, tools, messages):
+      return SimpleNamespace(
+        model=model,
+        choices=[SimpleNamespace(message=SimpleNamespace(content="hi", role="assistant"))],
+      )
+
+  module.client = SimpleNamespace(chat=SimpleNamespace(completions=DummyCreate()))
+
+  class DummyDB:
+    def __init__(self):
+      self.calls = []
+
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "db:assistant:personas:get_by_name:1":
+        return DBResult(rows=[{"recid": 1}], rowcount=1)
+      if op == "db:assistant:models:get_by_name:1":
+        return DBResult(rows=[{"recid": 2}], rowcount=1)
+      if op == "db:assistant:conversations:insert:1":
+        assert args["personas_recid"] == 1
+        assert args["models_recid"] == 2
+        assert args["guild_id"] == "1"
+        assert args["channel_id"] == "2"
+        assert args["user_id"] == "3"
+        assert args["input_data"] == "hello"
+        assert args["tokens"] == 7
+        return DBResult(rows=[{"recid": 99}], rowcount=1)
+      if op == "db:assistant:conversations:update_output:1":
+        assert args == {"recid": 99, "output_data": "hi"}
+        return DBResult(rowcount=1)
+      return DBResult()
+
+  module.db = DummyDB()
+
+  res = asyncio.run(
+    module.fetch_chat(
+      [],
+      "role",
+      "hello",
+      5,
+      persona="uwu",
+      guild_id=1,
+      channel_id=2,
+      user_id=3,
+      input_log="hello",
+      token_count=7,
+    )
+  )
+  assert res["content"] == "hi"
+  calls = [c[0] for c in module.db.calls]
+  assert calls == [
+    "db:assistant:personas:get_by_name:1",
+    "db:assistant:models:get_by_name:1",
+    "db:assistant:conversations:insert:1",
+    "db:assistant:conversations:update_output:1",
+  ]

@@ -112,23 +112,120 @@ class OpenaiModule(BaseModule):
       return None
     return AsyncOpenAI(api_key=token)
 
-  async def fetch_chat(self, schemas: list, role: str, prompt: str, tokens: int, prompt_context: str = ""):
+  async def _get_persona_recid(self, name: str) -> int | None:
+    if not self.db:
+      return None
+    try:
+      res = await self.db.run("db:assistant:personas:get_by_name:1", {"name": name})
+      if res.rows:
+        return res.rows[0].get("recid")
+    except Exception:
+      logging.exception("[OpenaiModule] fetch persona recid failed")
+    return None
+
+  async def _get_model_recid(self, name: str) -> int | None:
+    if not self.db:
+      return None
+    try:
+      res = await self.db.run("db:assistant:models:get_by_name:1", {"name": name})
+      if res.rows:
+        return res.rows[0].get("recid")
+    except Exception:
+      logging.exception("[OpenaiModule] fetch model recid failed")
+    return None
+
+  async def _log_conversation_start(
+    self,
+    personas_recid: int | None,
+    models_recid: int | None,
+    guild_id: int | None,
+    channel_id: int | None,
+    user_id: int | None,
+    input_data: str,
+    tokens: int | None,
+  ) -> int | None:
+    if not self.db or personas_recid is None or models_recid is None:
+      return None
+    try:
+      res = await self.db.run(
+        "db:assistant:conversations:insert:1",
+        {
+          "personas_recid": personas_recid,
+          "models_recid": models_recid,
+          "guild_id": str(guild_id) if guild_id is not None else None,
+          "channel_id": str(channel_id) if channel_id is not None else None,
+          "user_id": str(user_id) if user_id is not None else None,
+          "input_data": input_data,
+          "output_data": "",
+          "tokens": tokens,
+        },
+      )
+      if res.rows:
+        return res.rows[0].get("recid")
+    except Exception:
+      logging.exception("[OpenaiModule] insert conversation failed")
+    return None
+
+  async def _log_conversation_end(self, recid: int, output_data: str):
+    if not self.db:
+      return
+    try:
+      await self.db.run(
+        "db:assistant:conversations:update_output:1",
+        {"recid": recid, "output_data": output_data},
+      )
+    except Exception:
+      logging.exception("[OpenaiModule] update conversation failed")
+
+  async def fetch_chat(
+    self,
+    schemas: list,
+    role: str,
+    prompt: str,
+    tokens: int,
+    prompt_context: str = "",
+    *,
+    persona: str | None = None,
+    guild_id: int | None = None,
+    channel_id: int | None = None,
+    user_id: int | None = None,
+    input_log: str | None = None,
+    token_count: int | None = None,
+    model: str = "gpt-4o-mini",
+  ):
     if not self.client:
       logging.warning("[OpenaiModule] client not initialized")
       return {"content": ""}
+    conv_id = None
+    if persona:
+      personas_recid = await self._get_persona_recid(persona)
+      models_recid = await self._get_model_recid(model)
+      conv_id = await self._log_conversation_start(
+        personas_recid,
+        models_recid,
+        guild_id,
+        channel_id,
+        user_id,
+        input_log or prompt,
+        token_count,
+      )
     messages = [{"role": "system", "content": role}]
     if prompt_context:
       messages.append({"role": "user", "content": prompt_context})
     messages.append({"role": "user", "content": prompt})
     completion = await self.client.chat.completions.create(
-      model="gpt-4o-mini",
+      model=model,
       max_tokens=tokens,
       tools=schemas,
       messages=messages,
     )
     choice = completion.choices[0].message
-    return {
-      "content": choice.content,
+    content = choice.content
+    result = {
+      "content": content,
       "model": getattr(completion, "model", ""),
       "role": getattr(choice, "role", ""),
     }
+    if conv_id:
+      await self._log_conversation_end(conv_id, content)
+    return result

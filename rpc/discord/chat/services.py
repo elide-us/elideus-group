@@ -20,18 +20,7 @@ async def discord_chat_summarize_channel_v1(request: Request):
     raise ValueError("hours must be between 1 and 336")
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  conv_id = await module.log_conversation(
-    "summarize",
-    guild_id,
-    channel_id,
-    f"summarize {hours}",
-    "",
-  )
   result = await module.summarize_chat(guild_id, channel_id, hours)
-  if conv_id:
-    await module.update_conversation_output(
-      conv_id, result.get("summary_text", "")
-    )
   payload = {
     "summary": result.get("summary_text"),
     "messages_collected": result.get("messages_collected"),
@@ -53,18 +42,7 @@ async def discord_chat_uwu_chat_v1(request: Request):
   req = DiscordChatUwuChatRequest1(**payload_dict)
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  conv_id = await module.log_conversation(
-    "uwu",
-    req.guild_id,
-    req.channel_id,
-    req.message,
-    "",
-  )
   result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
-  if conv_id:
-    await module.update_conversation_output(
-      conv_id, result.get("uwu_response_text", "")
-    )
   payload = DiscordChatUwuChatResponse1(**result)
   return RPCResponse(
     op=rpc_request.op,
