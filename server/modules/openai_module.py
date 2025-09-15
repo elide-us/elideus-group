@@ -117,26 +117,15 @@ class OpenaiModule(BaseModule):
       return None
     return AsyncOpenAI(api_key=token)
 
-  async def _get_persona_recid(self, name: str) -> int | None:
+  async def _get_persona(self, name: str) -> dict | None:
     if not self.db:
       return None
     try:
       res = await self.db.run("db:assistant:personas:get_by_name:1", {"name": name})
       if res.rows:
-        return res.rows[0].get("recid")
+        return res.rows[0]
     except Exception:
-      logging.exception("[OpenaiModule] fetch persona recid failed")
-    return None
-
-  async def _get_model_recid(self, name: str) -> int | None:
-    if not self.db:
-      return None
-    try:
-      res = await self.db.run("db:assistant:models:get_by_name:1", {"name": name})
-      if res.rows:
-        return res.rows[0].get("recid")
-    except Exception:
-      logging.exception("[OpenaiModule] fetch model recid failed")
+      logging.exception("[OpenaiModule] fetch persona failed")
     return None
 
   async def _log_conversation_start(
@@ -187,7 +176,7 @@ class OpenaiModule(BaseModule):
     schemas: list,
     role: str,
     prompt: str,
-    tokens: int,
+    tokens: int | None,
     prompt_context: str = "",
     *,
     persona: str | None = None,
@@ -202,9 +191,19 @@ class OpenaiModule(BaseModule):
       logging.warning("[OpenaiModule] client not initialized")
       return {"content": ""}
     conv_id = None
+    personas_recid = None
+    models_recid = None
     if persona:
-      personas_recid = await self._get_persona_recid(persona)
-      models_recid = await self._get_model_recid(model)
+      persona_row = await self._get_persona(persona)
+      if persona_row:
+        personas_recid = persona_row.get("recid")
+        models_recid = persona_row.get("models_recid")
+        model = persona_row.get("model", model)
+        if tokens is None:
+          tokens = persona_row.get("element_tokens")
+    if tokens is None:
+      tokens = 64
+    if persona and personas_recid is not None and models_recid is not None:
       conv_id = await self._log_conversation_start(
         personas_recid,
         models_recid,

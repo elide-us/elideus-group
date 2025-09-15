@@ -1307,7 +1307,15 @@ def _security_roles_remove_member(args: Dict[str, Any]):
 def _assistant_personas_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
-    SELECT recid, element_metadata FROM assistant_personas WHERE element_name = ?;
+    SELECT
+      ap.recid,
+      ap.element_prompt AS instructions,
+      ap.element_tokens,
+      ap.models_recid,
+      am.element_name AS model
+    FROM assistant_personas ap
+    JOIN assistant_models am ON am.recid = ap.models_recid
+    WHERE ap.element_name = ?;
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 

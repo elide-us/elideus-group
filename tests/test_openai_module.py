@@ -56,12 +56,18 @@ def test_fetch_chat_logs_conversation():
 
   class DummyCreate:
     async def create(self, model, max_tokens, tools, messages):
+      self.args = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "tools": tools,
+        "messages": messages,
+      }
       return SimpleNamespace(
         model=model,
         choices=[SimpleNamespace(message=SimpleNamespace(content="hi", role="assistant"))],
       )
-
-  module.client = SimpleNamespace(chat=SimpleNamespace(completions=DummyCreate()))
+  dummy_create = DummyCreate()
+  module.client = SimpleNamespace(chat=SimpleNamespace(completions=dummy_create))
 
   class DummyDB:
     def __init__(self):
@@ -70,9 +76,17 @@ def test_fetch_chat_logs_conversation():
     async def run(self, op, args):
       self.calls.append((op, args))
       if op == "db:assistant:personas:get_by_name:1":
-        return DBResult(rows=[{"recid": 1}], rowcount=1)
-      if op == "db:assistant:models:get_by_name:1":
-        return DBResult(rows=[{"recid": 2}], rowcount=1)
+        return DBResult(
+          rows=[
+            {
+              "recid": 1,
+              "models_recid": 2,
+              "model": "gpt",
+              "element_tokens": 5,
+            }
+          ],
+          rowcount=1,
+        )
       if op == "db:assistant:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
@@ -94,7 +108,7 @@ def test_fetch_chat_logs_conversation():
       [],
       "role",
       "hello",
-      5,
+      None,
       persona="uwu",
       guild_id=1,
       channel_id=2,
@@ -104,10 +118,10 @@ def test_fetch_chat_logs_conversation():
     )
   )
   assert res["content"] == "hi"
+  assert dummy_create.args["max_tokens"] == 5
   calls = [c[0] for c in module.db.calls]
   assert calls == [
     "db:assistant:personas:get_by_name:1",
-    "db:assistant:models:get_by_name:1",
     "db:assistant:conversations:insert:1",
     "db:assistant:conversations:update_output:1",
   ]

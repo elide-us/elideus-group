@@ -95,7 +95,7 @@ class DiscordChatModule(BaseModule):
       )
       if res.rows:
         row = res.rows[0]
-        instructions = row.get("instructions") or row.get("element_metadata")
+        instructions = row.get("instructions")
         if isinstance(instructions, dict):
           return instructions.get("instructions", "")
         return instructions or ""
@@ -122,7 +122,7 @@ class DiscordChatModule(BaseModule):
       [],
       role,
       user_message,
-      120,
+      None,
       prompt_context,
       persona="uwu",
       guild_id=guild_id,
@@ -186,7 +186,7 @@ class DiscordChatModule(BaseModule):
         [],
         role,
         summary["raw_text_blob"],
-        300,
+        None,
         persona="summarize",
         guild_id=guild_id,
         channel_id=channel_id,

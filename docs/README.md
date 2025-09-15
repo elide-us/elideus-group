@@ -23,7 +23,7 @@ Example:
 
 Each command invocation is logged for auditing:
 
-- **assistant_personas** – stores persona names and optional metadata.
+- **assistant_personas** – stores persona names, prompts, token limits, and model references.
 - **assistant_conversations** – records persona usage along with guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps.
 
 The user ID of whoever invokes `!summarize` is captured in the conversation log.
