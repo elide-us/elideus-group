@@ -59,7 +59,7 @@ def test_assistant_conversations_update_output(monkeypatch):
   args = {'recid': 9, 'output_data': 'out'}
 
   async def fake_exec(sql, params):
-    assert "element_modified_on" in sql
+    assert "element_modified_on" not in sql
     assert params == ('out', 9)
     return DBResult(rowcount=1)
 
