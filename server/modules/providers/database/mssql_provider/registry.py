@@ -1363,8 +1363,7 @@ def _assistant_conversations_update_output(args: Dict[str, Any]):
   output_data = args.get("output_data")
   sql = """
     UPDATE assistant_conversations
-    SET element_output = ?,
-        element_modified_on = sysutcdatetime()
+    SET element_output = ?
     WHERE recid = ?;
   """
   return (DbRunMode.EXEC, sql, (output_data, recid))
