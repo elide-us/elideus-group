@@ -217,41 +217,17 @@ class OauthModule(BaseModule):
   ):
     identifiers = self.extract_identifiers(provider_uid, payload, provider)
     user = await self.lookup_user(provider, identifiers)
-
+    needs_relink = False
     if user and user.get("element_soft_deleted_at"):
-      res = await self.db.run(
-        f"db:auth:{provider}:oauth_relink:1",
-        {
-          "provider_identifier": provider_uid,
-          "email": profile["email"],
-          "display_name": profile["username"],
-          "profile_image": profile.get("profilePicture"),
-          "confirm": confirm,
-          "reauth_token": reauth_token,
-        },
-      )
-      user = res.rows[0] if res.rows else None
-
-    if not user:
-      res = await self.db.run(
+      needs_relink = True
+    elif not user:
+      await self.db.run(
         "db:users:providers:get_any_by_provider_identifier:1",
         {"provider": provider, "provider_identifier": provider_uid},
       )
-      if res.rows:
-        res2 = await self.db.run(
-          f"db:auth:{provider}:oauth_relink:1",
-          {
-            "provider_identifier": provider_uid,
-            "email": profile["email"],
-            "display_name": profile["username"],
-            "profile_image": profile.get("profilePicture"),
-            "confirm": confirm,
-            "reauth_token": reauth_token,
-          },
-        )
-        user = res2.rows[0] if res2.rows else None
+      needs_relink = True
 
-    if not user:
+    if needs_relink:
       res = await self.db.run(
         f"db:auth:{provider}:oauth_relink:1",
         {
