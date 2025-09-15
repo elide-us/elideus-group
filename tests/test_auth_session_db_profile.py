@@ -20,8 +20,27 @@ def test_auth_session_returns_db_profile(monkeypatch):
   class DummySession:
     def __init__(self):
       self.called = None
-    async def issue_token(self, provider, id_token, access_token, fingerprint, user_agent, ip_address):
-      self.called = (provider, id_token, access_token, fingerprint, user_agent, ip_address)
+    async def issue_token(
+      self,
+      provider,
+      id_token,
+      access_token,
+      fingerprint,
+      user_agent,
+      ip_address,
+      confirm=None,
+      reauth_token=None,
+    ):
+      self.called = (
+        provider,
+        id_token,
+        access_token,
+        fingerprint,
+        user_agent,
+        ip_address,
+        confirm,
+        reauth_token,
+      )
       return "sess", "rot", datetime.now(timezone.utc) + timedelta(hours=1), {
         "display_name": "DB",
         "email": "db@example.com",
