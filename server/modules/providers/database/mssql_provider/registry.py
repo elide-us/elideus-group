@@ -1320,6 +1320,112 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 
+@register("urn:assistant:models:list:1")
+def _assistant_models_list(_: Dict[str, Any]):
+  sql = """
+    SELECT
+      recid,
+      element_name AS name
+    FROM assistant_models
+    ORDER BY element_name
+    FOR JSON PATH;
+  """
+  return (DbRunMode.JSON_MANY, sql, ())
+
+@register("db:assistant:models:list:1")
+def _db_assistant_models_list(args: Dict[str, Any]):
+  return _assistant_models_list(args)
+
+@register("urn:assistant:personas:list:1")
+def _assistant_personas_list(_: Dict[str, Any]):
+  sql = """
+    SELECT
+      ap.recid,
+      ap.element_name AS name,
+      ap.element_prompt AS prompt,
+      ap.element_tokens AS tokens,
+      ap.models_recid,
+      am.element_name AS model
+    FROM assistant_personas ap
+    JOIN assistant_models am ON am.recid = ap.models_recid
+    ORDER BY ap.element_name
+    FOR JSON PATH;
+  """
+  return (DbRunMode.JSON_MANY, sql, ())
+
+@register("db:assistant:personas:list:1")
+def _db_assistant_personas_list(args: Dict[str, Any]):
+  return _assistant_personas_list(args)
+
+@register("urn:assistant:personas:upsert:1")
+async def _assistant_personas_upsert(args: Dict[str, Any]):
+  recid = args.get("recid")
+  name = args["name"]
+  prompt = args["prompt"]
+  tokens = int(args["tokens"])
+  models_recid = int(args["models_recid"])
+  if recid is not None:
+    rc = await exec_query(
+      """
+        UPDATE assistant_personas
+        SET element_name = ?,
+            element_prompt = ?,
+            element_tokens = ?,
+            models_recid = ?,
+            element_modified_on = SYSUTCDATETIME()
+        WHERE recid = ?;
+      """,
+      (name, prompt, tokens, models_recid, recid),
+    )
+    if rc.rowcount:
+      return rc
+  rc = await exec_query(
+    """
+      UPDATE assistant_personas
+      SET element_prompt = ?,
+          element_tokens = ?,
+          models_recid = ?,
+          element_modified_on = SYSUTCDATETIME()
+      WHERE element_name = ?;
+    """,
+    (prompt, tokens, models_recid, name),
+  )
+  if rc.rowcount:
+    return rc
+  return await exec_query(
+    """
+      INSERT INTO assistant_personas (
+        element_name,
+        element_prompt,
+        element_tokens,
+        models_recid
+      ) VALUES (?, ?, ?, ?);
+    """,
+    (name, prompt, tokens, models_recid),
+  )
+
+@register("db:assistant:personas:upsert:1")
+async def _db_assistant_personas_upsert(args: Dict[str, Any]):
+  return await _assistant_personas_upsert(args)
+
+@register("urn:assistant:personas:delete:1")
+def _assistant_personas_delete(args: Dict[str, Any]):
+  recid = args.get("recid")
+  name = args.get("name")
+  if recid is not None:
+    sql = "DELETE FROM assistant_personas WHERE recid = ?;"
+    params = (recid,)
+  elif name is not None:
+    sql = "DELETE FROM assistant_personas WHERE element_name = ?;"
+    params = (name,)
+  else:
+    raise ValueError("Missing identifier for persona delete")
+  return (DbRunMode.EXEC, sql, params)
+
+@register("db:assistant:personas:delete:1")
+def _db_assistant_personas_delete(args: Dict[str, Any]):
+  return _assistant_personas_delete(args)
+
 @register("db:assistant:models:get_by_name:1")
 def _assistant_models_get_by_name(args: Dict[str, Any]):
   name = args["name"]

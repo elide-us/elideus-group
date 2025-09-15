@@ -66,6 +66,7 @@ const NavBar = (): JSX.Element => {
                         <List sx={{ flexGrow: 1 }}>
                                 {(() => {
                                         const renderItem = (route: PublicLinksNavBarRoute1) => {
+
                                                 const IconComp = iconMap[route.icon ?? ''] || defaultIcon;
                                                 return (
                                                         <ListItemButton component={Link} to={route.path} key={route.path}>
