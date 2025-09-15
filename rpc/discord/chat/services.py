@@ -16,11 +16,14 @@ async def discord_chat_summarize_channel_v1(request: Request):
   guild_id = p.get("guild_id")
   channel_id = p.get("channel_id")
   hours = int(p.get("hours", 1))
+  user_id = p.get("user_id")
+  if user_id is not None:
+    user_id = int(user_id)
   if hours < 1 or hours > 336:
     raise ValueError("hours must be between 1 and 336")
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  result = await module.summarize_chat(guild_id, channel_id, hours)
+  result = await module.summarize_chat(guild_id, channel_id, hours, user_id)
   payload = {
     "summary": result.get("summary_text"),
     "messages_collected": result.get("messages_collected"),

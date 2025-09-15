@@ -83,6 +83,7 @@ def test_summarize_chat(monkeypatch):
 
     async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context="", **kwargs):
       self.roles.append(role)
+      assert kwargs.get("user_id") == 4
       return {"content": "sum", "model": "gpt", "role": "assistant"}
 
   app.state.openai = DummyOpenAI()
@@ -106,7 +107,7 @@ def test_summarize_chat(monkeypatch):
 
   module.summarize_channel = dummy_summarize  # type: ignore
 
-  res = asyncio.run(module.summarize_chat(1, 2, 3))
+  res = asyncio.run(module.summarize_chat(1, 2, 3, user_id=4))
   assert res["token_count_estimate"] == 5
   assert res["summary_text"] == "sum"
   assert res["model"] == "gpt"

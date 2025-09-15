@@ -169,6 +169,7 @@ class DiscordChatModule(BaseModule):
     guild_id: int,
     channel_id: int,
     hours: int,
+    user_id: int | None = None,
     max_messages: int = 5000,
   ) -> dict:
     hours = max(hours, 1)
@@ -189,6 +190,7 @@ class DiscordChatModule(BaseModule):
         persona="summarize",
         guild_id=guild_id,
         channel_id=channel_id,
+        user_id=user_id,
         input_log=str(hours),
         token_count=summary["token_count_estimate"],
       )
@@ -209,6 +211,7 @@ class DiscordChatModule(BaseModule):
         "guild_id": guild_id,
         "channel_id": channel_id,
         "hours": hours,
+        "user_id": user_id,
         "messages_collected": summary["messages_collected"],
         "token_count_estimate": summary["token_count_estimate"],
         "model": model,

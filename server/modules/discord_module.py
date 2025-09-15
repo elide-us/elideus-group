@@ -181,6 +181,7 @@ class DiscordModule(BaseModule):
           "guild_id": ctx.guild.id,
           "channel_id": ctx.channel.id,
           "hours": hrs,
+          "user_id": ctx.author.id,
         },
       }).encode()
 

@@ -42,9 +42,9 @@ class StubModule:
       'cap_hit': False,
     }
 
-  async def summarize_chat(self, guild_id, channel_id, hours, max_messages=5000):
+  async def summarize_chat(self, guild_id, channel_id, hours, user_id=None, max_messages=5000):
     self.summary_called = True
-    self.summary_args = (guild_id, channel_id, hours)
+    self.summary_args = (guild_id, channel_id, hours, user_id)
     return {
       'token_count_estimate': 2,
       'messages_collected': 1,
@@ -105,7 +105,7 @@ def test_summarize_channel_handler():
 
   async def fake_unbox(request):
     return (
-      RPCRequest(op='urn:discord:chat:summarize_channel:1', payload={'guild_id': 1, 'channel_id': 2, 'hours': 1}),
+      RPCRequest(op='urn:discord:chat:summarize_channel:1', payload={'guild_id': 1, 'channel_id': 2, 'hours': 1, 'user_id': 3}),
       AuthContext(),
       [],
     )
@@ -131,5 +131,6 @@ def test_summarize_channel_handler():
     "role": "role",
   }
   assert data["payload"] == expected
+  assert module.summary_args == (1, 2, 1, 3)
 
   chat_services.unbox_request = original

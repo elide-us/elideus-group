@@ -94,6 +94,7 @@ def test_summarize_macro_dm(monkeypatch):
   assert dummy_handle.called
   assert dummy_handle.body["op"] == "urn:discord:chat:summarize_channel:1"
   assert dummy_handle.body["payload"]["hours"] == 2
+  assert dummy_handle.body["payload"]["user_id"] == author.id
   assert author.dm_channel.sent == ["hi"]
   assert author.dm_channel.history_called
   assert channel.sent == []
