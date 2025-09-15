@@ -198,7 +198,7 @@ class OpenaiModule(BaseModule):
       if persona_row:
         personas_recid = persona_row.get("recid")
         models_recid = persona_row.get("models_recid")
-        model = persona_row.get("model", model)
+        model = persona_row.get("element_model", model)
         if tokens is None:
           tokens = persona_row.get("element_tokens")
     if tokens is None:

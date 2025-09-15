@@ -48,7 +48,7 @@ def test_uwu_chat(monkeypatch):
     async def run(self, op, args):
       assert op == "db:assistant:personas:get_by_name:1"
       assert args == {"name": "uwu"}
-      return DBResult(rows=[{"instructions": "be fluffy"}], rowcount=1)
+      return DBResult(rows=[{"element_prompt": "be fluffy"}], rowcount=1)
 
   module.db = DummyDB()
 
@@ -93,7 +93,7 @@ def test_summarize_chat(monkeypatch):
     async def run(self, op, args):
       assert op == "db:assistant:personas:get_by_name:1"
       assert args == {"name": "summarize"}
-      return DBResult(rows=[{"instructions": "sum role"}], rowcount=1)
+      return DBResult(rows=[{"element_prompt": "sum role"}], rowcount=1)
 
   module.db = DummyDB()
 

@@ -94,11 +94,7 @@ class DiscordChatModule(BaseModule):
         {"name": name},
       )
       if res.rows:
-        row = res.rows[0]
-        instructions = row.get("instructions")
-        if isinstance(instructions, dict):
-          return instructions.get("instructions", "")
-        return instructions or ""
+        return res.rows[0].get("element_prompt") or ""
     except Exception:
       logging.exception("[DiscordChatModule] get_persona_instructions failed")
     return ""
