@@ -12,6 +12,7 @@ const UserPage = lazy(() => import("./pages/UserPage"));
 const ServiceRoutesPage = lazy(() => import("./pages/service/ServiceRoutesPage"));
 const ServiceRolesPage = lazy(() => import("./pages/service/ServiceRolesPage"));
 const FileManager = lazy(() => import("./pages/FileManager"));
+const DiscordPersonasPage = lazy(() => import("./pages/DiscordPersonasPage"));
 const SystemConfigPage = lazy(() => import("./pages/system/SystemConfigPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
@@ -49,6 +50,10 @@ function App(): JSX.Element {
 								<Route path="/account-users" element={<AccountUsersPage />} />
                                                                 <Route path="/account-users/:guid" element={<AccountUserPanel />} />
                                                                 <Route path="/file-manager" element={<FileManager />} />
+                                                                <Route
+                                                                        path="/discord-personas"
+                                                                        element={<DiscordPersonasPage />}
+                                                                />
                                                                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                                                 <Route path="/profile/:guid" element={<PublicProfile />} />
                                                         </Routes>
