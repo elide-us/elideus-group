@@ -35,7 +35,7 @@ def test_uwu_chat(monkeypatch):
     async def on_ready(self):
       pass
 
-    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context=""):
+    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context="", **kwargs):
       self.roles.append(role)
       if role == "Summarize the following conversation into bullet points.":
         return {"content": "hi\nbye"}
@@ -81,7 +81,7 @@ def test_summarize_chat(monkeypatch):
     async def on_ready(self):
       pass
 
-    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context=""):
+    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context="", **kwargs):
       self.roles.append(role)
       return {"content": "sum", "model": "gpt", "role": "assistant"}
 
@@ -114,21 +114,3 @@ def test_summarize_chat(monkeypatch):
   assert app.state.openai.roles[-1] == "sum role"
 
 
-def test_log_conversation_records_persona_name():
-  app = FastAPI()
-  module = DiscordChatModule(app)
-
-  class DummyDB:
-    def __init__(self):
-      self.calls = []
-
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:assistant:personas:get_by_name:1":
-        return DBResult(rows=[{"recid": 9}], rowcount=1)
-      return DBResult()
-
-  module.db = DummyDB()
-  asyncio.run(module.log_conversation("uwu", 1, 2, "in", "out"))
-  assert module.db.calls[1][0] == "db:assistant:conversations:insert:1"
-  assert module.db.calls[1][1]["persona"] == "uwu"

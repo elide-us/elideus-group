@@ -3,7 +3,7 @@
 import logging, time, discord
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
-from typing import List, Any, Optional
+from typing import List
 
 from . import BaseModule
 from .discord_module import DiscordModule
@@ -103,63 +103,39 @@ class DiscordChatModule(BaseModule):
       logging.exception("[DiscordChatModule] get_persona_instructions failed")
     return ""
 
-  async def uwu_persona(self, summary: List[str], user_id: int, user_message: str) -> str:
+  async def uwu_persona(
+    self,
+    summary: List[str],
+    user_id: int,
+    user_message: str,
+    guild_id: int,
+    channel_id: int,
+    token_count: int,
+  ) -> str:
     openai = getattr(self.app.state, "openai", None)
     if not openai or not getattr(openai, "client", None):
       return "[[STUB: uwu persona output here]]"
     await openai.on_ready()
     prompt_context = "\n".join(summary)
     role = await self.get_persona_instructions("uwu")
-    msg = await openai.fetch_chat([], role, user_message, 120, prompt_context)
+    msg = await openai.fetch_chat(
+      [],
+      role,
+      user_message,
+      120,
+      prompt_context,
+      persona="uwu",
+      guild_id=guild_id,
+      channel_id=channel_id,
+      user_id=user_id,
+      input_log=user_message,
+      token_count=token_count,
+    )
     return getattr(
       msg,
       "content",
       msg.get("content", "") if isinstance(msg, dict) else "",
     )
-
-  async def log_conversation(
-    self,
-    persona: str,
-    guild_id: int,
-    channel_id: int,
-    input_data: str,
-    output_data: str = "",
-  ) -> Optional[int]:
-    if not self.db:
-      return None
-    try:
-      res = await self.db.run(
-        "db:assistant:personas:get_by_name:1",
-        {"name": persona},
-      )
-      recid = res.rows[0]["recid"] if res.rows else None
-      if recid is not None:
-        res2 = await self.db.run(
-          "db:assistant:conversations:insert:1",
-          {
-            "personas_recid": recid,
-            "persona": persona,
-            "guild_id": str(guild_id),
-            "channel_id": str(channel_id),
-            "input_data": input_data,
-            "output_data": output_data,
-          },
-        )
-        return res2.rows[0]["recid"] if res2.rows else None
-    except Exception:
-      logging.exception("[DiscordChatModule] log_conversation failed")
-    return None
-
-  async def update_conversation_output(self, recid: int, output_data: str):
-    if not self.db:
-      return
-    try:
-      await self.db.run(
-        "db:assistant:conversations:update_output:1",
-        {"recid": recid, "output_data": output_data},
-      )
-    except Exception:
-      logging.exception("[DiscordChatModule] update_conversation_output failed")
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()
@@ -205,7 +181,17 @@ class DiscordChatModule(BaseModule):
     if openai and getattr(openai, "client", None):
       await openai.on_ready()
       role = await self.get_persona_instructions("summarize")
-      msg = await openai.fetch_chat([], role, summary["raw_text_blob"], 300)
+      msg = await openai.fetch_chat(
+        [],
+        role,
+        summary["raw_text_blob"],
+        300,
+        persona="summarize",
+        guild_id=guild_id,
+        channel_id=channel_id,
+        input_log=str(hours),
+        token_count=summary["token_count_estimate"],
+      )
       summary_text = getattr(
         msg,
         "content",
@@ -252,7 +238,14 @@ class DiscordChatModule(BaseModule):
     start = time.perf_counter()
     summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
     summary_lines = await self.summarize_persona(summary["raw_text_blob"])
-    uwu_response = await self.uwu_persona(summary_lines, user_id, message)
+    uwu_response = await self.uwu_persona(
+      summary_lines,
+      user_id,
+      message,
+      guild_id,
+      channel_id,
+      summary["token_count_estimate"],
+    )
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] uwu_chat",

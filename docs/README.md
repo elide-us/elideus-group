@@ -24,6 +24,6 @@ Example:
 Each command invocation is logged for auditing:
 
 - **assistant_personas** – stores persona names and optional metadata.
-- **assistant_conversations** – records persona usage along with guild/channel identifiers, input text, output text, and timestamps.
+- **assistant_conversations** – records persona usage along with guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps.
 
-The Discord chat module upserts the persona and appends a conversation record whenever `!summarize` or `!uwu` runs.
+The OpenAI module upserts the persona and appends a conversation record whenever `!summarize` or `!uwu` runs.
