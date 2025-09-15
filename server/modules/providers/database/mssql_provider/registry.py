@@ -817,7 +817,8 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
       SELECT
         element_path AS path,
         element_name AS name,
-        element_icon AS icon
+        element_icon AS icon,
+        element_sequence AS sequence
       FROM frontend_routes
       WHERE element_roles = 0 OR (element_roles & ?) = element_roles
       ORDER BY element_sequence

@@ -16,6 +16,7 @@ class PublicLinksNavBarRoute1(BaseModel):
   path: str
   name: str
   icon: Optional[str] = None
+  sequence: int
 
 
 class PublicLinksNavBarRoutes1(BaseModel):
