@@ -35,7 +35,7 @@ def test_uwu_chat(monkeypatch):
     async def on_ready(self):
       pass
 
-    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context="", **kwargs):
+    async def fetch_chat(self, schemas, role, prompt, tokens=None, prompt_context="", **kwargs):
       self.roles.append(role)
       if role == "Summarize the following conversation into bullet points.":
         return {"content": "hi\nbye"}
@@ -81,7 +81,7 @@ def test_summarize_chat(monkeypatch):
     async def on_ready(self):
       pass
 
-    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context="", **kwargs):
+    async def fetch_chat(self, schemas, role, prompt, tokens=None, prompt_context="", **kwargs):
       self.roles.append(role)
       assert kwargs.get("user_id") == 4
       return {"content": "sum", "model": "gpt", "role": "assistant"}
