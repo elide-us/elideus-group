@@ -79,6 +79,7 @@ def test_summarize_command(monkeypatch):
   assert dummy_handle.called
   assert dummy_handle.body["op"] == "urn:discord:chat:summarize_channel:1"
   assert dummy_handle.body["payload"]["hours"] == 2
+  assert dummy_handle.body["payload"]["user_id"] == ctx.author.id
   assert ctx.author.dm_channel.sent == ["hi"]
   assert ctx.author.dm_channel.history_called
 
@@ -106,6 +107,8 @@ def test_summarize_command_empty_history(monkeypatch):
   module._init_bot_routes()
 
   async def dummy_handle(req):
+    body = await req.body()
+    dummy_handle.body = json.loads(body.decode())
     class DummyResp:
       payload = {
         "summary": "",
@@ -116,6 +119,7 @@ def test_summarize_command_empty_history(monkeypatch):
         "role": "role",
       }
     return DummyResp()
+  dummy_handle.body = None
   import importlib
   rpc_mod = importlib.import_module("rpc.handler")
   monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
@@ -128,6 +132,7 @@ def test_summarize_command_empty_history(monkeypatch):
   ctx.send = ctx.channel.send
   cmd = module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
+  assert dummy_handle.body["payload"]["user_id"] == ctx.author.id
   assert ctx.channel.sent == ["No messages found in the specified time range"]
 
 
@@ -138,6 +143,8 @@ def test_summarize_command_cap_hit(monkeypatch):
   module._init_bot_routes()
 
   async def dummy_handle(req):
+    body = await req.body()
+    dummy_handle.body = json.loads(body.decode())
     class DummyResp:
       payload = {
         "summary": "hi",
@@ -148,6 +155,7 @@ def test_summarize_command_cap_hit(monkeypatch):
         "role": "role",
       }
     return DummyResp()
+  dummy_handle.body = None
   import importlib
   rpc_mod = importlib.import_module("rpc.handler")
   monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
@@ -160,6 +168,7 @@ def test_summarize_command_cap_hit(monkeypatch):
   ctx.send = ctx.channel.send
   cmd = module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
+  assert dummy_handle.body["payload"]["user_id"] == ctx.author.id
   assert ctx.channel.sent == ["Channel too active to summarize; message cap hit"]
 
 
@@ -170,7 +179,10 @@ def test_summarize_command_transient_error(monkeypatch):
   module._init_bot_routes()
 
   async def dummy_handle(req):
+    body = await req.body()
+    dummy_handle.body = json.loads(body.decode())
     raise RuntimeError("boom")
+  dummy_handle.body = None
   import importlib
   rpc_mod = importlib.import_module("rpc.handler")
   monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
@@ -183,6 +195,7 @@ def test_summarize_command_transient_error(monkeypatch):
   ctx.send = ctx.channel.send
   cmd = module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
+  assert dummy_handle.body["payload"]["user_id"] == ctx.author.id
   assert ctx.channel.sent == ["Failed to fetch messages. Please try again later."]
 
 
