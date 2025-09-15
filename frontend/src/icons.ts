@@ -15,7 +15,7 @@ import {
     Groups as GroupsIcon,
     Person as PersonIcon,
     Publish as PublishIcon,
-    SettingsAccessibilityIcon as PersonasIcon,
+    SettingsAccessibility as PersonasIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
