@@ -1,11 +1,12 @@
 from __future__ import annotations
-import base64, logging, uuid
+import logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException
 
 from server.modules import BaseModule
 from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
+from server.modules.oauth_module import OauthModule
 
 
 class SessionModule(BaseModule):
@@ -17,6 +18,8 @@ class SessionModule(BaseModule):
     await self.auth.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.oauth: OauthModule = self.app.state.oauth
+    await self.oauth.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
@@ -30,6 +33,8 @@ class SessionModule(BaseModule):
     fingerprint: str,
     user_agent: str | None,
     ip_address: str | None,
+    confirm: bool | None = None,
+    reauth_token: str | None = None,
   ) -> tuple[str, str, datetime, dict]:
     if not provider or not id_token or not access_token:
       raise HTTPException(status_code=400, detail="Missing credentials")
@@ -38,78 +43,19 @@ class SessionModule(BaseModule):
       provider, id_token, access_token
     )
 
-    identifiers = []
-    if provider_uid:
-      identifiers.append(provider_uid)
-    oid = payload.get("oid")
-    sub = payload.get("sub")
-    if oid and oid not in identifiers:
-      identifiers.append(oid)
-    if sub and sub not in identifiers:
-      identifiers.append(sub)
-    base_id = oid or sub or provider_uid
-    if base_id:
-      try:
-        home_account_id = base64.urlsafe_b64encode(
-          b"\x00" * 16 + uuid.UUID(base_id).bytes
-        ).decode("utf-8").rstrip("=")
-        if home_account_id not in identifiers:
-          identifiers.append(home_account_id)
-      except Exception:
-        pass
-
-    def _norm(pid: str) -> str | None:
-      try:
-        return str(uuid.UUID(pid))
-      except ValueError:
-        try:
-          pad = pid + "=" * (-len(pid) % 4)
-          raw = base64.urlsafe_b64decode(pad)
-          if len(raw) >= 16:
-            return str(uuid.UUID(bytes=raw[-16:]))
-        except Exception:
-          return None
-      return None
-
-    user = None
-    checked = set()
-    for pid in identifiers:
-      uid = _norm(pid)
-      if not uid or uid in checked:
-        continue
-      checked.add(uid)
-      res = await self.db.run(
-        "urn:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": uid},
+    try:
+      user = await self.oauth.resolve_user(
+        provider,
+        provider_uid,
+        provider_profile,
+        payload,
+        confirm=confirm,
+        reauth_token=reauth_token,
       )
-      if res.rows:
-        user = res.rows[0]
-        break
-
-    if not user:
-      try:
-        provider_uid = str(uuid.UUID(provider_uid))
-      except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid provider identifier")
-      res = await self.db.run(
-        "urn:users:providers:create_from_provider:1",
-        {
-          "provider": provider,
-          "provider_identifier": provider_uid,
-          "provider_email": provider_profile["email"],
-          "provider_displayname": provider_profile["username"],
-          "provider_profile_image": provider_profile.get("profilePicture"),
-        },
-      )
-      user = res.rows[0] if res.rows else None
-      if not user:
-        res = await self.db.run(
-          "urn:users:providers:get_by_provider_identifier:1",
-          {"provider": provider, "provider_identifier": provider_uid},
-        )
-        user = res.rows[0] if res.rows else None
-    if not user:
-      raise HTTPException(status_code=500, detail="Unable to create user")
+    except HTTPException as e:
+      if e.status_code == 409:
+        raise
+      raise
 
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
@@ -120,39 +66,8 @@ class SessionModule(BaseModule):
       user["profile_image"] = new_img
 
     user_guid = user["guid"]
-    rotation_token, rot_exp = self.auth.make_rotation_token(user_guid)
-    now = datetime.now(timezone.utc)
-    await self.db.run(
-      "db:users:session:set_rotkey:1",
-      {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
-    )
-
-    roles, _ = await self.auth.get_user_roles(user_guid)
-    session_exp = datetime.now(timezone.utc) + timedelta(
-      minutes=DEFAULT_SESSION_TOKEN_EXPIRY
-    )
-    placeholder = uuid.uuid4().hex
-    res = await self.db.run(
-      "db:auth:session:create_session:1",
-      {
-        "access_token": placeholder,
-        "expires": session_exp,
-        "fingerprint": fingerprint,
-        "user_agent": user_agent,
-        "ip_address": ip_address,
-        "user_guid": user_guid,
-        "provider": provider,
-      },
-    )
-    row = res.rows[0] if res.rows else {}
-    session_guid = row.get("session_guid")
-    device_guid = row.get("device_guid")
-    session_token, _ = self.auth.make_session_token(
-      user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
-    )
-    await self.db.run(
-      "db:auth:session:update_device_token:1",
-      {"device_guid": device_guid, "access_token": session_token},
+    session_token, _, rotation_token, rot_exp = await self.oauth.create_session(
+      user_guid, provider, fingerprint, user_agent, ip_address
     )
 
     profile = {

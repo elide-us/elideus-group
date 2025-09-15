@@ -17,6 +17,8 @@ async def auth_session_get_token_v1(request: Request):
   id_token = body.get("id_token")
   access_token = body.get("access_token")
   fingerprint = body.get("fingerprint")
+  confirm = body.get("confirm")
+  reauth_token = body.get("reauthToken") or body.get("reAuthToken")
   if not provider or not id_token or not access_token or not fingerprint:
     raise HTTPException(status_code=400, detail="Missing credentials or fingerprint")
   session_mod = _get_session_module(request)
@@ -29,6 +31,8 @@ async def auth_session_get_token_v1(request: Request):
     fingerprint,
     user_agent,
     ip_address,
+    confirm,
+    reauth_token,
   )
   payload = {"token": session_token, "profile": profile}
   rpc_resp = RPCResponse(op="urn:auth:session:get_token:1", payload=payload, version=1)
