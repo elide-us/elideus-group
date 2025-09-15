@@ -144,9 +144,9 @@ const LoginPage = (): JSX.Element => {
                                         <Button variant='contained' fullWidth onClick={handleMicrosoftLogin}>
                                                 Sign in with Microsoft
                                         </Button>
-                                        <Button variant='outlined' fullWidth onClick={handleDiscordLogin}>
-                                                Sign in with Discord
-                                        </Button>
+                                       <Button variant='contained' fullWidth onClick={handleDiscordLogin}>
+                                               Sign in with Discord
+                                       </Button>
                                         <Button variant='contained' fullWidth onClick={handleGoogleLogin}>
                                                 Sign in with Google
                                         </Button>
