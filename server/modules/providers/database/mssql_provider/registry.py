@@ -1310,10 +1310,10 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
   sql = """
     SELECT
       ap.recid,
-      ap.element_prompt AS instructions,
+      ap.element_prompt,
       ap.element_tokens,
       ap.models_recid,
-      am.element_name AS model
+      am.element_model
     FROM assistant_personas ap
     JOIN assistant_models am ON am.recid = ap.models_recid
     WHERE ap.element_name = ?;

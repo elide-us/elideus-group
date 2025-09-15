@@ -81,7 +81,7 @@ def test_fetch_chat_logs_conversation():
             {
               "recid": 1,
               "models_recid": 2,
-              "model": "gpt",
+              "element_model": "gpt",
               "element_tokens": 5,
             }
           ],
