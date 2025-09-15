@@ -67,13 +67,19 @@ const NavBar = (): JSX.Element => {
                                 {(() => {
 					const publicRoutes = routes.filter((r) => r.path === '/' || r.path.startsWith('/gallery'));
 					const roleRoutes = routes.filter((r) => !(r.path === '/' || r.path.startsWith('/gallery')));
-					const userRoutes = roleRoutes.filter((r) => r.path.startsWith('/user'));
-					const accountRoutes = roleRoutes.filter((r) => r.path.startsWith('/account'));
-					const systemRoutes = roleRoutes.filter((r) => r.path.startsWith('/system'));
-					const serviceRoutes = roleRoutes.filter((r) => r.path.startsWith('/service'));
-					const otherRoutes = roleRoutes.filter(
-						(r) => !['/user', '/account', '/system', '/service'].some((p) => r.path.startsWith(p)),
-					);
+                                        const isDiscordRoute = (path: string) =>
+                                                path.startsWith('/discord') || path.startsWith('/discord-');
+                                        const userRoutes = roleRoutes.filter((r) => r.path.startsWith('/user'));
+                                        const accountRoutes = roleRoutes.filter((r) => r.path.startsWith('/account'));
+                                        const systemRoutes = roleRoutes.filter((r) => r.path.startsWith('/system'));
+                                        const serviceRoutes = roleRoutes.filter((r) => r.path.startsWith('/service'));
+                                        const discordRoutes = roleRoutes.filter((r) => isDiscordRoute(r.path));
+                                        const otherRoutes = roleRoutes.filter(
+                                                (r) =>
+                                                        !['/user', '/account', '/system', '/service'].some((p) =>
+                                                                r.path.startsWith(p),
+                                                        ) && !isDiscordRoute(r.path),
+                                        );
 
 					const renderItem = (route: PublicLinksNavBarRoute1) => {
                                                 const IconComp = iconMap[route.icon ?? ''] || defaultIcon;
@@ -120,7 +126,8 @@ const NavBar = (): JSX.Element => {
 							{renderSection('USER', userRoutes)}
 							{renderSection('ACCOUNT', accountRoutes)}
 							{renderSection('SYSTEM', systemRoutes)}
-							{renderSection('SERVICE', serviceRoutes)}
+                                                        {renderSection('SERVICE', serviceRoutes)}
+                                                        {renderSection('DISCORD', discordRoutes)}
 						</>
 					);
                                 })()}

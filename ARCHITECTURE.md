@@ -35,9 +35,9 @@ low bits are used for user level flags.
 | 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | The configuration of the service, such as API keys |
 | 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | Access to system configuration features |
 | 60  | `0x1000000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Manage security role definitions and user assignments |
-| 59  | `0x0800000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools |
-| 58  | `0x0400000000000000`  | `ROLE_SUPPORT`            | Access to support utilities |
-| 57  | `0x0200000000000000`  | *(reserved)*              | |
+| 59  | `0x0800000000000000`  | `ROLE_DISCORD_ADMIN`      | Manage Discord personas and integrations |
+| 58  | `0x0400000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools |
+| 57  | `0x0200000000000000`  | `ROLE_SUPPORT`            | Access to support utilities |
 | 56  | `0x0100000000000000`  | *(reserved)*              | |
 | ... | ...                   |                           | |
 | 6   | `0x0000000000000040`  | `ROLE_DISCORD_BOT`        | Allows the user to interact with the system via Discord |

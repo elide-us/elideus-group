@@ -234,7 +234,11 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 
 ## Discord Domain
 
-All Discord domain calls require `ROLE_DISCORD_BOT`.
+Discord domain calls require Discord-specific roles depending on the subdomain:
+
+- `chat` and `command` operations require `ROLE_DISCORD_BOT`.
+- `personas` operations require `ROLE_DISCORD_ADMIN`.
+
 Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
 Currently exposes placeholder Discord command operations.
@@ -253,6 +257,15 @@ Currently exposes placeholder Discord command operations.
 | ------------------------------------------- | ------------------------------- |
 | `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
 | `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
+
+### `personas`
+
+| Operation                                   | Description                                   |
+| ------------------------------------------- | --------------------------------------------- |
+| `urn:discord:personas:get_personas:1`       | List Discord assistant personas.              |
+| `urn:discord:personas:get_models:1`         | List available assistant models.              |
+| `urn:discord:personas:upsert_persona:1`     | Create or update a Discord assistant persona. |
+| `urn:discord:personas:delete_persona:1`     | Delete a Discord assistant persona.           |
 
 #### Usage Examples
 
