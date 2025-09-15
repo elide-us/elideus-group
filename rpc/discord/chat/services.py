@@ -20,20 +20,26 @@ async def discord_chat_summarize_channel_v1(request: Request):
     raise ValueError("hours must be between 1 and 336")
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  summary = await module.summarize_channel(guild_id, channel_id, hours)
-  payload = {
-    "summary": summary.get("raw_text_blob"),
-    "messages_collected": summary.get("messages_collected"),
-    "token_count_estimate": summary.get("token_count_estimate"),
-    "cap_hit": summary.get("cap_hit"),
-  }
-  await module.log_conversation(
-    "summary",
+  conv_id = await module.log_conversation(
+    "summarize",
     guild_id,
     channel_id,
-    f"hours={hours}",
-    payload["summary"] or "",
+    f"summarize {hours}",
+    "",
   )
+  result = await module.summarize_chat(guild_id, channel_id, hours)
+  if conv_id:
+    await module.update_conversation_output(
+      conv_id, result.get("summary_text", "")
+    )
+  payload = {
+    "summary": result.get("summary_text"),
+    "messages_collected": result.get("messages_collected"),
+    "token_count_estimate": result.get("token_count_estimate"),
+    "cap_hit": result.get("cap_hit"),
+    "model": result.get("model"),
+    "role": result.get("role"),
+  }
   return RPCResponse(
     op=rpc_request.op,
     payload=payload,

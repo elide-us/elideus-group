@@ -69,6 +69,51 @@ def test_uwu_chat(monkeypatch):
   assert app.state.openai.roles[-1] == "be fluffy"
 
 
+def test_summarize_chat(monkeypatch):
+  app = FastAPI()
+  app.state.discord = SimpleNamespace(on_ready=lambda: None)
+
+  class DummyOpenAI:
+    def __init__(self):
+      self.client = object()
+      self.roles = []
+
+    async def on_ready(self):
+      pass
+
+    async def fetch_chat(self, schemas, role, prompt, tokens, prompt_context=""):
+      self.roles.append(role)
+      return {"content": "sum", "model": "gpt", "role": "assistant"}
+
+  app.state.openai = DummyOpenAI()
+  module = DiscordChatModule(app)
+
+  class DummyDB:
+    async def run(self, op, args):
+      assert op == "db:assistant:personas:get_by_name:1"
+      assert args == {"name": "summarize"}
+      return DBResult(rows=[{"instructions": "sum role"}], rowcount=1)
+
+  module.db = DummyDB()
+
+  async def dummy_summarize(guild_id, channel_id, hours, max_messages=5000):
+    return {
+      "messages_collected": 2,
+      "token_count_estimate": 5,
+      "raw_text_blob": "text",
+      "cap_hit": False,
+    }
+
+  module.summarize_channel = dummy_summarize  # type: ignore
+
+  res = asyncio.run(module.summarize_chat(1, 2, 3))
+  assert res["token_count_estimate"] == 5
+  assert res["summary_text"] == "sum"
+  assert res["model"] == "gpt"
+  assert res["role"] == "sum role"
+  assert app.state.openai.roles[-1] == "sum role"
+
+
 def test_log_conversation_records_persona_name():
   app = FastAPI()
   module = DiscordChatModule(app)

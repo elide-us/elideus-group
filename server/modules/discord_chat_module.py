@@ -188,6 +188,56 @@ class DiscordChatModule(BaseModule):
       "cap_hit": history["cap_hit"],
     }
 
+  async def summarize_chat(
+    self,
+    guild_id: int,
+    channel_id: int,
+    hours: int,
+    max_messages: int = 5000,
+  ) -> dict:
+    hours = max(hours, 1)
+    start = time.perf_counter()
+    summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
+    openai = getattr(self.app.state, "openai", None)
+    summary_text = "[[STUB: summarize persona output here]]"
+    model = ""
+    role = ""
+    if openai and getattr(openai, "client", None):
+      await openai.on_ready()
+      role = await self.get_persona_instructions("summarize")
+      msg = await openai.fetch_chat([], role, summary["raw_text_blob"], 300)
+      summary_text = getattr(
+        msg,
+        "content",
+        msg.get("content", "") if isinstance(msg, dict) else "",
+      )
+      model = getattr(
+        msg,
+        "model",
+        msg.get("model", "") if isinstance(msg, dict) else "",
+      )
+    elapsed = time.perf_counter() - start
+    logging.info(
+      "[DiscordChatModule] summarize_chat",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "hours": hours,
+        "messages_collected": summary["messages_collected"],
+        "token_count_estimate": summary["token_count_estimate"],
+        "model": model,
+        "elapsed": elapsed,
+      },
+    )
+    return {
+      "token_count_estimate": summary["token_count_estimate"],
+      "messages_collected": summary["messages_collected"],
+      "cap_hit": summary["cap_hit"],
+      "summary_text": summary_text,
+      "model": model,
+      "role": role,
+    }
+
   async def uwu_chat(
     self,
     guild_id: int,

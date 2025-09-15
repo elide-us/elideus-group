@@ -17,7 +17,10 @@ def test_fetch_chat_message_order_and_return():
         "tools": tools,
         "messages": messages,
       }
-      return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="reply"))])
+      return SimpleNamespace(
+        model=model,
+        choices=[SimpleNamespace(message=SimpleNamespace(content="reply", role="assistant"))],
+      )
 
   dummy_create = DummyCreate()
   module.client = SimpleNamespace(chat=SimpleNamespace(completions=dummy_create))
@@ -29,7 +32,7 @@ def test_fetch_chat_message_order_and_return():
     {"role": "user", "content": "ctx"},
     {"role": "user", "content": "user"},
   ]
-  assert res == {"content": "reply"}
+  assert res == {"content": "reply", "model": "gpt-4o-mini", "role": "assistant"}
 
 
 def test_summary_queue_executes_in_order():
