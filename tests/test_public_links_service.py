@@ -41,8 +41,8 @@ class DummyLinksModule:
   async def get_navbar_routes(self, role_mask):
     assert role_mask == 0
     return [
-      {"path": "/", "name": "Home", "icon": "home"},
-      {"path": "/gallery", "name": "Gallery", "icon": "gallery"},
+      {"path": "/", "name": "Home", "icon": "home", "sequence": 0},
+      {"path": "/gallery", "name": "Gallery", "icon": "gallery", "sequence": 50},
     ]
 
 
@@ -80,8 +80,8 @@ def test_get_navbar_routes_service():
   assert data["op"] == "urn:public:links:get_navbar_routes:1"
   assert data["payload"] == {
     "routes": [
-      {"path": "/", "name": "Home", "icon": "home"},
-      {"path": "/gallery", "name": "Gallery", "icon": "gallery"},
+      {"path": "/", "name": "Home", "icon": "home", "sequence": 0},
+      {"path": "/gallery", "name": "Gallery", "icon": "gallery", "sequence": 50},
     ]
   }
 
