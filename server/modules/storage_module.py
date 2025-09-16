@@ -1,6 +1,7 @@
 """Storage management module for indexing Azure Blob contents."""
 
 import asyncio, logging, re, base64
+from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 from azure.storage.blob.aio import BlobServiceClient
@@ -584,11 +585,269 @@ class StorageModule(BaseModule):
       await container.close()
       await bsc.close()
 
+  async def _update_cache_entry(
+    self,
+    container: Any,
+    user_guid: str,
+    old_rel: str,
+    new_rel: str,
+    cache_entry: dict[str, Any] | None,
+    props: Any,
+    dest_url: str | None,
+  ):
+    if not self.db:
+      return
+    old_path, old_filename = old_rel.rsplit("/", 1) if "/" in old_rel else ("", old_rel)
+    new_path, new_filename = new_rel.rsplit("/", 1) if "/" in new_rel else ("", new_rel)
+    try:
+      await self.db.delete_storage_cache(user_guid, old_path, old_filename)
+    except Exception as e:
+      logging.error(
+        "[StorageModule] Failed to delete cache for %s/%s: %s",
+        old_path or '.',
+        old_filename,
+        e,
+      )
+    if cache_entry is None:
+      return
+    ct = cache_entry.get("content_type") or "application/octet-stream"
+    if props is not None and getattr(props, "content_settings", None):
+      ct = getattr(props.content_settings, "content_type", None) or ct
+    created_on = cache_entry.get("created_on")
+    modified_on = cache_entry.get("modified_on")
+    if props is not None:
+      created_on = (
+        getattr(props, "creation_time", None)
+        or getattr(props, "created_on", None)
+        or created_on
+      )
+      modified_on = getattr(props, "last_modified", None) or modified_on
+    url = dest_url
+    if url is None:
+      existing = cache_entry.get("url")
+      if existing:
+        base = getattr(container, "url", "").rstrip("/")
+        rel = f"{user_guid}/{new_rel}".lstrip("/")
+        url = f"{base}/{rel}" if base else existing
+    try:
+      await self.db.upsert_storage_cache({
+        "user_guid": user_guid,
+        "path": new_path,
+        "filename": new_filename,
+        "content_type": ct,
+        "public": 1 if cache_entry.get("public") else 0,
+        "created_on": created_on,
+        "modified_on": modified_on,
+        "url": url,
+        "reported": cache_entry.get("reported", 0),
+        "moderation_recid": cache_entry.get("moderation_recid"),
+      })
+    except Exception as e:
+      logging.error(
+        "[StorageModule] Failed to update cache for %s/%s: %s",
+        new_path or '.',
+        new_filename,
+        e,
+      )
+
+  async def _rename_single_blob(
+    self,
+    container: Any,
+    user_guid: str,
+    old_rel: str,
+    new_rel: str,
+    cache_entry: dict[str, Any] | None,
+    processed: set[str],
+  ):
+    if old_rel == new_rel:
+      return
+    src_name = f"{user_guid}/{old_rel}"
+    dst_name = f"{user_guid}/{new_rel}"
+    src_blob = container.get_blob_client(src_name)
+    dst_blob = container.get_blob_client(dst_name)
+    try:
+      src_exists = await src_blob.exists()
+    except Exception as e:
+      logging.error("[StorageModule] Failed to check blob %s: %s", src_name, e)
+      src_exists = False
+    if not src_exists:
+      if cache_entry is not None:
+        await self._update_cache_entry(container, user_guid, old_rel, new_rel, cache_entry, None, None)
+        processed.add(old_rel)
+      return
+    try:
+      if await dst_blob.exists():
+        logging.error(
+          "[StorageModule] Destination blob already exists for rename %s -> %s",
+          old_rel,
+          new_rel,
+        )
+        return
+    except Exception as e:
+      logging.error("[StorageModule] Failed to check destination blob %s: %s", dst_name, e)
+      return
+    try:
+      props = await src_blob.get_blob_properties()
+      await dst_blob.start_copy_from_url(src_blob.url)
+      await src_blob.delete_blob()
+      await self._update_cache_entry(
+        container,
+        user_guid,
+        old_rel,
+        new_rel,
+        cache_entry,
+        props,
+        dst_blob.url,
+      )
+      if cache_entry is not None:
+        processed.add(old_rel)
+    except Exception as e:
+      logging.error(
+        "[StorageModule] Failed to rename blob %s to %s: %s",
+        old_rel,
+        new_rel,
+        e,
+      )
+
+  async def _rename_folder_contents(
+    self,
+    container: Any,
+    user_guid: str,
+    old_rel: str,
+    new_rel: str,
+    cache_map: dict[str, dict[str, Any]],
+    processed: set[str],
+  ):
+    if new_rel.startswith(f"{old_rel}/"):
+      logging.error(
+        "[StorageModule] Cannot rename folder %s into its own child %s",
+        old_rel,
+        new_rel,
+      )
+      return
+    dst_prefix = f"{user_guid}/{new_rel}"
+    dst_placeholder = container.get_blob_client(dst_prefix)
+    try:
+      if await dst_placeholder.exists():
+        logging.error("[StorageModule] Target folder %s already exists", new_rel)
+        return
+    except Exception as e:
+      logging.error("[StorageModule] Failed to check destination folder %s: %s", dst_prefix, e)
+      return
+    try:
+      async for _ in container.list_blobs(name_starts_with=f"{dst_prefix}/"):
+        logging.error("[StorageModule] Target folder %s already contains blobs", new_rel)
+        return
+    except Exception as e:
+      logging.error("[StorageModule] Failed to inspect destination folder %s: %s", dst_prefix, e)
+      return
+    await self._rename_single_blob(
+      container,
+      user_guid,
+      old_rel,
+      new_rel,
+      cache_map.get(old_rel),
+      processed,
+    )
+    src_prefix = f"{user_guid}/{old_rel}"
+    try:
+      async for blob in container.list_blobs(name_starts_with=f"{src_prefix}/"):
+        rel_name = blob.name[len(f"{user_guid}/"):]
+        if not rel_name:
+          continue
+        suffix = rel_name[len(old_rel):]
+        new_rel_name = f"{new_rel}{suffix}"
+        await self._rename_single_blob(
+          container,
+          user_guid,
+          rel_name,
+          new_rel_name,
+          cache_map.get(rel_name),
+          processed,
+        )
+    except Exception as e:
+      logging.error("[StorageModule] Failed to list blobs for folder %s: %s", old_rel, e)
+    prefix = f"{old_rel}/"
+    for full, entry in cache_map.items():
+      if full == old_rel or full.startswith(prefix):
+        if full in processed:
+          continue
+        new_full = f"{new_rel}{full[len(old_rel):]}"
+        await self._update_cache_entry(
+          container,
+          user_guid,
+          full,
+          new_full,
+          entry,
+          None,
+          None,
+        )
+        processed.add(full)
+
   async def get_file_link(self, user_guid: str, name: str) -> str:
     raise NotImplementedError
 
   async def rename_file(self, user_guid: str, old_name: str, new_name: str):
-    raise NotImplementedError
+    if not self.connection_string or not self.db:
+      logging.error("[StorageModule] Missing connection string or database module")
+      return
+    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+      return
+    old_rel = (old_name or "").strip("/")
+    new_rel = (new_name or "").strip("/")
+    if not old_rel or not new_rel:
+      logging.error("[StorageModule] Invalid rename request %s -> %s", old_name, new_name)
+      return
+    if old_rel == new_rel:
+      return
+    bsc = BlobServiceClient.from_connection_string(self.connection_string)
+    container = bsc.get_container_client(container_name)
+    cache_rows = await self.db.list_storage_cache(user_guid)
+    cache_map: dict[str, dict[str, Any]] = {}
+    for row in cache_rows:
+      path = row.get("path") or ""
+      filename = row.get("filename") or ""
+      full = f"{path}/{filename}" if path else filename
+      cache_map[full] = row
+    processed: set[str] = set()
+    try:
+      entry = cache_map.get(old_rel)
+      is_folder = bool(entry and entry.get("content_type") == "path/folder")
+      if not is_folder:
+        src_prefix = f"{user_guid}/{old_rel}"
+        try:
+          async for _ in container.list_blobs(name_starts_with=f"{src_prefix}/"):
+            is_folder = True
+            break
+        except Exception as e:
+          logging.error("[StorageModule] Failed to inspect folder %s: %s", old_rel, e)
+        if not is_folder:
+          try:
+            props = await container.get_blob_client(src_prefix).get_blob_properties()
+            metadata = getattr(props, "metadata", {}) or {}
+            if metadata.get("hdi_isfolder") == "true":
+              is_folder = True
+          except Exception:
+            pass
+      if is_folder:
+        await self._rename_folder_contents(container, user_guid, old_rel, new_rel, cache_map, processed)
+      else:
+        await self._rename_single_blob(
+          container,
+          user_guid,
+          old_rel,
+          new_rel,
+          entry,
+          processed,
+        )
+    except Exception as e:
+      logging.error("[StorageModule] Failed to rename %s to %s: %s", old_name, new_name, e)
+    finally:
+      await container.close()
+      await bsc.close()
 
   async def get_file_metadata(self, user_guid: str, name: str):
     raise NotImplementedError

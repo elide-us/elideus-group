@@ -306,6 +306,268 @@ def test_move_file_copies_and_updates_cache(monkeypatch):
   assert db.upserted["path"] == "docs" and db.upserted["filename"] == "b.txt"
 
 
+def test_rename_file_preserves_public_flag(monkeypatch):
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.deleted = []
+      self.upserted = []
+
+    async def startup(self):
+      self.mark_ready()
+
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+
+    async def delete_storage_cache(self, user_guid, path, filename):
+      self.deleted.append((user_guid, path, filename))
+
+    async def upsert_storage_cache(self, item):
+      self.upserted.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+
+    async def list_storage_cache(self, user_guid):
+      return [{
+        "path": "",
+        "filename": "a.txt",
+        "content_type": "text/plain",
+        "public": 1,
+        "created_on": "old",
+        "modified_on": "old",
+        "url": "http://blob/container/u1/a.txt",
+        "reported": 0,
+        "moderation_recid": None,
+      }]
+
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  db = DummyDb(app)
+  asyncio.run(db.startup())
+  mod = StorageModule(app)
+  mod.db = db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name):
+      self.name = name
+      self.url = f"http://blob/{name}"
+      self.exists_flag = True
+      self.copied = None
+      self.deleted = False
+      self.content_settings = SimpleNamespace(content_type="text/plain")
+      self.creation_time = "now"
+      self.last_modified = "later"
+      self.metadata = {}
+
+    async def exists(self):
+      return self.exists_flag
+
+    async def get_blob_properties(self):
+      return self
+
+    async def start_copy_from_url(self, url):
+      self.exists_flag = True
+      self.copied = url
+
+    async def delete_blob(self):
+      self.deleted = True
+      self.exists_flag = False
+
+  class FakeContainer:
+    def __init__(self):
+      self.url = "http://blob/container"
+      self.blobs: dict[str, FakeBlob] = {
+        "u1/a.txt": FakeBlob("u1/a.txt"),
+        "u1/b.txt": FakeBlob("u1/b.txt"),
+      }
+      self.blobs["u1/b.txt"].exists_flag = False
+
+    def get_blob_client(self, name):
+      blob = self.blobs.get(name)
+      if blob is None:
+        blob = FakeBlob(name)
+        blob.exists_flag = False
+        self.blobs[name] = blob
+      return blob
+
+    def list_blobs(self, name_starts_with=None):
+      async def gen():
+        for name, blob in list(self.blobs.items()):
+          if not blob.exists_flag:
+            continue
+          if name_starts_with and not name.startswith(name_starts_with):
+            continue
+          yield SimpleNamespace(name=name)
+      return gen()
+
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer()
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  asyncio.run(mod.rename_file("u1", "a.txt", "b.txt"))
+  assert fake_container.blobs["u1/b.txt"].copied == fake_container.blobs["u1/a.txt"].url
+  assert fake_container.blobs["u1/a.txt"].deleted
+  assert ("u1", "", "a.txt") in db.deleted
+  assert any(item["filename"] == "b.txt" and item["public"] == 1 for item in db.upserted)
+
+
+def test_rename_folder_updates_nested_entries(monkeypatch):
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.deleted = []
+      self.upserted = []
+
+    async def startup(self):
+      self.mark_ready()
+
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+
+    async def delete_storage_cache(self, user_guid, path, filename):
+      self.deleted.append((user_guid, path, filename))
+
+    async def upsert_storage_cache(self, item):
+      self.upserted.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+
+    async def list_storage_cache(self, user_guid):
+      return [
+        {"path": "", "filename": "docs", "content_type": "path/folder", "public": 0, "url": None, "created_on": None, "modified_on": None, "reported": 0, "moderation_recid": None},
+        {"path": "docs", "filename": "a.txt", "content_type": "text/plain", "public": 1, "url": "http://blob/container/u1/docs/a.txt", "created_on": "old", "modified_on": "old", "reported": 0, "moderation_recid": None},
+        {"path": "docs", "filename": "sub", "content_type": "path/folder", "public": 0, "url": None, "created_on": None, "modified_on": None, "reported": 0, "moderation_recid": None},
+        {"path": "docs/sub", "filename": "b.txt", "content_type": "text/plain", "public": 0, "url": "http://blob/container/u1/docs/sub/b.txt", "created_on": "old", "modified_on": "old", "reported": 0, "moderation_recid": None},
+      ]
+
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  db = DummyDb(app)
+  asyncio.run(db.startup())
+  mod = StorageModule(app)
+  mod.db = db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name, *, exists=True, metadata=None):
+      self.name = name
+      self.url = f"http://blob/{name}"
+      self.exists_flag = exists
+      self.copied = None
+      self.deleted = False
+      self.content_settings = SimpleNamespace(content_type="text/plain")
+      self.creation_time = "now"
+      self.last_modified = "later"
+      self.metadata = metadata or {}
+
+    async def exists(self):
+      return self.exists_flag
+
+    async def get_blob_properties(self):
+      return self
+
+    async def start_copy_from_url(self, url):
+      self.exists_flag = True
+      self.copied = url
+
+    async def delete_blob(self):
+      self.deleted = True
+      self.exists_flag = False
+
+  class FakeContainer:
+    def __init__(self):
+      self.url = "http://blob/container"
+      self.blobs: dict[str, FakeBlob] = {
+        "u1/docs": FakeBlob("u1/docs", metadata={"hdi_isfolder": "true"}),
+        "u1/docs/.init": FakeBlob("u1/docs/.init"),
+        "u1/docs/a.txt": FakeBlob("u1/docs/a.txt"),
+        "u1/docs/sub": FakeBlob("u1/docs/sub", metadata={"hdi_isfolder": "true"}),
+        "u1/docs/sub/.init": FakeBlob("u1/docs/sub/.init"),
+        "u1/docs/sub/b.txt": FakeBlob("u1/docs/sub/b.txt"),
+        "u1/renamed": FakeBlob("u1/renamed", exists=False, metadata={"hdi_isfolder": "true"}),
+        "u1/renamed/a.txt": FakeBlob("u1/renamed/a.txt", exists=False),
+        "u1/renamed/sub": FakeBlob("u1/renamed/sub", exists=False, metadata={"hdi_isfolder": "true"}),
+        "u1/renamed/sub/b.txt": FakeBlob("u1/renamed/sub/b.txt", exists=False),
+      }
+
+    def get_blob_client(self, name):
+      blob = self.blobs.get(name)
+      if blob is None:
+        blob = FakeBlob(name, exists=False)
+        self.blobs[name] = blob
+      return blob
+
+    def list_blobs(self, name_starts_with=None):
+      async def gen():
+        for name, blob in list(self.blobs.items()):
+          if not blob.exists_flag:
+            continue
+          if name_starts_with and not name.startswith(name_starts_with):
+            continue
+          yield SimpleNamespace(name=name)
+      return gen()
+
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer()
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  asyncio.run(mod.rename_file("u1", "docs", "renamed"))
+  assert fake_container.blobs["u1/renamed/a.txt"].copied == fake_container.blobs["u1/docs/a.txt"].url
+  assert fake_container.blobs["u1/docs/a.txt"].deleted
+  assert any(item["filename"] == "renamed" for item in db.upserted)
+  paths = {(item["path"], item["filename"]) for item in db.upserted}
+  assert ("", "renamed") in paths
+  assert ("renamed", "a.txt") in paths
+  assert ("renamed", "sub") in paths
+  assert ("renamed/sub", "b.txt") in paths
+
 def test_get_storage_stats_counts_all_folders(monkeypatch):
   class DummyDb:
     async def run(self, op, args):

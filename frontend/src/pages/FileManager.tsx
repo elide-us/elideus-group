@@ -27,6 +27,7 @@ import {
     fetchSetGallery,
     fetchMoveFile,
     fetchDeleteFolder,
+    fetchRenameFile,
 } from '../rpc/storage/files';
 import PageTitle from '../components/PageTitle';
 import ColumnHeader from '../components/ColumnHeader';
@@ -36,6 +37,7 @@ import FileUpload from '../components/FileUpload';
 import FolderManager from '../components/FolderManager';
 import AudioPreview from '../components/AudioPreview';
 import ImagePreview from '../components/ImagePreview';
+import StorageItemName from '../components/StorageItemName';
 
 interface StorageFile {
     path: string;
@@ -122,6 +124,46 @@ const FileManager = (): JSX.Element => {
         await load(currentPath);
     };
 
+    const handleRenameFile = async (file: StorageFile, newName: string): Promise<void> => {
+        const trimmed = newName.trim();
+        if (!trimmed) {
+            throw new Error('Name cannot be empty');
+        }
+        if (trimmed.includes('/')) {
+            throw new Error('Name cannot include "/"');
+        }
+        if (trimmed === file.name) {
+            return;
+        }
+        const oldName = getFullName(file);
+        const newFullName = file.path ? `${file.path}/${trimmed}` : trimmed;
+        await fetchRenameFile({ old_name: oldName, new_name: newFullName });
+        setNotificationMsg('File renamed');
+        setNotification(true);
+        setMoveTarget(null);
+        await load(currentPath);
+    };
+
+    const handleRenameFolder = async (folder: StorageFolder, newName: string): Promise<void> => {
+        const trimmed = newName.trim();
+        if (!trimmed) {
+            throw new Error('Name cannot be empty');
+        }
+        if (trimmed.includes('/')) {
+            throw new Error('Name cannot include "/"');
+        }
+        if (trimmed === folder.name) {
+            return;
+        }
+        const oldPath = currentPath ? `${currentPath}/${folder.name}` : folder.name;
+        const newPath = currentPath ? `${currentPath}/${trimmed}` : trimmed;
+        await fetchRenameFile({ old_name: oldPath, new_name: newPath });
+        setNotificationMsg('Folder renamed');
+        setNotification(true);
+        setMoveTarget(null);
+        await load(currentPath);
+    };
+
     const getType = (file: StorageFile): string => {
         const type = file.content_type || '';
         if (type.startsWith('audio/')) return 'audio';
@@ -197,7 +239,16 @@ const FileManager = (): JSX.Element => {
                                             <Folder />
                                         </IconButton>
                                     </TableCell>
-                                    <TableCell sx={{ width: '60%' }}>{folder.name}</TableCell>
+                                    <TableCell sx={{ width: '60%' }}>
+                                        <StorageItemName
+                                            name={folder.name}
+                                            allowRename={folder.name !== '..'}
+                                            onRename={async (value) => {
+                                                if (folder.name === '..') return;
+                                                await handleRenameFolder(folder, value);
+                                            }}
+                                        />
+                                    </TableCell>
                                     <TableCell sx={{ width: '20%' }}>
                                         <Stack direction="row" spacing={1} alignItems="center">
                                             <FormControlLabel
@@ -237,11 +288,16 @@ const FileManager = (): JSX.Element => {
                             <TableRow key={file.name}>
                                 <TableCell sx={{ width: '20%' }}>{renderPreview(file)}</TableCell>
                                 <TableCell sx={{ width: '60%' }}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        {file.gallery && <Publish fontSize="small" />}
-                                        <span>{file.name}</span>
-                                    </Stack>
-                                </TableCell>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            {file.gallery && <Publish fontSize="small" />}
+                                            <StorageItemName
+                                                name={file.name}
+                                                onRename={async (value) => {
+                                                    await handleRenameFile(file, value);
+                                                }}
+                                            />
+                                        </Stack>
+                                    </TableCell>
                                 <TableCell sx={{ width: '20%' }}>
                                     <Stack direction="row" spacing={1}>
                                         <Tooltip title="Get link">
