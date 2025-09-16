@@ -1472,6 +1472,52 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
     ),
   )
 
+@register("db:assistant:conversations:find_recent:1")
+def _assistant_conversations_find_recent(args: Dict[str, Any]):
+  personas_recid = args["personas_recid"]
+  models_recid = args["models_recid"]
+  guild_id = args.get("guild_id")
+  channel_id = args.get("channel_id")
+  user_id = args.get("user_id")
+  input_data = args["input_data"]
+  window_seconds = args.get("window_seconds", 300)
+
+  def _norm(value):
+    return str(value) if value is not None else None
+
+  guild_id = _norm(guild_id)
+  channel_id = _norm(channel_id)
+  user_id = _norm(user_id)
+
+  sql = """
+    SELECT TOP 1 recid
+    FROM assistant_conversations
+    WHERE personas_recid = ?
+      AND models_recid = ?
+      AND element_input = ?
+      AND ((element_guild_id = ?) OR (element_guild_id IS NULL AND ? IS NULL))
+      AND ((element_channel_id = ?) OR (element_channel_id IS NULL AND ? IS NULL))
+      AND ((element_user_id = ?) OR (element_user_id IS NULL AND ? IS NULL))
+      AND element_created_on >= DATEADD(second, -?, SYSDATETIMEOFFSET())
+    ORDER BY element_created_on DESC;
+  """
+  return (
+    DbRunMode.ROW_ONE,
+    sql,
+    (
+      personas_recid,
+      models_recid,
+      input_data,
+      guild_id,
+      guild_id,
+      channel_id,
+      channel_id,
+      user_id,
+      user_id,
+      window_seconds,
+    ),
+  )
+
 @register("db:assistant:conversations:update_output:1")
 def _assistant_conversations_update_output(args: Dict[str, Any]):
   recid = args["recid"]
