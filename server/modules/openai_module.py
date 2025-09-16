@@ -217,12 +217,14 @@ class OpenaiModule(BaseModule):
     if prompt_context:
       messages.append({"role": "user", "content": prompt_context})
     messages.append({"role": "user", "content": prompt})
-    completion = await self.client.chat.completions.create(
-      model=model,
-      max_tokens=tokens,
-      tools=schemas,
-      messages=messages,
-    )
+    params = {
+      "model": model,
+      "max_tokens": tokens,
+      "messages": messages,
+    }
+    if schemas:
+      params["tools"] = schemas
+    completion = await self.client.chat.completions.create(**params)
     choice = completion.choices[0].message
     content = choice.content
     result = {
