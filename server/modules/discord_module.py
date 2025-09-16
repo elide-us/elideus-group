@@ -1,8 +1,19 @@
 """Discord integration module."""
 
-import logging, discord, json, asyncio, time
+import logging, discord, json, asyncio, time, os
+from typing import IO
 from fastapi import FastAPI, Request
 from discord.ext import commands
+
+try:  # pragma: no cover - platform dependent import
+  import fcntl
+except ImportError:  # pragma: no cover - Windows fallback handled later
+  fcntl = None
+
+try:  # pragma: no cover - platform dependent import
+  import msvcrt
+except ImportError:  # pragma: no cover - non-Windows platforms
+  msvcrt = None
 
 from . import BaseModule
 from .env_module import EnvModule
@@ -24,30 +35,47 @@ class DiscordModule(BaseModule):
     self._guild_counts: dict[int, int] = {}
     self.USER_RATE_LIMIT = 100
     self.GUILD_RATE_LIMIT = 1000
-    
+    self.owns_bot: bool = False
+    self._lock_handle: IO[str] | None = None
+
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.secret = self.env.get("DISCORD_SECRET")
-    self.bot = self._init_discord_bot('!')
-    self.bot.app = self.app
-    self._init_bot_routes()
-    update_logging_level(self.db.logging_level)
-    configure_discord_logging(self)
-    res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
-    if not res.rows:
-      raise ValueError("Missing config value for key: DiscordSyschan")
-    self.syschan = int(res.rows[0]["value"] or 0)
+    if not self._acquire_bot_lock():
+      logging.info("[DiscordModule] startup skipped: Discord bot already owned by another worker")
+      self.mark_ready()
+      return
     try:
-      await self.bot.login(self.secret)
-      self._task = asyncio.create_task(self.bot.connect())
-      await self.bot.wait_until_ready()
+      self.owns_bot = True
+      self.secret = self.env.get("DISCORD_SECRET")
+      self.bot = self._init_discord_bot('!')
+      self.bot.app = self.app
+      self._init_bot_routes()
+      update_logging_level(self.db.logging_level)
+      configure_discord_logging(self)
+      res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
+      if not res.rows:
+        raise ValueError("Missing config value for key: DiscordSyschan")
+      self.syschan = int(res.rows[0]["value"] or 0)
+      try:
+        await self.bot.login(self.secret)
+        self._task = asyncio.create_task(self.bot.connect())
+        await self.bot.wait_until_ready()
+      except Exception:
+        logging.exception("Failed to start Discord bot")
+        if self._task:
+          self._task.cancel()
+        raise
     except Exception:
-      logging.exception("Failed to start Discord bot")
-      if self._task:
+      if self._task and not self._task.cancelled():
         self._task.cancel()
+      self._task = None
+      remove_discord_logging(self)
+      self.bot = None
+      self._release_bot_lock()
+      self.owns_bot = False
       raise
     logging.info("Discord module loaded")
     self.mark_ready()
@@ -55,12 +83,16 @@ class DiscordModule(BaseModule):
   async def shutdown(self):
     if self.bot:
       await self.bot.close()
+      self.bot = None
     if self._task:
       try:
         await self._task
       except asyncio.CancelledError:
         pass
+      self._task = None
     remove_discord_logging(self)
+    self._release_bot_lock()
+    self.owns_bot = False
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
@@ -69,6 +101,51 @@ class DiscordModule(BaseModule):
     intents.members = True
     intents.message_content = True
     return commands.Bot(command_prefix=prefix, intents=intents)
+
+  def _acquire_bot_lock(self) -> bool:
+    if self._lock_handle:
+      return True
+    lock_path = "/tmp/discord_bot.lock"
+    try:
+      os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    except OSError:
+      pass
+    handle = open(lock_path, "w")
+    if not self._try_lock_file(handle):
+      handle.close()
+      return False
+    self._lock_handle = handle
+    return True
+
+  def _try_lock_file(self, handle: IO[str]) -> bool:
+    if fcntl:
+      try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+      except BlockingIOError:
+        return False
+    if msvcrt:
+      try:
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        return True
+      except OSError:
+        return False
+    return True
+
+  def _release_bot_lock(self):
+    if not self._lock_handle:
+      return
+    try:
+      if fcntl:
+        fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+      elif msvcrt:
+        self._lock_handle.seek(0)
+        msvcrt.locking(self._lock_handle.fileno(), msvcrt.LK_UNLCK, 1)
+    finally:
+      try:
+        self._lock_handle.close()
+      finally:
+        self._lock_handle = None
 
   def _bump_rate_limits(self, guild_id: int, user_id: int):
     u = self._user_counts.get(user_id, 0) + 1
