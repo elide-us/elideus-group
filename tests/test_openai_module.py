@@ -110,6 +110,14 @@ def test_fetch_chat_logs_conversation():
           ],
           rowcount=1,
         )
+      if op == "db:assistant:conversations:find_recent:1":
+        assert args["personas_recid"] == 1
+        assert args["models_recid"] == 2
+        assert args["guild_id"] == "1"
+        assert args["channel_id"] == "2"
+        assert args["user_id"] == "3"
+        assert args["input_data"] == "hello"
+        return DBResult(rows=[], rowcount=0)
       if op == "db:assistant:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
@@ -146,6 +154,7 @@ def test_fetch_chat_logs_conversation():
   calls = [c[0] for c in module.db.calls]
   assert calls == [
     "db:assistant:personas:get_by_name:1",
+    "db:assistant:conversations:find_recent:1",
     "db:assistant:conversations:insert:1",
     "db:assistant:conversations:update_output:1",
   ]
@@ -167,3 +176,80 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
     asyncio.run(module._log_conversation_end(99, "done", 3))
 
   assert "conversation update affected 0 rows (recid=99)" in caplog.text
+
+
+def test_fetch_chat_reuses_existing_conversation():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyCreate:
+    async def create(self, **kwargs):
+      self.kwargs = kwargs
+      return SimpleNamespace(
+        model=kwargs.get("model"),
+        choices=[SimpleNamespace(message=SimpleNamespace(content="hi", role="assistant"))],
+        usage=SimpleNamespace(total_tokens=21),
+      )
+
+  dummy_create = DummyCreate()
+  module.client = SimpleNamespace(chat=SimpleNamespace(completions=dummy_create))
+
+  class DummyDB:
+    def __init__(self):
+      self.calls: list[tuple[str, dict]] = []
+      self.insert_count = 0
+
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "db:assistant:personas:get_by_name:1":
+        return DBResult(
+          rows=[
+            {
+              "recid": 7,
+              "models_recid": 8,
+              "element_model": "gpt-4o-mini",
+              "element_tokens": 16,
+            }
+          ],
+          rowcount=1,
+        )
+      if op == "db:assistant:conversations:find_recent:1":
+        if self.insert_count:
+          return DBResult(rows=[{"recid": 555}], rowcount=1)
+        return DBResult(rows=[], rowcount=0)
+      if op == "db:assistant:conversations:insert:1":
+        self.insert_count += 1
+        return DBResult(rows=[{"recid": 555}], rowcount=1)
+      if op == "db:assistant:conversations:update_output:1":
+        return DBResult(rowcount=1)
+      return DBResult()
+
+  module.db = DummyDB()
+
+  args = dict(
+    schemas=[],
+    role="role",
+    prompt="prompt",
+    tokens=None,
+    persona="persona",
+    guild_id=1,
+    channel_id=2,
+    user_id=3,
+    input_log="prompt",
+    token_count=9,
+  )
+
+  asyncio.run(module.fetch_chat(**args))
+  asyncio.run(module.fetch_chat(**args))
+
+  assert module.db.insert_count == 1
+  call_ops = [op for op, _ in module.db.calls]
+  assert call_ops == [
+    "db:assistant:personas:get_by_name:1",
+    "db:assistant:conversations:find_recent:1",
+    "db:assistant:conversations:insert:1",
+    "db:assistant:conversations:update_output:1",
+    "db:assistant:personas:get_by_name:1",
+    "db:assistant:conversations:find_recent:1",
+    "db:assistant:conversations:update_output:1",
+  ]

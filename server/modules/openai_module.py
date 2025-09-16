@@ -106,14 +106,32 @@ class OpenaiModule(BaseModule):
     if not self.db or personas_recid is None or models_recid is None:
       return None
     try:
+      guild_id_str = str(guild_id) if guild_id is not None else None
+      channel_id_str = str(channel_id) if channel_id is not None else None
+      user_id_str = str(user_id) if user_id is not None else None
+      existing = await self.db.run(
+        "db:assistant:conversations:find_recent:1",
+        {
+          "personas_recid": personas_recid,
+          "models_recid": models_recid,
+          "guild_id": guild_id_str,
+          "channel_id": channel_id_str,
+          "user_id": user_id_str,
+          "input_data": input_data,
+        },
+      )
+      if existing.rows:
+        recid = existing.rows[0].get("recid")
+        if recid is not None:
+          return recid
       res = await self.db.run(
         "db:assistant:conversations:insert:1",
         {
           "personas_recid": personas_recid,
           "models_recid": models_recid,
-          "guild_id": str(guild_id) if guild_id is not None else None,
-          "channel_id": str(channel_id) if channel_id is not None else None,
-          "user_id": str(user_id) if user_id is not None else None,
+          "guild_id": guild_id_str,
+          "channel_id": channel_id_str,
+          "user_id": user_id_str,
           "input_data": input_data,
           "output_data": "",
           "tokens": tokens,

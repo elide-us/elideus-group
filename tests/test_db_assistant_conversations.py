@@ -54,6 +54,31 @@ def test_assistant_conversations_insert(monkeypatch):
   assert res.rows == [{'recid': 9}]
 
 
+def test_assistant_conversations_find_recent(monkeypatch):
+  provider = MssqlProvider()
+  args = {
+    'personas_recid': 1,
+    'models_recid': 2,
+    'guild_id': 1,
+    'channel_id': 2,
+    'user_id': 3,
+    'input_data': 'hi',
+    'window_seconds': 120,
+  }
+
+  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
+    assert one
+    assert "SELECT TOP 1 recid" in sql
+    assert "DATEADD" in sql
+    assert params == (1, 2, 'hi', '1', '1', '2', '2', '3', '3', 120)
+    return DBResult(rows=[{'recid': 5}], rowcount=1)
+
+  monkeypatch.setattr(mssql_provider, 'fetch_rows', fake_fetch_rows)
+
+  res = asyncio.run(provider.run('db:assistant:conversations:find_recent:1', args))
+  assert res.rows == [{'recid': 5}]
+
+
 def test_assistant_conversations_update_output(monkeypatch):
   provider = MssqlProvider()
   args = {'recid': 9, 'output_data': 'out', 'tokens': 12}
