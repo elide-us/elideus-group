@@ -26,6 +26,12 @@ class DiscordOngoingChatModule(BaseModule):
     self.history_limit = 100
     self._task: asyncio.Task | None = None
     self._lock = asyncio.Lock()
+    self._active = True
+    self._next_run_at: float | None = None
+    self._active_event = asyncio.Event()
+    self._active_event.set()
+    self._state_change = asyncio.Event()
+    self._state_lock = asyncio.Lock()
 
   async def startup(self):
     self.db = self.app.state.db
@@ -40,11 +46,17 @@ class DiscordOngoingChatModule(BaseModule):
     if self.openai:
       await self.openai.on_ready()
     self.app.state.discord_ongoing_chat = self
+    async with self._state_lock:
+      self._active = True
+      self._active_event.set()
+      self._state_change.set()
+      self._next_run_at = None
     self._task = asyncio.create_task(self._loop())
     logging.info("[DiscordOngoingChatModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):
+    await self.set_active(False)
     if self._task:
       self._task.cancel()
       try:
@@ -60,8 +72,36 @@ class DiscordOngoingChatModule(BaseModule):
 
   async def _loop(self):
     try:
+      loop = asyncio.get_running_loop()
       while True:
-        await asyncio.sleep(self.interval_seconds)
+        await self._active_event.wait()
+        async with self._state_lock:
+          if not self._active:
+            continue
+          self._state_change.clear()
+          self._next_run_at = loop.time() + self.interval_seconds
+        timed_out = False
+        try:
+          await asyncio.wait_for(
+            self._state_change.wait(),
+            timeout=self.interval_seconds,
+          )
+        except asyncio.TimeoutError:
+          timed_out = True
+        async with self._state_lock:
+          if not self._active:
+            self._next_run_at = None
+            self._state_change.clear()
+            continue
+          if not timed_out and self._state_change.is_set():
+            self._state_change.clear()
+            self._next_run_at = None
+            continue
+          self._state_change.clear()
+          if timed_out:
+            self._next_run_at = None
+        if not timed_out:
+          continue
         try:
           await self._run_cycle()
         except asyncio.CancelledError:
@@ -70,6 +110,10 @@ class DiscordOngoingChatModule(BaseModule):
           logging.exception("[DiscordOngoingChatModule] cycle failed")
     except asyncio.CancelledError:
       raise
+    finally:
+      async with self._state_lock:
+        self._next_run_at = None
+        self._state_change.clear()
 
   async def _run_cycle(self):
     if self._lock.locked():
@@ -235,3 +279,34 @@ class DiscordOngoingChatModule(BaseModule):
       return int(value)
     except (TypeError, ValueError):
       return None
+
+  async def is_active(self) -> bool:
+    async with self._state_lock:
+      return self._active
+
+  async def set_active(self, active: bool) -> bool:
+    async with self._state_lock:
+      if self._active == active:
+        return self._active
+      self._active = active
+      if active:
+        self._active_event.set()
+      else:
+        self._active_event.clear()
+        self._next_run_at = None
+      self._state_change.set()
+      return self._active
+
+  async def toggle_active(self) -> bool:
+    async with self._state_lock:
+      target = not self._active
+    return await self.set_active(target)
+
+  async def countdown_seconds(self) -> float | None:
+    async with self._state_lock:
+      if not self._active or self._next_run_at is None:
+        return None
+      remaining = self._next_run_at - asyncio.get_running_loop().time()
+      if remaining < 0:
+        remaining = 0.0
+      return remaining

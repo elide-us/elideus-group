@@ -241,7 +241,7 @@ Discord domain calls require Discord-specific roles depending on the subdomain:
 
 Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
-Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
+Currently exposes Discord command, chat, ongoing automation, persona, and Bluesky bridge operations.
 
 ### `bsky`
 
@@ -264,6 +264,13 @@ Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 | `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
 | `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
 | `urn:discord:chat:persona_response:1`       | Respond using a selected persona. |
+
+### `ongoing`
+
+| Operation                                   | Description                                           |
+| ------------------------------------------- | ----------------------------------------------------- |
+| `urn:discord:ongoing:toggle_active:1`       | Toggle the Discord ongoing chat automation on or off. |
+| `urn:discord:ongoing:countdown:1`           | Get the seconds remaining before the next message.    |
 
 ### `personas`
 
