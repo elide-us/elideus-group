@@ -16,6 +16,8 @@ def test_assistant_conversations_list_by_time(monkeypatch):
     assert "element_modified_on" in sql
     assert "element_user_id" in sql
     assert "element_tokens" in sql
+    assert "FOR JSON PATH" in sql
+    assert "INCLUDE_NULL_VALUES" in sql
     assert params == (personas_recid, start, end)
     return DBResult(rows=[{"recid": 1}], rowcount=1)
 
@@ -103,6 +105,8 @@ def test_assistant_conversations_list_recent(monkeypatch):
     assert "SELECT TOP (5)" in sql
     assert "element_output" in sql
     assert "ORDER BY element_created_on DESC" in sql
+    assert "FOR JSON PATH" in sql
+    assert "INCLUDE_NULL_VALUES" in sql
     assert params == ()
     return DBResult(rows=[{"recid": 2}], rowcount=1)
 
