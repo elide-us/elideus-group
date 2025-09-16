@@ -257,6 +257,7 @@ Currently exposes placeholder Discord command operations.
 | ------------------------------------------- | ------------------------------- |
 | `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
 | `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
+| `urn:discord:chat:persona_response:1`       | Respond using a selected persona. |
 
 ### `personas`
 
@@ -278,3 +279,8 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 !uwu hello there
 ```
 Reply in-channel with a playful uwu-styled message.
+
+```
+!persona stark Tell me about the yearly rainfall in Spain
+```
+Ask a configured persona to respond in-channel using its prompt and model settings.
