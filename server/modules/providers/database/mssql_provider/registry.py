@@ -1313,7 +1313,7 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
       ap.element_prompt,
       ap.element_tokens,
       ap.models_recid,
-      am.element_model
+      am.element_name AS element_model
     FROM assistant_personas ap
     JOIN assistant_models am ON am.recid = ap.models_recid
     WHERE ap.element_name = ?;
