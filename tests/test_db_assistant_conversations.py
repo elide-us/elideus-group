@@ -69,3 +69,21 @@ def test_assistant_conversations_update_output(monkeypatch):
   res = asyncio.run(provider.run('db:assistant:conversations:update_output:1', args))
   assert res.rowcount == 1
 
+
+def test_assistant_conversations_list_recent(monkeypatch):
+  provider = MssqlProvider()
+
+  async def fake_fetch_json(sql, params, *, many=False):
+    assert many
+    assert "SELECT TOP (5)" in sql
+    assert "element_output" in sql
+    assert "ORDER BY element_created_on DESC" in sql
+    assert params == ()
+    return DBResult(rows=[{"recid": 2}], rowcount=1)
+
+  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
+
+  res = asyncio.run(provider.run('db:assistant:conversations:list_recent:1', {}))
+  assert isinstance(res, DBResult)
+  assert res.rows == [{"recid": 2}]
+
