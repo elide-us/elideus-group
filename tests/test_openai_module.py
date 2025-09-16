@@ -16,6 +16,7 @@ def test_fetch_chat_message_order_and_return():
       return SimpleNamespace(
         model=kwargs.get("model"),
         choices=[SimpleNamespace(message=SimpleNamespace(content="reply", role="assistant"))],
+        usage=SimpleNamespace(total_tokens=11),
       )
 
   dummy_create = DummyCreate()
@@ -42,6 +43,7 @@ def test_fetch_chat_includes_tools_when_present():
       return SimpleNamespace(
         model=kwargs.get("model"),
         choices=[SimpleNamespace(message=SimpleNamespace(content="reply", role="assistant"))],
+        usage=SimpleNamespace(total_tokens=13),
       )
 
   dummy_create = DummyCreate()
@@ -84,6 +86,7 @@ def test_fetch_chat_logs_conversation():
       return SimpleNamespace(
         model=kwargs.get("model"),
         choices=[SimpleNamespace(message=SimpleNamespace(content="hi", role="assistant"))],
+        usage=SimpleNamespace(total_tokens=42),
       )
   dummy_create = DummyCreate()
   module.client = SimpleNamespace(chat=SimpleNamespace(completions=dummy_create))
@@ -116,7 +119,7 @@ def test_fetch_chat_logs_conversation():
         assert args["tokens"] == 7
         return DBResult(rows=[{"recid": 99}], rowcount=1)
       if op == "db:assistant:conversations:update_output:1":
-        assert args == {"recid": 99, "output_data": "hi"}
+        assert args == {"recid": 99, "output_data": "hi", "tokens": 42}
         return DBResult(rowcount=1)
       return DBResult()
 

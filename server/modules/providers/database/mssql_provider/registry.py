@@ -1476,12 +1476,14 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
 def _assistant_conversations_update_output(args: Dict[str, Any]):
   recid = args["recid"]
   output_data = args.get("output_data")
+  tokens = args.get("tokens")
   sql = """
     UPDATE assistant_conversations
-    SET element_output = ?
+    SET element_output = ?,
+        element_tokens = ?
     WHERE recid = ?;
   """
-  return (DbRunMode.EXEC, sql, (output_data, recid))
+  return (DbRunMode.EXEC, sql, (output_data, tokens, recid))
 
 @register("db:assistant:conversations:list_by_time:1")
 def _assistant_conversations_list_by_time(args: Dict[str, Any]):

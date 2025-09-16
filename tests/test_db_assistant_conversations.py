@@ -56,11 +56,12 @@ def test_assistant_conversations_insert(monkeypatch):
 
 def test_assistant_conversations_update_output(monkeypatch):
   provider = MssqlProvider()
-  args = {'recid': 9, 'output_data': 'out'}
+  args = {'recid': 9, 'output_data': 'out', 'tokens': 12}
 
   async def fake_exec(sql, params):
     assert "element_modified_on" not in sql
-    assert params == ('out', 9)
+    assert "element_tokens" in sql
+    assert params == ('out', 12, 9)
     return DBResult(rowcount=1)
 
   monkeypatch.setattr(mssql_provider, 'exec_query', fake_exec)
