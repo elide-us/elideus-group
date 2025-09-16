@@ -8,12 +8,21 @@ def _rowdict(cols: Iterable[str], row: Iterable[Any]):
 
 async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = False, stream: bool = False) -> DBResult | AsyncIterator[dict]:
   assert logic._pool, "MSSQL pool not initialized"
+  async def _ensure_result_set(cur) -> bool:
+    if cur.description is not None:
+      return True
+    while await cur.nextset():
+      if cur.description is not None:
+        return True
+    return False
   if stream:
     async def _stream() -> AsyncIterator[dict]:
       try:
         async with logic._pool.acquire() as conn:
           async with conn.cursor() as cur:
             await cur.execute(query, params)
+            if not await _ensure_result_set(cur):
+              return
             cols = [c[0] for c in cur.description]
             while True:
               row = await cur.fetchone()
@@ -27,6 +36,8 @@ async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = Fa
     async with logic._pool.acquire() as conn:
       async with conn.cursor() as cur:
         await cur.execute(query, params)
+        if not await _ensure_result_set(cur):
+          return DBResult()
         cols = [c[0] for c in cur.description]
         if one:
           row = await cur.fetchone()
