@@ -327,3 +327,99 @@ class DiscordModule(BaseModule):
         )
         await ctx.send(f"Error: {e}")
 
+    @self.bot.command(name="persona")
+    async def persona_command(ctx, *, text: str):
+      from rpc.handler import handle_rpc_request
+      start = time.perf_counter()
+      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
+
+      args = (text or "").strip()
+      if not args:
+        await ctx.send("Usage: !persona <name> <message>")
+        return
+      parts = args.split(" ", 1)
+      persona_name = parts[0].strip()
+      message_text = parts[1].strip() if len(parts) > 1 else ""
+      if not persona_name or not message_text:
+        await ctx.send("Usage: !persona <name> <message>")
+        return
+
+      body = json.dumps({
+        "op": "urn:discord:chat:persona_response:1",
+        "payload": {
+          "persona": persona_name,
+          "message": message_text,
+          "guild_id": ctx.guild.id,
+          "channel_id": ctx.channel.id,
+          "user_id": ctx.author.id,
+        },
+      }).encode()
+
+      async def receive():
+        nonlocal body
+        data = body
+        body = b""
+        return {"type": "http.request", "body": data, "more_body": False}
+
+      scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/rpc",
+        "headers": [(b"content-type", b"application/json")],
+        "app": self.app,
+      }
+      req = Request(scope, receive)
+      req.state.discord_ctx = ctx
+
+      try:
+        resp = await handle_rpc_request(req)
+        payload = resp.payload
+
+        if hasattr(payload, "model_dump"):
+          data = payload.model_dump()
+        elif isinstance(payload, dict):
+          data = payload
+        else:
+          data = {"message": str(payload)}
+        response_text = (
+          data.get("persona_response_text")
+          or data.get("message")
+          or json.dumps(data)
+        )
+        await ctx.send(response_text)
+        async for _ in ctx.channel.history(limit=1):
+          break
+        elapsed = time.perf_counter() - start
+        logging.info(
+          "[DiscordBot] persona",
+          extra={
+            "guild_id": ctx.guild.id,
+            "channel_id": ctx.channel.id,
+            "user_id": ctx.author.id,
+            "persona": persona_name,
+            "message_length": len(message_text),
+            "model": data.get("model"),
+            "elapsed": elapsed,
+          },
+        )
+        logging.debug(
+          "[DiscordBot] persona response",
+          extra={
+            "persona": persona_name,
+            "response_text": response_text,
+          },
+        )
+      except Exception as e:
+        elapsed = time.perf_counter() - start
+        logging.exception(
+          "[DiscordBot] persona failed",
+          extra={
+            "guild_id": ctx.guild.id,
+            "channel_id": ctx.channel.id,
+            "user_id": ctx.author.id,
+            "persona": persona_name,
+            "elapsed": elapsed,
+          },
+        )
+        await ctx.send(f"Error: {e}")
+

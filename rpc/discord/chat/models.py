@@ -26,3 +26,18 @@ class DiscordChatUwuChatResponse1(BaseModel):
   uwu_response_text: str
   summary_lines: List[str] = []
   token_count_estimate: Optional[int] = None
+
+
+class DiscordChatPersonaRequest1(BaseModel):
+  persona: str
+  message: str
+  guild_id: Optional[int] = None
+  channel_id: Optional[int] = None
+  user_id: Optional[int] = None
+
+
+class DiscordChatPersonaResponse1(BaseModel):
+  persona: str
+  persona_response_text: str
+  model: Optional[str] = None
+  role: Optional[str] = None

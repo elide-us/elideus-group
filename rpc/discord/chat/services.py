@@ -1,10 +1,13 @@
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
+from server.modules.personas_module import PersonasModule
 
 from .models import (
+  DiscordChatPersonaRequest1,
+  DiscordChatPersonaResponse1,
   DiscordChatUwuChatRequest1,
   DiscordChatUwuChatResponse1,
 )
@@ -47,6 +50,35 @@ async def discord_chat_uwu_chat_v1(request: Request):
   await module.on_ready()
   result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
   payload = DiscordChatUwuChatResponse1(**result)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def discord_chat_persona_response_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  payload_dict = rpc_request.payload or {}
+  req = DiscordChatPersonaRequest1(**payload_dict)
+  module: PersonasModule = request.app.state.personas
+  await module.on_ready()
+  try:
+    result = await module.persona_response(
+      req.persona,
+      req.message,
+      guild_id=req.guild_id,
+      channel_id=req.channel_id,
+      user_id=req.user_id,
+    )
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  payload = DiscordChatPersonaResponse1(
+    persona=result.get("persona", req.persona),
+    persona_response_text=result.get("response_text", ""),
+    model=result.get("model"),
+    role=result.get("role"),
+  )
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
