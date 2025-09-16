@@ -169,10 +169,15 @@ class OpenaiModule(BaseModule):
     if not self.db:
       return
     try:
-      await self.db.run(
+      res = await self.db.run(
         "db:assistant:conversations:update_output:1",
         {"recid": recid, "output_data": output_data, "tokens": tokens},
       )
+      if res.rowcount == 0:
+        logging.warning(
+          "[OpenaiModule] conversation update affected 0 rows (recid=%s)",
+          recid,
+        )
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
 
