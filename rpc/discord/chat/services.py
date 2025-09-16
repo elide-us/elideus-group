@@ -3,6 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
+from server.modules.discord_personas_module import DiscordPersonasModule
 from server.modules.personas_module import PersonasModule
 
 from .models import (
@@ -61,11 +62,32 @@ async def discord_chat_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   req = DiscordChatPersonaRequest1(**payload_dict)
-  module: PersonasModule = request.app.state.personas
-  await module.on_ready()
+  persona_module: PersonasModule = request.app.state.personas
+  await persona_module.on_ready()
+
+  persona_name = (req.persona or "").strip()
+  persona_prompt = None
+  persona_model = None
+  persona_registry: DiscordPersonasModule | None = getattr(request.app.state, "discord_personas", None)
+  if persona_registry:
+    await persona_registry.on_ready()
+    try:
+      personas = await persona_registry.list_personas()
+    except Exception:
+      personas = []
+    normalized_name = persona_name.casefold()
+    for persona_row in personas:
+      candidate = (persona_row.get("name") or "").strip()
+      if not candidate:
+        continue
+      if candidate.casefold() == normalized_name:
+        persona_name = candidate
+        persona_prompt = persona_row.get("prompt")
+        persona_model = persona_row.get("model")
+        break
   try:
-    result = await module.persona_response(
-      req.persona,
+    result = await persona_module.persona_response(
+      persona_name,
       req.message,
       guild_id=req.guild_id,
       channel_id=req.channel_id,
@@ -74,10 +96,10 @@ async def discord_chat_persona_response_v1(request: Request):
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = DiscordChatPersonaResponse1(
-    persona=result.get("persona", req.persona),
+    persona=result.get("persona") or persona_name,
     persona_response_text=result.get("response_text", ""),
-    model=result.get("model"),
-    role=result.get("role"),
+    model=result.get("model") or persona_model,
+    role=result.get("role") or persona_prompt,
   )
   return RPCResponse(
     op=rpc_request.op,
