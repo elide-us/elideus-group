@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from fastapi import FastAPI
 from types import SimpleNamespace
 
@@ -148,3 +149,21 @@ def test_fetch_chat_logs_conversation():
     "db:assistant:conversations:insert:1",
     "db:assistant:conversations:update_output:1",
   ]
+
+
+def test_log_conversation_end_warns_when_no_rows_updated(caplog):
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyDB:
+    async def run(self, op, args):
+      assert op == "db:assistant:conversations:update_output:1"
+      assert args == {"recid": 99, "output_data": "done", "tokens": 3}
+      return DBResult(rowcount=0)
+
+  module.db = DummyDB()
+
+  with caplog.at_level(logging.WARNING):
+    asyncio.run(module._log_conversation_end(99, "done", 3))
+
+  assert "conversation update affected 0 rows (recid=99)" in caplog.text
