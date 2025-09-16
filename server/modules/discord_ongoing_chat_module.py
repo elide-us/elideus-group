@@ -172,14 +172,13 @@ class DiscordOngoingChatModule(BaseModule):
   async def _select_persona(self) -> dict | None:
     assert self.db
     res = await self.db.run("db:assistant:personas:list:1", {})
-    personas = [
-      {
-        "name": (row.get("name") or "").strip(),
-        "prompt": (row.get("prompt") or "").strip(),
-      }
-      for row in res.rows or []
-      if (row.get("name") or "").strip() and (row.get("prompt") or "").strip())
-    ]
+    personas = []
+    for row in res.rows or []:
+      name = (row.get("name") or "").strip()
+      prompt = (row.get("prompt") or "").strip()
+      if not name or not prompt:
+        continue
+      personas.append({"name": name, "prompt": prompt})
     if not personas:
       return None
     return random.choice(personas)
