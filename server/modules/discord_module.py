@@ -8,6 +8,7 @@ from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
 
+from server.helpers.discord import send_to_discord
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 
 class DiscordModule(BaseModule):
@@ -386,7 +387,7 @@ class DiscordModule(BaseModule):
           or data.get("message")
           or json.dumps(data)
         )
-        await ctx.send(response_text)
+        await send_to_discord(ctx, response_text)
         async for _ in ctx.channel.history(limit=1):
           break
         elapsed = time.perf_counter() - start

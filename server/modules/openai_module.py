@@ -5,42 +5,7 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_module import DiscordModule
-
-
-async def send_to_discord(channel, text: str, max_message_size: int = 1998, delay: float = 1.0):
-  for block in text.split("\n"):
-    if not block.strip() or block.strip() == "---":
-      continue
-    start = 0
-    while start < len(block):
-      end = min(start + max_message_size, len(block))
-      if end < len(block) and block[end] != ' ':
-        end = block.rfind(' ', start, end)
-        if end == -1:
-          end = start + max_message_size
-      chunk = block[start:end].strip()
-      if chunk:
-        await channel.send(chunk)
-        await asyncio.sleep(delay)
-      start = end
-
-
-async def send_to_discord_user(user, text: str, max_message_size: int = 1998, delay: float = 1.0):
-  for block in text.split("\n"):
-    if not block.strip() or block.strip() == "---":
-      continue
-    start = 0
-    while start < len(block):
-      end = min(start + max_message_size, len(block))
-      if end < len(block) and block[end] != ' ':
-        end = block.rfind(' ', start, end)
-        if end == -1:
-          end = start + max_message_size
-      chunk = block[start:end].strip()
-      if chunk:
-        await user.send(chunk)
-        await asyncio.sleep(delay)
-      start = end
+from server.helpers.discord import send_to_discord, send_to_discord_user
 
 
 class SummaryQueue:
