@@ -1310,13 +1310,23 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
   sql = """
     SELECT
       ap.recid,
-      ap.element_prompt,
-      ap.element_tokens,
       ap.models_recid,
-      am.element_name AS element_model
-    FROM assistant_personas ap
-    JOIN assistant_models am ON am.recid = ap.models_recid
-    WHERE ap.element_name = ?;
+      vp.persona_name AS persona_name,
+      vp.persona_name AS name,
+      vp.system_role_prompt AS system_role_prompt,
+      vp.system_role_prompt AS prompt,
+      vp.system_role_prompt AS element_prompt,
+      vp.token_allowance AS token_allowance,
+      vp.token_allowance AS tokens,
+      vp.token_allowance AS element_tokens,
+      vp.model_name AS model_name,
+      vp.model_name AS model,
+      vp.model_name AS element_model,
+      vp.element_created_on,
+      vp.element_modified_on
+    FROM vw_personas vp
+    JOIN assistant_personas ap ON ap.element_name = vp.persona_name
+    WHERE vp.persona_name = ?;
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 
@@ -1341,14 +1351,23 @@ def _assistant_personas_list(_: Dict[str, Any]):
   sql = """
     SELECT
       ap.recid,
-      ap.element_name AS name,
-      ap.element_prompt AS prompt,
-      ap.element_tokens AS tokens,
       ap.models_recid,
-      am.element_name AS model
-    FROM assistant_personas ap
-    JOIN assistant_models am ON am.recid = ap.models_recid
-    ORDER BY ap.element_name
+      vp.persona_name AS persona_name,
+      vp.persona_name AS name,
+      vp.system_role_prompt AS system_role_prompt,
+      vp.system_role_prompt AS prompt,
+      vp.system_role_prompt AS element_prompt,
+      vp.token_allowance AS token_allowance,
+      vp.token_allowance AS tokens,
+      vp.token_allowance AS element_tokens,
+      vp.model_name AS model_name,
+      vp.model_name AS model,
+      vp.model_name AS element_model,
+      vp.element_created_on,
+      vp.element_modified_on
+    FROM vw_personas vp
+    JOIN assistant_personas ap ON ap.element_name = vp.persona_name
+    ORDER BY vp.persona_name
     FOR JSON PATH;
   """
   return (DbRunMode.JSON_MANY, sql, ())

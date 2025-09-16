@@ -7,7 +7,8 @@ def test_persona_lookup_query_targets_element_name():
   mode, sql, params = handler({"name": "stark"})
 
   assert mode is DbRunMode.ROW_ONE
-  assert "FROM assistant_personas ap" in sql
-  assert "WHERE ap.element_name = ?;" in sql
-  assert "am.element_name AS element_model" in sql
+  assert "FROM vw_personas vp" in sql
+  assert "JOIN assistant_personas ap ON ap.element_name = vp.persona_name" in sql
+  assert "WHERE vp.persona_name = ?;" in sql
+  assert "vp.model_name AS element_model" in sql
   assert params == ("stark",)
