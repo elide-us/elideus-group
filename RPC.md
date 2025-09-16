@@ -241,7 +241,13 @@ Discord domain calls require Discord-specific roles depending on the subdomain:
 
 Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
-Currently exposes placeholder Discord command operations.
+Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
+
+### `bsky`
+
+| Operation                             | Description                                   |
+| ------------------------------------- | --------------------------------------------- |
+| `urn:discord:bsky:post:1`             | Post a message to the configured Bluesky feed. |
 
 ### `command`
 
