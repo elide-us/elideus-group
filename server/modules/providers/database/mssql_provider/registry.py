@@ -1552,3 +1552,22 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
     ORDER BY element_created_on;
   """
   return (DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
+
+
+@register("db:assistant:conversations:list_recent:1")
+def _assistant_conversations_list_recent(_: Dict[str, Any]):
+  sql = """
+    SELECT TOP (5)
+           recid,
+           personas_recid,
+           element_guild_id,
+           element_channel_id,
+           element_user_id,
+           element_output,
+           element_tokens,
+           element_created_on
+    FROM assistant_conversations
+    WHERE element_output IS NOT NULL AND LTRIM(RTRIM(element_output)) <> ''
+    ORDER BY element_created_on DESC;
+  """
+  return (DbRunMode.JSON_MANY, sql, ())
