@@ -160,13 +160,18 @@ class OpenaiModule(BaseModule):
       logging.exception("[OpenaiModule] insert conversation failed")
     return None
 
-  async def _log_conversation_end(self, recid: int, output_data: str):
+  async def _log_conversation_end(
+    self,
+    recid: int,
+    output_data: str,
+    tokens: int | None,
+  ):
     if not self.db:
       return
     try:
       await self.db.run(
         "db:assistant:conversations:update_output:1",
-        {"recid": recid, "output_data": output_data},
+        {"recid": recid, "output_data": output_data, "tokens": tokens},
       )
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
@@ -225,6 +230,8 @@ class OpenaiModule(BaseModule):
     if schemas:
       params["tools"] = schemas
     completion = await self.client.chat.completions.create(**params)
+    usage = getattr(completion, "usage", None)
+    total_tokens = getattr(usage, "total_tokens", None) if usage else None
     choice = completion.choices[0].message
     content = choice.content
     result = {
@@ -233,5 +240,5 @@ class OpenaiModule(BaseModule):
       "role": getattr(choice, "role", ""),
     }
     if conv_id:
-      await self._log_conversation_end(conv_id, content)
+      await self._log_conversation_end(conv_id, content, total_tokens)
     return result
