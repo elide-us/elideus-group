@@ -1568,7 +1568,8 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
            models_recid
     FROM assistant_conversations
     WHERE personas_recid = ? AND element_created_on BETWEEN ? AND ?
-    ORDER BY element_created_on;
+    ORDER BY element_created_on
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return (DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
 
@@ -1587,6 +1588,7 @@ def _assistant_conversations_list_recent(_: Dict[str, Any]):
            element_created_on
     FROM assistant_conversations
     WHERE element_output IS NOT NULL AND LTRIM(RTRIM(element_output)) <> ''
-    ORDER BY element_created_on DESC;
+    ORDER BY element_created_on DESC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return (DbRunMode.JSON_MANY, sql, ())
