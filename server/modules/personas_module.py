@@ -70,31 +70,25 @@ class PersonasModule(BaseModule):
         "role": instructions,
       }
 
-    await self.openai.on_ready()
-    generator = getattr(self.openai, "generate_chat", None)
-    if generator:
-      response = await generator(
-        system_prompt=instructions,
-        user_prompt=prompt,
-        max_tokens=tokens,
-        persona=persona_name,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_log=prompt,
-      )
-    else:
-      response = await self.openai.fetch_chat(
-        [],
-        instructions,
-        prompt,
-        tokens,
-        persona=persona_name,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_log=prompt,
-      )
+    submit_prompt = getattr(self.openai, "submit_chat_prompt", None)
+    if not submit_prompt:
+      raise AttributeError("OpenAI integration missing submit_chat_prompt method")
+
+    request_payload = {
+      "system_prompt": instructions,
+      "model": model_hint,
+      "max_tokens": tokens,
+      "user_prompt": prompt,
+      "persona_name": persona_name,
+      "persona_recid": persona_recid,
+      "models_recid": models_recid,
+      "guild_id": guild_id,
+      "channel_id": channel_id,
+      "user_id": user_id,
+      "input_log": prompt,
+      "token_count": None,
+    }
+    response = await submit_prompt(**request_payload)
     if isinstance(response, dict):
       content = response.get("content", "")
       model_value = response.get("model")

@@ -91,6 +91,20 @@ class DiscordChatModule(BaseModule):
       "cap_hit": history["cap_hit"],
     }
 
+  async def get_persona_instructions(self, persona_name: str) -> str:
+    openai = getattr(self.app.state, "openai", None)
+    if not openai:
+      return ""
+    try:
+      await openai.on_ready()
+      definition = await openai.get_persona_definition(persona_name)
+    except Exception:
+      logging.exception("[DiscordChatModule] failed to fetch persona instructions", extra={"persona": persona_name})
+      return ""
+    if not definition:
+      return ""
+    return str(definition.get("prompt", ""))
+
   async def summarize_chat(
     self,
     guild_id: int,
@@ -109,6 +123,7 @@ class DiscordChatModule(BaseModule):
     if openai and getattr(openai, "client", None):
       await openai.on_ready()
       role = await self.get_persona_instructions("summarize")
+      response = None
       generator = getattr(openai, "generate_chat", None)
       if generator:
         response = await generator(
@@ -122,24 +137,27 @@ class DiscordChatModule(BaseModule):
           token_count=summary["token_count_estimate"],
         )
       else:
-        response = await openai.fetch_chat(
-          [],
-          role,
-          summary["raw_text_blob"],
-          None,
-          persona="summarize",
-          guild_id=guild_id,
-          channel_id=channel_id,
-          user_id=user_id,
-          input_log=str(hours),
-          token_count=summary["token_count_estimate"],
-        )
-      if isinstance(response, dict):
-        summary_text = response.get("content", "")
-        model = response.get("model", "")
-      else:
-        summary_text = getattr(response, "content", "")
-        model = getattr(response, "model", "")
+        fetch_chat = getattr(openai, "fetch_chat", None)
+        if fetch_chat:
+          response = await fetch_chat(
+            [],
+            role,
+            summary["raw_text_blob"],
+            None,
+            persona="summarize",
+            guild_id=guild_id,
+            channel_id=channel_id,
+            user_id=user_id,
+            input_log=str(hours),
+            token_count=summary["token_count_estimate"],
+          )
+      if response is not None:
+        if isinstance(response, dict):
+          summary_text = response.get("content", "")
+          model = response.get("model", "")
+        else:
+          summary_text = getattr(response, "content", "")
+          model = getattr(response, "model", "")
       persona_details = None
       try:
         persona_details = await openai.get_persona_definition("summarize")
