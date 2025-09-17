@@ -1577,7 +1577,7 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
 @register("db:assistant:conversations:list_recent:1")
 def _assistant_conversations_list_recent(_: Dict[str, Any]):
   sql = """
-    SELECT TOP (5)
+    SELECT TOP (2)
            recid,
            personas_recid,
            element_guild_id,
