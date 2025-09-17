@@ -28,7 +28,7 @@ from rpc.discord.command import services as discord_services
 
 
 async def _stub_unbox_request(request):
-  return RPCRequest(op='urn:discord:command:text_uwu:1'), AuthContext(), []
+  return RPCRequest(op='urn:discord:command:get_roles:1'), AuthContext(roles=['ROLE_A']), []
 
 discord_services.unbox_request = _stub_unbox_request
 
@@ -37,16 +37,16 @@ app = FastAPI()
 
 @app.post('/rpc')
 async def rpc_endpoint(request: Request):
-  return await discord_services.discord_command_text_uwu_v1(request)
+  return await discord_services.discord_command_get_roles_v1(request)
 
 
 client = TestClient(app)
 
 
-def test_discord_command_text_uwu_service():
-  resp = client.post('/rpc', json={'op': 'urn:discord:command:text_uwu:1'})
+def test_discord_command_get_roles_service():
+  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
   assert resp.status_code == 200
   data = resp.json()
-  assert data['op'] == 'urn:discord:command:text_uwu:1'
-  assert data['payload'] == {'message': 'uwu'}
+  assert data['op'] == 'urn:discord:command:get_roles:1'
+  assert data['payload'] == {'roles': ['ROLE_A']}
 

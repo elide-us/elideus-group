@@ -67,24 +67,6 @@ class DiscordChatModule(BaseModule):
     except Exception:
       return len(text.split())
 
-  async def summarize_persona(self, text: str) -> List[str]:
-    openai = getattr(self.app.state, "openai", None)
-    if not openai or not getattr(openai, "client", None):
-      return ["[[STUB: Persona summary output here]]"]
-    await openai.on_ready()
-    msg = await openai.fetch_chat(
-      [],
-      "Summarize the following conversation into bullet points.",
-      text,
-      300,
-    )
-    content = getattr(
-      msg,
-      "content",
-      msg.get("content", "") if isinstance(msg, dict) else "",
-    )
-    return [line.strip() for line in content.splitlines() if line.strip()]
-
   async def get_persona_instructions(self, name: str) -> str:
     if not self.db:
       return ""
@@ -98,40 +80,6 @@ class DiscordChatModule(BaseModule):
     except Exception:
       logging.exception("[DiscordChatModule] get_persona_instructions failed")
     return ""
-
-  async def uwu_persona(
-    self,
-    summary: List[str],
-    user_id: int,
-    user_message: str,
-    guild_id: int,
-    channel_id: int,
-    token_count: int,
-  ) -> str:
-    openai = getattr(self.app.state, "openai", None)
-    if not openai or not getattr(openai, "client", None):
-      return "[[STUB: uwu persona output here]]"
-    await openai.on_ready()
-    prompt_context = "\n".join(summary)
-    role = await self.get_persona_instructions("uwu")
-    msg = await openai.fetch_chat(
-      [],
-      role,
-      user_message,
-      None,
-      prompt_context,
-      persona="uwu",
-      guild_id=guild_id,
-      channel_id=channel_id,
-      user_id=user_id,
-      input_log=user_message,
-      token_count=token_count,
-    )
-    return getattr(
-      msg,
-      "content",
-      msg.get("content", "") if isinstance(msg, dict) else "",
-    )
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()
@@ -221,46 +169,4 @@ class DiscordChatModule(BaseModule):
       "summary_text": summary_text,
       "model": model,
       "role": role,
-    }
-
-  async def uwu_chat(
-    self,
-    guild_id: int,
-    channel_id: int,
-    user_id: int,
-    message: str,
-    hours: int = 1,
-    max_messages: int = 12,
-  ) -> dict:
-    hours = max(hours, 1)
-    max_messages = max(max_messages, 12)
-    start = time.perf_counter()
-    summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
-    summary_lines = await self.summarize_persona(summary["raw_text_blob"])
-    uwu_response = await self.uwu_persona(
-      summary_lines,
-      user_id,
-      message,
-      guild_id,
-      channel_id,
-      summary["token_count_estimate"],
-    )
-    elapsed = time.perf_counter() - start
-    logging.info(
-      "[DiscordChatModule] uwu_chat",
-      extra={
-        "guild_id": guild_id,
-        "channel_id": channel_id,
-        "user_id": user_id,
-        "hours": hours,
-        "messages_collected": summary["messages_collected"],
-        "token_count_estimate": summary["token_count_estimate"],
-        "input_length": len(message),
-        "elapsed": elapsed,
-      },
-    )
-    return {
-      "token_count_estimate": summary["token_count_estimate"],
-      "summary_lines": summary_lines,
-      "uwu_response_text": uwu_response,
     }

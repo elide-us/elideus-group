@@ -25,8 +25,8 @@ class DiscordPersonasModule:
     self.personas = [
       {
         'recid': 1,
-        'name': 'uwu',
-        'prompt': 'owo',
+        'name': 'summarize',
+        'prompt': 'summary instructions',
         'tokens': 512,
         'models_recid': 2,
         'model': 'gpt-4',
@@ -130,8 +130,8 @@ def test_get_personas_service():
     'personas': [
       {
         'recid': 1,
-        'name': 'uwu',
-        'prompt': 'owo',
+        'name': 'summarize',
+        'prompt': 'summary instructions',
         'tokens': 512,
         'models_recid': 2,
         'model': 'gpt-4',
@@ -157,8 +157,8 @@ def test_get_models_service():
 def test_upsert_and_delete_persona_service():
   upsert_payload = {
     'recid': 1,
-    'name': 'uwu',
-    'prompt': 'new prompt',
+    'name': 'summarize',
+    'prompt': 'updated prompt',
     'tokens': 1024,
     'models_recid': 2,
   }

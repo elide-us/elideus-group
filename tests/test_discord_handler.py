@@ -37,12 +37,12 @@ sys.modules['server.modules.auth_module'] = auth_module_pkg
 from rpc.discord import handler as discord_handler
 
 async def _stub_unbox_request(request):
-  return RPCRequest(op='urn:discord:command:text_uwu:1'), AuthContext(user_guid='u1'), []
+  return RPCRequest(op='urn:discord:command:get_roles:1'), AuthContext(user_guid='u1'), []
 
 discord_handler.unbox_request = _stub_unbox_request
 
 async def dummy_handler(parts, request):
-  return RPCResponse(op='urn:discord:command:text_uwu:1', payload={'message': 'uwu'}, version=1)
+  return RPCResponse(op='urn:discord:command:get_roles:1', payload={'roles': ['ROLE_A']}, version=1)
 
 class DummyAuth:
   def __init__(self, allowed: bool):
@@ -65,7 +65,7 @@ def _get_client(allowed: bool):
 
 def test_discord_handler_rejects_missing_role():
   client = _get_client(False)
-  resp = client.post('/rpc', json={'op': 'urn:discord:command:text_uwu:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
   assert resp.status_code == 403
   data = resp.json()
   assert (
@@ -75,7 +75,7 @@ def test_discord_handler_rejects_missing_role():
 
 def test_discord_handler_allows_role():
   client = _get_client(True)
-  resp = client.post('/rpc', json={'op': 'urn:discord:command:text_uwu:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
   assert resp.status_code == 200
   data = resp.json()
-  assert data['payload'] == {'message': 'uwu'}
+  assert data['payload'] == {'roles': ['ROLE_A']}
