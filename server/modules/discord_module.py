@@ -1,7 +1,7 @@
 """Discord integration module."""
 
 import logging, discord, json, asyncio, time, os
-from typing import IO
+from typing import IO, TYPE_CHECKING
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -20,6 +20,9 @@ from .env_module import EnvModule
 from .db_module import DbModule
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
+
+if TYPE_CHECKING:  # pragma: no cover
+  from .discord_output_module import DiscordOutputModule
 
 class DiscordModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -146,6 +149,38 @@ class DiscordModule(BaseModule):
       finally:
         self._lock_handle = None
 
+  def _get_output_module(self) -> "DiscordOutputModule | None":
+    output = getattr(self.app.state, "discord_output", None)
+    return output
+
+  async def _try_send_channel(self, channel_id: int, message: str) -> bool:
+    output = self._get_output_module()
+    if not output:
+      return False
+    try:
+      await output.send_to_channel(channel_id, message)
+      return True
+    except Exception:
+      logging.exception(
+        "[DiscordModule] failed to send via DiscordOutputModule",
+        extra={"channel_id": channel_id},
+      )
+    return False
+
+  async def _try_send_user(self, user_id: int, message: str) -> bool:
+    output = self._get_output_module()
+    if not output:
+      return False
+    try:
+      await output.send_to_user(user_id, message)
+      return True
+    except Exception:
+      logging.exception(
+        "[DiscordModule] failed to send user message via DiscordOutputModule",
+        extra={"user_id": user_id},
+      )
+    return False
+
   def _bump_rate_limits(self, guild_id: int, user_id: int):
     u = self._user_counts.get(user_id, 0) + 1
     g = self._guild_counts.get(guild_id, 0) + 1
@@ -157,7 +192,11 @@ class DiscordModule(BaseModule):
       logging.info("[DiscordBot] guild nearing rate limit", extra={"guild_id": guild_id, "count": g})
 
   async def send_sys_message(self, message: str):
-    if not self.bot or not self.syschan:
+    if not self.syschan:
+      return
+    if await self._try_send_channel(self.syschan, message):
+      return
+    if not self.bot:
       return
     channel = self.bot.get_channel(self.syschan)
     if channel:
@@ -174,8 +213,14 @@ class DiscordModule(BaseModule):
         res = await self.db.run("db:system:config:get_config:1", {"key": "Version"})
         version = res.rows[0]["value"] if res.rows else None
         msg = f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}"
-        await channel.send(msg)
-        logging.info(msg)
+        if await self._try_send_channel(channel.id, msg):
+          logging.info(msg)
+        else:
+          try:
+            await channel.send(msg)
+            logging.info(msg)
+          except Exception:
+            logging.exception("[DiscordModule] failed to send ready message")
       else:
         logging.warning("[DiscordProvider] System channel not found on ready.")
 
@@ -217,7 +262,8 @@ class DiscordModule(BaseModule):
           data = json.dumps(payload.model_dump())
         else:
           data = str(payload)
-        await ctx.send(data)
+        if not await self._try_send_channel(ctx.channel.id, data):
+          await ctx.send(data)
         elapsed = time.perf_counter() - start
         logging.info(
           "[DiscordBot] rpc",
@@ -235,7 +281,9 @@ class DiscordModule(BaseModule):
           "[DiscordBot] rpc failed",
           extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "op": op, "elapsed": elapsed},
         )
-        await ctx.send(f"Error: {e}")
+        message = f"Error: {e}"
+        if not await self._try_send_channel(ctx.channel.id, message):
+          await ctx.send(message)
 
     @self.bot.command(name="summarize")
     async def summarize_command(ctx, hours: str):
@@ -246,10 +294,12 @@ class DiscordModule(BaseModule):
       try:
         hrs = int(hours)
       except ValueError:
-        await ctx.send("Usage: !summarize <hours>")
+        if not await self._try_send_channel(ctx.channel.id, "Usage: !summarize <hours>"):
+          await ctx.send("Usage: !summarize <hours>")
         return
       if hrs < 1 or hrs > 336:
-        await ctx.send("Hours must be between 1 and 336")
+        if not await self._try_send_channel(ctx.channel.id, "Hours must be between 1 and 336"):
+          await ctx.send("Hours must be between 1 and 336")
         return
 
       body = json.dumps({
@@ -289,25 +339,35 @@ class DiscordModule(BaseModule):
         else:
           data = {"summary": str(payload)}
         if not data.get("messages_collected"):
-          await ctx.send("No messages found in the specified time range")
+          if not await self._try_send_channel(ctx.channel.id, "No messages found in the specified time range"):
+            await ctx.send("No messages found in the specified time range")
           return
         if data.get("cap_hit"):
-          await ctx.send("Channel too active to summarize; message cap hit")
+          if not await self._try_send_channel(ctx.channel.id, "Channel too active to summarize; message cap hit"):
+            await ctx.send("Channel too active to summarize; message cap hit")
           return
         summary_text = data.get("summary") or json.dumps(data)
-        from .openai_module import send_to_discord_user
         try:
           openai = getattr(self.app.state, "openai", None)
-          if openai and getattr(openai, "summary_queue", None):
-            await openai.summary_queue.add(send_to_discord_user, ctx.author, summary_text)
+          output = self._get_output_module()
+          if openai and getattr(openai, "summary_queue", None) and output:
+            await openai.summary_queue.add(output.send_to_user, ctx.author.id, summary_text)
+          elif output:
+            await output.send_to_user(ctx.author.id, summary_text)
           else:
-            await send_to_discord_user(ctx.author, summary_text)
+            await ctx.author.send(summary_text)
           if ctx.author.dm_channel:
             async for _ in ctx.author.dm_channel.history(limit=1):
               break
         except discord.errors.HTTPException:
-          await ctx.send("Failed to send summary. Please try again later.")
+          if not await self._try_send_channel(ctx.channel.id, "Failed to send summary. Please try again later."):
+            await ctx.send("Failed to send summary. Please try again later.")
           logging.exception("[DiscordBot] summarize send failed")
+          return
+        except Exception:
+          if not await self._try_send_channel(ctx.channel.id, "Failed to send summary. Please try again later."):
+            await ctx.send("Failed to send summary. Please try again later.")
+          logging.exception("[DiscordBot] summarize delivery failed")
           return
         elapsed = time.perf_counter() - start
         logging.info(
@@ -332,5 +392,6 @@ class DiscordModule(BaseModule):
           "[DiscordBot] summarize failed",
           extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "hours": hrs, "elapsed": elapsed},
         )
-        await ctx.send("Failed to fetch messages. Please try again later.")
+        if not await self._try_send_channel(ctx.channel.id, "Failed to fetch messages. Please try again later."):
+          await ctx.send("Failed to fetch messages. Please try again later.")
 
