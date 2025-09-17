@@ -21,7 +21,7 @@ class DiscordOngoingChatModule(BaseModule):
     self.discord_chat: DiscordChatModule | None = None
     self.openai: OpenaiModule | None = None
     self.interval_seconds = 300
-    self.context_messages = 5
+    self.context_messages = 2
     self.history_hours = 1
     self.history_limit = 100
     self._task: asyncio.Task | None = None
@@ -145,13 +145,14 @@ class DiscordOngoingChatModule(BaseModule):
       logging.debug("[DiscordOngoingChatModule] cycle skipped: missing guild/channel")
       return
 
-    context_outputs = [
-      (row.get("element_output") or "").strip()
-      for row in reversed(rows)
-      if (row.get("element_output") or "").strip()
-    ]
-    if len(context_outputs) > self.context_messages:
-      context_outputs = context_outputs[-self.context_messages :]
+    context_outputs = []
+    for row in rows:
+      text = (row.get("element_output") or "").strip()
+      if not text:
+        continue
+      context_outputs.append(text)
+      if len(context_outputs) >= self.context_messages:
+        break
 
     persona = await self._select_persona()
     if not persona:

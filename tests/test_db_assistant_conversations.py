@@ -102,7 +102,7 @@ def test_assistant_conversations_list_recent(monkeypatch):
 
   async def fake_fetch_json(sql, params, *, many=False):
     assert many
-    assert "SELECT TOP (5)" in sql
+    assert "SELECT TOP (2)" in sql
     assert "element_output" in sql
     assert "ORDER BY element_created_on DESC" in sql
     assert "FOR JSON PATH" in sql
