@@ -134,9 +134,12 @@ class AuthModule(BaseModule):
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
     if self.discord:
       await self.discord.on_ready()
+      register = getattr(self.discord, "register_auth_module", None)
+      if register:
+        register(self)
     self.role_cache.db = self.db
     self.jwt_secret = self.env.get("JWT_SECRET")
     self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
@@ -178,6 +181,8 @@ class AuthModule(BaseModule):
   async def shutdown(self):
     for provider in self.providers.values():
       await provider.shutdown()
+    if self.discord and getattr(self.discord, "auth_module", None) is self:
+      self.discord.auth_module = None
     logging.info("Auth module shutdown")
 
 

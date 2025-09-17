@@ -1,11 +1,11 @@
 from __future__ import annotations
 import logging, asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
-from .discord_module import DiscordModule
+from .discord_module import DiscordBotModule
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -51,13 +51,13 @@ class OpenaiModule(BaseModule):
     self.db: DbModule | None = None
     self.client: AsyncOpenAI | None = None
     self.summary_queue = SummaryQueue()
-    self.discord: DiscordModule | None = None
+    self.discord: DiscordBotModule | None = None
     self.discord_output: "DiscordOutputModule" | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
     if self.discord:
       await self.discord.on_ready()
     self.discord_output = getattr(self.app.state, "discord_output", None)
@@ -100,6 +100,53 @@ class OpenaiModule(BaseModule):
     except Exception:
       logging.exception("[OpenaiModule] fetch persona failed")
     return None
+
+  async def list_models(self) -> List[Dict[str, Any]]:
+    assert self.db
+    res = await self.db.run("db:assistant:models:list:1", {})
+    return list(res.rows or [])
+
+  async def list_personas(self) -> List[Dict[str, Any]]:
+    assert self.db
+    res = await self.db.run("db:assistant:personas:list:1", {})
+    personas: List[Dict[str, Any]] = []
+    for row in res.rows or []:
+      personas.append({
+        "recid": row.get("recid"),
+        "name": row.get("name", ""),
+        "prompt": row.get("prompt", ""),
+        "tokens": int(row.get("tokens", 0) or 0),
+        "models_recid": (
+          int(row.get("models_recid"))
+          if row.get("models_recid") is not None
+          else None
+        ),
+        "model": row.get("model"),
+      })
+    return personas
+
+  async def upsert_persona(self, persona: Dict[str, Any]) -> None:
+    assert self.db
+    model_recid = persona.get("models_recid")
+    if model_recid is None:
+      raise ValueError("models_recid required")
+    payload = {
+      "recid": persona.get("recid"),
+      "name": persona.get("name", ""),
+      "prompt": persona.get("prompt", ""),
+      "tokens": int(persona.get("tokens", 0) or 0),
+      "models_recid": int(model_recid),
+    }
+    if not payload["name"]:
+      raise ValueError("name required")
+    await self.db.run("db:assistant:personas:upsert:1", payload)
+
+  async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
+    assert self.db
+    await self.db.run(
+      "db:assistant:personas:delete:1",
+      {"recid": recid, "name": name},
+    )
 
   async def _log_conversation_start(
     self,
@@ -172,6 +219,102 @@ class OpenaiModule(BaseModule):
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
 
+  async def generate_chat(
+    self,
+    *,
+    system_prompt: str,
+    user_prompt: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+    tools: List[Dict[str, Any]] | None = None,
+    prompt_context: str = "",
+    persona: str | None = None,
+    guild_id: int | None = None,
+    channel_id: int | None = None,
+    user_id: int | None = None,
+    input_log: str | None = None,
+    token_count: int | None = None,
+  ) -> Dict[str, Any]:
+    if not self.client:
+      logging.warning("[OpenaiModule] client not initialized")
+      return {"content": ""}
+
+    conv_id = None
+    personas_recid = None
+    models_recid = None
+    resolved_model = (model or "").strip() or "gpt-4o-mini"
+    resolved_tokens = max_tokens
+    resolved_prompt = system_prompt or ""
+    persona_row = None
+
+    if persona:
+      persona_row = await self._get_persona(persona)
+      if persona_row:
+        personas_recid = persona_row.get("recid")
+        models_recid = persona_row.get("models_recid")
+        persona_model = persona_row.get("element_model")
+        if persona_model:
+          resolved_model = persona_model
+        persona_tokens = persona_row.get("element_tokens")
+        if resolved_tokens is None and persona_tokens is not None:
+          resolved_tokens = int(persona_tokens)
+        persona_prompt = persona_row.get("element_prompt")
+        if not resolved_prompt and persona_prompt:
+          resolved_prompt = persona_prompt
+
+    if resolved_tokens is None:
+      resolved_tokens = 64
+
+    if persona and personas_recid is not None and models_recid is not None:
+      conv_id = await self._log_conversation_start(
+        personas_recid,
+        models_recid,
+        guild_id,
+        channel_id,
+        user_id,
+        input_log or (user_prompt or ""),
+        token_count,
+      )
+
+    messages: List[Dict[str, str]] = []
+    if resolved_prompt:
+      messages.append({"role": "system", "content": resolved_prompt})
+    if prompt_context:
+      messages.append({"role": "user", "content": prompt_context})
+    if user_prompt:
+      messages.append({"role": "user", "content": user_prompt})
+    if not messages:
+      raise ValueError("No content provided for chat generation")
+
+    params: Dict[str, Any] = {
+      "model": resolved_model,
+      "messages": messages,
+    }
+    if resolved_tokens is not None:
+      params["max_tokens"] = resolved_tokens
+    if tools:
+      params["tools"] = tools
+
+    completion = await self.client.chat.completions.create(**params)
+    usage = getattr(completion, "usage", None)
+    total_tokens = getattr(usage, "total_tokens", None) if usage else None
+    choice = completion.choices[0].message
+    content = choice.content
+    result: Dict[str, Any] = {
+      "content": content,
+      "model": getattr(completion, "model", resolved_model),
+      "role": getattr(choice, "role", ""),
+    }
+    if usage:
+      result["usage"] = {
+        "prompt_tokens": getattr(usage, "prompt_tokens", None),
+        "completion_tokens": getattr(usage, "completion_tokens", None),
+        "total_tokens": total_tokens,
+      }
+    if conv_id:
+      await self._log_conversation_end(conv_id, content, total_tokens)
+    return result
+
   async def fetch_chat(
     self,
     schemas: list,
@@ -188,53 +331,20 @@ class OpenaiModule(BaseModule):
     token_count: int | None = None,
     model: str = "gpt-4o-mini",
   ):
-    if not self.client:
-      logging.warning("[OpenaiModule] client not initialized")
-      return {"content": ""}
-    conv_id = None
-    personas_recid = None
-    models_recid = None
-    if persona:
-      persona_row = await self._get_persona(persona)
-      if persona_row:
-        personas_recid = persona_row.get("recid")
-        models_recid = persona_row.get("models_recid")
-        model = persona_row.get("element_model", model)
-        if tokens is None:
-          tokens = persona_row.get("element_tokens")
-    if tokens is None:
-      tokens = 64
-    if persona and personas_recid is not None and models_recid is not None:
-      conv_id = await self._log_conversation_start(
-        personas_recid,
-        models_recid,
-        guild_id,
-        channel_id,
-        user_id,
-        input_log or prompt,
-        token_count,
-      )
-    messages = [{"role": "system", "content": role}]
-    if prompt_context:
-      messages.append({"role": "user", "content": prompt_context})
-    messages.append({"role": "user", "content": prompt})
-    params = {
-      "model": model,
-      "max_tokens": tokens,
-      "messages": messages,
-    }
-    if schemas:
-      params["tools"] = schemas
-    completion = await self.client.chat.completions.create(**params)
-    usage = getattr(completion, "usage", None)
-    total_tokens = getattr(usage, "total_tokens", None) if usage else None
-    choice = completion.choices[0].message
-    content = choice.content
-    result = {
-      "content": content,
-      "model": getattr(completion, "model", ""),
-      "role": getattr(choice, "role", ""),
-    }
-    if conv_id:
-      await self._log_conversation_end(conv_id, content, total_tokens)
+    result = await self.generate_chat(
+      system_prompt=role,
+      user_prompt=prompt,
+      model=model,
+      max_tokens=tokens,
+      tools=schemas,
+      prompt_context=prompt_context,
+      persona=persona,
+      guild_id=guild_id,
+      channel_id=channel_id,
+      user_id=user_id,
+      input_log=input_log,
+      token_count=token_count,
+    )
+    if isinstance(result, dict):
+      result.pop("usage", None)
     return result

@@ -5,65 +5,39 @@ from typing import Any, Dict, List
 from fastapi import FastAPI
 
 from server.modules import BaseModule
-from server.modules.db_module import DbModule
+from server.modules.openai_module import OpenaiModule
 
 
 class DiscordPersonasModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.db: DbModule | None = None
+    self.openai: OpenaiModule | None = None
 
   async def startup(self):
-    self.db = self.app.state.db
-    await self.db.on_ready()
+    self.openai = getattr(self.app.state, "openai", None)
+    if self.openai:
+      await self.openai.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
-    pass
+    self.openai = None
 
   async def list_models(self) -> List[Dict[str, Any]]:
-    assert self.db
-    res = await self.db.run("db:assistant:models:list:1", {})
-    return list(res.rows or [])
+    if not self.openai:
+      return []
+    return await self.openai.list_models()
 
   async def list_personas(self) -> List[Dict[str, Any]]:
-    assert self.db
-    res = await self.db.run("db:assistant:personas:list:1", {})
-    personas: List[Dict[str, Any]] = []
-    for row in res.rows or []:
-      personas.append({
-        "recid": row.get("recid"),
-        "name": row.get("name", ""),
-        "prompt": row.get("prompt", ""),
-        "tokens": int(row.get("tokens", 0) or 0),
-        "models_recid": (
-          int(row.get("models_recid"))
-          if row.get("models_recid") is not None
-          else None
-        ),
-        "model": row.get("model"),
-      })
-    return personas
+    if not self.openai:
+      return []
+    return await self.openai.list_personas()
 
   async def upsert_persona(self, persona: Dict[str, Any]) -> None:
-    assert self.db
-    model_recid = persona.get("models_recid")
-    if model_recid is None:
-      raise ValueError("models_recid required")
-    payload = {
-      "recid": persona.get("recid"),
-      "name": persona.get("name", ""),
-      "prompt": persona.get("prompt", ""),
-      "tokens": int(persona.get("tokens", 0) or 0),
-      "models_recid": int(model_recid),
-    }
-    if not payload["name"]:
-      raise ValueError("name required")
-    await self.db.run("db:assistant:personas:upsert:1", payload)
+    if not self.openai:
+      raise RuntimeError("OpenAI module is not available")
+    await self.openai.upsert_persona(persona)
 
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
-    assert self.db
-    await self.db.run(
-      "db:assistant:personas:delete:1",
-      {"recid": recid, "name": name},
-    )
+    if not self.openai:
+      raise RuntimeError("OpenAI module is not available")
+    await self.openai.delete_persona(recid=recid, name=name)

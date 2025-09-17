@@ -126,28 +126,37 @@ class DiscordChatModule(BaseModule):
     if openai and getattr(openai, "client", None):
       await openai.on_ready()
       role = await self.get_persona_instructions("summarize")
-      msg = await openai.fetch_chat(
-        [],
-        role,
-        summary["raw_text_blob"],
-        None,
-        persona="summarize",
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_log=str(hours),
-        token_count=summary["token_count_estimate"],
-      )
-      summary_text = getattr(
-        msg,
-        "content",
-        msg.get("content", "") if isinstance(msg, dict) else "",
-      )
-      model = getattr(
-        msg,
-        "model",
-        msg.get("model", "") if isinstance(msg, dict) else "",
-      )
+      generator = getattr(openai, "generate_chat", None)
+      if generator:
+        response = await generator(
+          system_prompt=role,
+          user_prompt=summary["raw_text_blob"],
+          persona="summarize",
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_log=str(hours),
+          token_count=summary["token_count_estimate"],
+        )
+      else:
+        response = await openai.fetch_chat(
+          [],
+          role,
+          summary["raw_text_blob"],
+          None,
+          persona="summarize",
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_log=str(hours),
+          token_count=summary["token_count_estimate"],
+        )
+      if isinstance(response, dict):
+        summary_text = response.get("content", "")
+        model = response.get("model", "")
+      else:
+        summary_text = getattr(response, "content", "")
+        model = getattr(response, "model", "")
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] summarize_chat",
