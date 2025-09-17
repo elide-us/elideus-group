@@ -1,11 +1,14 @@
 from __future__ import annotations
 import logging, asyncio
+from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_module import DiscordModule
-from server.helpers.discord import send_to_discord, send_to_discord_user
+
+if TYPE_CHECKING:  # pragma: no cover
+  from .discord_output_module import DiscordOutputModule
 
 
 class SummaryQueue:
@@ -49,6 +52,7 @@ class OpenaiModule(BaseModule):
     self.client: AsyncOpenAI | None = None
     self.summary_queue = SummaryQueue()
     self.discord: DiscordModule | None = None
+    self.discord_output: "DiscordOutputModule" | None = None
 
   async def startup(self):
     self.db = self.app.state.db
@@ -56,6 +60,9 @@ class OpenaiModule(BaseModule):
     self.discord = getattr(self.app.state, "discord", None)
     if self.discord:
       await self.discord.on_ready()
+    self.discord_output = getattr(self.app.state, "discord_output", None)
+    if self.discord_output:
+      await self.discord_output.on_ready()
     self.client = await self.init_openai_client()
     self.app.state.openai = self
     logging.info("[OpenaiModule] loaded")
@@ -67,6 +74,7 @@ class OpenaiModule(BaseModule):
       self.summary_queue._processing_task.cancel()
     self.client = None
     self.db = None
+    self.discord_output = None
 
   async def get_openai_token(self) -> str:
     assert self.db
