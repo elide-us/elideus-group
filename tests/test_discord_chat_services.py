@@ -74,18 +74,6 @@ class StubPersonasModule:
     return result
 
 
-class StubDiscordPersonasModule:
-  def __init__(self, personas):
-    self.personas = personas
-    self.calls = 0
-
-  async def on_ready(self):
-    pass
-
-  async def list_personas(self):
-    self.calls += 1
-    return self.personas
-
 def test_summarize_channel_handler():
   app = FastAPI()
   module = StubModule()
@@ -178,19 +166,27 @@ def test_persona_response_handler_uses_view_persona_details():
     },
   )
   app.state.personas = module
-  personas_module = StubDiscordPersonasModule(
-    [
-      {
-        'recid': 1,
+
+  class StubOpenAIModule:
+    def __init__(self):
+      self.calls = 0
+
+    async def on_ready(self):
+      pass
+
+    async def get_persona_definition(self, name: str):
+      self.calls += 1
+      assert name == 'stark'
+      return {
         'name': 'Stark',
         'prompt': 'be stark',
         'tokens': 128,
         'models_recid': 2,
         'model': 'gpt-4o',
       }
-    ]
-  )
-  app.state.discord_personas = personas_module
+
+  openai_stub = StubOpenAIModule()
+  app.state.openai = openai_stub
 
   async def fake_unbox(request):
     return (
@@ -218,7 +214,7 @@ def test_persona_response_handler_uses_view_persona_details():
   client = TestClient(app)
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1'})
   assert resp.status_code == 200
-  assert personas_module.calls == 1
+  assert openai_stub.calls == 1
   assert module.calls == [('Stark', 'Tell me about rain', 1, 2, 3)]
   data = resp.json()
   expected = {

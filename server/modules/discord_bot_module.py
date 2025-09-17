@@ -1,7 +1,7 @@
-"""Discord integration module."""
+"""Discord bot coordination module."""
 
 import logging, discord, json, asyncio, time, os
-from typing import IO, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Any
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -23,8 +23,9 @@ from server.helpers.logging import configure_discord_logging, remove_discord_log
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
+  from .auth_module import AuthModule
 
-class DiscordModule(BaseModule):
+class DiscordBotModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.secret: str = ""
@@ -32,6 +33,10 @@ class DiscordModule(BaseModule):
     self.bot: commands.Bot | None = None
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
+    self.discord_output: "DiscordOutputModule" | None = None
+    self.discord_auth: "AuthModule" | None = None
+    self.social_input_module: Any = None
+    self.discord_input_provider: Any = None
     self._task: asyncio.Task | None = None
     self._user_counts: dict[int, int] = {}
     self._guild_counts: dict[int, int] = {}
@@ -45,8 +50,13 @@ class DiscordModule(BaseModule):
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.discord_output = getattr(self.app.state, "discord_output", None)
+    self.discord_auth = getattr(self.app.state, "discord_auth", None) or getattr(self.app.state, "auth", None)
+    self.social_input_module = getattr(self.app.state, "social_input", None)
+    self.discord_input_provider = getattr(self.app.state, "discord_input_provider", None)
+    setattr(self.app.state, "discord", self)
     if not self._acquire_bot_lock():
-      logging.info("[DiscordModule] startup skipped: Discord bot already owned by another worker")
+      logging.info("[DiscordBotModule] startup skipped: Discord bot already owned by another worker")
       self.mark_ready()
       return
     try:
@@ -79,7 +89,7 @@ class DiscordModule(BaseModule):
       self._release_bot_lock()
       self.owns_bot = False
       raise
-    logging.info("Discord module loaded")
+    logging.info("[DiscordBotModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):
@@ -95,6 +105,7 @@ class DiscordModule(BaseModule):
     remove_discord_logging(self)
     self._release_bot_lock()
     self.owns_bot = False
+    logging.info("[DiscordBotModule] shutdown")
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
@@ -150,7 +161,11 @@ class DiscordModule(BaseModule):
         self._lock_handle = None
 
   def _get_output_module(self) -> "DiscordOutputModule | None":
+    if self.discord_output:
+      return self.discord_output
     output = getattr(self.app.state, "discord_output", None)
+    if output:
+      self.discord_output = output
     return output
 
   async def _try_send_channel(self, channel_id: int, message: str) -> bool:
@@ -162,7 +177,7 @@ class DiscordModule(BaseModule):
       return True
     except Exception:
       logging.exception(
-        "[DiscordModule] failed to send via DiscordOutputModule",
+        "[DiscordBotModule] failed to send via DiscordOutputModule",
         extra={"channel_id": channel_id},
       )
     return False
@@ -176,7 +191,7 @@ class DiscordModule(BaseModule):
       return True
     except Exception:
       logging.exception(
-        "[DiscordModule] failed to send user message via DiscordOutputModule",
+        "[DiscordBotModule] failed to send user message via DiscordOutputModule",
         extra={"user_id": user_id},
       )
     return False
@@ -220,7 +235,7 @@ class DiscordModule(BaseModule):
             await channel.send(msg)
             logging.info(msg)
           except Exception:
-            logging.exception("[DiscordModule] failed to send ready message")
+            logging.exception("[DiscordBotModule] failed to send ready message")
       else:
         logging.warning("[DiscordProvider] System channel not found on ready.")
 

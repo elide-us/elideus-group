@@ -9,7 +9,7 @@ from discord.ext import commands
 from . import BaseModule
 
 if TYPE_CHECKING:  # pragma: no cover
-  from .discord_module import DiscordModule
+  from .discord_bot_module import DiscordBotModule
 
 _SendCallable = Callable[[str], Awaitable[None]]
 
@@ -17,13 +17,13 @@ _SendCallable = Callable[[str], Awaitable[None]]
 class DiscordOutputModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.discord: "DiscordModule" | None = None
+    self.discord: "DiscordBotModule" | None = None
     self._message_size_limit = 1998
     self._trickle_delay = 1.0
     self._send_lock = asyncio.Lock()
 
   async def startup(self):
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
     self.app.state.discord_output = self

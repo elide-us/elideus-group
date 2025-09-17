@@ -1,10 +1,12 @@
+import logging
+
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
-from server.modules.discord_personas_module import DiscordPersonasModule
 from server.modules.personas_module import PersonasModule
+from server.modules.openai_module import OpenaiModule
 
 from .models import (
   DiscordChatPersonaRequest1,
@@ -51,23 +53,21 @@ async def discord_chat_persona_response_v1(request: Request):
   persona_name = (req.persona or "").strip()
   persona_prompt = None
   persona_model = None
-  persona_registry: DiscordPersonasModule | None = getattr(request.app.state, "discord_personas", None)
-  if persona_registry:
-    await persona_registry.on_ready()
+  openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
+  if openai_module and persona_name:
+    await openai_module.on_ready()
     try:
-      personas = await persona_registry.list_personas()
+      persona_details = await openai_module.get_persona_definition(persona_name)
     except Exception:
-      personas = []
-    normalized_name = persona_name.casefold()
-    for persona_row in personas:
-      candidate = (persona_row.get("name") or "").strip()
-      if not candidate:
-        continue
-      if candidate.casefold() == normalized_name:
-        persona_name = candidate
-        persona_prompt = persona_row.get("prompt")
-        persona_model = persona_row.get("model")
-        break
+      logging.exception(
+        "[discord_chat_persona_response_v1] failed to load persona details",
+        extra={"persona": persona_name},
+      )
+      persona_details = None
+    if persona_details:
+      persona_name = (persona_details.get("name") or persona_name).strip()
+      persona_prompt = persona_details.get("prompt")
+      persona_model = persona_details.get("model")
   try:
     result = await persona_module.persona_response(
       persona_name,

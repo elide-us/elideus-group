@@ -16,11 +16,11 @@ sys.modules.setdefault('rpc.discord.personas', rpc_discord_personas_pkg)
 
 server_pkg = types.ModuleType('server')
 modules_pkg = types.ModuleType('server.modules')
-discord_personas_module_pkg = types.ModuleType('server.modules.discord_personas_module')
+openai_module_pkg = types.ModuleType('server.modules.openai_module')
 models_pkg = types.ModuleType('server.models')
 
 
-class DiscordPersonasModule:
+class OpenaiModule:
   def __init__(self):
     self.personas = [
       {
@@ -53,9 +53,12 @@ class DiscordPersonasModule:
   async def delete_persona(self, recid: int | None = None, name: str | None = None):
     self.deletes.append((recid, name))
 
+  async def on_ready(self):
+    pass
 
-discord_personas_module_pkg.DiscordPersonasModule = DiscordPersonasModule
-modules_pkg.discord_personas_module = discord_personas_module_pkg
+
+openai_module_pkg.OpenaiModule = OpenaiModule
+modules_pkg.openai_module = openai_module_pkg
 server_pkg.modules = modules_pkg
 
 
@@ -69,7 +72,7 @@ server_pkg.models = models_pkg
 
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.discord_personas_module', discord_personas_module_pkg)
+sys.modules.setdefault('server.modules.openai_module', openai_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 svc_spec = importlib.util.spec_from_file_location(
@@ -98,10 +101,10 @@ async def fake_unbox(request: Request):
 svc.unbox_request = fake_unbox
 
 
-db = DiscordPersonasModule()
+db = OpenaiModule()
 
 app = FastAPI()
-app.state.discord_personas = db
+app.state.openai = db
 
 
 @app.post('/rpc')
