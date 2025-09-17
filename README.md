@@ -68,3 +68,8 @@ Two tables record persona definitions and usage:
 
 The OpenAI module records conversation details whenever `!summarize` is executed.
 
+### Discord Output Module
+
+- Outbound Discord messages are buffered through an internal asyncio queue that respects the module's chunking and rate-limiting rules. Use `queue_channel_message` and `queue_user_message` helpers to enqueue work.
+- Successful deliveries update per-channel, per-user, and aggregate throughput metrics. Call `get_throughput_snapshot()` to inspect counters and timestamps for monitoring or diagnostics.
+

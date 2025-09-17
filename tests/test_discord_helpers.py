@@ -48,3 +48,61 @@ def test_send_to_discord_handles_multiline_text():
   assert compact_sent == compact_original
   newline_count_sent = sum(chunk.count("\n") for chunk in sender.sent)
   assert newline_count_sent == text.count("\n")
+
+
+def test_queue_channel_message_records_stats():
+  sender = DummySender()
+  module = _create_module(500)
+
+  async def run():
+    await module.startup()
+
+    async def fake_resolve(channel_id: int):
+      return sender
+
+    module._resolve_channel = fake_resolve  # type: ignore[method-assign]
+    message = "Queued channel delivery"
+    await module.queue_channel_message(12345, message)
+    await asyncio.wait_for(module.wait_for_drain(), timeout=1)
+    stats = await module.get_throughput_snapshot()
+    await module.shutdown()
+    return message, stats
+
+  message, stats = asyncio.run(run())
+
+  assert sender.sent == [message]
+  channel_stats = stats["channels"][12345]
+  assert channel_stats["messages"] == 1
+  assert channel_stats["characters"] == len(message)
+  assert channel_stats["last_sent_at"] > 0
+  assert stats["aggregate"]["messages"] == 1
+  assert stats["aggregate"]["characters"] == len(message)
+
+
+def test_queue_user_message_records_stats():
+  sender = DummySender()
+  module = _create_module(400)
+
+  async def run():
+    await module.startup()
+
+    async def fake_resolve(user_id: int):
+      return sender
+
+    module._resolve_user = fake_resolve  # type: ignore[method-assign]
+    message = "Hello there"
+    await module.queue_user_message(67890, message)
+    await asyncio.wait_for(module.wait_for_drain(), timeout=1)
+    stats = await module.get_throughput_snapshot()
+    await module.shutdown()
+    return message, stats
+
+  message, stats = asyncio.run(run())
+
+  assert sender.sent == [message]
+  user_stats = stats["users"][67890]
+  assert user_stats["messages"] == 1
+  assert user_stats["characters"] == len(message)
+  assert user_stats["last_sent_at"] > 0
+  assert stats["aggregate"]["messages"] == 1
+  assert stats["aggregate"]["characters"] == len(message)

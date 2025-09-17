@@ -1,8 +1,9 @@
 """Discord output module responsible for delivering messages safely."""
 
-import asyncio, logging, discord
+import asyncio, logging, time, discord
 from collections.abc import Awaitable, Callable
-from typing import List, TYPE_CHECKING
+from contextlib import suppress
+from typing import List, NamedTuple, TYPE_CHECKING
 from fastapi import FastAPI
 from discord.ext import commands
 
@@ -14,6 +15,12 @@ if TYPE_CHECKING:  # pragma: no cover
 _SendCallable = Callable[[str], Awaitable[None]]
 
 
+class _QueuePayload(NamedTuple):
+  kind: str
+  target_id: int
+  message: str
+
+
 class DiscordOutputModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -21,6 +28,12 @@ class DiscordOutputModule(BaseModule):
     self._message_size_limit = 1998
     self._trickle_delay = 1.0
     self._send_lock = asyncio.Lock()
+    self._outbound_queue: asyncio.Queue[_QueuePayload] = asyncio.Queue()
+    self._worker_task: asyncio.Task[None] | None = None
+    self._stats_lock = asyncio.Lock()
+    self._channel_stats: dict[int, dict[str, float | int]] = {}
+    self._user_stats: dict[int, dict[str, float | int]] = {}
+    self._aggregate_stats: dict[str, float | int] = {"messages": 0, "characters": 0, "last_sent_at": 0.0}
 
   async def startup(self):
     self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord_bot", None)
@@ -31,10 +44,17 @@ class DiscordOutputModule(BaseModule):
         register(self)
     self.app.state.discord_output = self
     logging.info("[DiscordOutputModule] loaded")
+    if not self._worker_task:
+      self._worker_task = asyncio.create_task(self._queue_worker(), name="discord-output-worker")
     self.mark_ready()
 
   async def shutdown(self):
     logging.info("[DiscordOutputModule] shutdown")
+    if self._worker_task:
+      self._worker_task.cancel()
+      with suppress(asyncio.CancelledError):
+        await self._worker_task
+      self._worker_task = None
     if self.discord and getattr(self.discord, "output_module", None) is self:
       self.discord.output_module = None
     if getattr(self.app.state, "discord_output", None) is self:
@@ -56,12 +76,35 @@ class DiscordOutputModule(BaseModule):
       return
     channel = await self._resolve_channel(channel_id)
     await self._deliver_in_chunks(channel.send, message)
+    await self._record_channel_throughput(channel_id, message)
 
   async def send_to_user(self, user_id: int, message: str) -> None:
     if not message:
       return
     user = await self._resolve_user(user_id)
     await self._deliver_in_chunks(user.send, message)
+    await self._record_user_throughput(user_id, message)
+
+  async def queue_channel_message(self, channel_id: int, message: str) -> None:
+    if not message:
+      return
+    await self._outbound_queue.put(_QueuePayload("channel", channel_id, message))
+
+  async def queue_user_message(self, user_id: int, message: str) -> None:
+    if not message:
+      return
+    await self._outbound_queue.put(_QueuePayload("user", user_id, message))
+
+  async def wait_for_drain(self) -> None:
+    await self._outbound_queue.join()
+
+  async def get_throughput_snapshot(self) -> dict[str, dict]:
+    async with self._stats_lock:
+      return {
+        "aggregate": dict(self._aggregate_stats),
+        "channels": {cid: dict(stats) for cid, stats in self._channel_stats.items()},
+        "users": {uid: dict(stats) for uid, stats in self._user_stats.items()},
+      }
 
   async def _resolve_channel(self, channel_id: int) -> discord.abc.Messageable:
     bot = self._get_bot()
@@ -94,6 +137,24 @@ class DiscordOutputModule(BaseModule):
       raise RuntimeError("Discord bot is not available")
     return self.discord.bot
 
+  async def _queue_worker(self) -> None:
+    while True:
+      try:
+        payload = await self._outbound_queue.get()
+      except asyncio.CancelledError:
+        raise
+      try:
+        if payload.kind == "channel":
+          await self.send_to_channel(payload.target_id, payload.message)
+        else:
+          await self.send_to_user(payload.target_id, payload.message)
+      except asyncio.CancelledError:
+        raise
+      except Exception:  # pragma: no cover - logged for observability
+        logging.exception("[DiscordOutputModule] failed to dispatch message", extra={"kind": payload.kind, "target": payload.target_id})
+      finally:
+        self._outbound_queue.task_done()
+
   async def _deliver_in_chunks(self, sender: _SendCallable, text: str) -> None:
     chunks = self._yield_chunks(text, self._message_size_limit)
     async with self._send_lock:
@@ -101,6 +162,23 @@ class DiscordOutputModule(BaseModule):
         await sender(chunk)
         if self._trickle_delay > 0:
           await asyncio.sleep(self._trickle_delay)
+
+  async def _record_channel_throughput(self, channel_id: int, message: str) -> None:
+    await self._record_stats(self._channel_stats, channel_id, message)
+
+  async def _record_user_throughput(self, user_id: int, message: str) -> None:
+    await self._record_stats(self._user_stats, user_id, message)
+
+  async def _record_stats(self, bucket: dict[int, dict[str, float | int]], identifier: int, message: str) -> None:
+    async with self._stats_lock:
+      stats = bucket.setdefault(identifier, {"messages": 0, "characters": 0, "last_sent_at": 0.0})
+      now = time.time()
+      stats["messages"] += 1
+      stats["characters"] += len(message)
+      stats["last_sent_at"] = now
+      self._aggregate_stats["messages"] += 1
+      self._aggregate_stats["characters"] += len(message)
+      self._aggregate_stats["last_sent_at"] = now
 
   @staticmethod
   def _wrap_line(line: str, max_message_size: int) -> List[str]:
