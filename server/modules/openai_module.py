@@ -340,7 +340,7 @@ class OpenaiModule(BaseModule):
 
     if persona and personas_recid is not None and models_recid is not None:
       conv_id = await self._log_conversation_start(
-        persona_recid,
+        personas_recid,
         models_recid,
         guild_id,
         channel_id,

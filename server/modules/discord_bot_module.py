@@ -37,7 +37,7 @@ class DiscordBotModule(BaseModule):
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
     self.discord_output: "DiscordOutputModule" | None = None
-    self.discord_auth: "AuthModule" | None = None
+    self.discord_auth: "DiscordAuthModule" | None = None
     self.social_input_module: Any = None
     self.discord_input_provider: Any = None
     self._task: asyncio.Task | None = None
