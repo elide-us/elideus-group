@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
-from .discord_bot_module import DiscordBotBotModule
+from .discord_bot_module import DiscordBotModule
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -58,7 +58,7 @@ class OpenaiModule(BaseModule):
     self.db: DbModule | None = None
     self.client: AsyncOpenAI | None = None
     self.summary_queue = SummaryQueue()
-    self.discord: DiscordBotBotModule | None = None
+    self.discord: DiscordBotModule | None = None
     self.discord_output: "DiscordOutputModule" | None = None
 
   async def startup(self):
