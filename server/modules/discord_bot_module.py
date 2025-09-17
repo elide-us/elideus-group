@@ -1,8 +1,8 @@
 """Discord bot coordination module."""
 
-import logging, discord, json, asyncio, time, os
-from typing import IO, TYPE_CHECKING, Any, Any
-from fastapi import FastAPI, Request
+import logging, discord, asyncio, os
+from typing import IO, TYPE_CHECKING, Any
+from fastapi import FastAPI
 from discord.ext import commands
 
 try:  # pragma: no cover - platform dependent import
@@ -38,8 +38,6 @@ class DiscordBotModule(BaseModule):
     self.env: EnvModule | None = None
     self.discord_output: "DiscordOutputModule" | None = None
     self.discord_auth: "DiscordAuthModule" | None = None
-    self.social_input_module: Any = None
-    self.discord_input_provider: Any = None
     self._task: asyncio.Task | None = None
     self._user_counts: dict[int, int] = {}
     self._guild_counts: dict[int, int] = {}
@@ -62,7 +60,6 @@ class DiscordBotModule(BaseModule):
     self.discord_output = getattr(self.app.state, "discord_output", None)
     self.discord_auth = getattr(self.app.state, "discord_auth", None) or getattr(self.app.state, "auth", None)
     self.social_input_module = getattr(self.app.state, "social_input", None)
-    self.discord_input_provider = getattr(self.app.state, "discord_input_provider", None)
     setattr(self.app.state, "discord", self)
     if not self._acquire_bot_lock():
       logging.info("[DiscordBotModule] startup skipped: Discord bot already owned by another worker")
@@ -193,12 +190,27 @@ class DiscordBotModule(BaseModule):
       self.output_module = output
     return output
 
-  async def _try_send_channel(self, channel_id: int, message: str) -> bool:
+  def _require_output_module(self) -> "DiscordOutputModule":
     output = self._get_output_module()
     if not output:
-      return False
+      raise RuntimeError("DiscordOutputModule is not available")
+    return output
+
+  async def send_channel_message(self, channel_id: int, message: str) -> None:
+    if not message:
+      return
+    output = self._require_output_module()
+    await output.send_to_channel(channel_id, message)
+
+  async def send_user_message(self, user_id: int, message: str) -> None:
+    if not message:
+      return
+    output = self._require_output_module()
+    await output.send_to_user(user_id, message)
+
+  async def _try_send_channel(self, channel_id: int, message: str) -> bool:
     try:
-      await output.send_to_channel(channel_id, message)
+      await self.send_channel_message(channel_id, message)
       return True
     except Exception:
       logging.exception(
@@ -208,11 +220,8 @@ class DiscordBotModule(BaseModule):
     return False
 
   async def _try_send_user(self, user_id: int, message: str) -> bool:
-    output = self._get_output_module()
-    if not output:
-      return False
     try:
-      await output.send_to_user(user_id, message)
+      await self.send_user_message(user_id, message)
       return True
     except Exception:
       logging.exception(
@@ -221,7 +230,7 @@ class DiscordBotModule(BaseModule):
       )
     return False
 
-  def _bump_rate_limits(self, guild_id: int, user_id: int):
+  def bump_rate_limits(self, guild_id: int, user_id: int):
     u = self._user_counts.get(user_id, 0) + 1
     g = self._guild_counts.get(guild_id, 0) + 1
     self._user_counts[user_id] = u
@@ -271,170 +280,6 @@ class DiscordBotModule(BaseModule):
         logging.info(f"Joined guild {guild.name} ({guild.id})")
       else:
         logging.warning(f"[DiscordProvider] System channel not found when joining {guild.name}.")
-
-    @self.bot.command(name="rpc")
-    async def rpc_command(ctx, *, op: str):
-      from rpc.handler import handle_rpc_request
-      start = time.perf_counter()
-      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
-      body = json.dumps({"op": op}).encode()
-
-      async def receive():
-        nonlocal body
-        data = body
-        body = b""
-        return {"type": "http.request", "body": data, "more_body": False}
-
-      scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/rpc",
-        "headers": [(b"content-type", b"application/json")],
-        "app": self.app,
-      }
-      req = Request(scope, receive)
-      req.state.discord_ctx = ctx
-
-      try:
-        resp = await handle_rpc_request(req)
-        payload = resp.payload
-        if hasattr(payload, "model_dump"):
-          data = json.dumps(payload.model_dump())
-        else:
-          data = str(payload)
-        if not await self._try_send_channel(ctx.channel.id, data):
-          await ctx.send(data)
-        elapsed = time.perf_counter() - start
-        logging.info(
-          "[DiscordBot] rpc",
-          extra={
-            "guild_id": ctx.guild.id,
-            "channel_id": ctx.channel.id,
-            "user_id": ctx.author.id,
-            "op": op,
-            "elapsed": elapsed,
-          },
-        )
-      except Exception as e:
-        elapsed = time.perf_counter() - start
-        logging.exception(
-          "[DiscordBot] rpc failed",
-          extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "op": op, "elapsed": elapsed},
-        )
-        message = f"Error: {e}"
-        if not await self._try_send_channel(ctx.channel.id, message):
-          await ctx.send(message)
-
-    @self.bot.command(name="summarize")
-    async def summarize_command(ctx, hours: str):
-      from rpc.handler import handle_rpc_request
-      start = time.perf_counter()
-      self._bump_rate_limits(ctx.guild.id, ctx.author.id)
-
-      try:
-        hrs = int(hours)
-      except ValueError:
-        if not await self._try_send_channel(ctx.channel.id, "Usage: !summarize <hours>"):
-          await ctx.send("Usage: !summarize <hours>")
-        return
-      if hrs < 1 or hrs > 336:
-        if not await self._try_send_channel(ctx.channel.id, "Hours must be between 1 and 336"):
-          await ctx.send("Hours must be between 1 and 336")
-        return
-
-      body = json.dumps({
-        "op": "urn:discord:chat:summarize_channel:1",
-        "payload": {
-          "guild_id": ctx.guild.id,
-          "channel_id": ctx.channel.id,
-          "hours": hrs,
-          "user_id": ctx.author.id,
-        },
-      }).encode()
-
-      async def receive():
-        nonlocal body
-        data = body
-        body = b""
-        return {"type": "http.request", "body": data, "more_body": False}
-
-      scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/rpc",
-        "headers": [(b"content-type", b"application/json")],
-        "app": self.app,
-      }
-      req = Request(scope, receive)
-      req.state.discord_ctx = ctx
-
-      try:
-        resp = await handle_rpc_request(req)
-        payload = resp.payload
-
-        if hasattr(payload, "model_dump"):
-          data = payload.model_dump()
-        elif isinstance(payload, dict):
-          data = payload
-        else:
-          data = {"summary": str(payload)}
-        if not data.get("messages_collected"):
-          if not await self._try_send_channel(ctx.channel.id, "No messages found in the specified time range"):
-            await ctx.send("No messages found in the specified time range")
-          return
-        if data.get("cap_hit"):
-          if not await self._try_send_channel(ctx.channel.id, "Channel too active to summarize; message cap hit"):
-            await ctx.send("Channel too active to summarize; message cap hit")
-          return
-        summary_text = data.get("summary") or json.dumps(data)
-        try:
-          openai = getattr(self.app.state, "openai", None)
-          output = self._get_output_module()
-          if openai and getattr(openai, "summary_queue", None) and output:
-            await openai.summary_queue.add(output.send_to_user, ctx.author.id, summary_text)
-          elif output:
-            await output.send_to_user(ctx.author.id, summary_text)
-          else:
-            await ctx.author.send(summary_text)
-          if ctx.author.dm_channel:
-            async for _ in ctx.author.dm_channel.history(limit=1):
-              break
-        except discord.errors.HTTPException:
-          if not await self._try_send_channel(ctx.channel.id, "Failed to send summary. Please try again later."):
-            await ctx.send("Failed to send summary. Please try again later.")
-          logging.exception("[DiscordBot] summarize send failed")
-          return
-        except Exception:
-          if not await self._try_send_channel(ctx.channel.id, "Failed to send summary. Please try again later."):
-            await ctx.send("Failed to send summary. Please try again later.")
-          logging.exception("[DiscordBot] summarize delivery failed")
-          return
-        elapsed = time.perf_counter() - start
-        logging.info(
-          "[DiscordBot] summarize",
-          extra={
-            "guild_id": ctx.guild.id,
-            "channel_id": ctx.channel.id,
-            "user_id": ctx.author.id,
-            "hours": hrs,
-            "token_count_estimate": data.get("token_count_estimate"),
-            "messages_collected": data.get("messages_collected"),
-            "cap_hit": data.get("cap_hit"),
-            "model": data.get("model"),
-            "role": data.get("role"),
-            "elapsed": elapsed,
-          },
-        )
-        logging.debug("[DiscordBot] summarize response", extra=data)
-      except Exception:
-        elapsed = time.perf_counter() - start
-        logging.exception(
-          "[DiscordBot] summarize failed",
-          extra={"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id, "hours": hrs, "elapsed": elapsed},
-        )
-        if not await self._try_send_channel(ctx.channel.id, "Failed to fetch messages. Please try again later."):
-          await ctx.send("Failed to fetch messages. Please try again later.")
-
 
 class DiscordModule(DiscordBotModule):
   """Backward-compatible alias for the DiscordBotModule."""
