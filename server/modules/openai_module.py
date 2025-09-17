@@ -30,20 +30,27 @@ class SummaryQueue:
     return await future
 
   async def _process_queue(self):
+    loop = asyncio.get_running_loop()
     try:
-      while not self.queue.empty():
+      while True:
         func, args, kwargs, future = await self.queue.get()
         try:
           result = await func(*args, **kwargs)
-          future.set_result(result)
+          if not future.done():
+            future.set_result(result)
         except Exception as e:
-          future.set_exception(e)
+          if not future.done():
+            future.set_exception(e)
         await asyncio.sleep(self.delay)
     except asyncio.CancelledError:
       raise
     finally:
       async with self._lock:
         self.processing = False
+        self._processing_task = None
+        if not self.queue.empty():
+          self.processing = True
+          self._processing_task = loop.create_task(self._process_queue())
 
 class OpenaiModule(BaseModule):
   def __init__(self, app: FastAPI):
