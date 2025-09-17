@@ -9,8 +9,6 @@ from server.modules.personas_module import PersonasModule
 from .models import (
   DiscordChatPersonaRequest1,
   DiscordChatPersonaResponse1,
-  DiscordChatUwuChatRequest1,
-  DiscordChatUwuChatResponse1,
 )
 
 
@@ -39,21 +37,6 @@ async def discord_chat_summarize_channel_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=payload,
-    version=rpc_request.version,
-  )
-
-
-async def discord_chat_uwu_chat_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload_dict = rpc_request.payload or {}
-  req = DiscordChatUwuChatRequest1(**payload_dict)
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-  result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
-  payload = DiscordChatUwuChatResponse1(**result)
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=payload.model_dump(),
     version=rpc_request.version,
   )
 

@@ -241,7 +241,7 @@ Discord domain calls require Discord-specific roles depending on the subdomain:
 
 Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
-Currently exposes Discord command, chat, ongoing automation, persona, and Bluesky bridge operations.
+Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 
 ### `bsky`
 
@@ -253,7 +253,6 @@ Currently exposes Discord command, chat, ongoing automation, persona, and Bluesk
 
 | Operation                                | Description                      |
 | ---------------------------------------- | -------------------------------- |
-| `urn:discord:command:text_uwu:1`         | Stub command returning "uwu" text. |
 | `urn:discord:command:get_roles:1`        | List security roles for a Discord user. |
 
 
@@ -262,15 +261,7 @@ Currently exposes Discord command, chat, ongoing automation, persona, and Bluesk
 | Operation                                   | Description                     |
 | ------------------------------------------- | ------------------------------- |
 | `urn:discord:chat:summarize_channel:1`      | Summarize a Discord channel.    |
-| `urn:discord:chat:uwu_chat:1`               | Stub chat returning "uwu" text. |
 | `urn:discord:chat:persona_response:1`       | Respond using a selected persona. |
-
-### `ongoing`
-
-| Operation                                   | Description                                           |
-| ------------------------------------------- | ----------------------------------------------------- |
-| `urn:discord:ongoing:toggle_active:1`       | Toggle the Discord ongoing chat automation on or off. |
-| `urn:discord:ongoing:countdown:1`           | Get the seconds remaining before the next message.    |
 
 ### `personas`
 
@@ -287,13 +278,3 @@ Currently exposes Discord command, chat, ongoing automation, persona, and Bluesk
 !summarize 24
 ```
 Summarize the last 24 hours of messages in the current channel and send the result as a DM.
-
-```text
-!uwu hello there
-```
-Reply in-channel with a playful uwu-styled message.
-
-```
-!persona stark Tell me about the yearly rainfall in Spain
-```
-Ask a configured persona to respond in-channel using its prompt and model settings.

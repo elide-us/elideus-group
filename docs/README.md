@@ -11,14 +11,6 @@ Example:
 ```
 This summarizes the past 24 hours of messages.
 
-### `!uwu`
-Send a playful uwu-styled response in the channel.
-
-Example:
-```text
-!uwu hello there
-```
-
 ## Logging
 
 Each command invocation is logged for auditing:
@@ -28,4 +20,4 @@ Each command invocation is logged for auditing:
 
 The user ID of whoever invokes `!summarize` is captured in the conversation log.
 
-The OpenAI module upserts the persona and appends a conversation record whenever `!summarize` or `!uwu` runs.
+The OpenAI module upserts the persona and appends a conversation record whenever `!summarize` runs.

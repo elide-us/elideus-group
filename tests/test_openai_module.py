@@ -140,7 +140,7 @@ def test_fetch_chat_logs_conversation():
       "role",
       "hello",
       None,
-      persona="uwu",
+      persona="summarize",
       guild_id=1,
       channel_id=2,
       user_id=3,

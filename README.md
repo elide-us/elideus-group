@@ -66,5 +66,5 @@ Two tables record persona definitions and usage:
 | `assistant_personas` | Stores persona names, prompts, token limits, and model references. |
 | `assistant_conversations` | Logs each interaction including guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps. |
 
-The OpenAI module records conversation details whenever `!summarize` or `!uwu` is executed.
+The OpenAI module records conversation details whenever `!summarize` is executed.
 
