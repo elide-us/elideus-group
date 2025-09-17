@@ -145,6 +145,7 @@ class DiscordChatModule(BaseModule):
             model=model_hint or None,
             max_tokens=max_tokens,
             persona=persona_name,
+            persona_details=persona_details,
             guild_id=guild_id,
             channel_id=channel_id,
             user_id=user_id,

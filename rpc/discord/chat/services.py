@@ -5,7 +5,6 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
-from server.modules.personas_module import PersonasModule
 from server.modules.openai_module import OpenaiModule
 
 from .models import (
@@ -47,30 +46,15 @@ async def discord_chat_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   req = DiscordChatPersonaRequest1(**payload_dict)
-  persona_module: PersonasModule = request.app.state.personas
-  await persona_module.on_ready()
-
-  persona_name = (req.persona or "").strip()
-  persona_prompt = None
-  persona_model = None
   openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
-  if openai_module and persona_name:
-    await openai_module.on_ready()
-    try:
-      persona_details = await openai_module.get_persona_definition(persona_name)
-    except Exception:
-      logging.exception(
-        "[discord_chat_persona_response_v1] failed to load persona details",
-        extra={"persona": persona_name},
-      )
-      persona_details = None
-    if persona_details:
-      persona_name = (persona_details.get("name") or persona_name).strip()
-      persona_prompt = persona_details.get("prompt")
-      persona_model = persona_details.get("model")
+  if not openai_module:
+    logging.warning("[discord_chat_persona_response_v1] OpenAI module not configured")
+    raise HTTPException(status_code=503, detail="persona support unavailable")
+
+  await openai_module.on_ready()
   try:
-    result = await persona_module.persona_response(
-      persona_name,
+    result = await openai_module.persona_response(
+      req.persona,
       req.message,
       guild_id=req.guild_id,
       channel_id=req.channel_id,
@@ -79,10 +63,10 @@ async def discord_chat_persona_response_v1(request: Request):
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = DiscordChatPersonaResponse1(
-    persona=result.get("persona") or persona_name,
+    persona=result.get("persona", ""),
     persona_response_text=result.get("response_text", ""),
-    model=result.get("model") or persona_model,
-    role=result.get("role") or persona_prompt,
+    model=result.get("model"),
+    role=result.get("role"),
   )
   return RPCResponse(
     op=rpc_request.op,
