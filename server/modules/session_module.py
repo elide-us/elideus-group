@@ -7,13 +7,13 @@ from server.modules import BaseModule
 from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 
 class SessionModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.discord: DiscordModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   async def startup(self):
     self.auth: AuthModule = self.app.state.auth
@@ -22,7 +22,7 @@ class SessionModule(BaseModule):
     await self.db.on_ready()
     self.oauth: OauthModule = self.app.state.oauth
     await self.oauth.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
     self.mark_ready()

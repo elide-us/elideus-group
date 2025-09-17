@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 
 class DummyHistory:
@@ -44,7 +44,7 @@ class DummyAuthor:
 
 def test_summarize_command(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module._init_bot_routes()
 
@@ -86,7 +86,7 @@ def test_summarize_command(monkeypatch):
 
 def test_summarize_command_usage_error(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module._init_bot_routes()
   ctx = SimpleNamespace(
@@ -102,7 +102,7 @@ def test_summarize_command_usage_error(monkeypatch):
 
 def test_summarize_command_empty_history(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module._init_bot_routes()
 
@@ -138,7 +138,7 @@ def test_summarize_command_empty_history(monkeypatch):
 
 def test_summarize_command_cap_hit(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module._init_bot_routes()
 
@@ -174,7 +174,7 @@ def test_summarize_command_cap_hit(monkeypatch):
 
 def test_summarize_command_transient_error(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module._init_bot_routes()
 

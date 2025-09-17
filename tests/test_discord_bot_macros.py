@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 
 class DummyHistory:
@@ -56,7 +56,7 @@ class DummyMessage:
 
 def test_summarize_macro_dm(monkeypatch):
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
   module.bot._connection.user = SimpleNamespace(id=0)
   module._init_bot_routes()

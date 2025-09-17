@@ -1,7 +1,7 @@
-"""Discord integration module."""
+"""Discord bot coordination module."""
 
 import logging, discord, json, asyncio, time, os
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, Any
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -36,6 +36,10 @@ class DiscordBotModule(BaseModule):
     self.bot: commands.Bot | None = None
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
+    self.discord_output: "DiscordOutputModule" | None = None
+    self.discord_auth: "AuthModule" | None = None
+    self.social_input_module: Any = None
+    self.discord_input_provider: Any = None
     self._task: asyncio.Task | None = None
     self._user_counts: dict[int, int] = {}
     self._guild_counts: dict[int, int] = {}
@@ -55,8 +59,13 @@ class DiscordBotModule(BaseModule):
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.discord_output = getattr(self.app.state, "discord_output", None)
+    self.discord_auth = getattr(self.app.state, "discord_auth", None) or getattr(self.app.state, "auth", None)
+    self.social_input_module = getattr(self.app.state, "social_input", None)
+    self.discord_input_provider = getattr(self.app.state, "discord_input_provider", None)
+    setattr(self.app.state, "discord", self)
     if not self._acquire_bot_lock():
-      logging.info("[DiscordModule] startup skipped: Discord bot already owned by another worker")
+      logging.info("[DiscordBotModule] startup skipped: Discord bot already owned by another worker")
       self.mark_ready()
       return
     try:
@@ -193,7 +202,7 @@ class DiscordBotModule(BaseModule):
       return True
     except Exception:
       logging.exception(
-        "[DiscordModule] failed to send via DiscordOutputModule",
+        "[DiscordBotModule] failed to send via DiscordOutputModule",
         extra={"channel_id": channel_id},
       )
     return False
@@ -207,7 +216,7 @@ class DiscordBotModule(BaseModule):
       return True
     except Exception:
       logging.exception(
-        "[DiscordModule] failed to send user message via DiscordOutputModule",
+        "[DiscordBotModule] failed to send user message via DiscordOutputModule",
         extra={"user_id": user_id},
       )
     return False
@@ -251,7 +260,7 @@ class DiscordBotModule(BaseModule):
             await channel.send(msg)
             logging.info(msg)
           except Exception:
-            logging.exception("[DiscordModule] failed to send ready message")
+            logging.exception("[DiscordBotModule] failed to send ready message")
       else:
         logging.warning("[DiscordProvider] System channel not found on ready.")
 

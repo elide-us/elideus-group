@@ -2,7 +2,7 @@ import asyncio, logging
 from fastapi import FastAPI
 
 from server.modules import BaseModule
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 
 class DummyEnv(BaseModule):
@@ -95,11 +95,11 @@ def test_discord_module_startup_single_owner(monkeypatch, caplog):
     lock_attempts["count"] += 1
     return lock_attempts["count"] == 1
 
-  monkeypatch.setattr(DiscordModule, "_init_discord_bot", fake_init)
-  monkeypatch.setattr(DiscordModule, "_try_lock_file", fake_try_lock)
+  monkeypatch.setattr(DiscordBotModule, "_init_discord_bot", fake_init)
+  monkeypatch.setattr(DiscordBotModule, "_try_lock_file", fake_try_lock)
 
-  module1 = DiscordModule(app)
-  module2 = DiscordModule(app)
+  module1 = DiscordBotModule(app)
+  module2 = DiscordBotModule(app)
 
   with caplog.at_level(logging.INFO):
     asyncio.run(module1.startup())

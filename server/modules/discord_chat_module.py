@@ -6,21 +6,18 @@ from fastapi import FastAPI
 from typing import List
 
 from . import BaseModule
-from .discord_module import DiscordModule
-from .db_module import DbModule
+from .discord_bot_module import DiscordBotModule
 
 
 class DiscordChatModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.discord: DiscordModule | None = None
-    self.db: DbModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   async def startup(self):
-    self.discord = self.app.state.discord
-    await self.discord.on_ready()
-    self.db = self.app.state.db
-    await self.db.on_ready()
+    self.discord = getattr(self.app.state, "discord_bot", None)
+    if self.discord:
+      await self.discord.on_ready()
     self.app.state.discord_chat = self
     logging.info("[DiscordChatModule] loaded")
     self.mark_ready()
@@ -66,20 +63,6 @@ class DiscordChatModule(BaseModule):
       return len(enc.encode(text))
     except Exception:
       return len(text.split())
-
-  async def get_persona_instructions(self, name: str) -> str:
-    if not self.db:
-      return ""
-    try:
-      res = await self.db.run(
-        "db:assistant:personas:get_by_name:1",
-        {"name": name},
-      )
-      if res.rows:
-        return res.rows[0].get("element_prompt") or ""
-    except Exception:
-      logging.exception("[DiscordChatModule] get_persona_instructions failed")
-    return ""
 
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()
@@ -157,6 +140,34 @@ class DiscordChatModule(BaseModule):
       else:
         summary_text = getattr(response, "content", "")
         model = getattr(response, "model", "")
+      persona_details = None
+      try:
+        persona_details = await openai.get_persona_definition("summarize")
+      except Exception:
+        logging.exception("[DiscordChatModule] failed to load summarize persona")
+      role = persona_details.get("prompt", "") if persona_details else ""
+      model_hint = persona_details.get("model") if persona_details else ""
+      max_tokens = persona_details.get("tokens") if persona_details else None
+      persona_recid = persona_details.get("recid") if persona_details else None
+      models_recid = persona_details.get("models_recid") if persona_details else None
+      msg = await openai.submit_chat_prompt(
+        system_prompt=role,
+        model=model_hint or "gpt-4o-mini",
+        max_tokens=max_tokens,
+        user_prompt=summary["raw_text_blob"],
+        persona_name="summarize",
+        persona_recid=persona_recid,
+        models_recid=models_recid,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_log=str(hours),
+        token_count=summary["token_count_estimate"],
+      )
+      summary_text = msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", "")
+      model = msg.get("model", model_hint or "") if isinstance(msg, dict) else getattr(msg, "model", model_hint or "")
+      if not role:
+        role = msg.get("role", "") if isinstance(msg, dict) else getattr(msg, "role", "")
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] summarize_chat",

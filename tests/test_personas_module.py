@@ -4,48 +4,40 @@ import pytest
 from fastapi import FastAPI
 
 from server.modules.personas_module import PersonasModule
-from server.modules.providers import DBResult
-
-
-class DummyDB:
-  def __init__(self, row):
-    self.row = row
-    self.calls = []
-
-  async def run(self, op, args):
-    assert op == "db:assistant:personas:get_by_name:1"
-    self.calls.append(args)
-    return DBResult(rows=[self.row] if self.row else [], rowcount=1 if self.row else 0)
 
 
 class DummyOpenAI:
-  def __init__(self):
+  def __init__(self, persona: dict | None):
     self.client = object()
     self.calls = []
+    self.persona = persona
+    self.definitions = []
 
   async def on_ready(self):
     pass
 
-  async def fetch_chat(self, schemas, role, prompt, tokens, **kwargs):
-    self.calls.append({
-      "persona": kwargs.get("persona"),
-      "prompt": prompt,
-      "role": role,
-      "tokens": tokens,
-      "input_log": kwargs.get("input_log"),
-    })
+  async def get_persona_definition(self, name: str):
+    self.definitions.append(name)
+    if not self.persona:
+      return None
+    return self.persona
+
+  async def submit_chat_prompt(self, **kwargs):
+    self.calls.append(kwargs)
     return {"content": "Response", "model": "gpt", "role": "assistant"}
 
 
 def test_persona_response_calls_openai():
   app = FastAPI()
   module = PersonasModule(app)
-  module.db = DummyDB({
-    "element_prompt": "be stark",
-    "element_tokens": 42,
-    "element_model": "gpt",
+  module.openai = DummyOpenAI({
+    "name": "stark",
+    "prompt": "be stark",
+    "tokens": 42,
+    "model": "gpt",
+    "recid": 1,
+    "models_recid": 2,
   })
-  module.openai = DummyOpenAI()
 
   res = asyncio.run(module.persona_response("stark", "Tell me", guild_id=1, channel_id=2, user_id=3))
   assert res == {
@@ -54,41 +46,44 @@ def test_persona_response_calls_openai():
     "model": "gpt",
     "role": "assistant",
   }
-  assert module.openai.calls == [{
-    "persona": "stark",
-    "prompt": "Tell me",
-    "role": "be stark",
-    "tokens": 42,
+  assert module.openai.definitions == ["stark"]
+  call = module.openai.calls[0]
+  expected = {
+    "system_prompt": "be stark",
+    "model": "gpt",
+    "max_tokens": 42,
+    "user_prompt": "Tell me",
+    "persona_name": "stark",
+    "persona_recid": 1,
+    "models_recid": 2,
+    "guild_id": 1,
+    "channel_id": 2,
+    "user_id": 3,
     "input_log": "Tell me",
-  }]
-  assert module.db.calls == [{"name": "stark"}]
+    "token_count": None,
+  }
+  for key, value in expected.items():
+    assert call.get(key) == value
 
 
 def test_persona_response_missing_persona():
   app = FastAPI()
   module = PersonasModule(app)
-  module.db = DummyDB(None)
-  module.openai = DummyOpenAI()
+  module.openai = DummyOpenAI(None)
 
   with pytest.raises(ValueError):
     asyncio.run(module.persona_response("unknown", "Hello"))
-  assert module.db.calls == [{"name": "unknown"}]
 
 
 def test_persona_response_stub_without_openai():
   app = FastAPI()
   module = PersonasModule(app)
-  module.db = DummyDB({
-    "element_prompt": "be stark",
-    "element_tokens": 42,
-    "element_model": "gpt",
-  })
   module.openai = None
 
   res = asyncio.run(module.persona_response("stark", "Hi"))
   assert res == {
     "persona": "stark",
     "response_text": "[[STUB: persona response here]]",
-    "model": "gpt",
-    "role": "be stark",
+    "model": "",
+    "role": "",
   }

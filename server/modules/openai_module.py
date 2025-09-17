@@ -1,11 +1,11 @@
 from __future__ import annotations
 import logging, asyncio
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Any, Dict, List
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
-from .discord_module import DiscordBotModule
+from .discord_bot_module import DiscordBotBotModule
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -58,13 +58,13 @@ class OpenaiModule(BaseModule):
     self.db: DbModule | None = None
     self.client: AsyncOpenAI | None = None
     self.summary_queue = SummaryQueue()
-    self.discord: DiscordBotModule | None = None
+    self.discord: DiscordBotBotModule | None = None
     self.discord_output: "DiscordOutputModule" | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
-    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
     self.discord_output = getattr(self.app.state, "discord_output", None)
@@ -107,6 +107,72 @@ class OpenaiModule(BaseModule):
     except Exception:
       logging.exception("[OpenaiModule] fetch persona failed")
     return None
+
+  async def get_persona_definition(self, name: str) -> Dict[str, Any] | None:
+    persona_row = await self._get_persona(name)
+    if not persona_row:
+      return None
+    prompt = persona_row.get("prompt") or persona_row.get("element_prompt") or ""
+    tokens_val = persona_row.get("tokens")
+    if tokens_val is None:
+      tokens_val = persona_row.get("element_tokens")
+    models_recid = persona_row.get("models_recid")
+    if models_recid is None:
+      models_recid = persona_row.get("element_models_recid")
+    model_hint = persona_row.get("model") or persona_row.get("element_model")
+    return {
+      "recid": persona_row.get("recid"),
+      "name": persona_row.get("name", ""),
+      "prompt": prompt,
+      "tokens": int(tokens_val or 0),
+      "models_recid": int(models_recid) if models_recid is not None else None,
+      "model": model_hint,
+    }
+
+  async def list_models(self) -> List[Dict[str, Any]]:
+    assert self.db
+    res = await self.db.run("db:assistant:models:list:1", {})
+    return list(res.rows or [])
+
+  async def list_personas(self) -> List[Dict[str, Any]]:
+    assert self.db
+    res = await self.db.run("db:assistant:personas:list:1", {})
+    personas: List[Dict[str, Any]] = []
+    for row in res.rows or []:
+      personas.append({
+        "recid": row.get("recid"),
+        "name": row.get("name", ""),
+        "prompt": row.get("prompt", ""),
+        "tokens": int(row.get("tokens", 0) or 0),
+        "models_recid": (
+          int(row.get("models_recid")) if row.get("models_recid") is not None else None
+        ),
+        "model": row.get("model"),
+      })
+    return personas
+
+  async def upsert_persona(self, persona: Dict[str, Any]) -> None:
+    assert self.db
+    model_recid = persona.get("models_recid")
+    if model_recid is None:
+      raise ValueError("models_recid required")
+    payload = {
+      "recid": persona.get("recid"),
+      "name": persona.get("name", ""),
+      "prompt": persona.get("prompt", ""),
+      "tokens": int(persona.get("tokens", 0) or 0),
+      "models_recid": int(model_recid),
+    }
+    if not payload["name"]:
+      raise ValueError("name required")
+    await self.db.run("db:assistant:personas:upsert:1", payload)
+
+  async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
+    assert self.db
+    await self.db.run(
+      "db:assistant:personas:delete:1",
+      {"recid": recid, "name": name},
+    )
 
   async def list_models(self) -> List[Dict[str, Any]]:
     assert self.db
@@ -274,7 +340,7 @@ class OpenaiModule(BaseModule):
 
     if persona and personas_recid is not None and models_recid is not None:
       conv_id = await self._log_conversation_start(
-        personas_recid,
+        persona_recid,
         models_recid,
         guild_id,
         channel_id,
