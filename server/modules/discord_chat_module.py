@@ -108,6 +108,38 @@ class DiscordChatModule(BaseModule):
     role = ""
     if openai and getattr(openai, "client", None):
       await openai.on_ready()
+      role = await self.get_persona_instructions("summarize")
+      generator = getattr(openai, "generate_chat", None)
+      if generator:
+        response = await generator(
+          system_prompt=role,
+          user_prompt=summary["raw_text_blob"],
+          persona="summarize",
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_log=str(hours),
+          token_count=summary["token_count_estimate"],
+        )
+      else:
+        response = await openai.fetch_chat(
+          [],
+          role,
+          summary["raw_text_blob"],
+          None,
+          persona="summarize",
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_log=str(hours),
+          token_count=summary["token_count_estimate"],
+        )
+      if isinstance(response, dict):
+        summary_text = response.get("content", "")
+        model = response.get("model", "")
+      else:
+        summary_text = getattr(response, "content", "")
+        model = getattr(response, "model", "")
       persona_details = None
       try:
         persona_details = await openai.get_persona_definition("summarize")

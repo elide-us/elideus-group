@@ -70,22 +70,42 @@ class PersonasModule(BaseModule):
         "role": instructions,
       }
 
-    result = await self.openai.submit_chat_prompt(
-      system_prompt=instructions,
-      model=model_hint or "gpt-4o-mini",
-      max_tokens=tokens,
-      user_prompt=prompt,
-      persona_name=persona_name,
-      persona_recid=persona_recid,
-      models_recid=models_recid,
-      guild_id=guild_id,
-      channel_id=channel_id,
-      user_id=user_id,
-      input_log=prompt,
-    )
+    await self.openai.on_ready()
+    generator = getattr(self.openai, "generate_chat", None)
+    if generator:
+      response = await generator(
+        system_prompt=instructions,
+        user_prompt=prompt,
+        max_tokens=tokens,
+        persona=persona_name,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_log=prompt,
+      )
+    else:
+      response = await self.openai.fetch_chat(
+        [],
+        instructions,
+        prompt,
+        tokens,
+        persona=persona_name,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_log=prompt,
+      )
+    if isinstance(response, dict):
+      content = response.get("content", "")
+      model_value = response.get("model")
+      role_value = response.get("role", "")
+    else:
+      content = getattr(response, "content", "")
+      model_value = getattr(response, "model", None)
+      role_value = getattr(response, "role", "")
     return {
       "persona": persona_name,
-      "response_text": result.get("content", ""),
-      "model": result.get("model"),
-      "role": result.get("role", ""),
+      "response_text": content,
+      "model": model_value,
+      "role": role_value,
     }

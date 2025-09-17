@@ -1,7 +1,7 @@
 """Discord bot coordination module."""
 
 import logging, discord, json, asyncio, time, os
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, Any
 from fastapi import FastAPI, Request
 from discord.ext import commands
 
@@ -23,7 +23,10 @@ from server.helpers.logging import configure_discord_logging, remove_discord_log
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
-  from .auth_module import AuthModule
+  DiscordAuthModule = Any
+  SocialInputModule = Any
+  DiscordInputProvider = Any
+
 
 class DiscordBotModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -44,6 +47,12 @@ class DiscordBotModule(BaseModule):
     self.GUILD_RATE_LIMIT = 1000
     self.owns_bot: bool = False
     self._lock_handle: IO[str] | None = None
+    self.auth_module: "DiscordAuthModule" | None = None
+    self.output_module: "DiscordOutputModule" | None = None
+    self.social_input_module: "SocialInputModule" | None = None
+    self.input_provider: "DiscordInputProvider" | None = None
+    if not getattr(self.app.state, "discord_bot", None):
+      setattr(self.app.state, "discord_bot", self)
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
@@ -61,6 +70,7 @@ class DiscordBotModule(BaseModule):
       return
     try:
       self.owns_bot = True
+      setattr(self.app.state, "discord_bot", self)
       self.secret = self.env.get("DISCORD_SECRET")
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
@@ -88,8 +98,10 @@ class DiscordBotModule(BaseModule):
       self.bot = None
       self._release_bot_lock()
       self.owns_bot = False
+      if getattr(self.app.state, "discord_bot", None) is self:
+        self.app.state.discord_bot = None
       raise
-    logging.info("[DiscordBotModule] loaded")
+    logging.info("Discord bot module loaded")
     self.mark_ready()
 
   async def shutdown(self):
@@ -105,7 +117,8 @@ class DiscordBotModule(BaseModule):
     remove_discord_logging(self)
     self._release_bot_lock()
     self.owns_bot = False
-    logging.info("[DiscordBotModule] shutdown")
+    if getattr(self.app.state, "discord_bot", None) is self:
+      self.app.state.discord_bot = None
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
@@ -160,12 +173,24 @@ class DiscordBotModule(BaseModule):
       finally:
         self._lock_handle = None
 
+  def register_auth_module(self, module: "DiscordAuthModule") -> None:
+    self.auth_module = module
+
+  def register_output_module(self, module: "DiscordOutputModule") -> None:
+    self.output_module = module
+
+  def register_social_input_module(self, module: "SocialInputModule") -> None:
+    self.social_input_module = module
+
+  def register_input_provider(self, provider: "DiscordInputProvider") -> None:
+    self.input_provider = provider
+
   def _get_output_module(self) -> "DiscordOutputModule | None":
-    if self.discord_output:
-      return self.discord_output
+    if self.output_module:
+      return self.output_module
     output = getattr(self.app.state, "discord_output", None)
     if output:
-      self.discord_output = output
+      self.output_module = output
     return output
 
   async def _try_send_channel(self, channel_id: int, message: str) -> bool:
@@ -409,4 +434,8 @@ class DiscordBotModule(BaseModule):
         )
         if not await self._try_send_channel(ctx.channel.id, "Failed to fetch messages. Please try again later."):
           await ctx.send("Failed to fetch messages. Please try again later.")
+
+
+class DiscordModule(DiscordBotModule):
+  """Backward-compatible alias for the DiscordBotModule."""
 

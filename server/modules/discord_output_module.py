@@ -23,15 +23,20 @@ class DiscordOutputModule(BaseModule):
     self._send_lock = asyncio.Lock()
 
   async def startup(self):
-    self.discord = getattr(self.app.state, "discord_bot", None)
+    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
+      register = getattr(self.discord, "register_output_module", None)
+      if register:
+        register(self)
     self.app.state.discord_output = self
     logging.info("[DiscordOutputModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):
     logging.info("[DiscordOutputModule] shutdown")
+    if self.discord and getattr(self.discord, "output_module", None) is self:
+      self.discord.output_module = None
     if getattr(self.app.state, "discord_output", None) is self:
       self.app.state.discord_output = None
     self.discord = None
