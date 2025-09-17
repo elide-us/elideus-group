@@ -52,7 +52,7 @@ class StubModule:
       'role': 'role',
     }
 
-class StubPersonasModule:
+class StubOpenAIModule:
   def __init__(self, response=None):
     self.calls = []
     self._response = response
@@ -69,9 +69,7 @@ class StubPersonasModule:
         'model': 'gpt',
         'role': 'role',
       }
-    result = dict(self._response)
-    result.setdefault('persona', persona)
-    return result
+    return dict(self._response)
 
 
 def test_summarize_channel_handler():
@@ -114,8 +112,8 @@ def test_summarize_channel_handler():
 
 def test_persona_response_handler():
   app = FastAPI()
-  module = StubPersonasModule()
-  app.state.personas = module
+  module = StubOpenAIModule()
+  app.state.openai = module
 
   async def fake_unbox(request):
     return (
@@ -156,37 +154,17 @@ def test_persona_response_handler():
   chat_services.unbox_request = original
 
 
-def test_persona_response_handler_uses_view_persona_details():
+def test_persona_response_handler_uses_openai_results():
   app = FastAPI()
-  module = StubPersonasModule(
+  module = StubOpenAIModule(
     {
+      'persona': 'Stark',
       'response_text': 'persona reply',
-      'model': None,
-      'role': '',
+      'model': 'gpt-4o',
+      'role': 'be stark',
     },
   )
-  app.state.personas = module
-
-  class StubOpenAIModule:
-    def __init__(self):
-      self.calls = 0
-
-    async def on_ready(self):
-      pass
-
-    async def get_persona_definition(self, name: str):
-      self.calls += 1
-      assert name == 'stark'
-      return {
-        'name': 'Stark',
-        'prompt': 'be stark',
-        'tokens': 128,
-        'models_recid': 2,
-        'model': 'gpt-4o',
-      }
-
-  openai_stub = StubOpenAIModule()
-  app.state.openai = openai_stub
+  app.state.openai = module
 
   async def fake_unbox(request):
     return (
@@ -214,8 +192,7 @@ def test_persona_response_handler_uses_view_persona_details():
   client = TestClient(app)
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1'})
   assert resp.status_code == 200
-  assert openai_stub.calls == 1
-  assert module.calls == [('Stark', 'Tell me about rain', 1, 2, 3)]
+  assert module.calls == [('stark', 'Tell me about rain', 1, 2, 3)]
   data = resp.json()
   expected = {
     'persona': 'Stark',

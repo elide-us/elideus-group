@@ -1,6 +1,8 @@
 from __future__ import annotations
-import logging, asyncio
-from typing import TYPE_CHECKING, Any, Dict, List, Any, Dict, List
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING, Any, Dict, List
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
@@ -174,53 +176,6 @@ class OpenaiModule(BaseModule):
       {"recid": recid, "name": name},
     )
 
-  async def list_models(self) -> List[Dict[str, Any]]:
-    assert self.db
-    res = await self.db.run("db:assistant:models:list:1", {})
-    return list(res.rows or [])
-
-  async def list_personas(self) -> List[Dict[str, Any]]:
-    assert self.db
-    res = await self.db.run("db:assistant:personas:list:1", {})
-    personas: List[Dict[str, Any]] = []
-    for row in res.rows or []:
-      personas.append({
-        "recid": row.get("recid"),
-        "name": row.get("name", ""),
-        "prompt": row.get("prompt", ""),
-        "tokens": int(row.get("tokens", 0) or 0),
-        "models_recid": (
-          int(row.get("models_recid"))
-          if row.get("models_recid") is not None
-          else None
-        ),
-        "model": row.get("model"),
-      })
-    return personas
-
-  async def upsert_persona(self, persona: Dict[str, Any]) -> None:
-    assert self.db
-    model_recid = persona.get("models_recid")
-    if model_recid is None:
-      raise ValueError("models_recid required")
-    payload = {
-      "recid": persona.get("recid"),
-      "name": persona.get("name", ""),
-      "prompt": persona.get("prompt", ""),
-      "tokens": int(persona.get("tokens", 0) or 0),
-      "models_recid": int(model_recid),
-    }
-    if not payload["name"]:
-      raise ValueError("name required")
-    await self.db.run("db:assistant:personas:upsert:1", payload)
-
-  async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
-    assert self.db
-    await self.db.run(
-      "db:assistant:personas:delete:1",
-      {"recid": recid, "name": name},
-    )
-
   async def _log_conversation_start(
     self,
     personas_recid: int | None,
@@ -302,6 +257,7 @@ class OpenaiModule(BaseModule):
     tools: List[Dict[str, Any]] | None = None,
     prompt_context: str = "",
     persona: str | None = None,
+    persona_details: Dict[str, Any] | None = None,
     guild_id: int | None = None,
     channel_id: int | None = None,
     user_id: int | None = None,
@@ -318,20 +274,28 @@ class OpenaiModule(BaseModule):
     resolved_model = (model or "").strip() or "gpt-4o-mini"
     resolved_tokens = max_tokens
     resolved_prompt = system_prompt or ""
-    persona_row = None
+    resolved_persona_details: Dict[str, Any] | None = persona_details
 
     if persona:
-      persona_row = await self._get_persona(persona)
-      if persona_row:
-        personas_recid = persona_row.get("recid")
-        models_recid = persona_row.get("models_recid")
-        persona_model = persona_row.get("element_model")
+      if resolved_persona_details is None:
+        try:
+          resolved_persona_details = await self.get_persona_definition(persona)
+        except Exception:
+          logging.exception(
+            "[OpenaiModule] failed to resolve persona details",
+            extra={"persona": persona},
+          )
+          resolved_persona_details = None
+      if resolved_persona_details:
+        personas_recid = resolved_persona_details.get("recid")
+        models_recid = resolved_persona_details.get("models_recid")
+        persona_model = resolved_persona_details.get("model")
         if persona_model:
           resolved_model = persona_model
-        persona_tokens = persona_row.get("element_tokens")
+        persona_tokens = resolved_persona_details.get("tokens")
         if resolved_tokens is None and persona_tokens is not None:
           resolved_tokens = int(persona_tokens)
-        persona_prompt = persona_row.get("element_prompt")
+        persona_prompt = resolved_persona_details.get("prompt")
         if not resolved_prompt and persona_prompt:
           resolved_prompt = persona_prompt
 
@@ -387,6 +351,70 @@ class OpenaiModule(BaseModule):
     if conv_id:
       await self._log_conversation_end(conv_id, content, total_tokens)
     return result
+
+  async def persona_response(
+    self,
+    persona: str,
+    message: str,
+    *,
+    guild_id: int | None = None,
+    channel_id: int | None = None,
+    user_id: int | None = None,
+  ) -> Dict[str, Any]:
+    persona_name = (persona or "").strip()
+    if not persona_name:
+      raise ValueError("persona is required")
+    prompt = (message or "").strip()
+    if not prompt:
+      raise ValueError("message is required")
+
+    persona_details = await self.get_persona_definition(persona_name)
+    if not persona_details:
+      raise ValueError(f"persona '{persona_name}' was not found")
+
+    instructions = (persona_details.get("prompt") or "").strip()
+    if not instructions:
+      raise ValueError(f"persona '{persona_name}' is missing instructions")
+
+    tokens = persona_details.get("tokens")
+    model_hint = persona_details.get("model")
+    resolved_name = (persona_details.get("name") or persona_name).strip() or persona_name
+
+    if not self.client:
+      logging.warning(
+        "[OpenaiModule] client not initialized for persona response",
+        extra={"persona": persona_name},
+      )
+      return {
+        "persona": resolved_name,
+        "response_text": "[[STUB: persona response here]]",
+        "model": model_hint or "",
+        "role": instructions,
+      }
+
+    response = await self.generate_chat(
+      system_prompt=instructions,
+      user_prompt=prompt,
+      model=model_hint,
+      max_tokens=tokens,
+      persona=persona_name,
+      persona_details=persona_details,
+      guild_id=guild_id,
+      channel_id=channel_id,
+      user_id=user_id,
+      input_log=prompt,
+      token_count=None,
+    )
+
+    content = response.get("content", "")
+    model_value = response.get("model") or model_hint
+    role_value = response.get("role", "") or instructions
+    return {
+      "persona": resolved_name,
+      "response_text": content,
+      "model": model_value,
+      "role": role_value,
+    }
 
   async def fetch_chat(
     self,
