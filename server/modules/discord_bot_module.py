@@ -261,7 +261,9 @@ class DiscordBotModule(BaseModule):
       if channel:
         res = await self.db.run("db:system:config:get_config:1", {"key": "Version"})
         version = res.rows[0]["value"] if res.rows else None
-        msg = f"TheOracleGPT-Dev Online. Version: {version or 'unknown'}"
+        name_res = await self.db.run("db:system:config:get_config:1", {"key": "BotName"})
+        bot_name = name_res.rows[0]["value"] if name_res.rows else None
+        msg = f"{(bot_name or 'TheOracleGPT-Dev')} Online. Version: {version or 'unknown'}"
         if await self._try_send_channel(channel.id, msg):
           logging.info(msg)
         else:
