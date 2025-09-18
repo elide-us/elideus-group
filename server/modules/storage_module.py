@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-from .discord_module import DiscordModule
+from .discord_bot_module import DiscordBotModule
 
 
 class StorageModule(BaseModule):
@@ -28,7 +28,7 @@ class StorageModule(BaseModule):
     self.connection_string: str | None = None
     self._reindex_task: asyncio.Task | None = None
     self.reindex_interval = 15 * 60
-    self.discord: DiscordModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   @staticmethod
   def _parse_duration(value: str) -> int:
@@ -44,7 +44,7 @@ class StorageModule(BaseModule):
     await self.env.on_ready()
     self.db = self.app.state.db
     await self.db.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
     try:

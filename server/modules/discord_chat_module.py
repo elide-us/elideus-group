@@ -6,21 +6,18 @@ from fastapi import FastAPI
 from typing import List
 
 from . import BaseModule
-from .discord_module import DiscordModule
-from .db_module import DbModule
+from .discord_bot_module import DiscordBotModule
 
 
 class DiscordChatModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self.discord: DiscordModule | None = None
-    self.db: DbModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   async def startup(self):
-    self.discord = self.app.state.discord
-    await self.discord.on_ready()
-    self.db = self.app.state.db
-    await self.db.on_ready()
+    self.discord = getattr(self.app.state, "discord_bot", None)
+    if self.discord:
+      await self.discord.on_ready()
     self.app.state.discord_chat = self
     logging.info("[DiscordChatModule] loaded")
     self.mark_ready()
@@ -67,72 +64,6 @@ class DiscordChatModule(BaseModule):
     except Exception:
       return len(text.split())
 
-  async def summarize_persona(self, text: str) -> List[str]:
-    openai = getattr(self.app.state, "openai", None)
-    if not openai or not getattr(openai, "client", None):
-      return ["[[STUB: Persona summary output here]]"]
-    await openai.on_ready()
-    msg = await openai.fetch_chat(
-      [],
-      "Summarize the following conversation into bullet points.",
-      text,
-      300,
-    )
-    content = getattr(
-      msg,
-      "content",
-      msg.get("content", "") if isinstance(msg, dict) else "",
-    )
-    return [line.strip() for line in content.splitlines() if line.strip()]
-
-  async def get_persona_instructions(self, name: str) -> str:
-    if not self.db:
-      return ""
-    try:
-      res = await self.db.run(
-        "db:assistant:personas:get_by_name:1",
-        {"name": name},
-      )
-      if res.rows:
-        return res.rows[0].get("element_prompt") or ""
-    except Exception:
-      logging.exception("[DiscordChatModule] get_persona_instructions failed")
-    return ""
-
-  async def uwu_persona(
-    self,
-    summary: List[str],
-    user_id: int,
-    user_message: str,
-    guild_id: int,
-    channel_id: int,
-    token_count: int,
-  ) -> str:
-    openai = getattr(self.app.state, "openai", None)
-    if not openai or not getattr(openai, "client", None):
-      return "[[STUB: uwu persona output here]]"
-    await openai.on_ready()
-    prompt_context = "\n".join(summary)
-    role = await self.get_persona_instructions("uwu")
-    msg = await openai.fetch_chat(
-      [],
-      role,
-      user_message,
-      None,
-      prompt_context,
-      persona="uwu",
-      guild_id=guild_id,
-      channel_id=channel_id,
-      user_id=user_id,
-      input_log=user_message,
-      token_count=token_count,
-    )
-    return getattr(
-      msg,
-      "content",
-      msg.get("content", "") if isinstance(msg, dict) else "",
-    )
-
   async def summarize_channel(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     start = time.perf_counter()
     history = await self.fetch_channel_history_backwards(guild_id, channel_id, hours, max_messages)
@@ -172,34 +103,83 @@ class DiscordChatModule(BaseModule):
     start = time.perf_counter()
     summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
     openai = getattr(self.app.state, "openai", None)
-    summary_text = "[[STUB: summarize persona output here]]"
+    summary_text = ""
     model = ""
     role = ""
-    if openai and getattr(openai, "client", None):
+    persona_name = "summarize"
+    if openai:
       await openai.on_ready()
-      role = await self.get_persona_instructions("summarize")
-      msg = await openai.fetch_chat(
-        [],
-        role,
-        summary["raw_text_blob"],
-        None,
-        persona="summarize",
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_log=str(hours),
-        token_count=summary["token_count_estimate"],
-      )
-      summary_text = getattr(
-        msg,
-        "content",
-        msg.get("content", "") if isinstance(msg, dict) else "",
-      )
-      model = getattr(
-        msg,
-        "model",
-        msg.get("model", "") if isinstance(msg, dict) else "",
-      )
+      persona_details = None
+      try:
+        persona_details = await openai.get_persona_definition(persona_name)
+      except Exception:
+        logging.exception(
+          "[DiscordChatModule] failed to load summarize persona",
+          extra={"persona": persona_name},
+        )
+      model_hint = ""
+      max_tokens = None
+      if persona_details:
+        prompt_val = persona_details.get("prompt")
+        if prompt_val:
+          role = str(prompt_val)
+        model_val = persona_details.get("model")
+        if model_val:
+          model_hint = str(model_val)
+        tokens_val = persona_details.get("tokens")
+        if isinstance(tokens_val, str):
+          try:
+            tokens_val = int(tokens_val)
+          except ValueError:
+            tokens_val = None
+        if isinstance(tokens_val, int) and tokens_val > 0:
+          max_tokens = tokens_val
+      generator = getattr(openai, "generate_chat", None)
+      fetch_chat = getattr(openai, "fetch_chat", None)
+      response = None
+      try:
+        if generator:
+          response = await generator(
+            system_prompt=role,
+            user_prompt=summary["raw_text_blob"],
+            model=model_hint or None,
+            max_tokens=max_tokens,
+            persona=persona_name,
+            persona_details=persona_details,
+            guild_id=guild_id,
+            channel_id=channel_id,
+            user_id=user_id,
+            input_log=str(hours),
+            token_count=summary["token_count_estimate"],
+          )
+        elif fetch_chat:
+          response = await fetch_chat(
+            [],
+            role,
+            summary["raw_text_blob"],
+            max_tokens,
+            persona=persona_name,
+            guild_id=guild_id,
+            channel_id=channel_id,
+            user_id=user_id,
+            input_log=str(hours),
+            token_count=summary["token_count_estimate"],
+            model=model_hint or "gpt-4o-mini",
+          )
+      except Exception:
+        logging.exception("[DiscordChatModule] chat generation failed")
+        response = None
+      if response is not None:
+        if isinstance(response, dict):
+          summary_text = response.get("content", "")
+          model = response.get("model", model_hint or "")
+          response_role = response.get("role", "")
+        else:
+          summary_text = getattr(response, "content", "")
+          model = getattr(response, "model", model_hint or "")
+          response_role = getattr(response, "role", "")
+        if not role:
+          role = response_role
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordChatModule] summarize_chat",
@@ -221,46 +201,4 @@ class DiscordChatModule(BaseModule):
       "summary_text": summary_text,
       "model": model,
       "role": role,
-    }
-
-  async def uwu_chat(
-    self,
-    guild_id: int,
-    channel_id: int,
-    user_id: int,
-    message: str,
-    hours: int = 1,
-    max_messages: int = 12,
-  ) -> dict:
-    hours = max(hours, 1)
-    max_messages = max(max_messages, 12)
-    start = time.perf_counter()
-    summary = await self.summarize_channel(guild_id, channel_id, hours, max_messages)
-    summary_lines = await self.summarize_persona(summary["raw_text_blob"])
-    uwu_response = await self.uwu_persona(
-      summary_lines,
-      user_id,
-      message,
-      guild_id,
-      channel_id,
-      summary["token_count_estimate"],
-    )
-    elapsed = time.perf_counter() - start
-    logging.info(
-      "[DiscordChatModule] uwu_chat",
-      extra={
-        "guild_id": guild_id,
-        "channel_id": channel_id,
-        "user_id": user_id,
-        "hours": hours,
-        "messages_collected": summary["messages_collected"],
-        "token_count_estimate": summary["token_count_estimate"],
-        "input_length": len(message),
-        "elapsed": elapsed,
-      },
-    )
-    return {
-      "token_count_estimate": summary["token_count_estimate"],
-      "summary_lines": summary_lines,
-      "uwu_response_text": uwu_response,
     }

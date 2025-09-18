@@ -1,7 +1,9 @@
 import asyncio
 import logging
-from fastapi import FastAPI
 from types import SimpleNamespace
+
+import pytest
+from fastapi import FastAPI
 
 from server.modules.openai_module import OpenaiModule, SummaryQueue
 from server.modules.providers import DBResult
@@ -140,7 +142,7 @@ def test_fetch_chat_logs_conversation():
       "role",
       "hello",
       None,
-      persona="uwu",
+      persona="summarize",
       guild_id=1,
       channel_id=2,
       user_id=3,
@@ -253,3 +255,135 @@ def test_fetch_chat_reuses_existing_conversation():
     "db:assistant:conversations:find_recent:1",
     "db:assistant:conversations:update_output:1",
   ]
+
+
+def test_persona_response_calls_openai():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyCreate:
+    async def create(self, **kwargs):
+      self.kwargs = kwargs
+      return SimpleNamespace(
+        model=kwargs.get("model"),
+        choices=[SimpleNamespace(message=SimpleNamespace(content="Response", role="assistant"))],
+        usage=SimpleNamespace(total_tokens=11),
+      )
+
+  dummy_create = DummyCreate()
+  module.client = SimpleNamespace(chat=SimpleNamespace(completions=dummy_create))
+
+  class DummyDB:
+    def __init__(self):
+      self.calls = []
+
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      if op == "db:assistant:personas:get_by_name:1":
+        return DBResult(
+          rows=[{
+            "recid": 1,
+            "name": "Stark",
+            "models_recid": 2,
+            "prompt": "be stark",
+            "tokens": 42,
+            "model": "gpt",
+          }],
+          rowcount=1,
+        )
+      if op == "db:assistant:conversations:find_recent:1":
+        assert args["input_data"] == "Tell me"
+        return DBResult(rows=[], rowcount=0)
+      if op == "db:assistant:conversations:insert:1":
+        assert args["personas_recid"] == 1
+        assert args["models_recid"] == 2
+        assert args["guild_id"] == "1"
+        assert args["channel_id"] == "2"
+        assert args["user_id"] == "3"
+        assert args["input_data"] == "Tell me"
+        assert args["tokens"] is None
+        return DBResult(rows=[{"recid": 77}], rowcount=1)
+      if op == "db:assistant:conversations:update_output:1":
+        assert args == {"recid": 77, "output_data": "Response", "tokens": 11}
+        return DBResult(rowcount=1)
+      return DBResult()
+
+  module.db = DummyDB()
+
+  res = asyncio.run(
+    module.persona_response(
+      "stark",
+      "Tell me",
+      guild_id=1,
+      channel_id=2,
+      user_id=3,
+    )
+  )
+
+  assert res == {
+    "persona": "Stark",
+    "response_text": "Response",
+    "model": "gpt",
+    "role": "assistant",
+  }
+  assert dummy_create.kwargs["model"] == "gpt"
+  assert dummy_create.kwargs["max_tokens"] == 42
+  assert dummy_create.kwargs["messages"] == [
+    {"role": "system", "content": "be stark"},
+    {"role": "user", "content": "Tell me"},
+  ]
+  assert [op for op, _ in module.db.calls] == [
+    "db:assistant:personas:get_by_name:1",
+    "db:assistant:conversations:find_recent:1",
+    "db:assistant:conversations:insert:1",
+    "db:assistant:conversations:update_output:1",
+  ]
+
+
+def test_persona_response_missing_persona():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyDB:
+    async def run(self, op, args):
+      if op == "db:assistant:personas:get_by_name:1":
+        return DBResult(rows=[], rowcount=0)
+      return DBResult()
+
+  module.db = DummyDB()
+  module.client = SimpleNamespace(chat=SimpleNamespace(completions=None))
+
+  with pytest.raises(ValueError):
+    asyncio.run(module.persona_response("unknown", "Hello"))
+
+
+def test_persona_response_stub_without_client():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyDB:
+    async def run(self, op, args):
+      if op == "db:assistant:personas:get_by_name:1":
+        return DBResult(
+          rows=[{
+            "recid": 1,
+            "name": "stark",
+            "models_recid": 2,
+            "prompt": "be stark",
+            "tokens": 42,
+            "model": "gpt",
+          }],
+          rowcount=1,
+        )
+      return DBResult()
+
+  module.db = DummyDB()
+  module.client = None
+
+  res = asyncio.run(module.persona_response("stark", "Hi"))
+  assert res == {
+    "persona": "stark",
+    "response_text": "[[STUB: persona response here]]",
+    "model": "gpt",
+    "role": "be stark",
+  }

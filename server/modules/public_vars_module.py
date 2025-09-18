@@ -4,21 +4,21 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
-from .discord_module import DiscordModule
+from .discord_bot_module import DiscordBotModule
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
     self.auth: AuthModule | None = None
-    self.discord: DiscordModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
     self.auth = self.app.state.auth
     await self.auth.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
     self.mark_ready()

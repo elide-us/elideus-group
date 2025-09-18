@@ -13,7 +13,7 @@ from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -111,7 +111,7 @@ class AuthModule(BaseModule):
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
     self.role_cache = RoleCache()
-    self.discord: DiscordModule | None = None
+    self.discord: DiscordBotModule | None = None
 
   @property
   def roles(self) -> dict[str, int]:
@@ -134,9 +134,13 @@ class AuthModule(BaseModule):
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.discord = getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
+    self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
+      register = getattr(self.discord, "register_auth_module", None)
+      if register:
+        register(self)
     self.role_cache.db = self.db
     self.jwt_secret = self.env.get("JWT_SECRET")
     self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
@@ -178,6 +182,8 @@ class AuthModule(BaseModule):
   async def shutdown(self):
     for provider in self.providers.values():
       await provider.shutdown()
+    if self.discord and getattr(self.discord, "auth_module", None) is self:
+      self.discord.auth_module = None
     logging.info("Auth module shutdown")
 
 

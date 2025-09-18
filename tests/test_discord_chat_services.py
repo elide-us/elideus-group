@@ -26,8 +26,6 @@ from rpc.discord.chat import services as chat_services
 
 class StubModule:
   def __init__(self):
-    self.uwu_called = False
-    self.uwu_args = None
     self.summary_called = False
     self.summary_args = None
 
@@ -54,17 +52,7 @@ class StubModule:
       'role': 'role',
     }
 
-  async def uwu_chat(self, guild_id, channel_id, user_id, message, hours=1, max_messages=12):
-    self.uwu_called = True
-    self.uwu_args = (guild_id, channel_id, user_id, message)
-    return {
-      'token_count_estimate': 2,
-      'summary_lines': ['hi'],
-      'uwu_response_text': 'uwu hey',
-    }
-
-
-class StubPersonasModule:
+class StubOpenAIModule:
   def __init__(self, response=None):
     self.calls = []
     self._response = response
@@ -81,56 +69,7 @@ class StubPersonasModule:
         'model': 'gpt',
         'role': 'role',
       }
-    result = dict(self._response)
-    result.setdefault('persona', persona)
-    return result
-
-
-class StubDiscordPersonasModule:
-  def __init__(self, personas):
-    self.personas = personas
-    self.calls = 0
-
-  async def on_ready(self):
-    pass
-
-  async def list_personas(self):
-    self.calls += 1
-    return self.personas
-
-def test_uwu_chat_handler():
-  app = FastAPI()
-  module = StubModule()
-  app.state.discord_chat = module
-
-  async def fake_unbox(request):
-    return (
-      RPCRequest(op='urn:discord:chat:uwu_chat:1', payload={'message': 'hey', 'guild_id': 1, 'channel_id': 2, 'user_id': 3}),
-      AuthContext(),
-      [],
-    )
-
-  original = chat_services.unbox_request
-  chat_services.unbox_request = fake_unbox
-
-  @app.post('/rpc')
-  async def rpc_endpoint(request: Request):
-    return await chat_services.discord_chat_uwu_chat_v1(request)
-
-  client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:chat:uwu_chat:1'})
-  assert resp.status_code == 200
-  assert module.uwu_called
-  data = resp.json()
-  expected = {
-    "uwu_response_text": "uwu hey",
-    "summary_lines": ["hi"],
-    "token_count_estimate": 2,
-  }
-  assert data["payload"] == expected
-  assert module.uwu_args == (1, 2, 3, 'hey')
-
-  chat_services.unbox_request = original
+    return dict(self._response)
 
 
 def test_summarize_channel_handler():
@@ -173,8 +112,8 @@ def test_summarize_channel_handler():
 
 def test_persona_response_handler():
   app = FastAPI()
-  module = StubPersonasModule()
-  app.state.personas = module
+  module = StubOpenAIModule()
+  app.state.openai = module
 
   async def fake_unbox(request):
     return (
@@ -215,29 +154,17 @@ def test_persona_response_handler():
   chat_services.unbox_request = original
 
 
-def test_persona_response_handler_uses_view_persona_details():
+def test_persona_response_handler_uses_openai_results():
   app = FastAPI()
-  module = StubPersonasModule(
+  module = StubOpenAIModule(
     {
+      'persona': 'Stark',
       'response_text': 'persona reply',
-      'model': None,
-      'role': '',
+      'model': 'gpt-4o',
+      'role': 'be stark',
     },
   )
-  app.state.personas = module
-  personas_module = StubDiscordPersonasModule(
-    [
-      {
-        'recid': 1,
-        'name': 'Stark',
-        'prompt': 'be stark',
-        'tokens': 128,
-        'models_recid': 2,
-        'model': 'gpt-4o',
-      }
-    ]
-  )
-  app.state.discord_personas = personas_module
+  app.state.openai = module
 
   async def fake_unbox(request):
     return (
@@ -265,8 +192,7 @@ def test_persona_response_handler_uses_view_persona_details():
   client = TestClient(app)
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1'})
   assert resp.status_code == 200
-  assert personas_module.calls == 1
-  assert module.calls == [('Stark', 'Tell me about rain', 1, 2, 3)]
+  assert module.calls == [('stark', 'Tell me about rain', 1, 2, 3)]
   data = resp.json()
   expected = {
     'persona': 'Stark',

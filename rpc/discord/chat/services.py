@@ -1,16 +1,15 @@
+import logging
+
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
-from server.modules.discord_personas_module import DiscordPersonasModule
-from server.modules.personas_module import PersonasModule
+from server.modules.openai_module import OpenaiModule
 
 from .models import (
   DiscordChatPersonaRequest1,
   DiscordChatPersonaResponse1,
-  DiscordChatUwuChatRequest1,
-  DiscordChatUwuChatResponse1,
 )
 
 
@@ -43,51 +42,19 @@ async def discord_chat_summarize_channel_v1(request: Request):
   )
 
 
-async def discord_chat_uwu_chat_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload_dict = rpc_request.payload or {}
-  req = DiscordChatUwuChatRequest1(**payload_dict)
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-  result = await module.uwu_chat(req.guild_id, req.channel_id, req.user_id, req.message)
-  payload = DiscordChatUwuChatResponse1(**result)
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=payload.model_dump(),
-    version=rpc_request.version,
-  )
-
-
 async def discord_chat_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   req = DiscordChatPersonaRequest1(**payload_dict)
-  persona_module: PersonasModule = request.app.state.personas
-  await persona_module.on_ready()
+  openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
+  if not openai_module:
+    logging.warning("[discord_chat_persona_response_v1] OpenAI module not configured")
+    raise HTTPException(status_code=503, detail="persona support unavailable")
 
-  persona_name = (req.persona or "").strip()
-  persona_prompt = None
-  persona_model = None
-  persona_registry: DiscordPersonasModule | None = getattr(request.app.state, "discord_personas", None)
-  if persona_registry:
-    await persona_registry.on_ready()
-    try:
-      personas = await persona_registry.list_personas()
-    except Exception:
-      personas = []
-    normalized_name = persona_name.casefold()
-    for persona_row in personas:
-      candidate = (persona_row.get("name") or "").strip()
-      if not candidate:
-        continue
-      if candidate.casefold() == normalized_name:
-        persona_name = candidate
-        persona_prompt = persona_row.get("prompt")
-        persona_model = persona_row.get("model")
-        break
+  await openai_module.on_ready()
   try:
-    result = await persona_module.persona_response(
-      persona_name,
+    result = await openai_module.persona_response(
+      req.persona,
       req.message,
       guild_id=req.guild_id,
       channel_id=req.channel_id,
@@ -96,10 +63,10 @@ async def discord_chat_persona_response_v1(request: Request):
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = DiscordChatPersonaResponse1(
-    persona=result.get("persona") or persona_name,
+    persona=result.get("persona", ""),
     persona_response_text=result.get("response_text", ""),
-    model=result.get("model") or persona_model,
-    role=result.get("role") or persona_prompt,
+    model=result.get("model"),
+    role=result.get("role"),
   )
   return RPCResponse(
     op=rpc_request.op,

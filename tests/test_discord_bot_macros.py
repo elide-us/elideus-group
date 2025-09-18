@@ -1,46 +1,38 @@
-import asyncio
-import json
+import asyncio, json
 from types import SimpleNamespace
 
 from fastapi import FastAPI
 
-from server.modules.discord_module import DiscordModule
+from server.modules.discord_bot_module import DiscordBotModule
+from server.modules.providers.social.discord_input_provider import DiscordInputProvider
+from server.modules.social_input_module import SocialInputModule
 
 
-class DummyHistory:
-  def __aiter__(self):
-    return self
+class DummyOutput:
+  def __init__(self):
+    self.channel_messages: list[tuple[int, str]] = []
+    self.user_messages: list[tuple[int, str]] = []
 
-  async def __anext__(self):
-    raise StopAsyncIteration
+  async def send_to_channel(self, channel_id: int, message: str):
+    self.channel_messages.append((channel_id, message))
+
+  async def send_to_user(self, user_id: int, message: str):
+    self.user_messages.append((user_id, message))
 
 
 class DummyChannel:
   def __init__(self, id: int = 2):
     self.id = id
     self.sent: list[str] = []
-    self.history_called = False
 
   async def send(self, content):
     self.sent.append(content)
-
-  def history(self, limit=1):
-    self.history_called = True
-    return DummyHistory()
-
-
-class DummyDMChannel(DummyChannel):
-  pass
 
 
 class DummyAuthor:
   def __init__(self):
     self.id = 3
     self.bot = False
-    self.dm_channel = DummyDMChannel()
-
-  async def send(self, content):
-    await self.dm_channel.send(content)
 
 
 class DummyMessage:
@@ -54,24 +46,33 @@ class DummyMessage:
     self.id = 1
 
 
-def test_summarize_macro_dm(monkeypatch):
+def _setup_bot():
   app = FastAPI()
-  module = DiscordModule(app)
+  module = DiscordBotModule(app)
   module.bot = module._init_discord_bot('!')
+  module.mark_ready()
+  output = DummyOutput()
+  module.output_module = output
+  app.state.discord_output = output
+
+  social = SocialInputModule(app)
+  social.discord = module
+  module.register_social_input_module(social)
+
+  provider = DiscordInputProvider(social, module)
+  asyncio.run(social.register_provider(provider))
+  return module, output
+
+
+def test_summarize_macro_dm(monkeypatch):
+  module, output = _setup_bot()
   module.bot._connection.user = SimpleNamespace(id=0)
-  module._init_bot_routes()
-
-  from discord.ext import commands as dc_commands
-
-  async def fake_send(self, content, **kwargs):
-    return await self.channel.send(content)
-
-  monkeypatch.setattr(dc_commands.Context, 'send', fake_send)
 
   async def dummy_handle(req):
     body = await req.body()
     dummy_handle.body = json.loads(body.decode())
     dummy_handle.called = True
+
     class DummyResp:
       payload = {
         "summary": "hi",
@@ -80,7 +81,9 @@ def test_summarize_macro_dm(monkeypatch):
         "model": "gpt",
         "role": "role",
       }
+
     return DummyResp()
+
   dummy_handle.called = False
   dummy_handle.body = None
   import importlib
@@ -91,103 +94,11 @@ def test_summarize_macro_dm(monkeypatch):
   author = DummyAuthor()
   message = DummyMessage("!summarize 2", channel, author, state=module.bot._connection)
   asyncio.run(module.bot.process_commands(message))
+
   assert dummy_handle.called
   assert dummy_handle.body["op"] == "urn:discord:chat:summarize_channel:1"
   assert dummy_handle.body["payload"]["hours"] == 2
   assert dummy_handle.body["payload"]["user_id"] == author.id
-  assert author.dm_channel.sent == ["hi"]
-  assert author.dm_channel.history_called
+  assert output.user_messages == [(author.id, "hi")]
+  assert output.channel_messages == []
   assert channel.sent == []
-
-
-def test_uwu_macro_channel(monkeypatch):
-  app = FastAPI()
-  module = DiscordModule(app)
-  module.bot = module._init_discord_bot('!')
-  module.bot._connection.user = SimpleNamespace(id=0)
-  module._init_bot_routes()
-
-  from discord.ext import commands as dc_commands
-
-  async def fake_send(self, content, **kwargs):
-    return await self.channel.send(content)
-
-  monkeypatch.setattr(dc_commands.Context, 'send', fake_send)
-
-  async def dummy_handle(req):
-    body = await req.body()
-    dummy_handle.body = json.loads(body.decode())
-    dummy_handle.called = True
-    class DummyResp:
-      payload = {
-        "uwu_response_text": "uwu hi",
-        "token_count_estimate": 3,
-      }
-    return DummyResp()
-  dummy_handle.called = False
-  dummy_handle.body = None
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
-
-  channel = DummyChannel()
-  author = DummyAuthor()
-  message = DummyMessage("!uwu hello", channel, author, state=module.bot._connection)
-  asyncio.run(module.bot.process_commands(message))
-  assert dummy_handle.called
-  assert dummy_handle.body["op"] == "urn:discord:chat:uwu_chat:1"
-  assert dummy_handle.body["payload"]["message"] == "hello"
-  assert channel.sent == ["uwu hi"]
-  assert channel.history_called
-  assert author.dm_channel.sent == []
-
-
-def test_persona_macro_channel(monkeypatch):
-  app = FastAPI()
-  module = DiscordModule(app)
-  module.bot = module._init_discord_bot('!')
-  module.bot._connection.user = SimpleNamespace(id=0)
-  module._init_bot_routes()
-
-  from discord.ext import commands as dc_commands
-
-  async def fake_send(self, content, **kwargs):
-    return await self.channel.send(content)
-
-  monkeypatch.setattr(dc_commands.Context, 'send', fake_send)
-
-  async def dummy_handle(req):
-    body = await req.body()
-    dummy_handle.body = json.loads(body.decode())
-    dummy_handle.called = True
-    class DummyResp:
-      payload = {
-        "persona": "stark",
-        "persona_response_text": "It rains",
-        "model": "gpt",
-        "role": "role",
-      }
-    return DummyResp()
-  dummy_handle.called = False
-  dummy_handle.body = None
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
-
-  channel = DummyChannel()
-  author = DummyAuthor()
-  message = DummyMessage("!persona stark Tell me about rain", channel, author, state=module.bot._connection)
-  asyncio.run(module.bot.process_commands(message))
-  assert dummy_handle.called
-  assert dummy_handle.body["op"] == "urn:discord:chat:persona_response:1"
-  assert dummy_handle.body["payload"] == {
-    "persona": "stark",
-    "message": "Tell me about rain",
-    "guild_id": 1,
-    "channel_id": channel.id,
-    "user_id": author.id,
-  }
-  assert channel.sent == ["It rains"]
-  assert channel.history_called
-  assert author.dm_channel.sent == []
-
