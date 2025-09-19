@@ -1,6 +1,6 @@
 """Discord chat utilities module."""
 
-import logging, time, discord
+import logging, time, discord, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from typing import List
@@ -202,3 +202,61 @@ class DiscordChatModule(BaseModule):
       "model": model,
       "role": role,
     }
+
+  async def deliver_summary(
+    self,
+    *,
+    guild_id: int,
+    channel_id: int | None,
+    user_id: int | None,
+    summary_text: str | None,
+    ack_message: str,
+    success: bool,
+    reason: str | None = None,
+    messages_collected: int | None = None,
+    token_count_estimate: int | None = None,
+    cap_hit: bool | None = None,
+  ) -> dict:
+    if not self.discord:
+      raise RuntimeError("Discord bot module is not available")
+    await self.discord.on_ready()
+    output = self.discord._require_output_module()
+    queue_id = str(uuid.uuid4())
+    dm_enqueued = False
+    channel_ack_enqueued = False
+    if summary_text and user_id:
+      await output.queue_user_message(user_id, summary_text)
+      dm_enqueued = True
+    if ack_message and channel_id:
+      await output.queue_channel_message(channel_id, ack_message)
+      channel_ack_enqueued = True
+    overall_success = bool(success and dm_enqueued)
+    payload = {
+      "success": overall_success,
+      "queue_id": queue_id,
+      "summary_success": bool(success),
+      "dm_enqueued": dm_enqueued,
+      "channel_ack_enqueued": channel_ack_enqueued,
+      "reason": reason,
+      "ack_message": ack_message,
+    }
+    if messages_collected is not None:
+      payload["messages_collected"] = messages_collected
+    if token_count_estimate is not None:
+      payload["token_count_estimate"] = token_count_estimate
+    if cap_hit is not None:
+      payload["cap_hit"] = cap_hit
+    logging.info(
+      "[DiscordChatModule] deliver_summary",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "user_id": user_id,
+        "queue_id": queue_id,
+        "success": overall_success,
+        "reason": reason,
+        "dm_enqueued": dm_enqueued,
+        "channel_ack_enqueued": channel_ack_enqueued,
+      },
+    )
+    return payload
