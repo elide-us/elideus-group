@@ -5,7 +5,6 @@ from __future__ import annotations
 import json, logging, time
 from typing import TYPE_CHECKING
 
-from fastapi import Request
 from discord.ext import commands
 
 from . import SocialInputProvider
@@ -58,33 +57,26 @@ class DiscordInputProvider(SocialInputProvider):
     self._registered = {"rpc": rpc_command, "summarize": summarize_command}
 
   async def _handle_rpc_command(self, ctx, *, op: str):
-    from rpc.handler import handle_rpc_request
+    from rpc.handler import dispatch_rpc_op
 
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
     user_id = getattr(ctx.author, "id", 0)
     if guild_id and user_id:
       self.discord.bump_rate_limits(guild_id, user_id)
-    body = json.dumps({"op": op}).encode()
-
-    async def receive():
-      nonlocal body
-      data = body
-      body = b""
-      return {"type": "http.request", "body": data, "more_body": False}
-
-    scope = {
-      "type": "http",
-      "method": "POST",
-      "path": "/rpc",
-      "headers": [(b"content-type", b"application/json")],
-      "app": self.discord.app,
+    metadata = {
+      "guild_id": guild_id,
+      "channel_id": getattr(ctx.channel, "id", 0),
+      "user_id": user_id,
     }
-    req = Request(scope, receive)
-    req.state.discord_ctx = ctx
 
     try:
-      resp = await handle_rpc_request(req)
+      resp = await dispatch_rpc_op(
+        self.discord.app,
+        op,
+        None,
+        discord_ctx=metadata,
+      )
       payload = resp.payload
       if hasattr(payload, "model_dump"):
         data = json.dumps(payload.model_dump())
@@ -117,7 +109,7 @@ class DiscordInputProvider(SocialInputProvider):
       await self._queue_channel_notice(ctx, f"Error: {exc}", reason="rpc_command_error")
 
   async def _handle_summarize_command(self, ctx, hours: str):
-    from rpc.handler import handle_rpc_request
+    from rpc.handler import dispatch_rpc_op
 
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
@@ -134,34 +126,25 @@ class DiscordInputProvider(SocialInputProvider):
       await self._queue_channel_notice(ctx, "Hours must be between 1 and 336", reason="hours_out_of_range")
       return
 
-    body = json.dumps({
-      "op": "urn:discord:chat:summarize_channel:1",
-      "payload": {
-        "guild_id": guild_id,
-        "channel_id": getattr(ctx.channel, "id", 0),
-        "hours": hrs,
-        "user_id": user_id,
-      },
-    }).encode()
-
-    async def receive():
-      nonlocal body
-      data = body
-      body = b""
-      return {"type": "http.request", "body": data, "more_body": False}
-
-    scope = {
-      "type": "http",
-      "method": "POST",
-      "path": "/rpc",
-      "headers": [(b"content-type", b"application/json")],
-      "app": self.discord.app,
+    payload = {
+      "guild_id": guild_id,
+      "channel_id": getattr(ctx.channel, "id", 0),
+      "hours": hrs,
+      "user_id": user_id,
     }
-    req = Request(scope, receive)
-    req.state.discord_ctx = ctx
+    metadata = {
+      "guild_id": guild_id,
+      "channel_id": payload["channel_id"],
+      "user_id": user_id,
+    }
 
     try:
-      resp = await handle_rpc_request(req)
+      resp = await dispatch_rpc_op(
+        self.discord.app,
+        "urn:discord:chat:summarize_channel:1",
+        payload,
+        discord_ctx=metadata,
+      )
       payload = resp.payload
       if hasattr(payload, "model_dump"):
         data = payload.model_dump()
