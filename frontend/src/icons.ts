@@ -16,6 +16,9 @@ import {
     Person as PersonIcon,
     Publish as PublishIcon,
     SettingsAccessibility as PersonasIcon,
+    Money as MoneyIcon,
+    AccountBalance as AccountantIcon,
+    AccountBalanceWallet as ApproverIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -37,6 +40,9 @@ export const iconMap: Record<string, ElementType> = {
     person: PersonIcon,
     publish: PublishIcon,
     personas: PersonasIcon,
+    money: MoneyIcon,
+    acct: AccountantIcon,
+    appr: ApproverIcon,
 };
 
 export const defaultIcon = AdjustIcon;
