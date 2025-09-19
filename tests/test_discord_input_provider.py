@@ -104,10 +104,12 @@ def test_summarize_command_relies_on_ack(monkeypatch):
     def __init__(self, payload):
       self.payload = payload
 
-  async def fake_handle_rpc_request(request):
+  async def fake_dispatch_rpc_op(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
+    fake_dispatch_rpc_op.calls.append((app_obj, op, payload, discord_ctx))
     return DummyResponse(ack_payload)
 
-  fake_handler_module = types.SimpleNamespace(handle_rpc_request=fake_handle_rpc_request)
+  fake_dispatch_rpc_op.calls = []
+  fake_handler_module = types.SimpleNamespace(dispatch_rpc_op=fake_dispatch_rpc_op)
   monkeypatch.setitem(sys.modules, 'rpc.handler', fake_handler_module)
 
   ctx = SimpleNamespace(
@@ -124,3 +126,12 @@ def test_summarize_command_relies_on_ack(monkeypatch):
   assert app.state.openai.summary_queue.calls == []
   assert ack_payload['queue_id']
   assert discord.rate_limits == [(1, 3)]
+  assert fake_dispatch_rpc_op.calls
+  _, op, payload, metadata = fake_dispatch_rpc_op.calls[0]
+  assert op == 'urn:discord:chat:summarize_channel:1'
+  assert payload['guild_id'] == 1
+  assert payload['channel_id'] == 2
+  assert payload['user_id'] == 3
+  assert metadata['guild_id'] == 1
+  assert metadata['channel_id'] == 2
+  assert metadata['user_id'] == 3

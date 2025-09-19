@@ -1,4 +1,4 @@
-import asyncio, json
+import asyncio
 from types import SimpleNamespace
 
 from fastapi import FastAPI
@@ -74,41 +74,39 @@ def test_summarize_macro_dm(monkeypatch):
   module, output = _setup_bot()
   module.bot._connection.user = SimpleNamespace(id=0)
 
-  async def dummy_handle(req):
-    body = await req.body()
-    dummy_handle.body = json.loads(body.decode())
-    dummy_handle.called = True
+  class DummyResp:
+    payload = {
+      "success": True,
+      "queue_id": "queue-123",
+      "messages_collected": 1,
+      "token_count_estimate": 2,
+      "cap_hit": False,
+      "dm_enqueued": True,
+      "channel_ack_enqueued": True,
+      "reason": None,
+      "ack_message": "Summary queued for delivery to <@3>.",
+    }
 
-    class DummyResp:
-      payload = {
-        "success": True,
-        "queue_id": "queue-123",
-        "messages_collected": 1,
-        "token_count_estimate": 2,
-        "cap_hit": False,
-        "dm_enqueued": True,
-        "channel_ack_enqueued": True,
-        "reason": None,
-        "ack_message": "Summary queued for delivery to <@3>.",
-      }
-
+  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
+    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
     return DummyResp()
 
-  dummy_handle.called = False
-  dummy_handle.body = None
+  dummy_dispatch.calls = []
   import importlib
   rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "handle_rpc_request", dummy_handle)
+  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
 
   channel = DummyChannel()
   author = DummyAuthor()
   message = DummyMessage("!summarize 2", channel, author, state=module.bot._connection)
   asyncio.run(module.bot.process_commands(message))
 
-  assert dummy_handle.called
-  assert dummy_handle.body["op"] == "urn:discord:chat:summarize_channel:1"
-  assert dummy_handle.body["payload"]["hours"] == 2
-  assert dummy_handle.body["payload"]["user_id"] == author.id
+  assert dummy_dispatch.calls
+  _, op, payload, metadata = dummy_dispatch.calls[0]
+  assert op == "urn:discord:chat:summarize_channel:1"
+  assert payload["hours"] == 2
+  assert payload["user_id"] == author.id
+  assert metadata["user_id"] == author.id
   assert output.user_messages == []
   assert output.channel_messages == []
   assert channel.sent == []
