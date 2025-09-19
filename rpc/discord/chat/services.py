@@ -27,13 +27,73 @@ async def discord_chat_summarize_channel_v1(request: Request):
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
   result = await module.summarize_chat(guild_id, channel_id, hours, user_id)
+  messages_collected = int(result.get("messages_collected") or 0)
+  token_count_estimate = int(result.get("token_count_estimate") or 0)
+  cap_hit = bool(result.get("cap_hit"))
+  summary_text = result.get("summary_text") or ""
+  reason = None
+  success = True
+  if messages_collected <= 0:
+    success = False
+    reason = "no_messages"
+    ack_message = "No messages found in the specified time range"
+  elif cap_hit:
+    success = False
+    reason = "cap_hit"
+    ack_message = "Channel too active to summarize; message cap hit"
+  elif not summary_text.strip():
+    success = False
+    reason = "empty_summary"
+    ack_message = "Failed to generate summary. Please try again later."
+  else:
+    if user_id:
+      ack_message = f"Summary queued for delivery to <@{user_id}>."
+    else:
+      ack_message = "Summary queued for delivery."
+  try:
+    ack = await module.deliver_summary(
+      guild_id=guild_id,
+      channel_id=channel_id,
+      user_id=user_id,
+      summary_text=summary_text if success else None,
+      ack_message=ack_message,
+      success=success,
+      reason=reason,
+      messages_collected=messages_collected,
+      token_count_estimate=token_count_estimate,
+      cap_hit=cap_hit,
+    )
+  except Exception:
+    logging.exception(
+      "[discord_chat_summarize_channel_v1] deliver_summary failed",
+      extra={
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "user_id": user_id,
+      },
+    )
+    ack = {
+      "success": False,
+      "queue_id": None,
+      "summary_success": False,
+      "dm_enqueued": False,
+      "channel_ack_enqueued": False,
+      "reason": "delivery_failed",
+      "ack_message": ack_message,
+      "messages_collected": messages_collected,
+      "token_count_estimate": token_count_estimate,
+      "cap_hit": cap_hit,
+    }
   payload = {
-    "summary": result.get("summary_text"),
-    "messages_collected": result.get("messages_collected"),
-    "token_count_estimate": result.get("token_count_estimate"),
-    "cap_hit": result.get("cap_hit"),
-    "model": result.get("model"),
-    "role": result.get("role"),
+    "success": bool(ack.get("success")),
+    "queue_id": ack.get("queue_id"),
+    "messages_collected": messages_collected,
+    "token_count_estimate": token_count_estimate,
+    "cap_hit": cap_hit,
+    "dm_enqueued": bool(ack.get("dm_enqueued")),
+    "channel_ack_enqueued": bool(ack.get("channel_ack_enqueued")),
+    "reason": ack.get("reason"),
+    "ack_message": ack.get("ack_message"),
   }
   return RPCResponse(
     op=rpc_request.op,

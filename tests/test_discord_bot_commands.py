@@ -20,6 +20,12 @@ class DummyOutput:
   async def send_to_user(self, user_id: int, message: str):
     self.user_messages.append((user_id, message))
 
+  async def queue_channel_message(self, channel_id: int, message: str):
+    self.channel_messages.append((channel_id, message))
+
+  async def queue_user_message(self, user_id: int, message: str):
+    self.user_messages.append((user_id, message))
+
 
 def _setup_bot():
   app = FastAPI()
@@ -57,11 +63,15 @@ def test_summarize_command(monkeypatch):
 
     class DummyResp:
       payload = {
-        "summary": "hi",
+        "success": True,
+        "queue_id": "queue-123",
         "messages_collected": 1,
         "token_count_estimate": 2,
-        "model": "gpt",
-        "role": "role",
+        "cap_hit": False,
+        "dm_enqueued": True,
+        "channel_ack_enqueued": True,
+        "reason": None,
+        "ack_message": "Summary queued for delivery to <@3>.",
       }
 
     return DummyResp()
@@ -80,7 +90,7 @@ def test_summarize_command(monkeypatch):
   assert dummy_handle.body["op"] == "urn:discord:chat:summarize_channel:1"
   assert dummy_handle.body["payload"]["hours"] == 2
   assert dummy_handle.body["payload"]["user_id"] == ctx.author.id
-  assert output.user_messages == [(ctx.author.id, "hi")]
+  assert output.user_messages == []
   assert output.channel_messages == []
 
 
@@ -101,12 +111,15 @@ def test_summarize_command_empty_history(monkeypatch):
 
     class DummyResp:
       payload = {
-        "summary": "",
+        "success": False,
+        "queue_id": "queue-123",
         "messages_collected": 0,
         "token_count_estimate": 0,
         "cap_hit": False,
-        "model": "gpt",
-        "role": "role",
+        "dm_enqueued": False,
+        "channel_ack_enqueued": True,
+        "reason": "no_messages",
+        "ack_message": "No messages found in the specified time range",
       }
 
     return DummyResp()
@@ -133,12 +146,15 @@ def test_summarize_command_cap_hit(monkeypatch):
 
     class DummyResp:
       payload = {
-        "summary": "hi",
+        "success": False,
+        "queue_id": "queue-123",
         "messages_collected": 5000,
         "token_count_estimate": 2,
         "cap_hit": True,
-        "model": "gpt",
-        "role": "role",
+        "dm_enqueued": False,
+        "channel_ack_enqueued": True,
+        "reason": "cap_hit",
+        "ack_message": "Channel too active to summarize; message cap hit",
       }
 
     return DummyResp()

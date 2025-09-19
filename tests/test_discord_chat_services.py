@@ -28,6 +28,7 @@ class StubModule:
   def __init__(self):
     self.summary_called = False
     self.summary_args = None
+    self.delivery_calls = []
 
   async def on_ready(self):
     pass
@@ -50,6 +51,47 @@ class StubModule:
       'summary_text': 'hi',
       'model': 'gpt',
       'role': 'role',
+    }
+
+  async def deliver_summary(
+    self,
+    *,
+    guild_id,
+    channel_id,
+    user_id,
+    summary_text,
+    ack_message,
+    success,
+    reason=None,
+    messages_collected=None,
+    token_count_estimate=None,
+    cap_hit=None,
+  ):
+    self.delivery_calls.append(
+      {
+        'guild_id': guild_id,
+        'channel_id': channel_id,
+        'user_id': user_id,
+        'summary_text': summary_text,
+        'ack_message': ack_message,
+        'success': success,
+        'reason': reason,
+        'messages_collected': messages_collected,
+        'token_count_estimate': token_count_estimate,
+        'cap_hit': cap_hit,
+      }
+    )
+    return {
+      'success': bool(success and summary_text),
+      'queue_id': 'queue-123',
+      'summary_success': success,
+      'dm_enqueued': bool(summary_text),
+      'channel_ack_enqueued': bool(ack_message),
+      'reason': reason,
+      'ack_message': ack_message,
+      'messages_collected': messages_collected,
+      'token_count_estimate': token_count_estimate,
+      'cap_hit': cap_hit,
     }
 
 class StubOpenAIModule:
@@ -95,14 +137,21 @@ def test_summarize_channel_handler():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
   assert resp.status_code == 200
   assert module.summary_called
+  assert len(module.delivery_calls) == 1
+  delivery = module.delivery_calls[0]
+  assert delivery['summary_text'] == 'hi'
+  assert delivery['ack_message'] == 'Summary queued for delivery to <@3>.'
   data = resp.json()
   expected = {
-    "summary": "hi",
+    "success": True,
+    "queue_id": "queue-123",
     "messages_collected": 1,
     "token_count_estimate": 2,
     "cap_hit": False,
-    "model": "gpt",
-    "role": "role",
+    "dm_enqueued": True,
+    "channel_ack_enqueued": True,
+    "reason": None,
+    "ack_message": "Summary queued for delivery to <@3>.",
   }
   assert data["payload"] == expected
   assert module.summary_args == (1, 2, 1, 3)
