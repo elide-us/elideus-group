@@ -70,7 +70,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         push: true
-        tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_375ace388d15453497189874787dd593 }}/elideus/elideus-group-test:${{ github.sha }}
+        tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_375ace388d15453497189874787dd593 }}/elideus-group-test:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
@@ -88,4 +88,4 @@ jobs:
         app-name: 'elideus-group-test'
         slot-name: 'production'
         publish-profile: ${{ secrets.AzureAppService_PublishProfile_87c95834367a4a4fb2f68acf9aea62c2 }}
-        images: 'elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_375ace388d15453497189874787dd593 }}/elideus/elideus-group-test:${{ github.sha }}'
+        images: 'elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_375ace388d15453497189874787dd593 }}/elideus-group-test:${{ github.sha }}'
