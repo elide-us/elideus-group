@@ -20,6 +20,7 @@ from .env_module import EnvModule
 from .db_module import DbModule
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
+from server.routers.discord_events import register_discord_event_handlers
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -71,7 +72,7 @@ class DiscordBotModule(BaseModule):
       self.secret = self.env.get("DISCORD_SECRET")
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
-      self._init_bot_routes()
+      register_discord_event_handlers(self)
       update_logging_level(self.db.logging_level)
       configure_discord_logging(self)
       res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
@@ -252,36 +253,6 @@ class DiscordBotModule(BaseModule):
       from server.helpers.logging import split_message
       for part in split_message(message):
         await channel.send(part)
-
-  # This will be moved to discord_router at a later time
-  def _init_bot_routes(self):
-    @self.bot.event
-    async def on_ready():
-      channel = self.bot.get_channel(self.syschan)
-      if channel:
-        res = await self.db.run("db:system:config:get_config:1", {"key": "Version"})
-        version = res.rows[0]["value"] if res.rows else None
-        name_res = await self.db.run("db:system:config:get_config:1", {"key": "BotName"})
-        bot_name = name_res.rows[0]["value"] if name_res.rows else None
-        msg = f"{(bot_name or 'TheOracleGPT-Dev')} Online. Version: {version or 'unknown'}"
-        if await self._try_send_channel(channel.id, msg):
-          logging.info(msg)
-        else:
-          try:
-            await channel.send(msg)
-            logging.info(msg)
-          except Exception:
-            logging.exception("[DiscordBotModule] failed to send ready message")
-      else:
-        logging.warning("[DiscordProvider] System channel not found on ready.")
-
-    @self.bot.event
-    async def on_guild_join(guild):
-      channel = self.bot.get_channel(self.syschan)
-      if channel:
-        logging.info(f"Joined guild {guild.name} ({guild.id})")
-      else:
-        logging.warning(f"[DiscordProvider] System channel not found when joining {guild.name}.")
 
 class DiscordModule(DiscordBotModule):
   """Backward-compatible alias for the DiscordBotModule."""
