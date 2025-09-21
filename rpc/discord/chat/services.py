@@ -13,6 +13,21 @@ from .models import (
 )
 
 
+def _persona_stub_response(rpc_request, detail: str) -> RPCResponse:
+  logging.info("[discord_chat_persona_stub] %s", detail)
+  payload = {
+    "success": False,
+    "reason": "not_implemented",
+    "detail": detail,
+    "ack_message": "Persona chat is currently unavailable.",
+  }
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload,
+    version=rpc_request.version,
+  )
+
+
 async def discord_chat_summarize_channel_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   p = rpc_request.payload or {}
@@ -132,4 +147,60 @@ async def discord_chat_persona_response_v1(request: Request):
     op=rpc_request.op,
     payload=payload.model_dump(),
     version=rpc_request.version,
+  )
+
+
+async def discord_chat_persona_command_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Persona command dispatch requires server module implementation.",
+  )
+
+
+async def discord_chat_get_persona_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Persona lookup via OpenAI module is not yet wired.",
+  )
+
+
+async def discord_chat_get_conversation_history_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Conversation history fetch from assistant_conversation is pending.",
+  )
+
+
+async def discord_chat_get_channel_history_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Channel history capture for persona workflow is not implemented.",
+  )
+
+
+async def discord_chat_insert_conversation_input_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Conversation input insertion requires server module support.",
+  )
+
+
+async def discord_chat_generate_persona_response_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Persona response generation is pending OpenAI integration.",
+  )
+
+
+async def discord_chat_deliver_persona_response_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  return _persona_stub_response(
+    rpc_request,
+    "Persona response delivery via Discord output module is not available yet.",
   )

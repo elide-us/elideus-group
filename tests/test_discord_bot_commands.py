@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 
 from server.modules.discord_bot_module import DiscordBotModule
+from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.providers.social.discord_input_provider import DiscordInputProvider
 from server.modules.social_input_module import SocialInputModule
 
@@ -41,6 +42,11 @@ def _setup_bot():
 
   provider = DiscordInputProvider(social, bot_module)
   asyncio.run(social.register_provider(provider))
+
+  chat_module = DiscordChatModule(app)
+  chat_module.discord = bot_module
+  app.state.discord_chat = chat_module
+  chat_module.mark_ready()
 
   return bot_module, provider, output
 
@@ -195,4 +201,100 @@ def test_summarize_command_transient_error(monkeypatch):
   assert metadata["user_id"] == ctx.author.id
   assert output.channel_messages == [(ctx.channel.id, "Failed to fetch messages. Please try again later.")]
 
+
+def test_persona_command_workflow(monkeypatch):
+  bot_module, provider, output = _setup_bot()
+
+  class DummyResp:
+    def __init__(self, payload):
+      self.payload = payload
+
+  responses = {
+    "urn:discord:chat:persona_command:1": {"success": True, "model": "gpt-4o-mini", "max_tokens": 512},
+    "urn:discord:chat:get_persona:1": {
+      "success": True,
+      "persona_details": {"model": "gpt-4o-mini", "tokens": 512},
+      "model": "gpt-4o-mini",
+      "max_tokens": 512,
+    },
+    "urn:discord:chat:get_conversation_history:1": {
+      "success": True,
+      "conversation_history": [{"role": "user", "content": "Hi"}],
+    },
+    "urn:discord:chat:get_channel_history:1": {
+      "success": True,
+      "channel_history": [{"author": "user", "content": "Hi"}],
+    },
+    "urn:discord:chat:insert_conversation_input:1": {
+      "success": True,
+      "conversation_reference": "conv-1",
+    },
+    "urn:discord:chat:generate_persona_response:1": {
+      "success": True,
+      "response": {"text": "Hello!", "model": "gpt-4o-mini"},
+      "model": "gpt-4o-mini",
+    },
+    "urn:discord:chat:deliver_persona_response:1": {
+      "success": True,
+      "ack_message": "Persona response queued for <@3>.",
+      "reason": "persona_response_queued",
+    },
+  }
+
+  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
+    dummy_dispatch.calls.append((op, payload, discord_ctx))
+    return DummyResp(responses.get(op, {"success": True}))
+
+  dummy_dispatch.calls = []
+  import importlib
+  rpc_mod = importlib.import_module("rpc.handler")
+  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+
+  ctx = _make_ctx()
+  cmd = bot_module.bot.get_command("persona")
+  asyncio.run(cmd.callback(ctx, request="helper Hello world"))
+
+  assert [call[0] for call in dummy_dispatch.calls] == [
+    "urn:discord:chat:persona_command:1",
+    "urn:discord:chat:get_persona:1",
+    "urn:discord:chat:get_conversation_history:1",
+    "urn:discord:chat:get_channel_history:1",
+    "urn:discord:chat:insert_conversation_input:1",
+    "urn:discord:chat:generate_persona_response:1",
+    "urn:discord:chat:deliver_persona_response:1",
+  ]
+  first_payload = dummy_dispatch.calls[0][1]
+  first_metadata = dummy_dispatch.calls[0][2]
+  assert first_payload["persona"] == "helper"
+  assert first_payload["message"] == "Hello world"
+  assert first_metadata == {"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id}
+  assert output.channel_messages == [(ctx.channel.id, "Persona response queued for <@3>.")]
+
+
+def test_persona_command_usage_error():
+  bot_module, provider, output = _setup_bot()
+  ctx = _make_ctx()
+  cmd = bot_module.bot.get_command("persona")
+  asyncio.run(cmd.callback(ctx, request=None))
+  assert output.channel_messages == [(ctx.channel.id, "Usage: !persona <persona> <message>")]
+
+
+def test_persona_command_failure(monkeypatch):
+  bot_module, provider, output = _setup_bot()
+  module = bot_module.app.state.discord_chat
+
+  async def dummy_handle(**kwargs):
+    return {
+      "success": False,
+      "ack_message": "Persona chat is currently unavailable.",
+      "reason": "persona_rpc_failure",
+    }
+
+  monkeypatch.setattr(module, "handle_persona_command", dummy_handle)
+
+  ctx = _make_ctx()
+  cmd = bot_module.bot.get_command("persona")
+  asyncio.run(cmd.callback(ctx, request="helper hi"))
+
+  assert output.channel_messages == [(ctx.channel.id, "Persona chat is currently unavailable.")]
 
