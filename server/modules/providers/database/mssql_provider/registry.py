@@ -260,6 +260,17 @@ def _users_get_user_by_email(args: Dict[str, Any]):
 def _db_users_get_user_by_email(args: Dict[str, Any]):
   return _users_get_user_by_email(args)
 
+
+@register("db:users:account:exists:1")
+def _db_users_account_exists(args: Dict[str, Any]):
+  guid = str(UUID(args["user_guid"]))
+  sql = """
+    SELECT 1 AS exists_flag
+    FROM account_users
+    WHERE element_guid = ?;
+  """
+  return (DbRunMode.ROW_ONE, sql, (guid,))
+
 @register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
     guid = str(args["guid"])

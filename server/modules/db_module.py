@@ -133,6 +133,10 @@ class DbModule(BaseModule):
       {"user_guid": user_guid, "items": items},
     )
 
+  async def user_exists(self, user_guid: str) -> bool:
+    res = await self.run("db:users:account:exists:1", {"user_guid": user_guid})
+    return bool(res.rows)
+
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResult:
     return await self.run("db:storage:cache:upsert:1", item)
 

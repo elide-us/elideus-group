@@ -98,6 +98,17 @@ class StorageModule(BaseModule):
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
       return
+    valid_users: set[str] = set()
+    missing_users: set[str] = set()
+    if user_guid:
+      try:
+        if not await self.db.user_exists(user_guid):
+          logging.warning("[StorageModule] Skipping reindex for unknown user %s", user_guid)
+          return
+        valid_users.add(user_guid)
+      except Exception as e:
+        logging.error("[StorageModule] Failed to validate user %s: %s", user_guid, e)
+        return
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
     container = bsc.get_container_client(container_name)
     files_seen: dict[str, set[tuple[str, str]]] = {}
@@ -122,6 +133,20 @@ class StorageModule(BaseModule):
           continue
         if user_guid and guid != user_guid:
           continue
+        if guid in missing_users:
+          continue
+        if guid not in valid_users:
+          try:
+            exists = await self.db.user_exists(guid)
+          except Exception as e:
+            logging.error("[StorageModule] Failed to validate user %s: %s", guid, e)
+            missing_users.add(guid)
+            continue
+          if not exists:
+            logging.warning("[StorageModule] Skipping blob for unknown user %s", guid)
+            missing_users.add(guid)
+            continue
+          valid_users.add(guid)
         filename = parts[-1]
         path = "/".join(parts[1:-1])
         if guid not in public_map:
