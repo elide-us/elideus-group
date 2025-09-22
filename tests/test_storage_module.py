@@ -40,6 +40,9 @@ class DummyDb(BaseModule):
       return Res([{ "value": "15m" }])
     return Res([])
 
+  async def user_exists(self, user_guid):
+    return True
+
 
 class DummyListDb:
   def __init__(self, rows):
@@ -150,6 +153,7 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.upserts = []
+      self.existing = set()
     async def startup(self):
       self.mark_ready()
     async def run(self, op, args):
@@ -165,6 +169,10 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
       return SimpleNamespace(rowcount=1)
     async def list_storage_cache(self, user_guid):
       return []
+    async def user_exists(self, user_guid):
+      if not self.existing:
+        return True
+      return user_guid in self.existing
     async def shutdown(self):
       pass
 
@@ -223,6 +231,102 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   assert any(u["filename"] == "docs" for u in app.state.db.upserts)
   assert any(u["filename"] == "file.txt" and u["path"] == "docs" for u in app.state.db.upserts)
   assert any(u["filename"] == "empty_test" and u["content_type"] == "path/folder" for u in app.state.db.upserts)
+
+
+def test_reindex_skips_unknown_users(monkeypatch):
+  known_guid = "123e4567-e89b-12d3-a456-426614174000"
+  orphan_guid = "11111111-1111-1111-1111-111111111111"
+
+  class DummyEnv(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+    async def startup(self):
+      self.mark_ready()
+    def get(self, key: str):
+      return "UseDevelopmentStorage=true"
+    async def shutdown(self):
+      pass
+
+  class DummyDb(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.upserts = []
+      self.checked = []
+    async def startup(self):
+      self.mark_ready()
+    async def run(self, op, args):
+      class Res:
+        def __init__(self, rows):
+          self.rows = rows
+      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
+        return Res([{ "value": "container" }])
+      return Res([])
+    async def upsert_storage_cache(self, item):
+      self.upserts.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+    async def list_storage_cache(self, user_guid):
+      return []
+    async def user_exists(self, user_guid):
+      self.checked.append(user_guid)
+      return user_guid == known_guid
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = DummyDb(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+  mod = StorageModule(app)
+  mod.env = app.state.env
+  mod.db = app.state.db
+  mod.connection_string = "UseDevelopmentStorage=true"
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name):
+      self.name = name
+      self.content_settings = SimpleNamespace(content_type = "text/plain")
+      self.creation_time = None
+      self.last_modified = None
+      self.metadata = {}
+
+  class FakeContainer:
+    def __init__(self, blobs):
+      self.blobs = blobs
+      self.url = "http://blob"
+    def list_blobs(self, name_starts_with=None):
+      async def gen():
+        for b in self.blobs:
+          yield b
+      return gen()
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer([
+    FakeBlob(f"{orphan_guid}/docs/file.txt"),
+    FakeBlob(f"{known_guid}/docs/file.txt"),
+  ])
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  asyncio.run(mod.reindex())
+  assert app.state.db.upserts
+  assert all(item["user_guid"] == known_guid for item in app.state.db.upserts)
+  assert orphan_guid in app.state.db.checked
+  assert known_guid in app.state.db.checked
 
 
 def test_move_file_copies_and_updates_cache(monkeypatch):
