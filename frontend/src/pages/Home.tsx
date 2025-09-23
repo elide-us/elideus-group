@@ -56,13 +56,27 @@ const Home = (): JSX.Element => {
                                                 {link.title}
                                         </MuiLink>
                                 ))}
-                                <Box sx={{ mt: 2 }}>
+                                <Box
+                                        sx={{
+                                                mt: 2,
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                gap: 2,
+                                        }}
+                                >
                                         <Button
                                                 component={RouterLink}
                                                 to="/terms-of-service"
                                                 variant="outlined"
                                         >
                                                 Terms of Service
+                                        </Button>
+                                        <Button
+                                                component={RouterLink}
+                                                to="/privacy-policy"
+                                                variant="outlined"
+                                        >
+                                                Privacy Policy
                                         </Button>
                                 </Box>
 			</Box>
