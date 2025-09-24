@@ -1,5 +1,6 @@
-import { Box, Typography, Link, CardMedia } from '@mui/material';
+import { Box, Typography, Link as MuiLink, CardMedia, Button } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import type { PublicLinksLinkItem1, PublicVarsVersions1 } from '../shared/RpcModels';
 import Logo from '../assets/elideus_group_green.png';
 import { fetchVersions } from '../rpc/public/vars';
@@ -43,17 +44,41 @@ const Home = (): JSX.Element => {
 			<CardMedia component="img" alt="Elideus Group Image" image={Logo} />
 			<Typography variant="body1">AI Engineering and Consulting Services</Typography>
 			<Box sx={{ marginTop: '20px', width: '300px', textAlign: 'center' }}>
-				{links.map((link) => (
-					<Link key={link.title}
-						href={link.url}
-						title={link.title}
-						underline="none"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						{link.title}
-					</Link>
-				))}
+                                {links.map((link) => (
+                                        <MuiLink
+                                                key={link.title}
+                                                href={link.url}
+                                                title={link.title}
+                                                underline="none"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                        >
+                                                {link.title}
+                                        </MuiLink>
+                                ))}
+                                <Box
+                                        sx={{
+                                                mt: 2,
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                gap: 2,
+                                        }}
+                                >
+                                        <Button
+                                                component={RouterLink}
+                                                to="/terms-of-service"
+                                                variant="outlined"
+                                        >
+                                                Terms of Service
+                                        </Button>
+                                        <Button
+                                                component={RouterLink}
+                                                to="/privacy-policy"
+                                                variant="outlined"
+                                        >
+                                                Privacy Policy
+                                        </Button>
+                                </Box>
 			</Box>
                         <Box sx={{ flexGrow: 1 }} />
                         <BottomBar info={info} />

@@ -158,3 +158,52 @@ def test_summarize_chat_handles_persona_failure(monkeypatch):
   assert app.state.openai.calls[-1]["persona"] == "summarize"
   assert app.state.openai.calls[-1]["system_prompt"] == ""
   assert app.state.openai.calls[-1]["max_tokens"] is None
+
+
+def test_deliver_summary_enqueues_output():
+  app = FastAPI()
+
+  class DummyOutput:
+    def __init__(self):
+      self.user_messages = []
+      self.channel_messages = []
+
+    async def queue_user_message(self, user_id, message):
+      self.user_messages.append((user_id, message))
+
+    async def queue_channel_message(self, channel_id, message):
+      self.channel_messages.append((channel_id, message))
+
+  output = DummyOutput()
+
+  async def dummy_on_ready():
+    return None
+
+  discord_bot = SimpleNamespace(on_ready=dummy_on_ready, _require_output_module=lambda: output)
+  module = DiscordChatModule(app)
+  module.discord = discord_bot
+
+  res = asyncio.run(
+    module.deliver_summary(
+      guild_id=1,
+      channel_id=2,
+      user_id=3,
+      summary_text="hello world",
+      ack_message="queued",
+      success=True,
+      reason="queued",
+      messages_collected=5,
+      token_count_estimate=10,
+      cap_hit=False,
+    )
+  )
+
+  assert output.user_messages == [(3, "hello world")]
+  assert output.channel_messages == [(2, "queued")]
+  assert res["success"] is True
+  assert res["queue_id"]
+  assert res["dm_enqueued"] is True
+  assert res["channel_ack_enqueued"] is True
+  assert res["messages_collected"] == 5
+  assert res["token_count_estimate"] == 10
+  assert res["cap_hit"] is False
