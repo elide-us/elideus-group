@@ -363,6 +363,10 @@ class DiscordChatModule(BaseModule):
       metadata,
     )
     context["conversation_history"] = response.get("conversation_history") or []
+    if response.get("personas_recid") is not None:
+      context["personas_recid"] = response.get("personas_recid")
+    if response.get("models_recid") is not None:
+      context["models_recid"] = response.get("models_recid")
     context["success"] = response.get("success", True)
     context["reason"] = response.get("reason", context.get("reason"))
     if response.get("ack_message"):
@@ -392,6 +396,7 @@ class DiscordChatModule(BaseModule):
     payload = {
       "persona": context.get("persona"),
       "message": context.get("message"),
+      "persona_details": context.get("persona_details"),
       "conversation_history": context.get("conversation_history", []),
       "guild_id": metadata.get("guild_id"),
       "channel_id": metadata.get("channel_id"),
@@ -403,6 +408,10 @@ class DiscordChatModule(BaseModule):
       metadata,
     )
     context["conversation_reference"] = response.get("conversation_reference")
+    if response.get("personas_recid") is not None:
+      context["personas_recid"] = response.get("personas_recid")
+    if response.get("models_recid") is not None:
+      context["models_recid"] = response.get("models_recid")
     context["success"] = response.get("success", True)
     context["reason"] = response.get("reason", context.get("reason"))
     if response.get("ack_message"):
@@ -418,6 +427,9 @@ class DiscordChatModule(BaseModule):
       "channel_history": context.get("channel_history", []),
       "model": context.get("model"),
       "max_tokens": context.get("max_tokens"),
+      "conversation_reference": context.get("conversation_reference"),
+      "personas_recid": context.get("personas_recid"),
+      "models_recid": context.get("models_recid"),
       "guild_id": metadata.get("guild_id"),
       "channel_id": metadata.get("channel_id"),
       "user_id": metadata.get("user_id"),
@@ -440,6 +452,9 @@ class DiscordChatModule(BaseModule):
       "persona": context.get("persona"),
       "response": context.get("response"),
       "model": context.get("model"),
+      "conversation_reference": context.get("conversation_reference"),
+      "personas_recid": context.get("personas_recid"),
+      "models_recid": context.get("models_recid"),
       "guild_id": metadata.get("guild_id"),
       "channel_id": metadata.get("channel_id"),
       "user_id": metadata.get("user_id"),
