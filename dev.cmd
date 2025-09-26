@@ -41,20 +41,21 @@ EXIT /b 0
 
 :FRONTEND_TASKS
 CD frontend
-ECHO Running npm ci on Frontend...
-CALL npm ci
+ECHO Running pnpm install on Frontend...
+CALL rmdir /s /q node_modules
+CALL pnpm install --frozen-lockfile
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running lint on Frontend...
-CALL npm run lint
+CALL pnpm run lint
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running type-check on Frontend...
-CALL npm run type-check
+CALL pnpm run type-check
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running vitest on Frontend...
-CALL npm test -- --run
+CALL pnpm test --run
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running tsc + vite on Frontend...
-CALL npm run build
+CALL pnpm build
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 CD ..
 EXIT /b 0
@@ -110,16 +111,16 @@ CALL :INSTALL_DEPS || EXIT /b 1
 CALL :GENERATE_LIBS || EXIT /b 1
 CD frontend
 ECHO Running lint on Frontend...
-CALL npm run lint
+CALL pnpm run lint
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running type-check on Frontend...
-CALL npm run type-check
+CALL pnpm run type-check
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running vitest on Frontend...
-CALL npm test -- --run
+CALL pnpm test run
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 ECHO Running tsc + vite on Frontend...
-CALL npm run build
+CALL pnpm build
 IF ERRORLEVEL 1 (CD .. & EXIT /b 1)
 CD ..
 CALL :RUN_PYTEST || EXIT /b 1
