@@ -1,6 +1,45 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "dependencyDashboard": true,
+  "schedule": ["before 5am on monday"],
+
+  "packageRules": [
+    {
+      "groupName": "React core",
+      "matchPackageNames": ["react", "react-dom"]
+    },
+    {
+      "groupName": "Vite build system",
+      "matchPackagePatterns": ["^vite", "^@vitejs/"],
+      "separateMajorMinor": true
+    },
+    {
+      "groupName": "TypeScript toolchain",
+      "matchPackageNames": ["typescript"]
+    },
+    {
+      "groupName": "Vitest testing",
+      "matchPackagePatterns": ["^vitest", "^@vitest/"]
+    },
+    {
+      "groupName": "MUI + Emotion",
+      "matchPackageNames": [
+        "@mui/material",
+        "@mui/icons-material",
+        "@emotion/react",
+        "@emotion/styled"
+      ]
+    },
+    {
+      "groupName": "ESLint toolchain",
+      "matchPackagePatterns": ["^eslint", "^@typescript-eslint", "^@eslint/"]
+    }
+  ],
+
+  "automerge": true,
+  "automergeType": "branch",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2
 }
