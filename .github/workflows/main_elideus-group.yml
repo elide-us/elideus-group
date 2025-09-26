@@ -41,9 +41,7 @@ jobs:
         npm ci
 
     - name: Generate RPC bindings
-      run: |
-        python scripts/generate_rpc_library.py
-        python scripts/generate_rpc_client.py
+      run: python scripts/generate_rpc_bindings.py
 
     - name: Install MSSQL ODBC Driver
       run: |
