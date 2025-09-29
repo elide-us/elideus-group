@@ -66,7 +66,13 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
         if not parts:
           return DBResult()
         data = json.loads("".join(parts))
-        if many and isinstance(data, list):
+        if data is None:
+          return DBResult()
+        if many:
+          if isinstance(data, list):
+            return DBResult(rows=data, rowcount=len(data))
+          return DBResult(rows=[data], rowcount=1)
+        if isinstance(data, list):
           return DBResult(rows=data, rowcount=len(data))
         return DBResult(rows=[data], rowcount=1)
   except Exception as e:
