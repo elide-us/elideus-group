@@ -1,7 +1,28 @@
 import json, logging
-from typing import Any, Iterable, AsyncIterator
+from dataclasses import dataclass
+from typing import Any, Iterable, AsyncIterator, Callable
 from . import logic
 from ... import DBResult
+
+
+@dataclass(slots=True)
+class QueryErrorDetail:
+  query: str
+  params: tuple[Any, ...]
+  message: str
+
+
+class DBQueryError(RuntimeError):
+  def __init__(self, detail: QueryErrorDetail, *, original: Exception | None = None):
+    super().__init__(detail.message)
+    self.detail = detail
+    self.original = original
+
+
+def _raise_query_error(query: str, params: tuple[Any, ...], error: Exception, *, log: Callable[[str], Any]):
+  log(f"Query failed:\n{query}\nArgs: {params}\nError: {error}")
+  detail = QueryErrorDetail(query=query, params=params, message=str(error))
+  raise DBQueryError(detail, original=error) from error
 
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):
   return dict(zip(cols, row))
@@ -30,7 +51,7 @@ async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = Fa
                 break
               yield _rowdict(cols, row)
       except Exception as e:
-        logging.debug(f"Stream failed:\n{query}\nArgs: {params}\nError: {e}")
+        _raise_query_error(query, params, e, log=logging.debug)
     return _stream()
   try:
     async with logic._pool.acquire() as conn:
@@ -48,8 +69,7 @@ async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = Fa
         rows = [_rowdict(cols, r) for r in rows_raw]
         return DBResult(rows=rows, rowcount=len(rows))
   except Exception as e:
-    logging.debug(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
-    return DBResult()
+    _raise_query_error(query, params, e, log=logging.debug)
 
 async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = False) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
@@ -76,8 +96,7 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
           return DBResult(rows=data, rowcount=len(data))
         return DBResult(rows=[data], rowcount=1)
   except Exception as e:
-    logging.error(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
-    raise
+    _raise_query_error(query, params, e, log=logging.error)
 
 async def exec_query(query: str, params: tuple[Any, ...] = ()) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
@@ -87,5 +106,4 @@ async def exec_query(query: str, params: tuple[Any, ...] = ()) -> DBResult:
         await cur.execute(query, params)
         return DBResult(rowcount=cur.rowcount or 0)
   except Exception as e:
-    logging.error(f"Exec failed:\n{query}\nArgs: {params}\nError: {e}")
-    raise
+    _raise_query_error(query, params, e, log=logging.error)
