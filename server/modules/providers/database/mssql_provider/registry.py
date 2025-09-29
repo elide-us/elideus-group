@@ -1,13 +1,13 @@
 # providers/database/mssql_provider/registry.py
-from typing import Any, Awaitable, Callable, Dict, Tuple
+from typing import Any, Callable, Dict
 from uuid import UUID, uuid5, NAMESPACE_URL
 from ... import DBResult, DbRunMode
-from .logic import init_pool, close_pool, transaction
-from .db_helpers import fetch_json, exec_query
+from .logic import transaction
+from .db_helpers import Operation, exec_op, fetch_json, exec_query, json_many, json_one, row_many, row_one
 import logging
 
 # handler can be:
-#  - sync: (mode, sql, params) -> provider will run it
+#  - sync: Operation(kind=..., sql=..., params=...) -> provider will run it
 #  - async: does its own calls and returns {"rows":[...], "rowcount":N}
 _REG: Dict[str, Callable[[Dict[str, Any]], Any]] = {}
 
@@ -45,7 +45,7 @@ def _users_select(provider_args: Dict[str, Any]):
       WHERE ap.element_name = ? AND ua.element_identifier = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (provider, identifier))
+    return Operation(DbRunMode.JSON_ONE, sql, (provider, identifier))
 
 @register("db:users:providers:get_any_by_provider_identifier:1")
 def _users_select_any(provider_args: Dict[str, Any]):
@@ -59,7 +59,7 @@ def _users_select_any(provider_args: Dict[str, Any]):
       WHERE ua.element_identifier = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (identifier,))
+    return Operation(DbRunMode.JSON_ONE, sql, (identifier,))
 
 @register("db:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
@@ -76,30 +76,30 @@ async def _users_insert(args: Dict[str, Any]):
     provider_displayname = args["provider_displayname"]
     provider_profileimg = args.get("provider_profile_image", "")
 
-    res = await fetch_json(
+    res = await fetch_json(json_one(
       "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
       (provider,)
-    )
+    ))
     if not res.rows:
       raise ValueError(f"Unknown auth provider: {provider}")
     ap_recid = res.rows[0]["recid"]
 
-    dup = await fetch_json(
+    dup = await fetch_json(json_one(
       "SELECT users_guid FROM users_auth WHERE element_identifier = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
       (identifier,),
-    )
+    ))
     if dup.rows:
       existing_guid = dup.rows[0]["users_guid"]
-      await exec_query(
+      await exec_query(exec_op(
         "UPDATE users_auth SET element_linked = 1, providers_recid = ? WHERE element_identifier = ?;",
         (ap_recid, identifier),
-      )
-      await exec_query(
+      ))
+      await exec_query(exec_op(
         "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
         (ap_recid, existing_guid),
-      )
+      ))
       sel = _users_select({"provider": provider, "provider_identifier": identifier})
-      return await fetch_json(sel[1], sel[2])
+      return await fetch_json(sel)
 
     async with transaction() as cur:
         await cur.execute(
@@ -128,21 +128,21 @@ async def _users_insert(args: Dict[str, Any]):
 
     # return same shape as select_user
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
-    return await fetch_json(sel[1], sel[2])
+    return await fetch_json(sel)
 
 @register("db:users:providers:link_provider:1")
 async def _users_link_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
     identifier = str(UUID(args["provider_identifier"]))
-    res = await fetch_json(
+    res = await fetch_json(json_one(
       "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
       (provider,)
-    )
+    ))
     if not res.rows:
       raise ValueError(f"Unknown auth provider: {provider}")
     ap_recid = res.rows[0]["recid"]
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       """
       MERGE users_auth AS target
       USING (SELECT ? AS users_guid, ? AS providers_recid, ? AS element_identifier) AS source
@@ -154,7 +154,7 @@ async def _users_link_provider(args: Dict[str, Any]):
         VALUES (source.users_guid, source.providers_recid, source.element_identifier, 1);
       """,
       (guid, ap_recid, identifier)
-    )
+    ))
     return rc
 
 @register("db:users:providers:unlink_provider:1")
@@ -221,7 +221,7 @@ def _users_soft_delete_account(args: Dict[str, Any]):
       SET element_soft_deleted_at = SYSDATETIMEOFFSET()
       WHERE element_guid = ?;
     """
-    return (DbRunMode.EXEC, sql, (guid,))
+    return Operation(DbRunMode.EXEC, sql, (guid,))
 
 @register("db:users:providers:get_user_by_email:1")
 def _users_get_user_by_email(args: Dict[str, Any]):
@@ -233,7 +233,7 @@ def _users_get_user_by_email(args: Dict[str, Any]):
       WHERE element_email = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (email,))
+    return Operation(DbRunMode.JSON_ONE, sql, (email,))
 
 
 @register("db:users:account:exists:1")
@@ -245,7 +245,7 @@ def _db_users_account_exists(args: Dict[str, Any]):
     WHERE element_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (guid,))
+  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
@@ -272,14 +272,14 @@ def _users_profile(args: Dict[str, Any]):
       WHERE v.user_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (guid,))
+    return Operation(DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:auth:providers:unlink_last_provider:1")
 def _auth_unlink_last_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
     sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
-    return (DbRunMode.EXEC, sql, (guid, provider))
+    return Operation(DbRunMode.EXEC, sql, (guid, provider))
 
 @register("db:auth:microsoft:oauth_relink:1")
 async def _auth_ms_oauth_relink(args: Dict[str, Any]):
@@ -288,9 +288,9 @@ async def _auth_ms_oauth_relink(args: Dict[str, Any]):
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;"
-    await exec_query(sql, (identifier, email, display, img))
+    await exec_query(exec_op(sql, (identifier, email, display, img)))
     sel = _users_select({"provider": "microsoft", "provider_identifier": identifier})
-    return await fetch_json(sel[1], sel[2])
+    return await fetch_json(sel)
 
 @register("db:auth:google:oauth_relink:1")
 async def _auth_google_oauth_relink(args: Dict[str, Any]):
@@ -299,9 +299,9 @@ async def _auth_google_oauth_relink(args: Dict[str, Any]):
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;"
-    await exec_query(sql, (identifier, email, display, img))
+    await exec_query(exec_op(sql, (identifier, email, display, img)))
     sel = _users_select({"provider": "google", "provider_identifier": identifier})
-    return await fetch_json(sel[1], sel[2])
+    return await fetch_json(sel)
 
 @register("db:auth:discord:oauth_relink:1")
 async def _auth_discord_oauth_relink(args: Dict[str, Any]):
@@ -311,9 +311,9 @@ async def _auth_discord_oauth_relink(args: Dict[str, Any]):
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='discord', @identifier=?, @email=?, @display=?, @image=?;"
-    await exec_query(sql, (identifier, email, display, img))
+    await exec_query(exec_op(sql, (identifier, email, display, img)))
     sel = _users_select({"provider": "discord", "provider_identifier": identifier})
-    return await fetch_json(sel[1], sel[2])
+    return await fetch_json(sel)
 
 @register("db:auth:discord:get_security:1")
 def _auth_discord_get_security(args: Dict[str, Any]):
@@ -329,7 +329,7 @@ def _auth_discord_get_security(args: Dict[str, Any]):
     WHERE ap.element_name = 'discord' AND ua.element_identifier = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (identifier,))
+  return Operation(DbRunMode.JSON_ONE, sql, (identifier,))
 
 
 @register("db:users:profile:set_display:1")
@@ -341,7 +341,7 @@ def _users_set_display(args: Dict[str, Any]):
       SET element_display = ?
       WHERE element_guid = ?;
     """
-    return (DbRunMode.EXEC, sql, (display_name, guid))
+    return Operation(DbRunMode.EXEC, sql, (display_name, guid))
 
 
 @register("db:support:users:set_credits:1")
@@ -353,7 +353,7 @@ def _support_users_set_credits(args: Dict[str, Any]):
     SET element_credits = ?
     WHERE users_guid = ?;
   """
-  return (DbRunMode.EXEC, sql, (credits, guid))
+  return Operation(DbRunMode.EXEC, sql, (credits, guid))
 
 
 # -------------------- STORAGE CACHE --------------------
@@ -374,7 +374,7 @@ def _storage_cache_list(args: Dict[str, Any]):
     ORDER BY usc.element_path, usc.element_filename
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, (user_guid,))
+  return Operation(DbRunMode.JSON_MANY, sql, (user_guid,))
 
 
 @register("db:storage:cache:replace_user:1")
@@ -387,10 +387,10 @@ async def _storage_cache_replace_user(args: Dict[str, Any]):
       path = item.get("path", "")
       filename = item.get("filename", "")
       mimetype = item.get("content_type", "application/octet-stream")
-      res = await fetch_json(
+      res = await fetch_json(json_one(
         "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
         (mimetype,),
-      )
+      ))
       if not res.rows:
         raise ValueError(f"Unknown storage mimetype: {mimetype}")
       type_recid = res.rows[0]["recid"]
@@ -418,13 +418,13 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
   url = args.get("url")
   reported = args.get("reported", 0)
   moderation_recid = args.get("moderation_recid")
-  res = await fetch_json(
+  res = await fetch_json(json_one(
     "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
     (mimetype,),
-  )
+  ))
   if not res.rows:
     if mimetype == "path/folder":
-      await exec_query(
+      await exec_query(exec_op(
         """
         MERGE storage_types AS target
         USING (SELECT 16 AS recid, 'path/folder' AS element_mimetype, 'Folder' AS element_displaytype) AS src
@@ -434,16 +434,16 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
           VALUES (src.recid, src.element_mimetype, src.element_displaytype);
         """,
         (),
-      )
-      res = await fetch_json(
+      ))
+      res = await fetch_json(json_one(
         "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
         (mimetype,),
-      )
+      ))
     else:
-      res = await fetch_json(
+      res = await fetch_json(json_one(
         "SELECT recid FROM storage_types WHERE element_mimetype = 'application/octet-stream' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
         (),
-      )
+      ))
   type_recid = res.rows[0]["recid"] if res.rows else (16 if mimetype == "path/folder" else 1)
   sql = """
     MERGE users_storage_cache AS target
@@ -481,7 +481,7 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
     reported,
     moderation_recid,
   )
-  rc = await exec_query(sql, params)
+  rc = await exec_query(exec_op(sql, params))
   if rc.rowcount == 0:
     logging.error(
       "[MSSQL] storage_cache_upsert affected 0 rows for %s/%s",
@@ -500,7 +500,7 @@ def _storage_cache_delete(args: Dict[str, Any]):
     DELETE FROM users_storage_cache
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return (DbRunMode.EXEC, sql, (user_guid, path, filename))
+  return Operation(DbRunMode.EXEC, sql, (user_guid, path, filename))
 
 
 @register("db:storage:cache:delete_folder:1")
@@ -517,7 +517,7 @@ def _storage_cache_delete_folder(args: Dict[str, Any]):
       OR element_path LIKE ?
     );
   """
-  return (DbRunMode.EXEC, sql, (user_guid, parent, name, path, like))
+  return Operation(DbRunMode.EXEC, sql, (user_guid, parent, name, path, like))
 
 
 @register("db:storage:cache:set_public:1")
@@ -531,7 +531,7 @@ def _storage_cache_set_public(args: Dict[str, Any]):
     SET element_public = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return (DbRunMode.EXEC, sql, (public, guid, path, filename))
+  return Operation(DbRunMode.EXEC, sql, (public, guid, path, filename))
 
 
 @register("db:storage:files:set_gallery:1")
@@ -545,7 +545,7 @@ def _storage_files_set_gallery(args: Dict[str, Any]):
     SET element_public = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return (DbRunMode.EXEC, sql, (gallery, guid, path, filename))
+  return Operation(DbRunMode.EXEC, sql, (gallery, guid, path, filename))
 
 
 @register("db:storage:cache:set_reported:1")
@@ -559,7 +559,7 @@ def _storage_cache_set_reported(args: Dict[str, Any]):
     SET element_reported = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return (DbRunMode.EXEC, sql, (reported, guid, path, filename))
+  return Operation(DbRunMode.EXEC, sql, (reported, guid, path, filename))
 
 
 @register("db:storage:cache:list_public:1")
@@ -578,7 +578,7 @@ def _storage_cache_list_public(_: Dict[str, Any]):
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:public:gallery:get_public_files:1")
@@ -597,7 +597,7 @@ def _public_gallery_get_public_files(_: Dict[str, Any]):
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:list_reported:1")
@@ -614,7 +614,7 @@ def _storage_cache_list_reported(_: Dict[str, Any]):
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:count_rows:1")
@@ -625,7 +625,7 @@ def _storage_cache_count_rows(_: Dict[str, Any]):
     WHERE element_deleted = 0
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, ())
+  return Operation(DbRunMode.JSON_ONE, sql, ())
 
 
 @register("db:users:profile:set_optin:1")
@@ -637,7 +637,7 @@ def _users_set_optin(args: Dict[str, Any]):
       SET element_optin = ?
       WHERE element_guid = ?;
     """
-    return (DbRunMode.EXEC, sql, (display_email, guid))
+    return Operation(DbRunMode.EXEC, sql, (display_email, guid))
 
 
 @register("db:users:profile:update_if_unedited:1")
@@ -645,16 +645,16 @@ async def _users_update_if_unedited(args: Dict[str, Any]):
   guid = str(UUID(args["guid"]))
   email = args.get("email")
   display = args.get("display_name")
-  res = await exec_query(
+  res = await exec_query(exec_op(
     """
     UPDATE account_users
     SET element_email = ?, element_display = ?
     WHERE element_guid = ? AND (element_email <> ? OR element_display <> ?);
     """,
     (email, display, guid, email, display),
-  )
+  ))
   if res.rowcount > 0:
-    return await fetch_json(
+    return await fetch_json(json_one(
       """
       SELECT element_display AS display_name, element_email AS email
       FROM account_users
@@ -662,7 +662,7 @@ async def _users_update_if_unedited(args: Dict[str, Any]):
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
       """,
       (guid,),
-    )
+    ))
   return DBResult()
 
 
@@ -670,16 +670,16 @@ async def _users_update_if_unedited(args: Dict[str, Any]):
 async def _users_set_provider(args: Dict[str, Any]):
   guid = args["guid"]
   provider = args["provider"]
-  res = await fetch_json(
+  res = await fetch_json(json_one(
     "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
     (provider,),
-  )
+  ))
   if not res.rows:
     raise ValueError(f"Unknown auth provider: {provider}")
-  return await exec_query(
+  return await exec_query(exec_op(
     "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
     (res.rows[0]["recid"], guid),
-  )
+  ))
 
 @register("db:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
@@ -690,23 +690,23 @@ def _users_get_roles(args: Dict[str, Any]):
     WHERE users_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (guid,))
+  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
   """Upsert a user's role mask."""
   guid, roles = args["guid"], int(args["roles"])
   if roles == 0:
-    return await exec_query("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
-  res = await exec_query(
+    return await exec_query(exec_op("DELETE FROM users_roles WHERE users_guid = ?;", (guid,)))
+  res = await exec_query(exec_op(
     "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
     (roles, guid),
-  )
+  ))
   if res.rowcount == 0:
-    res = await exec_query(
+    res = await exec_query(exec_op(
       "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
       (guid, roles),
-    )
+    ))
   return res
 
 @register("db:users:session:set_rotkey:1")
@@ -720,7 +720,7 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
       SET element_rotkey = ?, element_rotkey_iat = ?, element_rotkey_exp = ?
       WHERE element_guid = ?;
     """
-    return (DbRunMode.EXEC, sql, (rotkey, iat, exp, guid))
+    return Operation(DbRunMode.EXEC, sql, (rotkey, iat, exp, guid))
 
 @register("db:users:session:get_rotkey:1")
 def _users_session_get_rotkey(args: Dict[str, Any]):
@@ -734,7 +734,7 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
       WHERE au.element_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-  return (DbRunMode.JSON_ONE, sql, (guid,))
+  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:public:links:get_home_links:1")
 def _public_links_get_home_links(args: Dict[str, Any]):
@@ -746,7 +746,7 @@ def _public_links_get_home_links(args: Dict[str, Any]):
       ORDER BY element_sequence
       FOR JSON PATH;
     """
-    return (DbRunMode.JSON_MANY, sql, ())
+    return Operation(DbRunMode.JSON_MANY, sql, ())
 
 @register("db:public:links:get_navbar_routes:1")
 def _public_links_get_navbar_routes(args: Dict[str, Any]):
@@ -762,7 +762,7 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
       ORDER BY element_sequence
       FOR JSON PATH;
     """
-    return (DbRunMode.JSON_MANY, sql, (mask,))
+    return Operation(DbRunMode.JSON_MANY, sql, (mask,))
 
 # -------------------- SERVICE ROUTES --------------------
 
@@ -779,7 +779,7 @@ def _service_routes_get_routes(_: Dict[str, Any]):
     ORDER BY element_sequence
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 @register("db:service:routes:upsert_route:1")
 async def _service_routes_upsert_route(args: Dict[str, Any]):
@@ -788,22 +788,22 @@ async def _service_routes_upsert_route(args: Dict[str, Any]):
   icon = args.get("icon")
   sequence = int(args["sequence"])
   roles = int(args["roles"])
-  rc = await exec_query(
+  rc = await exec_query(exec_op(
     "UPDATE frontend_routes SET element_name = ?, element_icon = ?, element_sequence = ?, element_roles = ? WHERE element_path = ?;",
     (name, icon, sequence, roles, path),
-  )
+  ))
   if rc.rowcount == 0:
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       "INSERT INTO frontend_routes (element_path, element_name, element_icon, element_sequence, element_roles) VALUES (?, ?, ?, ?, ?);",
       (path, name, icon, sequence, roles),
-    )
+    ))
   return rc
 
 @register("db:service:routes:delete_route:1")
 def _service_routes_delete_route(args: Dict[str, Any]):
   path = args["path"]
   sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
-  return (DbRunMode.EXEC, sql, (path,))
+  return Operation(DbRunMode.EXEC, sql, (path,))
 
 @register("db:public:vars:get_hostname:1")
 def _public_vars_get_hostname(args: Dict[str, Any]):
@@ -813,7 +813,7 @@ def _public_vars_get_hostname(args: Dict[str, Any]):
     WHERE element_key = 'hostname'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, ())
+  return Operation(DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:vars:get_version:1")
 def _public_vars_get_version(args: Dict[str, Any]):
@@ -823,7 +823,7 @@ def _public_vars_get_version(args: Dict[str, Any]):
     WHERE element_key = 'version'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, ())
+  return Operation(DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:vars:get_repo:1")
 def _public_vars_get_repo(args: Dict[str, Any]):
@@ -833,7 +833,7 @@ def _public_vars_get_repo(args: Dict[str, Any]):
     WHERE element_key = 'repo'
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, ())
+  return Operation(DbRunMode.JSON_ONE, sql, ())
 
 @register("db:public:users:get_profile:1")
 def _public_users_get_profile(args: Dict[str, Any]):
@@ -848,7 +848,7 @@ def _public_users_get_profile(args: Dict[str, Any]):
       WHERE au.element_guid = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (guid,))
+    return Operation(DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:public:users:get_published_files:1")
 def _public_users_get_published_files(args: Dict[str, Any]):
@@ -865,28 +865,28 @@ def _public_users_get_published_files(args: Dict[str, Any]):
       ORDER BY usc.element_created_on
       FOR JSON PATH;
     """
-    return (DbRunMode.JSON_MANY, sql, (guid,))
+    return Operation(DbRunMode.JSON_MANY, sql, (guid,))
 
 @register("db:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
   """Insert or update a user's profile image."""
   guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
-  res = await fetch_json(
+  res = await fetch_json(json_one(
     "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
     (provider,),
-  )
+  ))
   if not res.rows:
     raise ValueError(f"Unknown auth provider: {provider}")
   ap_recid = res.rows[0]["recid"]
-  rc = await exec_query(
+  rc = await exec_query(exec_op(
     "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
     (image_b64, ap_recid, guid),
-  )
+  ))
   if rc.rowcount == 0:
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
       (guid, image_b64, ap_recid),
-    )
+    ))
   return rc
 
 @register("db:auth:session:create_session:1")
@@ -994,7 +994,7 @@ def _auth_session_get_by_access_token(args: Dict[str, Any]):
       WHERE element_token = ?
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.JSON_ONE, sql, (token,))
+    return Operation(DbRunMode.JSON_ONE, sql, (token,))
 
 @register("db:auth:session:update_session:1")
 def _auth_session_update_session(args: Dict[str, Any]):
@@ -1006,7 +1006,7 @@ def _auth_session_update_session(args: Dict[str, Any]):
       SET element_ip_last_seen = ?, element_user_agent = ?
       WHERE element_token = ?;
     """
-  return (DbRunMode.EXEC, sql, (ip_address, user_agent, token))
+  return Operation(DbRunMode.EXEC, sql, (ip_address, user_agent, token))
 
 @register("db:auth:session:update_device_token:1")
 def _auth_session_update_device_token(args: Dict[str, Any]):
@@ -1018,7 +1018,7 @@ def _auth_session_update_device_token(args: Dict[str, Any]):
     SET element_token = ?
     WHERE element_guid = ?;
   """
-  return (DbRunMode.EXEC, sql, (token, device_guid))
+  return Operation(DbRunMode.EXEC, sql, (token, device_guid))
 
 @register("db:auth:session:revoke_device_token:1")
 def _auth_session_revoke_device_token(args: Dict[str, Any]):
@@ -1028,7 +1028,7 @@ def _auth_session_revoke_device_token(args: Dict[str, Any]):
     SET element_revoked_at = SYSDATETIMEOFFSET()
     WHERE element_token = ?;
   """
-  return (DbRunMode.EXEC, sql, (token,))
+  return Operation(DbRunMode.EXEC, sql, (token,))
 
 @register("db:auth:session:revoke_all_device_tokens:1")
 def _auth_session_revoke_all_device_tokens(args: Dict[str, Any]):
@@ -1040,7 +1040,7 @@ def _auth_session_revoke_all_device_tokens(args: Dict[str, Any]):
     JOIN users_sessions us ON us.element_guid = sd.sessions_guid
     WHERE us.users_guid = ?;
   """
-  return (DbRunMode.EXEC, sql, (guid,))
+  return Operation(DbRunMode.EXEC, sql, (guid,))
 
 @register("db:auth:session:revoke_provider_tokens:1")
 def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
@@ -1054,7 +1054,7 @@ def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
     JOIN auth_providers ap ON ap.recid = sd.providers_recid
     WHERE us.users_guid = ? AND ap.element_name = ?;
   """
-  return (DbRunMode.EXEC, sql, (guid, provider))
+  return Operation(DbRunMode.EXEC, sql, (guid, provider))
 
 # -------------------- SYSTEM CONFIG --------------------
 
@@ -1067,21 +1067,21 @@ def _config_get(args: Dict[str, Any]):
     WHERE element_key = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (key,))
+  return Operation(DbRunMode.JSON_ONE, sql, (key,))
 
 @register("db:system:config:upsert_config:1")
 async def _config_set(args: Dict[str, Any]):
   key = args["key"]
   value = args["value"]
-  rc = await exec_query(
+  rc = await exec_query(exec_op(
     "UPDATE system_config SET element_value = ? WHERE element_key = ?;",
     (value, key),
-  )
+  ))
   if rc.rowcount == 0:
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       "INSERT INTO system_config (element_key, element_value) VALUES (?, ?);",
       (key, value),
-    )
+    ))
   return rc
 
 @register("db:system:config:get_configs:1")
@@ -1092,13 +1092,13 @@ def _config_list(_: Dict[str, Any]):
     ORDER BY element_key
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 @register("db:system:config:delete_config:1")
 def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
-  return (DbRunMode.EXEC, sql, (key,))
+  return Operation(DbRunMode.EXEC, sql, (key,))
 
 
 # -------------------- SECURITY ROLES --------------------
@@ -1111,7 +1111,7 @@ def _system_roles_list(_: Dict[str, Any]):
     ORDER BY element_mask
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:security:roles:upsert_role:1")
@@ -1119,15 +1119,15 @@ async def _security_roles_upsert_role(args: Dict[str, Any]):
   name = args["name"]
   mask = int(args["mask"])
   display = args.get("display")
-  rc = await exec_query(
+  rc = await exec_query(exec_op(
     "UPDATE system_roles SET element_mask = ?, element_display = ? WHERE element_name = ?;",
     (mask, display, name),
-  )
+  ))
   if rc.rowcount == 0:
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       "INSERT INTO system_roles (element_name, element_mask, element_display) VALUES (?, ?, ?);",
       (name, mask, display),
-    )
+    ))
   return rc
 
 
@@ -1140,7 +1140,7 @@ async def _security_roles_delete_role(args: Dict[str, Any]):
     UPDATE users_roles SET element_roles = element_roles & ~@mask;
     DELETE FROM system_roles WHERE element_name = ?;
   """
-  rc = await exec_query(sql, (name, name))
+  rc = await exec_query(exec_op(sql, (name, name)))
   return rc
 
 
@@ -1156,7 +1156,7 @@ def _security_roles_get_members(args: Dict[str, Any]):
     ORDER BY au.element_display
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, (role,))
+  return Operation(DbRunMode.JSON_MANY, sql, (role,))
 
 
 @register("db:security:roles:get_role_non_members:1")
@@ -1171,7 +1171,7 @@ def _security_roles_get_non_members(args: Dict[str, Any]):
     ORDER BY au.element_display
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, (role,))
+  return Operation(DbRunMode.JSON_MANY, sql, (role,))
 
 
 @register("db:security:roles:add_role_member:1")
@@ -1185,7 +1185,7 @@ def _security_roles_add_member(args: Dict[str, Any]):
     WHEN MATCHED THEN UPDATE SET element_roles = ur.element_roles | src.element_mask
     WHEN NOT MATCHED THEN INSERT (users_guid, element_roles) VALUES (src.users_guid, src.element_mask);
   """
-  return (DbRunMode.EXEC, sql, (user_guid, role))
+  return Operation(DbRunMode.EXEC, sql, (user_guid, role))
 
 
 @register("db:security:roles:remove_role_member:1")
@@ -1198,7 +1198,7 @@ def _security_roles_remove_member(args: Dict[str, Any]):
     UPDATE users_roles SET element_roles = element_roles & ~@mask WHERE users_guid = ?;
     DELETE FROM users_roles WHERE users_guid = ? AND element_roles = 0;
   """
-  return (DbRunMode.EXEC, sql, (role, user_guid, user_guid))
+  return Operation(DbRunMode.EXEC, sql, (role, user_guid, user_guid))
 
 @register("db:assistant:personas:get_by_name:1")
 def _assistant_personas_get_by_name(args: Dict[str, Any]):
@@ -1225,7 +1225,7 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
     WHERE vp.persona_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (name,))
+  return Operation(DbRunMode.JSON_ONE, sql, (name,))
 
 @register("db:assistant:models:list:1")
 def _assistant_models_list(_: Dict[str, Any]):
@@ -1237,7 +1237,7 @@ def _assistant_models_list(_: Dict[str, Any]):
     ORDER BY element_name
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 @register("db:assistant:personas:list:1")
 def _assistant_personas_list(_: Dict[str, Any]):
@@ -1263,7 +1263,7 @@ def _assistant_personas_list(_: Dict[str, Any]):
     ORDER BY vp.persona_name
     FOR JSON PATH;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())
 
 @register("db:assistant:personas:upsert:1")
 async def _assistant_personas_upsert(args: Dict[str, Any]):
@@ -1273,7 +1273,7 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
   tokens = int(args["tokens"])
   models_recid = int(args["models_recid"])
   if recid is not None:
-    rc = await exec_query(
+    rc = await exec_query(exec_op(
       """
         UPDATE assistant_personas
         SET element_name = ?,
@@ -1284,10 +1284,10 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
         WHERE recid = ?;
       """,
       (name, prompt, tokens, models_recid, recid),
-    )
+    ))
     if rc.rowcount:
       return rc
-  rc = await exec_query(
+  rc = await exec_query(exec_op(
     """
       UPDATE assistant_personas
       SET element_prompt = ?,
@@ -1297,10 +1297,10 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
       WHERE element_name = ?;
     """,
     (prompt, tokens, models_recid, name),
-  )
+  ))
   if rc.rowcount:
     return rc
-  return await exec_query(
+  return await exec_query(exec_op(
     """
       INSERT INTO assistant_personas (
         element_name,
@@ -1310,7 +1310,7 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
       ) VALUES (?, ?, ?, ?);
     """,
     (name, prompt, tokens, models_recid),
-  )
+  ))
 
 @register("db:assistant:personas:delete:1")
 def _assistant_personas_delete(args: Dict[str, Any]):
@@ -1324,7 +1324,7 @@ def _assistant_personas_delete(args: Dict[str, Any]):
     params = (name,)
   else:
     raise ValueError("Missing identifier for persona delete")
-  return (DbRunMode.EXEC, sql, params)
+  return Operation(DbRunMode.EXEC, sql, params)
 
 @register("db:assistant:models:get_by_name:1")
 def _assistant_models_get_by_name(args: Dict[str, Any]):
@@ -1333,7 +1333,7 @@ def _assistant_models_get_by_name(args: Dict[str, Any]):
     SELECT recid FROM assistant_models WHERE element_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.JSON_ONE, sql, (name,))
+  return Operation(DbRunMode.JSON_ONE, sql, (name,))
 
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
@@ -1359,7 +1359,7 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
     SELECT SCOPE_IDENTITY() AS recid
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (
+  return Operation(
     DbRunMode.JSON_ONE,
     sql,
     (
@@ -1432,7 +1432,7 @@ def _assistant_conversations_update_output(args: Dict[str, Any]):
         element_tokens = ?
     WHERE recid = ?;
   """
-  return (DbRunMode.EXEC, sql, (output_data, tokens, recid))
+  return Operation(DbRunMode.EXEC, sql, (output_data, tokens, recid))
 
 @register("db:assistant:conversations:list_by_time:1")
 def _assistant_conversations_list_by_time(args: Dict[str, Any]):
@@ -1455,7 +1455,7 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
     ORDER BY element_created_on
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return (DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
+  return Operation(DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
 
 
 @register("db:assistant:conversations:list_recent:1")
@@ -1475,4 +1475,4 @@ def _assistant_conversations_list_recent(_: Dict[str, Any]):
     ORDER BY element_created_on DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return (DbRunMode.JSON_MANY, sql, ())
+  return Operation(DbRunMode.JSON_MANY, sql, ())

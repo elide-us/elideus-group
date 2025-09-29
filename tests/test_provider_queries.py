@@ -5,6 +5,7 @@ import pathlib
 import sys
 import types
 import pytest
+from server.modules.providers import DbRunMode
 import server.modules.providers.database.mssql_provider  # ensure provider module loaded
 
 # stub server package
@@ -53,49 +54,55 @@ get_mssql_handler = registry_mod.get_handler
 
 def test_mssql_get_by_provider_identifier_uses_user_view():
   handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
-  _, sql, _ = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
-  sql = sql.lower()
+  op = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
+  assert isinstance(op, db_helpers.Operation)
+  sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
 def test_mssql_get_profile_uses_profile_view():
   handler = get_mssql_handler("db:users:profile:get_profile:1")
-  _, sql, _ = handler({"guid": "gid"})
-  sql = sql.lower()
+  op = handler({"guid": "gid"})
+  assert isinstance(op, db_helpers.Operation)
+  sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
 def test_mssql_get_rotkey_queries_users_and_providers():
   handler = get_mssql_handler("db:users:session:get_rotkey:1")
-  _, sql, _ = handler({"guid": "gid"})
-  sql = sql.lower()
+  op = handler({"guid": "gid"})
+  assert isinstance(op, db_helpers.Operation)
+  sql = op.sql.lower()
   assert "from account_users" in sql
   assert "auth_providers" in sql
   assert "vw_account_user_security" not in sql
 
 def test_mssql_get_by_access_token_uses_security_view():
   handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
-  _, sql, _ = handler({"access_token": "tok"})
-  sql = sql.lower()
+  op = handler({"access_token": "tok"})
+  assert isinstance(op, db_helpers.Operation)
+  sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "user_roles" in sql
 
 def test_mssql_discord_get_security_uses_security_view():
   handler = get_mssql_handler("db:auth:discord:get_security:1")
-  _, sql, _ = handler({"discord_id": "42"})
-  sql = sql.lower()
+  op = handler({"discord_id": "42"})
+  assert isinstance(op, db_helpers.Operation)
+  sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "auth_providers" in sql
 
 
 def test_mssql_support_users_set_credits_updates_table():
   handler = get_mssql_handler("db:support:users:set_credits:1")
-  mode, sql, params = handler({"guid": "gid", "credits": 10})
-  assert mode == "exec"
-  assert "update users_credits" in sql.lower()
-  assert params == (10, "gid")
+  op = handler({"guid": "gid", "credits": 10})
+  assert isinstance(op, db_helpers.Operation)
+  assert op.kind is DbRunMode.EXEC
+  assert "update users_credits" in op.sql.lower()
+  assert op.params == (10, "gid")
 
 
 def test_fetch_rows_raises_structured_error(monkeypatch):
@@ -128,7 +135,7 @@ def test_fetch_rows_raises_structured_error(monkeypatch):
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.fetch_rows("SELECT 1"))
+    asyncio.run(db_helpers.fetch_rows(db_helpers.row_one("SELECT 1")))
   assert exc.value.detail.query == "SELECT 1"
   assert exc.value.detail.params == ()
 
@@ -163,7 +170,7 @@ def test_fetch_json_raises_structured_error(monkeypatch):
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.fetch_json("SELECT 1"))
+    asyncio.run(db_helpers.fetch_json(db_helpers.json_one("SELECT 1")))
   assert exc.value.detail.query == "SELECT 1"
 
 
@@ -203,7 +210,7 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
       return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  res = asyncio.run(db_helpers.fetch_json("SELECT"))
+  res = asyncio.run(db_helpers.fetch_json(db_helpers.json_one("SELECT")))
   assert res.rows == [{"a": 1, "b": "two"}]
   assert res.rowcount == 1
 
@@ -236,7 +243,7 @@ def test_exec_query_raises_structured_error(monkeypatch):
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.exec_query("UPDATE x SET y=1"))
+    asyncio.run(db_helpers.exec_query(db_helpers.exec_op("UPDATE x SET y=1")))
   assert exc.value.detail.query == "UPDATE x SET y=1"
 
 
@@ -271,7 +278,7 @@ def test_fetch_rows_stream(monkeypatch):
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
 
   async def run():
-    gen = await db_helpers.fetch_rows("SELECT", stream=True)
+    gen = await db_helpers.fetch_rows(db_helpers.row_many("SELECT"), stream=True)
     return hasattr(gen, "__aiter__")
 
   assert asyncio.run(run())
