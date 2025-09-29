@@ -50,6 +50,7 @@ sys.modules["server.modules.providers.database.mssql_provider.registry"] = regis
 spec_registry.loader.exec_module(registry_mod)
 get_mssql_handler = registry_mod.get_handler
 
+
 def test_mssql_get_by_provider_identifier_uses_user_view():
   handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
   _, sql, _ = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
@@ -97,43 +98,73 @@ def test_mssql_support_users_set_credits_updates_table():
   assert params == (10, "gid")
 
 
-def test_fetch_rows_returns_empty_on_error(monkeypatch):
+def test_fetch_rows_raises_structured_error(monkeypatch):
   class Cur:
-    async def execute(self, q, p):
-      raise Exception("boom")
-
-  class Conn:
-    async def cursor(self):
-      return Cur()
-
-  class Pool:
-    async def acquire(self):
-      return Conn()
-
-  monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  res = asyncio.run(db_helpers.fetch_rows("SELECT 1"))
-  assert res.rows == []
-  assert res.rowcount == 0
-
-
-def test_fetch_json_raises_on_error(monkeypatch):
-  class Cur:
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
     async def execute(self, q, p):
       raise Exception("boom")
     async def fetchone(self):
       return None
 
   class Conn:
-    async def cursor(self):
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    def cursor(self):
       return Cur()
 
   class Pool:
-    async def acquire(self):
-      return Conn()
+    def acquire(self):
+      class _Ctx:
+        async def __aenter__(self_inner):
+          return Conn()
+        async def __aexit__(self_inner, exc_type, exc, tb):
+          pass
+      return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  with pytest.raises(Exception):
+  with pytest.raises(db_helpers.DBQueryError) as exc:
+    asyncio.run(db_helpers.fetch_rows("SELECT 1"))
+  assert exc.value.detail.query == "SELECT 1"
+  assert exc.value.detail.params == ()
+
+
+def test_fetch_json_raises_structured_error(monkeypatch):
+  class Cur:
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    async def execute(self, q, p):
+      raise Exception("boom")
+    async def fetchone(self):
+      return None
+
+  class Conn:
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    def cursor(self):
+      return Cur()
+
+  class Pool:
+    def acquire(self):
+      class _Ctx:
+        async def __aenter__(self_inner):
+          return Conn()
+        async def __aexit__(self_inner, exc_type, exc, tb):
+          pass
+      return _Ctx()
+
+  monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
+  with pytest.raises(db_helpers.DBQueryError) as exc:
     asyncio.run(db_helpers.fetch_json("SELECT 1"))
+  assert exc.value.detail.query == "SELECT 1"
 
 
 def test_fetch_json_handles_multiple_rows(monkeypatch):
@@ -177,22 +208,36 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
   assert res.rowcount == 1
 
 
-def test_exec_query_raises_on_error(monkeypatch):
+def test_exec_query_raises_structured_error(monkeypatch):
   class Cur:
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
     async def execute(self, q, p):
       raise Exception("boom")
 
   class Conn:
-    async def cursor(self):
+    async def __aenter__(self):
+      return self
+    async def __aexit__(self, exc_type, exc, tb):
+      pass
+    def cursor(self):
       return Cur()
 
   class Pool:
-    async def acquire(self):
-      return Conn()
+    def acquire(self):
+      class _Ctx:
+        async def __aenter__(self_inner):
+          return Conn()
+        async def __aexit__(self_inner, exc_type, exc, tb):
+          pass
+      return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  with pytest.raises(Exception):
+  with pytest.raises(db_helpers.DBQueryError) as exc:
     asyncio.run(db_helpers.exec_query("UPDATE x SET y=1"))
+  assert exc.value.detail.query == "UPDATE x SET y=1"
 
 
 def test_fetch_rows_stream(monkeypatch):
