@@ -13,17 +13,18 @@ def test_run_json_one(monkeypatch):
     assert op == "test:json_one"
     def handler(args):
       assert args == {}
-      return (DbRunMode.JSON_ONE, "select 1", ())
+      return mssql_provider.Operation(DbRunMode.JSON_ONE, "select 1", ())
     return handler
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert sql == "select 1"
-    assert params == ()
-    assert not many
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.JSON_ONE
+    assert operation.sql == "select 1"
+    assert operation.params == ()
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("test:json_one", {}))
   assert isinstance(res, DBResult)
@@ -38,17 +39,18 @@ def test_run_row_one(monkeypatch):
     assert op == "test:row_one"
     def handler(args):
       assert args == {}
-      return (DbRunMode.ROW_ONE, "select 1", ())
+      return mssql_provider.Operation(DbRunMode.ROW_ONE, "select 1", ())
     return handler
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert sql == "select 1"
-    assert params == ()
-    assert one
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.ROW_ONE
+    assert operation.sql == "select 1"
+    assert operation.params == ()
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("test:row_one", {}))
   assert isinstance(res, DBResult)
@@ -61,13 +63,14 @@ def test_run_row_many(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000000"
   expected_guid = str(UUID(guid))
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert many
-    assert "FOR JSON PATH" in sql
-    assert params == (expected_guid,)
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.JSON_MANY
+    assert "FOR JSON PATH" in operation.sql
+    assert operation.params == (expected_guid,)
     return DBResult(rows=[{"path": "a"}, {"path": "b"}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
   assert isinstance(res, DBResult)
@@ -82,15 +85,16 @@ def test_run_json_many(monkeypatch):
     assert op == "test:json_many"
     def handler(args):
       assert args == {}
-      return (DbRunMode.JSON_MANY, "select", ())
+      return mssql_provider.Operation(DbRunMode.JSON_MANY, "select", ())
     return handler
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert many
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.JSON_MANY
     return DBResult(rows=[{"v": 1}, {"v": 2}], rowcount=2)
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("test:json_many", {}))
   assert isinstance(res, DBResult)
@@ -105,16 +109,18 @@ def test_run_exec(monkeypatch):
     assert op == "test:exec"
     def handler(args):
       assert args == {}
-      return (DbRunMode.EXEC, "update", (1,))
+      return mssql_provider.Operation(DbRunMode.EXEC, "update", (1,))
     return handler
 
-  async def fake_exec_query(sql, params):
-    assert sql == "update"
-    assert params == (1,)
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.EXEC
+    assert operation.sql == "update"
+    assert operation.params == (1,)
     return DBResult(rowcount=1)
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "exec_query", fake_exec_query)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("test:exec", {}))
   assert isinstance(res, DBResult)
@@ -127,12 +133,14 @@ def test_storage_files_set_gallery(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000000"
   expected_guid = str(UUID(guid))
 
-  async def fake_exec_query(sql, params):
-    assert "UPDATE users_storage_cache" in sql
-    assert params == (1, expected_guid, "", "file.txt")
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.EXEC
+    assert "UPDATE users_storage_cache" in operation.sql
+    assert operation.params == (1, expected_guid, "", "file.txt")
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "exec_query", fake_exec_query)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("db:storage:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True}))
   assert isinstance(res, DBResult)
