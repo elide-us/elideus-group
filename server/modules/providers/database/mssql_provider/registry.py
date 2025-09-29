@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Dict, Tuple
 from uuid import UUID, uuid5, NAMESPACE_URL
 from ... import DBResult, DbRunMode
 from .logic import init_pool, close_pool, transaction
-from .db_helpers import fetch_rows, fetch_json, exec_query
+from .db_helpers import fetch_json, exec_query
 import logging
 
 # handler can be:
@@ -42,9 +42,10 @@ def _users_select(provider_args: Dict[str, Any]):
       FROM vw_account_user_profile v
       JOIN users_auth ua ON ua.users_guid = v.user_guid AND ua.element_linked = 1
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
-      WHERE ap.element_name = ? AND ua.element_identifier = ?;
+      WHERE ap.element_name = ? AND ua.element_identifier = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (provider, identifier))
+    return (DbRunMode.JSON_ONE, sql, (provider, identifier))
 
 @register("db:users:providers:get_any_by_provider_identifier:1")
 def _users_select_any(provider_args: Dict[str, Any]):
@@ -55,9 +56,10 @@ def _users_select_any(provider_args: Dict[str, Any]):
         au.element_soft_deleted_at
       FROM users_auth ua
       JOIN account_users au ON au.element_guid = ua.users_guid
-      WHERE ua.element_identifier = ?;
+      WHERE ua.element_identifier = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (identifier,))
+    return (DbRunMode.JSON_ONE, sql, (identifier,))
 
 @register("db:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
@@ -97,7 +99,7 @@ async def _users_insert(args: Dict[str, Any]):
         (ap_recid, existing_guid),
       )
       sel = _users_select({"provider": provider, "provider_identifier": identifier})
-      return await fetch_rows(sel[1], sel[2], one=True)
+      return await fetch_json(sel[1], sel[2])
 
     async with transaction() as cur:
         await cur.execute(
@@ -126,7 +128,7 @@ async def _users_insert(args: Dict[str, Any]):
 
     # return same shape as select_user
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
-    return await fetch_rows(sel[1], sel[2], one=True)
+    return await fetch_json(sel[1], sel[2])
 
 @register("db:users:providers:link_provider:1")
 async def _users_link_provider(args: Dict[str, Any]):
@@ -228,9 +230,10 @@ def _users_get_user_by_email(args: Dict[str, Any]):
       SELECT TOP 1
         element_guid AS guid
       FROM account_users
-      WHERE element_email = ?;
+      WHERE element_email = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (email,))
+    return (DbRunMode.JSON_ONE, sql, (email,))
 
 
 @register("db:users:account:exists:1")
@@ -239,9 +242,10 @@ def _db_users_account_exists(args: Dict[str, Any]):
   sql = """
     SELECT 1 AS exists_flag
     FROM account_users
-    WHERE element_guid = ?;
+    WHERE element_guid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (guid,))
+  return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
@@ -265,9 +269,10 @@ def _users_profile(args: Dict[str, Any]):
           FOR JSON PATH
         ) AS auth_providers
       FROM vw_account_user_profile v
-      WHERE v.user_guid = ?;
+      WHERE v.user_guid = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (guid,))
+    return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:auth:providers:unlink_last_provider:1")
 def _auth_unlink_last_provider(args: Dict[str, Any]):
@@ -277,32 +282,38 @@ def _auth_unlink_last_provider(args: Dict[str, Any]):
     return (DbRunMode.EXEC, sql, (guid, provider))
 
 @register("db:auth:microsoft:oauth_relink:1")
-def _auth_ms_oauth_relink(args: Dict[str, Any]):
+async def _auth_ms_oauth_relink(args: Dict[str, Any]):
     identifier = str(UUID(args["provider_identifier"]))
     email = args.get("email")
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+    await exec_query(sql, (identifier, email, display, img))
+    sel = _users_select({"provider": "microsoft", "provider_identifier": identifier})
+    return await fetch_json(sel[1], sel[2])
 
 @register("db:auth:google:oauth_relink:1")
-def _auth_google_oauth_relink(args: Dict[str, Any]):
+async def _auth_google_oauth_relink(args: Dict[str, Any]):
     identifier = str(UUID(args["provider_identifier"]))
     email = args.get("email")
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+    await exec_query(sql, (identifier, email, display, img))
+    sel = _users_select({"provider": "google", "provider_identifier": identifier})
+    return await fetch_json(sel[1], sel[2])
 
 @register("db:auth:discord:oauth_relink:1")
-def _auth_discord_oauth_relink(args: Dict[str, Any]):
+async def _auth_discord_oauth_relink(args: Dict[str, Any]):
     raw_id = args["provider_identifier"]
     identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
     email = args.get("email")
     display = args.get("display_name")
     img = args.get("profile_image", "")
     sql = "EXEC auth_oauth_relink @provider='discord', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+    await exec_query(sql, (identifier, email, display, img))
+    sel = _users_select({"provider": "discord", "provider_identifier": identifier})
+    return await fetch_json(sel[1], sel[2])
 
 @register("db:auth:discord:get_security:1")
 def _auth_discord_get_security(args: Dict[str, Any]):
@@ -564,9 +575,10 @@ def _storage_cache_list_public(_: Dict[str, Any]):
     JOIN account_users au ON au.element_guid = usc.users_guid
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:public:gallery:get_public_files:1")
@@ -582,9 +594,10 @@ def _public_gallery_get_public_files(_: Dict[str, Any]):
     JOIN account_users au ON au.element_guid = usc.users_guid
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:list_reported:1")
@@ -598,9 +611,10 @@ def _storage_cache_list_reported(_: Dict[str, Any]):
     FROM users_storage_cache usc
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_reported = 1 AND usc.element_deleted = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:count_rows:1")
@@ -831,9 +845,10 @@ def _public_users_get_profile(args: Dict[str, Any]):
         up.element_base64 AS profile_image
       FROM account_users au
       LEFT JOIN users_profileimg up ON up.users_guid = au.element_guid
-      WHERE au.element_guid = ?;
+      WHERE au.element_guid = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (guid,))
+    return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:public:users:get_published_files:1")
 def _public_users_get_published_files(args: Dict[str, Any]):
@@ -847,9 +862,10 @@ def _public_users_get_published_files(args: Dict[str, Any]):
       FROM users_storage_cache usc
       JOIN storage_types st ON st.recid = usc.types_recid
       WHERE usc.users_guid = ? AND usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-      ORDER BY usc.element_created_on;
+      ORDER BY usc.element_created_on
+      FOR JSON PATH;
     """
-    return (DbRunMode.ROW_MANY, sql, (guid,))
+    return (DbRunMode.JSON_MANY, sql, (guid,))
 
 @register("db:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
@@ -1206,9 +1222,10 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
       vp.element_modified_on
     FROM vw_personas vp
     JOIN assistant_personas ap ON ap.element_name = vp.persona_name
-    WHERE vp.persona_name = ?;
+    WHERE vp.persona_name = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (name,))
+  return (DbRunMode.JSON_ONE, sql, (name,))
 
 @register("db:assistant:models:list:1")
 def _assistant_models_list(_: Dict[str, Any]):
@@ -1313,9 +1330,10 @@ def _assistant_personas_delete(args: Dict[str, Any]):
 def _assistant_models_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
-    SELECT recid FROM assistant_models WHERE element_name = ?;
+    SELECT recid FROM assistant_models WHERE element_name = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (name,))
+  return (DbRunMode.JSON_ONE, sql, (name,))
 
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
@@ -1338,10 +1356,11 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
       element_output,
       element_tokens
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-    SELECT SCOPE_IDENTITY() AS recid;
+    SELECT SCOPE_IDENTITY() AS recid
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   return (
-    DbRunMode.ROW_ONE,
+    DbRunMode.JSON_ONE,
     sql,
     (
       personas_recid,
@@ -1382,10 +1401,11 @@ def _assistant_conversations_find_recent(args: Dict[str, Any]):
       AND ((element_channel_id = ?) OR (element_channel_id IS NULL AND ? IS NULL))
       AND ((element_user_id = ?) OR (element_user_id IS NULL AND ? IS NULL))
       AND element_created_on >= DATEADD(second, -?, SYSDATETIMEOFFSET())
-    ORDER BY element_created_on DESC;
+    ORDER BY element_created_on DESC
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   return (
-    DbRunMode.ROW_ONE,
+    DbRunMode.JSON_ONE,
     sql,
     (
       personas_recid,

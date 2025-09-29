@@ -61,12 +61,13 @@ def test_run_row_many(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000000"
   expected_guid = str(UUID(guid))
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert not one
+  async def fake_fetch_json(sql, params, *, many=False):
+    assert many
+    assert "FOR JSON PATH" in sql
     assert params == (expected_guid,)
     return DBResult(rows=[{"path": "a"}, {"path": "b"}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
+  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
 
   res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
   assert isinstance(res, DBResult)

@@ -25,12 +25,8 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
       return DBResult(rows=[], rowcount=0)
     return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
-  async def fake_fetch_rows(query, params, one=False, stream=False):
-    return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
-
   monkeypatch.setattr(registry, "transaction", dummy_transaction)
   monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
-  monkeypatch.setattr(registry, "fetch_rows", fake_fetch_rows)
 
   handler = registry.get_handler("db:users:providers:create_from_provider:1")
   args = {
