@@ -26,7 +26,6 @@ def get_handler(op: str):
 
 # -------------------- MAPPINGS (representative set) --------------------
 
-@register("urn:users:providers:get_by_provider_identifier:1")
 def _users_select(provider_args: Dict[str, Any]):
     provider = provider_args["provider"]
     identifier = str(UUID(provider_args["provider_identifier"]))
@@ -50,7 +49,6 @@ def _users_select(provider_args: Dict[str, Any]):
 def _db_users_select(provider_args: Dict[str, Any]):
   return _users_select(provider_args)
 
-@register("urn:users:providers:get_any_by_provider_identifier:1")
 def _users_select_any(provider_args: Dict[str, Any]):
     identifier = str(UUID(provider_args["provider_identifier"]))
     sql = """
@@ -67,7 +65,6 @@ def _users_select_any(provider_args: Dict[str, Any]):
 def _db_users_select_any(provider_args: Dict[str, Any]):
   return _users_select_any(provider_args)
 
-@register("urn:users:providers:create_from_provider:1")
 async def _users_insert(args: Dict[str, Any]):
     # mirrors your insert_user() logic, including provider recid lookup + 3 inserts
     from uuid import uuid4
@@ -140,7 +137,6 @@ async def _users_insert(args: Dict[str, Any]):
 async def _db_users_insert(args: Dict[str, Any]):
   return await _users_insert(args)
 
-@register("urn:users:providers:link_provider:1")
 async def _users_link_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
@@ -171,7 +167,6 @@ async def _users_link_provider(args: Dict[str, Any]):
 async def _db_users_link_provider(args: Dict[str, Any]):
   return await _users_link_provider(args)
 
-@register("urn:users:providers:unlink_provider:1")
 async def _users_unlink_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
@@ -231,7 +226,6 @@ async def _users_unlink_provider(args: Dict[str, Any]):
 async def _db_users_unlink_provider(args: Dict[str, Any]):
   return await _users_unlink_provider(args)
 
-@register("urn:users:providers:soft_delete_account:1")
 def _users_soft_delete_account(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     sql = """
@@ -245,7 +239,6 @@ def _users_soft_delete_account(args: Dict[str, Any]):
 def _db_users_soft_delete_account(args: Dict[str, Any]):
   return _users_soft_delete_account(args)
 
-@register("urn:users:providers:get_user_by_email:1")
 def _users_get_user_by_email(args: Dict[str, Any]):
     email = args["email"]
     sql = """
@@ -271,7 +264,6 @@ def _db_users_account_exists(args: Dict[str, Any]):
   """
   return (DbRunMode.ROW_ONE, sql, (guid,))
 
-@register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
     guid = str(args["guid"])
     sql = """
@@ -297,7 +289,6 @@ def _users_profile(args: Dict[str, Any]):
     """
     return (DbRunMode.ROW_ONE, sql, (guid,))
 
-@register("urn:auth:providers:unlink_last_provider:1")
 def _auth_unlink_last_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
@@ -308,7 +299,6 @@ def _auth_unlink_last_provider(args: Dict[str, Any]):
 def _db_auth_unlink_last_provider(args: Dict[str, Any]):
   return _auth_unlink_last_provider(args)
 
-@register("urn:auth:microsoft:oauth_relink:1")
 def _auth_ms_oauth_relink(args: Dict[str, Any]):
     identifier = str(UUID(args["provider_identifier"]))
     email = args.get("email")
@@ -321,7 +311,6 @@ def _auth_ms_oauth_relink(args: Dict[str, Any]):
 def _db_auth_ms_oauth_relink(args: Dict[str, Any]):
   return _auth_ms_oauth_relink(args)
 
-@register("urn:auth:google:oauth_relink:1")
 def _auth_google_oauth_relink(args: Dict[str, Any]):
     identifier = str(UUID(args["provider_identifier"]))
     email = args.get("email")
@@ -334,7 +323,6 @@ def _auth_google_oauth_relink(args: Dict[str, Any]):
 def _db_auth_google_oauth_relink(args: Dict[str, Any]):
   return _auth_google_oauth_relink(args)
 
-@register("urn:auth:discord:oauth_relink:1")
 def _auth_discord_oauth_relink(args: Dict[str, Any]):
     raw_id = args["provider_identifier"]
     identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
@@ -348,7 +336,6 @@ def _auth_discord_oauth_relink(args: Dict[str, Any]):
 def _db_auth_discord_oauth_relink(args: Dict[str, Any]):
   return _auth_discord_oauth_relink(args)
 
-@register("urn:auth:discord:get_security:1")
 def _auth_discord_get_security(args: Dict[str, Any]):
   raw_id = args["discord_id"]
   identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
@@ -374,7 +361,6 @@ def _db_users_profile(args: Dict[str, Any]):
   return _users_profile(args)
 
 
-@register("urn:users:profile:set_display:1")
 def _users_set_display(args: Dict[str, Any]):
     guid = args["guid"]
     display_name = args["display_name"]
@@ -391,7 +377,6 @@ def _db_users_set_display(args: Dict[str, Any]):
   return _users_set_display(args)
 
 
-@register("urn:support:users:set_credits:1")
 def _support_users_set_credits(args: Dict[str, Any]):
   guid = args["guid"]
   credits = args["credits"]
@@ -677,7 +662,6 @@ def _storage_cache_count_rows(_: Dict[str, Any]):
   return (DbRunMode.JSON_ONE, sql, ())
 
 
-@register("urn:users:profile:set_optin:1")
 def _users_set_optin(args: Dict[str, Any]):
     guid = args["guid"]
     display_email = args["display_email"]
@@ -693,7 +677,6 @@ def _db_users_set_optin(args: Dict[str, Any]):
   return _users_set_optin(args)
 
 
-@register("urn:users:profile:update_if_unedited:1")
 async def _users_update_if_unedited(args: Dict[str, Any]):
   guid = str(UUID(args["guid"]))
   email = args.get("email")
@@ -723,7 +706,6 @@ async def _db_users_update_if_unedited(args: Dict[str, Any]):
   return await _users_update_if_unedited(args)
 
 
-@register("urn:users:providers:set_provider:1")
 async def _users_set_provider(args: Dict[str, Any]):
   guid = args["guid"]
   provider = args["provider"]
@@ -742,7 +724,6 @@ async def _users_set_provider(args: Dict[str, Any]):
 async def _db_users_set_provider(args: Dict[str, Any]):
   return await _users_set_provider(args)
 
-@register("urn:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
   """Fetch a user's role mask."""
   guid = args["guid"]
@@ -757,7 +738,6 @@ def _users_get_roles(args: Dict[str, Any]):
 def _db_users_get_roles(args: Dict[str, Any]):
   return _users_get_roles(args)
 
-@register("urn:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
   """Upsert a user's role mask."""
   guid, roles = args["guid"], int(args["roles"])
@@ -805,7 +785,6 @@ def _users_session_get_rotkey(args: Dict[str, Any]):
     """
   return (DbRunMode.JSON_ONE, sql, (guid,))
 
-@register("urn:public:links:get_home_links:1")
 def _public_links_get_home_links(args: Dict[str, Any]):
     sql = """
       SELECT
@@ -821,7 +800,6 @@ def _public_links_get_home_links(args: Dict[str, Any]):
 def _db_public_links_get_home_links(args: Dict[str, Any]):
   return _public_links_get_home_links(args)
 
-@register("urn:public:links:get_navbar_routes:1")
 def _public_links_get_navbar_routes(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
     sql = """
@@ -843,7 +821,6 @@ def _db_public_links_get_navbar_routes(args: Dict[str, Any]):
 
 # -------------------- SERVICE ROUTES --------------------
 
-@register("urn:service:routes:get_routes:1")
 def _service_routes_get_routes(_: Dict[str, Any]):
   sql = """
     SELECT
@@ -862,7 +839,6 @@ def _service_routes_get_routes(_: Dict[str, Any]):
 def _db_service_routes_get_routes(args: Dict[str, Any]):
   return _service_routes_get_routes(args)
 
-@register("urn:service:routes:upsert_route:1")
 async def _service_routes_upsert_route(args: Dict[str, Any]):
   path = args["path"]
   name = args["name"]
@@ -884,7 +860,6 @@ async def _service_routes_upsert_route(args: Dict[str, Any]):
 async def _db_service_routes_upsert_route(args: Dict[str, Any]):
   return await _service_routes_upsert_route(args)
 
-@register("urn:service:routes:delete_route:1")
 def _service_routes_delete_route(args: Dict[str, Any]):
   path = args["path"]
   sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
@@ -894,7 +869,6 @@ def _service_routes_delete_route(args: Dict[str, Any]):
 def _db_service_routes_delete_route(args: Dict[str, Any]):
   return _service_routes_delete_route(args)
 
-@register("urn:public:vars:get_hostname:1")
 def _public_vars_get_hostname(args: Dict[str, Any]):
   sql = """
     SELECT element_value AS hostname
@@ -908,7 +882,6 @@ def _public_vars_get_hostname(args: Dict[str, Any]):
 def _db_public_vars_get_hostname(args: Dict[str, Any]):
   return _public_vars_get_hostname(args)
 
-@register("urn:public:vars:get_version:1")
 def _public_vars_get_version(args: Dict[str, Any]):
   sql = """
     SELECT element_value AS version
@@ -922,7 +895,6 @@ def _public_vars_get_version(args: Dict[str, Any]):
 def _db_public_vars_get_version(args: Dict[str, Any]):
   return _public_vars_get_version(args)
 
-@register("urn:public:vars:get_repo:1")
 def _public_vars_get_repo(args: Dict[str, Any]):
   sql = """
     SELECT element_value AS repo
@@ -936,7 +908,6 @@ def _public_vars_get_repo(args: Dict[str, Any]):
 def _db_public_vars_get_repo(args: Dict[str, Any]):
   return _public_vars_get_repo(args)
 
-@register("urn:public:users:get_profile:1")
 def _public_users_get_profile(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     sql = """
@@ -954,7 +925,6 @@ def _public_users_get_profile(args: Dict[str, Any]):
 def _db_public_users_get_profile(args: Dict[str, Any]):
   return _public_users_get_profile(args)
 
-@register("urn:public:users:get_published_files:1")
 def _public_users_get_published_files(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     sql = """
@@ -974,7 +944,6 @@ def _public_users_get_published_files(args: Dict[str, Any]):
 def _db_public_users_get_published_files(args: Dict[str, Any]):
   return _public_users_get_published_files(args)
 
-@register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
   """Insert or update a user's profile image."""
   guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
@@ -1170,7 +1139,6 @@ def _auth_session_revoke_provider_tokens(args: Dict[str, Any]):
 # -------------------- SYSTEM CONFIG --------------------
 
 @register("db:system:config:get_config:1")
-@register("urn:system:config:get_config:1")
 def _config_get(args: Dict[str, Any]):
   key = args["key"]
   sql = """
@@ -1182,7 +1150,6 @@ def _config_get(args: Dict[str, Any]):
   return (DbRunMode.JSON_ONE, sql, (key,))
 
 @register("db:system:config:upsert_config:1")
-@register("urn:system:config:upsert_config:1")
 async def _config_set(args: Dict[str, Any]):
   key = args["key"]
   value = args["value"]
@@ -1198,7 +1165,6 @@ async def _config_set(args: Dict[str, Any]):
   return rc
 
 @register("db:system:config:get_configs:1")
-@register("urn:system:config:get_configs:1")
 def _config_list(_: Dict[str, Any]):
   sql = """
     SELECT element_key, element_value
@@ -1209,7 +1175,6 @@ def _config_list(_: Dict[str, Any]):
   return (DbRunMode.JSON_MANY, sql, ())
 
 @register("db:system:config:delete_config:1")
-@register("urn:system:config:delete_config:1")
 def _config_delete(args: Dict[str, Any]):
   key = args["key"]
   sql = "DELETE FROM system_config WHERE element_key = ?;"
@@ -1341,7 +1306,6 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
   """
   return (DbRunMode.ROW_ONE, sql, (name,))
 
-@register("urn:assistant:models:list:1")
 def _assistant_models_list(_: Dict[str, Any]):
   sql = """
     SELECT
@@ -1357,7 +1321,6 @@ def _assistant_models_list(_: Dict[str, Any]):
 def _db_assistant_models_list(args: Dict[str, Any]):
   return _assistant_models_list(args)
 
-@register("urn:assistant:personas:list:1")
 def _assistant_personas_list(_: Dict[str, Any]):
   sql = """
     SELECT
@@ -1387,7 +1350,6 @@ def _assistant_personas_list(_: Dict[str, Any]):
 def _db_assistant_personas_list(args: Dict[str, Any]):
   return _assistant_personas_list(args)
 
-@register("urn:assistant:personas:upsert:1")
 async def _assistant_personas_upsert(args: Dict[str, Any]):
   recid = args.get("recid")
   name = args["name"]
@@ -1438,7 +1400,6 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
 async def _db_assistant_personas_upsert(args: Dict[str, Any]):
   return await _assistant_personas_upsert(args)
 
-@register("urn:assistant:personas:delete:1")
 def _assistant_personas_delete(args: Dict[str, Any]):
   recid = args.get("recid")
   name = args.get("name")
