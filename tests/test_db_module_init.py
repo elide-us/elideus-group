@@ -42,7 +42,7 @@ def test_db_module_run_propagates_query_error():
   assert exc.value.detail == detail
 
 
-def test_db_module_accepts_urn_operations():
+def test_db_module_forwards_operations_verbatim():
   app = FastAPI()
   db = DbModule(app)
   captured: dict[str, Any] = {}
@@ -64,7 +64,7 @@ def test_db_module_accepts_urn_operations():
 
   db._provider = RecordingProvider()
 
-  result = asyncio.run(db.run("urn:db:test:urn-op:1", {"foo": "bar"}))
+  result = asyncio.run(db.run("db:test:urn-op:1", {"foo": "bar"}))
   assert captured["op"] == "db:test:urn-op:1"
   assert captured["args"] == {"foo": "bar"}
   assert isinstance(result, DBResult)

@@ -19,8 +19,6 @@ class DbModule(BaseModule):
     self.provider: str = "mssql"
     self.logging_level: int = 0
     self._provider: DbProviderBase | None = None
-    # allow URN operations to map to provider specific keys
-    self._op_aliases: dict[str, str] = {}
 
   async def init(self, provider: str | None = None, **cfg):
     """Initialize database provider.
@@ -48,30 +46,9 @@ class DbModule(BaseModule):
 
     self._provider = provider_cls(**cfg)
 
-  def register_alias(self, urn: str, provider_key: str):
-    """Register a custom mapping from a URN to a provider specific key."""
-    self._op_aliases[urn] = provider_key
-
-  def _resolve_provider_op(self, op: str) -> str:
-    """Translate URN style operations to provider specific keys."""
-    if op in self._op_aliases:
-      return self._op_aliases[op]
-    if op.startswith("urn:"):
-      parts = op.split(":")
-      if len(parts) < 3:
-        raise ValueError(f"Invalid database URN: {op}")
-      namespace = parts[1]
-      if namespace != "db":
-        raise ValueError(f"Unsupported database namespace: {namespace}")
-      provider_op = ":".join(parts[1:])
-      self._op_aliases[op] = provider_op
-      return provider_op
-    return op
-
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
     assert self._provider, "db_module not initialized"
-    provider_op = self._resolve_provider_op(op)
-    out = await self._provider.run(provider_op, args)
+    out = await self._provider.run(op, args)
     # normalize to DBResult
     if isinstance(out, DBResult):
       return out
