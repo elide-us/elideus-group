@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from fastapi import FastAPI
-from typing import Type, Dict, List
+from typing import Dict
 from server.helpers.strings import camel_case
 import asyncio, os, importlib
+from server.registry import RegistryDispatcher
 
 MODULES_FOLDER = os.path.dirname(__file__)
 
@@ -29,6 +30,8 @@ class ModuleManager:
   def __init__(self, app: FastAPI):
     self.app = app
     self.instances: Dict[str, BaseModule] = {}
+    self.registry = RegistryDispatcher()
+    setattr(app.state, "registry", self.registry)
 
     for fname in os.listdir(MODULES_FOLDER):
       if not fname.endswith("_module.py") or fname == "__init__.py":
@@ -44,6 +47,9 @@ class ModuleManager:
         raise ImportError(f"Module '{file_name}' missing expected class '{class_name}'")
       cls = getattr(mod, class_name)
       instance = cls(app)
+
+      if hasattr(instance, "set_registry"):
+        instance.set_registry(self.registry)
 
       setattr(app.state, module_name, instance)
       self.instances[module_name] = instance
