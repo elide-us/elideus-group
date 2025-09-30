@@ -86,8 +86,9 @@ async def users_profile_get_roles_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   db: DbModule = request.app.state.db
-  res = await db.run("db:users:profile:get_roles:1", {"guid": user_guid})
-  roles = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+  res = await db.run("db:accounts:security:get_security_profile:1", {"guid": user_guid})
+  row = res.rows[0] if res.rows else {}
+  roles = int(row.get("user_roles") or row.get("element_roles") or 0)
   payload = UsersProfileRoles1(roles=roles)
   return RPCResponse(
     op=rpc_request.op,

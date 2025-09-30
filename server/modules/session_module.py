@@ -92,12 +92,14 @@ class SessionModule(BaseModule):
   ) -> str:
     data = self.auth.decode_rotation_token(rotation_token)
     user_guid = data["guid"]
-    stored = await self.db.run("db:users:session:get_rotkey:1", {"guid": user_guid})
-    row = stored.rows[0] if stored.rows else None
-    if not row or row.get("rotkey") != rotation_token:
+    security = await self.auth.get_security_profile(user_guid, refresh=True)
+    rotkey = security.get("rotkey") or security.get("element_rotkey")
+    if not security or rotkey != rotation_token:
       raise HTTPException(status_code=401, detail="Invalid rotation token")
-    provider = row.get("provider_name") or "microsoft"
-    roles, _ = await self.auth.get_user_roles(user_guid)
+    provider = security.get("provider_name") or "microsoft"
+    roles = security.get("roles") or []
+    if not roles:
+      roles, _ = await self.auth.get_user_roles(user_guid)
     session_exp = datetime.now(timezone.utc) + timedelta(
       minutes=DEFAULT_SESSION_TOKEN_EXPIRY
     )
@@ -146,16 +148,20 @@ class SessionModule(BaseModule):
     user_agent: str | None,
   ) -> dict:
     res = await self.db.run(
-      "db:auth:session:get_by_access_token:1", {"access_token": token}
+      "db:accounts:security:get_security_profile:1", {"access_token": token}
     )
     session = res.rows[0] if res.rows else None
     if not session:
       raise HTTPException(status_code=401, detail="Invalid session token")
 
+    cached = self.auth.role_cache.cache_security_profile(session)
+    if cached:
+      session = cached
+
     if session.get("revoked_at"):
       raise HTTPException(status_code=401, detail="Session revoked")
 
-    expires_at = session.get("expires_at")
+    expires_at = session.get("expires_at") or session.get("element_token_exp")
     if expires_at:
       try:
         exp_dt = datetime.fromisoformat(expires_at)
@@ -176,10 +182,17 @@ class SessionModule(BaseModule):
       "session_guid": session.get("session_guid"),
       "device_guid": session.get("device_guid"),
       "user_guid": session.get("user_guid"),
-      "issued_at": session.get("issued_at"),
-      "expires_at": session.get("expires_at"),
+      "issued_at": session.get("issued_at") or session.get("element_token_iat"),
+      "expires_at": session.get("expires_at") or session.get("element_token_exp"),
+      "revoked_at": session.get("revoked_at") or session.get("element_revoked_at"),
       "device_fingerprint": session.get("device_fingerprint"),
       "user_agent": session.get("user_agent"),
       "ip_last_seen": session.get("ip_last_seen"),
+      "provider_name": session.get("provider_name"),
+      "provider_display": session.get("provider_display"),
+      "session_created_at": session.get("session_created_at") or session.get("session_created_on"),
+      "session_modified_at": session.get("session_modified_on"),
+      "device_created_at": session.get("device_created_on"),
+      "device_modified_at": session.get("device_modified_on"),
     }
     return payload

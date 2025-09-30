@@ -4,7 +4,7 @@ import base64, logging, uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
-from typing import Dict
+from typing import Any, Dict
 
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
@@ -26,6 +26,7 @@ class RoleCache:
     self.role_names: list[str] = []
     self.role_registered: int = 0
     self._user_roles: dict[str, tuple[list[str], int]] = {}
+    self._user_security: dict[str, dict[str, Any]] = {}
 
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
@@ -44,6 +45,7 @@ class RoleCache:
     self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
     self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
     self._user_roles.clear()
+    self._user_security.clear()
     logging.debug("[RoleCache] Loaded roles: %s", self.roles)
 
   async def refresh_role_cache(self):
@@ -78,16 +80,53 @@ class RoleCache:
       return [n for n in self.role_names]
     return list(self.roles.keys())
 
-  async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
-    if not refresh and guid in self._user_roles:
-      logging.debug("[RoleCache] Returning cached roles for %s", guid)
-      return self._user_roles[guid]
-    logging.debug("[RoleCache] Fetching roles for %s", guid)
-    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
-    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+  def _hydrate_security_profile(self, guid: str, row: dict[str, Any] | None) -> dict[str, Any]:
+    if not guid:
+      return {}
+    if not row:
+      self._user_security.pop(guid, None)
+      self._user_roles.pop(guid, None)
+      return {}
+    profile = dict(row)
+    mask = int(profile.get("user_roles") or profile.get("element_roles") or 0)
     names = self.mask_to_names(mask)
+    profile["user_roles"] = mask
+    profile["element_roles"] = mask
+    profile["role_mask"] = mask
+    profile["roles"] = names
+    self._user_security[guid] = profile
     self._user_roles[guid] = (names, mask)
-    logging.debug("[RoleCache] Roles for %s: %s (mask=%#018x)", guid, names, mask)
+    logging.debug(
+      "[RoleCache] Cached security profile for %s: roles=%s mask=%#018x",
+      guid,
+      names,
+      mask,
+    )
+    return profile
+
+  async def get_user_security_profile(self, guid: str, refresh: bool = False) -> dict[str, Any]:
+    if not guid:
+      return {}
+    if not refresh and guid in self._user_security:
+      logging.debug("[RoleCache] Returning cached security profile for %s", guid)
+      return self._user_security[guid]
+    logging.debug("[RoleCache] Fetching security profile for %s", guid)
+    res = await self.db.run("db:accounts:security:get_security_profile:1", {"guid": guid})
+    row = res.rows[0] if res.rows else None
+    return self._hydrate_security_profile(str(guid), row)
+
+  def cache_security_profile(self, row: dict[str, Any] | None) -> dict[str, Any]:
+    if not row:
+      return {}
+    guid = str(row.get("user_guid") or row.get("guid") or "")
+    return self._hydrate_security_profile(guid, row)
+
+  async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
+    profile = await self.get_user_security_profile(guid, refresh)
+    if not profile:
+      return [], 0
+    names = profile.get("roles", [])
+    mask = int(profile.get("role_mask", 0))
     return names, mask
 
   async def user_has_role(self, guid: str, required_mask: int) -> bool:
@@ -100,7 +139,7 @@ class RoleCache:
 
   async def refresh_user_roles(self, guid: str):
     logging.debug("[RoleCache] Refreshing user roles for %s", guid)
-    await self.get_user_roles(guid, refresh=True)
+    await self.get_user_security_profile(guid, refresh=True)
 
 
 class AuthModule(BaseModule):
@@ -128,6 +167,10 @@ class AuthModule(BaseModule):
   @property
   def _user_roles(self) -> dict[str, tuple[list[str], int]]:
     return self.role_cache._user_roles
+
+  @property
+  def _user_security(self) -> dict[str, dict[str, Any]]:
+    return self.role_cache._user_security
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
@@ -254,8 +297,8 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
-    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    security = await self.role_cache.get_user_security_profile(guid, refresh=True)
+    rotkey = security.get("rotkey") or security.get("element_rotkey")
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
       if not derived_secret:
@@ -325,17 +368,20 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run("db:auth:discord:get_security:1", {"discord_id": discord_id})
+    res = await self.db.run("db:accounts:security:get_security_profile:1", {"discord_id": discord_id})
     if not res.rows:
       return "", [], 0
-    row = res.rows[0]
-    guid = row.get("user_guid")
-    mask = int(row.get("user_roles", 0) or 0)
-    names = self.role_cache.mask_to_names(mask)
+    profile = self.role_cache.cache_security_profile(res.rows[0])
+    guid = str(profile.get("user_guid") or profile.get("guid") or "")
+    mask = int(profile.get("role_mask", 0))
+    names = profile.get("roles", self.role_cache.mask_to_names(mask))
     return guid, names, mask
 
   async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
     return await self.role_cache.get_user_roles(guid, refresh)
+
+  async def get_security_profile(self, guid: str, refresh: bool = False) -> dict[str, Any]:
+    return await self.role_cache.get_user_security_profile(guid, refresh)
 
   async def user_has_role(self, guid: str, required_mask: int) -> bool:
     return await self.role_cache.user_has_role(guid, required_mask)

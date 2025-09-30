@@ -52,8 +52,15 @@ class DummyDb:
       return DBRes([], 1)
     if op == "db:users:session:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:users:profile:get_roles:1":
-      return DBRes([{ "element_roles": 0 }], 1)
+    if op == "db:accounts:security:get_security_profile:1":
+      return DBRes([
+        {
+          "guid": args.get("guid"),
+          "user_guid": args.get("guid"),
+          "user_roles": 0,
+          "provider_name": args.get("provider") if "provider" in args else "google",
+        }
+      ], 1)
     if op == "db:auth:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
     if op == "db:auth:session:update_device_token:1":
