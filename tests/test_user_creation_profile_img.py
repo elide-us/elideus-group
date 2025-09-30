@@ -17,8 +17,14 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
   async def dummy_transaction():
     yield DummyCursor()
 
-  async def fake_fetch_json(query, params, many=False):
-    q = query.strip().lower()
+  lookups = []
+
+  async def fake_get_provider(provider, cursor=None):
+    lookups.append((provider, cursor is not None))
+    return 1
+
+  async def fake_fetch_json(operation):
+    q = operation.sql.strip().lower()
     if q.startswith("select recid from auth_providers"):
       return DBResult(rows=[{"recid": 1}], rowcount=1)
     if q.startswith("select users_guid from users_auth"):
@@ -26,6 +32,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
     return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
   monkeypatch.setattr(registry, "transaction", dummy_transaction)
+  monkeypatch.setattr(registry, "get_auth_provider_recid", fake_get_provider)
   monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
 
   handler = registry.get_handler("db:users:providers:create_from_provider:1")
@@ -42,4 +49,5 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
   assert any("insert into users_roles" in sql for sql in executed)
   assert res.rows
   assert res.rows[0]["profile_image"] == "img"
+  assert lookups == [("microsoft", False)]
 

@@ -24,6 +24,25 @@ def get_handler(op: str):
     except KeyError:
         raise KeyError(f"No MSSQL handler for '{op}'")
 
+async def get_auth_provider_recid(provider: str, *, cursor=None) -> int:
+  """Return the auth provider recid for ``provider`` or raise a uniform error."""
+  if cursor is not None:
+    await cursor.execute(
+      "SELECT recid FROM auth_providers WHERE element_name = ?;",
+      (provider,),
+    )
+    row = await cursor.fetchone()
+    if not row:
+      raise ValueError(f"Unknown auth provider: {provider}")
+    return row[0]
+  res = await fetch_json(json_one(
+    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (provider,),
+  ))
+  if not res.rows:
+    raise ValueError(f"Unknown auth provider: {provider}")
+  return res.rows[0]["recid"]
+
 # -------------------- MAPPINGS (representative set) --------------------
 
 @register("db:users:providers:get_by_provider_identifier:1")
@@ -76,13 +95,7 @@ async def _users_insert(args: Dict[str, Any]):
     provider_displayname = args["provider_displayname"]
     provider_profileimg = args.get("provider_profile_image", "")
 
-    res = await fetch_json(json_one(
-      "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-      (provider,)
-    ))
-    if not res.rows:
-      raise ValueError(f"Unknown auth provider: {provider}")
-    ap_recid = res.rows[0]["recid"]
+    ap_recid = await get_auth_provider_recid(provider)
 
     dup = await fetch_json(json_one(
       "SELECT users_guid FROM users_auth WHERE element_identifier = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
@@ -135,13 +148,7 @@ async def _users_link_provider(args: Dict[str, Any]):
     guid = str(UUID(args["guid"]))
     provider = args["provider"]
     identifier = str(UUID(args["provider_identifier"]))
-    res = await fetch_json(json_one(
-      "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-      (provider,)
-    ))
-    if not res.rows:
-      raise ValueError(f"Unknown auth provider: {provider}")
-    ap_recid = res.rows[0]["recid"]
+    ap_recid = await get_auth_provider_recid(provider)
     rc = await exec_query(exec_op(
       """
       MERGE users_auth AS target
@@ -169,12 +176,7 @@ async def _users_unlink_provider(args: Dict[str, Any]):
       )
       row = await cur.fetchone()
       current_recid = row[0] if row else None
-      await cur.execute(
-        "SELECT recid FROM auth_providers WHERE element_name = ?;",
-        (provider,)
-      )
-      row = await cur.fetchone()
-      provider_recid = row[0] if row else None
+      provider_recid = await get_auth_provider_recid(provider, cursor=cur)
       await cur.execute(
         """
         UPDATE ua
@@ -665,15 +667,10 @@ async def _users_update_if_unedited(args: Dict[str, Any]):
 async def _users_set_provider(args: Dict[str, Any]):
   guid = args["guid"]
   provider = args["provider"]
-  res = await fetch_json(json_one(
-    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-    (provider,),
-  ))
-  if not res.rows:
-    raise ValueError(f"Unknown auth provider: {provider}")
+  ap_recid = await get_auth_provider_recid(provider)
   return await exec_query(exec_op(
     "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
-    (res.rows[0]["recid"], guid),
+    (ap_recid, guid),
   ))
 
 @register("db:users:profile:get_roles:1")
@@ -866,13 +863,7 @@ def _public_users_get_published_files(args: Dict[str, Any]):
 async def _users_set_img(args: Dict[str, Any]):
   """Insert or update a user's profile image."""
   guid, image_b64, provider = args["guid"], args["image_b64"], args["provider"]
-  res = await fetch_json(json_one(
-    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-    (provider,),
-  ))
-  if not res.rows:
-    raise ValueError(f"Unknown auth provider: {provider}")
-  ap_recid = res.rows[0]["recid"]
+  ap_recid = await get_auth_provider_recid(provider)
   rc = await exec_query(exec_op(
     "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
     (image_b64, ap_recid, guid),
@@ -899,14 +890,7 @@ async def _auth_session_create_session(args: Dict[str, Any]):
       raise ValueError("Missing device fingerprint")
 
     async with transaction() as cur:
-      await cur.execute(
-        "SELECT recid FROM auth_providers WHERE element_name = ?;",
-        (provider,),
-      )
-      row = await cur.fetchone()
-      if not row:
-        raise ValueError(f"Unknown auth provider: {provider}")
-      provider_recid = row[0]
+      provider_recid = await get_auth_provider_recid(provider, cursor=cur)
 
       await cur.execute(
         "SELECT element_guid FROM users_sessions WHERE users_guid = ?;",
