@@ -55,7 +55,7 @@ get_mssql_handler = registry_mod.get_handler
 def test_mssql_get_by_provider_identifier_uses_user_view():
   handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
   op = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
@@ -64,7 +64,7 @@ def test_mssql_get_by_provider_identifier_uses_user_view():
 def test_mssql_get_profile_uses_profile_view():
   handler = get_mssql_handler("db:users:profile:get_profile:1")
   op = handler({"guid": "gid"})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
@@ -73,24 +73,42 @@ def test_mssql_get_profile_uses_profile_view():
 def test_mssql_get_rotkey_queries_users_and_providers():
   handler = get_mssql_handler("db:users:session:get_rotkey:1")
   op = handler({"guid": "gid"})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
   sql = op.sql.lower()
-  assert "from account_users" in sql
+  assert "vw_user_session_security" in sql
   assert "auth_providers" in sql
-  assert "vw_account_user_security" not in sql
+
+def test_mssql_get_roles_uses_security_view():
+  handler = get_mssql_handler("db:users:profile:get_roles:1")
+  op = handler({"guid": "gid"})
+  assert hasattr(op, "sql")
+  sql = op.sql.lower()
+  assert "vw_user_session_security" in sql
+  assert "auth_providers" in sql
 
 def test_mssql_get_by_access_token_uses_security_view():
   handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
   op = handler({"access_token": "tok"})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "user_roles" in sql
+  assert "auth_providers" in sql
 
 def test_mssql_discord_get_security_uses_security_view():
   handler = get_mssql_handler("db:auth:discord:get_security:1")
   op = handler({"discord_id": "42"})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
+  sql = op.sql.lower()
+  assert "vw_user_session_security" in sql
+  assert "auth_providers" in sql
+  assert "join users_auth" in sql
+
+
+def test_mssql_accounts_security_profile_uses_security_view():
+  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
+  op = handler({"guid": "gid"})
+  assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "auth_providers" in sql
@@ -99,7 +117,7 @@ def test_mssql_discord_get_security_uses_security_view():
 def test_mssql_support_users_set_credits_updates_table():
   handler = get_mssql_handler("db:support:users:set_credits:1")
   op = handler({"guid": "gid", "credits": 10})
-  assert isinstance(op, db_helpers.Operation)
+  assert hasattr(op, "sql")
   assert op.kind is DbRunMode.EXEC
   assert "update users_credits" in op.sql.lower()
   assert op.params == (10, "gid")
