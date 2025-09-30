@@ -145,3 +145,47 @@ def test_storage_files_set_gallery(monkeypatch):
   res = asyncio.run(provider.run("db:storage:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True}))
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
+
+
+def test_storage_cache_set_public(monkeypatch):
+  provider = MssqlProvider()
+  guid = "00000000-0000-0000-0000-000000000001"
+  expected_guid = str(UUID(guid))
+
+  async def fake_execute_operation(operation):
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.EXEC
+    assert operation.params == (0, expected_guid, "docs", "file.txt")
+    assert "UPDATE users_storage_cache" in operation.sql
+    return DBResult(rowcount=1)
+
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+
+  res = asyncio.run(provider.run("db:storage:cache:set_public:1", {
+    "user_guid": guid,
+    "path": "docs",
+    "filename": "file.txt",
+    "public": False,
+  }))
+  assert isinstance(res, DBResult)
+  assert res.rowcount == 1
+
+
+def test_storage_public_lists_share_query(monkeypatch):
+  provider = MssqlProvider()
+  seen = []
+
+  async def fake_execute_operation(operation):
+    seen.append(operation)
+    assert isinstance(operation, mssql_provider.Operation)
+    assert operation.kind is DbRunMode.JSON_MANY
+    assert operation.params == ()
+    return DBResult(rows=[], rowcount=0)
+
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+
+  asyncio.run(provider.run("db:storage:cache:list_public:1", {}))
+  asyncio.run(provider.run("db:public:gallery:get_public_files:1", {}))
+
+  assert len(seen) == 2
+  assert seen[0].sql == seen[1].sql
