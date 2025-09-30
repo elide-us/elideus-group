@@ -1404,8 +1404,7 @@ def _assistant_conversations_find_recent(args: Dict[str, Any]):
     ORDER BY element_created_on DESC
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (
-    DbRunMode.JSON_ONE,
+  return json_one(
     sql,
     (
       personas_recid,
