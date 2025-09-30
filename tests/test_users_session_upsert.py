@@ -37,6 +37,12 @@ sys.modules["server.modules.providers.database.mssql_provider.db_helpers"] = b
 b.fetch_rows = lambda *args, **kwargs: None
 b.fetch_json = lambda *args, **kwargs: None
 b.exec_query = lambda *args, **kwargs: None
+b.Operation = type("Operation", (), {})
+b.exec_op = lambda *args, **kwargs: None
+b.json_many = lambda *args, **kwargs: None
+b.json_one = lambda *args, **kwargs: None
+b.row_many = lambda *args, **kwargs: None
+b.row_one = lambda *args, **kwargs: None
 
 spec = importlib.util.spec_from_file_location(
   "server.modules.providers.database.mssql_provider.registry",
@@ -50,6 +56,7 @@ spec.loader.exec_module(registry_mod)
 def test_create_session_updates_existing(monkeypatch):
   executed: list[str] = []
   fetch_calls: list[int] = []
+  lookups: list[tuple[str, bool]] = []
 
   class DummyCur:
     async def execute(self, sql, params):
@@ -68,6 +75,13 @@ def test_create_session_updates_existing(monkeypatch):
     yield DummyCur()
 
   monkeypatch.setattr(registry_mod, "transaction", fake_tx)
+  original_lookup = registry_mod.get_auth_provider_recid
+
+  async def fake_lookup(provider, cursor=None):
+    lookups.append((provider, cursor is not None))
+    return await original_lookup(provider, cursor=cursor)
+
+  monkeypatch.setattr(registry_mod, "get_auth_provider_recid", fake_lookup)
   handler = registry_mod.get_handler("db:auth:session:create_session:1")
   args = {
     "access_token": "tok",
@@ -83,3 +97,4 @@ def test_create_session_updates_existing(monkeypatch):
   assert not any("insert into users_sessions" in q for q in executed)
   assert any("update sessions_devices" in q for q in executed)
   assert not any("insert into sessions_devices" in q for q in executed)
+  assert lookups == [("microsoft", True)]
