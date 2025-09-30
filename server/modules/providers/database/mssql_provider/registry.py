@@ -520,32 +520,55 @@ def _storage_cache_delete_folder(args: Dict[str, Any]):
   return Operation(DbRunMode.EXEC, sql, (user_guid, parent, name, path, like))
 
 
+_STORAGE_PUBLIC_TOGGLE_SQL = """
+  UPDATE users_storage_cache
+  SET element_public = ?
+  WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
+"""
+
+
+_STORAGE_PUBLIC_LIST_SQL = """
+  SELECT usc.users_guid AS user_guid,
+         au.element_display AS display_name,
+         usc.element_path AS path,
+         usc.element_filename AS name,
+         usc.element_url AS url,
+         st.element_mimetype AS content_type
+  FROM users_storage_cache usc
+  JOIN account_users au ON au.element_guid = usc.users_guid
+  JOIN storage_types st ON st.recid = usc.types_recid
+  WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
+  ORDER BY usc.element_created_on
+  FOR JSON PATH;
+"""
+
+
+def _storage_public_operation(action: str, *, args: Dict[str, Any] | None = None, flag_key: str = "public") -> Operation:
+  if action == "toggle":
+    if args is None:
+      raise ValueError("toggle action requires args")
+    guid = str(UUID(args["user_guid"]))
+    name = args.get("name")
+    if name:
+      path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+    else:
+      path = args.get("path", "")
+      filename = args.get("filename", "")
+    flag_value = 1 if args.get(flag_key) else 0
+    return Operation(DbRunMode.EXEC, _STORAGE_PUBLIC_TOGGLE_SQL, (flag_value, guid, path, filename))
+  if action == "list":
+    return Operation(DbRunMode.JSON_MANY, _STORAGE_PUBLIC_LIST_SQL, ())
+  raise ValueError(f"Unknown storage public action: {action}")
+
+
 @register("db:storage:cache:set_public:1")
 def _storage_cache_set_public(args: Dict[str, Any]):
-  guid = str(UUID(args["user_guid"]))
-  path = args.get("path", "")
-  filename = args.get("filename", "")
-  public = 1 if args.get("public") else 0
-  sql = """
-    UPDATE users_storage_cache
-    SET element_public = ?
-    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
-  """
-  return Operation(DbRunMode.EXEC, sql, (public, guid, path, filename))
+  return _storage_public_operation("toggle", args=args, flag_key="public")
 
 
 @register("db:storage:files:set_gallery:1")
 def _storage_files_set_gallery(args: Dict[str, Any]):
-  guid = str(UUID(args["user_guid"]))
-  name = args.get("name", "")
-  path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-  gallery = 1 if args.get("gallery") else 0
-  sql = """
-    UPDATE users_storage_cache
-    SET element_public = ?
-    WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
-  """
-  return Operation(DbRunMode.EXEC, sql, (gallery, guid, path, filename))
+  return _storage_public_operation("toggle", args=args, flag_key="gallery")
 
 
 @register("db:storage:cache:set_reported:1")
@@ -564,40 +587,12 @@ def _storage_cache_set_reported(args: Dict[str, Any]):
 
 @register("db:storage:cache:list_public:1")
 def _storage_cache_list_public(_: Dict[str, Any]):
-  sql = """
-    SELECT usc.users_guid AS user_guid,
-           au.element_display AS display_name,
-           usc.element_path AS path,
-           usc.element_filename AS name,
-           usc.element_url AS url,
-           st.element_mimetype AS content_type
-    FROM users_storage_cache usc
-    JOIN account_users au ON au.element_guid = usc.users_guid
-    JOIN storage_types st ON st.recid = usc.types_recid
-    WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on
-    FOR JSON PATH;
-  """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return _storage_public_operation("list")
 
 
 @register("db:public:gallery:get_public_files:1")
 def _public_gallery_get_public_files(_: Dict[str, Any]):
-  sql = """
-    SELECT usc.users_guid AS user_guid,
-           au.element_display AS display_name,
-           usc.element_path AS path,
-           usc.element_filename AS name,
-           usc.element_url AS url,
-           st.element_mimetype AS content_type
-    FROM users_storage_cache usc
-    JOIN account_users au ON au.element_guid = usc.users_guid
-    JOIN storage_types st ON st.recid = usc.types_recid
-    WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on
-    FOR JSON PATH;
-  """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return _storage_public_operation("list")
 
 
 @register("db:storage:cache:list_reported:1")

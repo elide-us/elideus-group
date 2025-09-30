@@ -7,7 +7,7 @@ import server.modules.storage_module as storage_module
 from server.modules import BaseModule
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
-from server.modules.providers import DBResult
+from server.modules.providers import DBResult, DbRunMode
 
 
 class DummyEnv(BaseModule):
@@ -75,15 +75,16 @@ def test_list_public_files(monkeypatch):
   app = FastAPI()
   provider = MssqlProvider()
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert many
-    assert "FOR JSON PATH" in sql
+  async def fake_execute_operation(operation):
+    assert operation.kind is DbRunMode.JSON_MANY
+    assert "FOR JSON PATH" in operation.sql
+    assert operation.params == ()
     return DBResult(rows=[
       {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
       {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
     ], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   mod = StorageModule(app)
   mod.db = provider
@@ -92,6 +93,34 @@ def test_list_public_files(monkeypatch):
     {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
     {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
   ]
+
+
+def test_set_gallery_sends_numeric_flag_to_db():
+  app = FastAPI()
+  mod = StorageModule(app)
+
+  class CaptureDb:
+    def __init__(self):
+      self.calls = []
+
+    async def run(self, op, args):
+      self.calls.append((op, args))
+      return DBResult(rowcount=1)
+
+  db = CaptureDb()
+  mod.db = db
+
+  asyncio.run(mod.set_gallery("u1", "docs/a.txt", True))
+  asyncio.run(mod.set_gallery("u1", "a.txt", False))
+
+  assert db.calls[0] == (
+    "db:storage:files:set_gallery:1",
+    {"user_guid": "u1", "name": "docs/a.txt", "gallery": 1},
+  )
+  assert db.calls[1] == (
+    "db:storage:files:set_gallery:1",
+    {"user_guid": "u1", "name": "a.txt", "gallery": 0},
+  )
 
 
 def test_list_files_by_user():

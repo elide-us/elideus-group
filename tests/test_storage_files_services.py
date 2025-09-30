@@ -336,3 +336,51 @@ def test_published_file_listed_with_gallery_flag():
   resp = asyncio.run(storage_files_get_folder_files_v1(req2))
   assert resp.payload["files"][0]["gallery"] is True
 
+
+def test_gallery_flag_can_be_cleared():
+  storage = DummyStorage()
+
+  # publish the file
+  req1 = types.SimpleNamespace()
+  req1.app = types.SimpleNamespace(state=types.SimpleNamespace(storage=storage))
+  req1.state = types.SimpleNamespace(
+    rpc_request=RPCRequest(
+      op="urn:storage:files:set_gallery:1",
+      payload={"name": "docs/a.txt", "gallery": True},
+      version=1,
+    ),
+    auth_ctx=AuthContext(user_guid="u123"),
+  )
+  req1.headers = {}
+  asyncio.run(storage_files_set_gallery_v1(req1))
+
+  # unpublish the file
+  req2 = types.SimpleNamespace()
+  req2.app = types.SimpleNamespace(state=types.SimpleNamespace(storage=storage))
+  req2.state = types.SimpleNamespace(
+    rpc_request=RPCRequest(
+      op="urn:storage:files:set_gallery:1",
+      payload={"name": "docs/a.txt", "gallery": False},
+      version=1,
+    ),
+    auth_ctx=AuthContext(user_guid="u123"),
+  )
+  req2.headers = {}
+  asyncio.run(storage_files_set_gallery_v1(req2))
+  assert storage.gallery_args == ("u123", "docs/a.txt", False)
+
+  # list folder contents to ensure gallery flag cleared
+  req3 = types.SimpleNamespace()
+  req3.app = types.SimpleNamespace(state=types.SimpleNamespace(storage=storage))
+  req3.state = types.SimpleNamespace(
+    rpc_request=RPCRequest(
+      op="urn:storage:files:get_folder_files:1",
+      payload={"path": "docs"},
+      version=1,
+    ),
+    auth_ctx=AuthContext(user_guid="u123"),
+  )
+  req3.headers = {}
+  resp = asyncio.run(storage_files_get_folder_files_v1(req3))
+  assert resp.payload["files"][0]["gallery"] is False
+
