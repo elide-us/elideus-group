@@ -189,3 +189,74 @@ def test_storage_public_lists_share_query(monkeypatch):
 
   assert len(seen) == 2
   assert seen[0].sql == seen[1].sql
+
+
+def test_unlink_provider_dict_result(monkeypatch):
+  provider = MssqlProvider()
+  guid = "00000000-0000-0000-0000-000000000002"
+
+  def fake_get_handler(op):
+    assert op == "db:users:providers:unlink_provider:1"
+
+    async def handler(args):
+      assert args == {
+        "guid": guid,
+        "provider": "google",
+        "new_provider_recid": 123,
+      }
+      return {"rows": [{"providers_remaining": 1}], "rowcount": 1}
+
+    return handler
+
+  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
+
+  res = asyncio.run(provider.run("db:users:providers:unlink_provider:1", {
+    "guid": guid,
+    "provider": "google",
+    "new_provider_recid": 123,
+  }))
+
+  assert isinstance(res, DBResult)
+  assert res.rows == [{"providers_remaining": 1}]
+  assert res.rowcount == 1
+
+
+def test_create_session_dict_result(monkeypatch):
+  provider = MssqlProvider()
+  guid = "00000000-0000-0000-0000-000000000003"
+
+  def fake_get_handler(op):
+    assert op == "db:auth:session:create_session:1"
+
+    async def handler(args):
+      assert args == {
+        "access_token": "token",
+        "expires": "2024-01-01T00:00:00Z",
+        "fingerprint": "fingerprint",
+        "user_agent": "pytest",
+        "ip_address": "127.0.0.1",
+        "user_guid": guid,
+        "provider": "google",
+      }
+      return {
+        "rows": [{"session_guid": "sess", "device_guid": "device"}],
+        "rowcount": 1,
+      }
+
+    return handler
+
+  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
+
+  res = asyncio.run(provider.run("db:auth:session:create_session:1", {
+    "access_token": "token",
+    "expires": "2024-01-01T00:00:00Z",
+    "fingerprint": "fingerprint",
+    "user_agent": "pytest",
+    "ip_address": "127.0.0.1",
+    "user_guid": guid,
+    "provider": "google",
+  }))
+
+  assert isinstance(res, DBResult)
+  assert res.rows == [{"session_guid": "sess", "device_guid": "device"}]
+  assert res.rowcount == 1
