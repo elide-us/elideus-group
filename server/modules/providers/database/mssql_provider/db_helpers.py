@@ -16,6 +16,11 @@ class Operation:
     if not isinstance(self.params, tuple):
       object.__setattr__(self, "params", tuple(self.params))
 
+  def __iter__(self):
+    yield self.kind
+    yield self.sql
+    yield self.params
+
 
 def row_one(sql: str, params: Iterable[Any] = (), *, postprocess: Callable[[DBResult], DBResult] | None = None) -> Operation:
   return Operation(DbRunMode.ROW_ONE, sql, tuple(params), postprocess)

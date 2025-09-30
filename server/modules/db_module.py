@@ -10,7 +10,14 @@ from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
 from .providers import DBResult
+from server.registry import RegistryDispatcher
+from server.registry.types import DBRequest, DBResponse
 from server.helpers.logging import update_logging_level
+
+
+def _current_dbresult_cls():
+  from server.modules.providers import DBResult as ProvidersDBResult
+  return ProvidersDBResult
 
 
 class DbModule(BaseModule):
@@ -19,6 +26,7 @@ class DbModule(BaseModule):
     self.provider: str = "mssql"
     self.logging_level: int = 0
     self._provider: DbProviderBase | None = None
+    self._registry: RegistryDispatcher | None = getattr(app.state, "registry", None)
 
   async def init(self, provider: str | None = None, **cfg):
     """Initialize database provider.
@@ -46,13 +54,22 @@ class DbModule(BaseModule):
 
     self._provider = provider_cls(**cfg)
 
+  def set_registry(self, registry: RegistryDispatcher) -> None:
+    self._registry = registry
+
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
     assert self._provider, "db_module not initialized"
-    out = await self._provider.run(op, args)
-    # normalize to DBResult
-    if isinstance(out, DBResult):
-      return out
-    return DBResult(**out)  # expects {"rows":[...], "rowcount":N}
+    if not self._registry:
+      raise RuntimeError("registry dispatcher not configured")
+    request = DBRequest(op=op, params=args)
+    response = await self._registry.execute(request)
+    DBResultCls = _current_dbresult_cls()
+    if isinstance(response, DBResponse):
+      return response.to_result()
+    if isinstance(response, DBResultCls):
+      return response
+    payload = response.model_dump() if hasattr(response, "model_dump") else response
+    return DBResultCls(**payload)
 
   async def startup(self):
     env: EnvModule = self.app.state.env
@@ -64,6 +81,8 @@ class DbModule(BaseModule):
     await self.init(provider=self.provider, **cfg)
     assert self._provider
     await self._provider.startup()
+    if self._registry:
+      self._registry.bind_provider(self._provider)
     res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
     val = res.rows[0]["value"] if res.rows else "0"
     try:
