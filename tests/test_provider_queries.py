@@ -70,24 +70,17 @@ def test_mssql_get_profile_uses_profile_view():
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
-def test_mssql_get_rotkey_queries_users_and_providers():
-  handler = get_mssql_handler("db:users:session:get_rotkey:1")
+def test_mssql_accounts_security_profile_by_guid_uses_security_view():
+  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
   op = handler({"guid": "gid"})
   assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "auth_providers" in sql
 
-def test_mssql_get_roles_uses_security_view():
-  handler = get_mssql_handler("db:users:profile:get_roles:1")
-  op = handler({"guid": "gid"})
-  assert hasattr(op, "sql")
-  sql = op.sql.lower()
-  assert "vw_user_session_security" in sql
-  assert "auth_providers" in sql
 
-def test_mssql_get_by_access_token_uses_security_view():
-  handler = get_mssql_handler("db:auth:session:get_by_access_token:1")
+def test_mssql_accounts_security_profile_by_access_token_uses_security_view():
+  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
   op = handler({"access_token": "tok"})
   assert hasattr(op, "sql")
   sql = op.sql.lower()
@@ -95,8 +88,9 @@ def test_mssql_get_by_access_token_uses_security_view():
   assert "user_roles" in sql
   assert "auth_providers" in sql
 
-def test_mssql_discord_get_security_uses_security_view():
-  handler = get_mssql_handler("db:auth:discord:get_security:1")
+
+def test_mssql_accounts_security_profile_by_discord_id_joins_users_auth():
+  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
   op = handler({"discord_id": "42"})
   assert hasattr(op, "sql")
   sql = op.sql.lower()
@@ -105,13 +99,14 @@ def test_mssql_discord_get_security_uses_security_view():
   assert "join users_auth" in sql
 
 
-def test_mssql_accounts_security_profile_uses_security_view():
+def test_mssql_accounts_security_profile_by_provider_identifier_joins_users_auth():
   handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler({"guid": "gid"})
+  op = handler({"provider": "discord", "provider_identifier": str(uuid4())})
   assert hasattr(op, "sql")
   sql = op.sql.lower()
   assert "vw_user_session_security" in sql
   assert "auth_providers" in sql
+  assert "join users_auth" in sql
 
 
 def test_mssql_support_users_set_credits_updates_table():
