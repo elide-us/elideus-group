@@ -4,6 +4,7 @@ from uuid import UUID, uuid5, NAMESPACE_URL
 from ... import DBResult, DbRunMode
 from .logic import transaction
 from .db_helpers import Operation, exec_op, fetch_json, exec_query, json_many, json_one, row_many, row_one
+from server.registry.accounts.security.mssql import get_security_profile_v1
 import logging
 
 # handler can be:
@@ -356,18 +357,7 @@ async def _auth_discord_oauth_relink(args: Dict[str, Any]):
 @register("db:auth:discord:get_security:1")
 def _auth_discord_get_security(args: Dict[str, Any]):
   raw_id = args["discord_id"]
-  identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
-  sql = """
-    SELECT TOP 1
-      v.user_guid,
-      v.user_roles
-    FROM vw_user_session_security v
-    JOIN users_auth ua ON ua.users_guid = v.user_guid
-    JOIN auth_providers ap ON ap.recid = ua.providers_recid
-    WHERE ap.element_name = 'discord' AND ua.element_identifier = ?
-    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-  """
-  return Operation(DbRunMode.JSON_ONE, sql, (identifier,))
+  return get_security_profile_v1({"discord_id": raw_id})
 
 
 @register("db:users:profile:set_display:1")
@@ -677,16 +667,15 @@ async def _users_set_provider(args: Dict[str, Any]):
     (ap_recid, guid),
   ))
 
+@register("db:accounts:security:get_security_profile:1")
+def _accounts_security_get_security_profile(args: Dict[str, Any]):
+  return get_security_profile_v1(args)
+
+
 @register("db:users:profile:get_roles:1")
 def _users_get_roles(args: Dict[str, Any]):
-  """Fetch a user's role mask."""
   guid = args["guid"]
-  sql = """
-    SELECT element_roles FROM users_roles
-    WHERE users_guid = ?
-    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-  """
-  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
+  return get_security_profile_v1({"guid": guid})
 
 @register("db:users:profile:set_roles:1")
 async def _users_set_roles(args: Dict[str, Any]):
@@ -721,16 +710,7 @@ def _users_session_set_rotkey(args: Dict[str, Any]):
 @register("db:users:session:get_rotkey:1")
 def _users_session_get_rotkey(args: Dict[str, Any]):
   guid = args["guid"]
-  sql = """
-      SELECT
-        au.element_rotkey AS rotkey,
-        ap.element_name AS provider_name
-      FROM account_users AS au
-      LEFT JOIN auth_providers AS ap ON au.providers_recid = ap.recid
-      WHERE au.element_guid = ?
-      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-    """
-  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
+  return get_security_profile_v1({"guid": guid})
 
 @register("db:public:links:get_home_links:1")
 def _public_links_get_home_links(args: Dict[str, Any]):
@@ -958,26 +938,8 @@ async def _auth_session_create_session(args: Dict[str, Any]):
 
 @register("db:auth:session:get_by_access_token:1")
 def _auth_session_get_by_access_token(args: Dict[str, Any]):
-    token = args["access_token"]
-    sql = """
-      SELECT
-        device_guid,
-        session_guid,
-        user_guid,
-        session_created_on AS session_created_at,
-        element_token AS token,
-        element_token_iat AS issued_at,
-        element_token_exp AS expires_at,
-        element_revoked_at AS revoked_at,
-        element_device_fingerprint AS device_fingerprint,
-        element_user_agent AS user_agent,
-        element_ip_last_seen AS ip_last_seen,
-        user_roles AS roles
-      FROM vw_user_session_security
-      WHERE element_token = ?
-      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
-    """
-    return Operation(DbRunMode.JSON_ONE, sql, (token,))
+  token = args["access_token"]
+  return get_security_profile_v1({"access_token": token})
 
 @register("db:auth:session:update_session:1")
 def _auth_session_update_session(args: Dict[str, Any]):
