@@ -24,6 +24,42 @@ def get_handler(op: str):
     except KeyError:
         raise KeyError(f"No MSSQL handler for '{op}'")
 
+async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
+  async def _fetch_type(target: str):
+    return await fetch_json(json_one(
+      "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+      (target,),
+    ))
+
+  res = await _fetch_type(mimetype)
+  if res.rows:
+    return res.rows[0]["recid"]
+
+  if not allow_folder:
+    raise ValueError(f"Unknown storage mimetype: {mimetype}")
+
+  if mimetype == "path/folder":
+    await exec_query(exec_op(
+      """
+      MERGE storage_types AS target
+      USING (SELECT 16 AS recid, 'path/folder' AS element_mimetype, 'Folder' AS element_displaytype) AS src
+      ON target.element_mimetype = src.element_mimetype
+      WHEN NOT MATCHED THEN
+        INSERT (recid, element_mimetype, element_displaytype)
+        VALUES (src.recid, src.element_mimetype, src.element_displaytype);
+      """,
+      (),
+    ))
+    res = await _fetch_type(mimetype)
+    if res.rows:
+      return res.rows[0]["recid"]
+    return 16
+
+  fallback = await _fetch_type("application/octet-stream")
+  if fallback.rows:
+    return fallback.rows[0]["recid"]
+  return 1
+
 async def get_auth_provider_recid(provider: str, *, cursor=None) -> int:
   """Return the auth provider recid for ``provider`` or raise a uniform error."""
   if cursor is not None:
@@ -389,13 +425,7 @@ async def _storage_cache_replace_user(args: Dict[str, Any]):
       path = item.get("path", "")
       filename = item.get("filename", "")
       mimetype = item.get("content_type", "application/octet-stream")
-      res = await fetch_json(json_one(
-        "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (mimetype,),
-      ))
-      if not res.rows:
-        raise ValueError(f"Unknown storage mimetype: {mimetype}")
-      type_recid = res.rows[0]["recid"]
+      type_recid = await _get_storage_type_recid(mimetype, allow_folder=False)
       await cur.execute(
         """INSERT INTO users_storage_cache
           (users_guid, types_recid, element_path, element_filename, element_public, element_modified_on, element_deleted)
@@ -420,33 +450,7 @@ async def _storage_cache_upsert(args: Dict[str, Any]):
   url = args.get("url")
   reported = args.get("reported", 0)
   moderation_recid = args.get("moderation_recid")
-  res = await fetch_json(json_one(
-    "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-    (mimetype,),
-  ))
-  if not res.rows:
-    if mimetype == "path/folder":
-      await exec_query(exec_op(
-        """
-        MERGE storage_types AS target
-        USING (SELECT 16 AS recid, 'path/folder' AS element_mimetype, 'Folder' AS element_displaytype) AS src
-        ON target.element_mimetype = src.element_mimetype
-        WHEN NOT MATCHED THEN
-          INSERT (recid, element_mimetype, element_displaytype)
-          VALUES (src.recid, src.element_mimetype, src.element_displaytype);
-        """,
-        (),
-      ))
-      res = await fetch_json(json_one(
-        "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (mimetype,),
-      ))
-    else:
-      res = await fetch_json(json_one(
-        "SELECT recid FROM storage_types WHERE element_mimetype = 'application/octet-stream' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-        (),
-      ))
-  type_recid = res.rows[0]["recid"] if res.rows else (16 if mimetype == "path/folder" else 1)
+  type_recid = await _get_storage_type_recid(mimetype, allow_folder=True)
   sql = """
     MERGE users_storage_cache AS target
     USING (SELECT ? AS users_guid, ? AS types_recid, ? AS element_path, ? AS element_filename,
