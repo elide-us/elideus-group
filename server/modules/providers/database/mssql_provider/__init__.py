@@ -1,5 +1,4 @@
 # providers/database/mssql_provider/__init__.py
-import inspect
 from typing import Any, Dict
 from collections.abc import Mapping
 
@@ -8,7 +7,8 @@ from pydantic import ValidationError
 from ... import DbProviderBase, DBResult
 from .logic import init_pool, close_pool
 from .db_helpers import Operation, execute_operation
-from .registry import get_handler
+from server.registry.providers.mssql import PROVIDER_QUERIES
+from server.registry.types import DBRequest, DBResponse
 
 
 class MssqlProvider(DbProviderBase):
@@ -18,12 +18,34 @@ class MssqlProvider(DbProviderBase):
   async def shutdown(self) -> None:
     await close_pool()
 
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
-    handler = get_handler(op)
-    spec = handler(args)
+  def _resolve_provider_callable(self, op: str):
+    parts = op.split(":")
+    if len(parts) != 5 or parts[0] != "db":
+      raise KeyError(f"Unsupported operation key: {op}")
+    _, domain, subdomain, name, version_str = parts
+    try:
+      version = int(version_str)
+    except ValueError as exc:
+      raise KeyError(f"Invalid operation version for '{op}'") from exc
+    provider_map = f"{domain}.{subdomain}.{name}"
+    entry = PROVIDER_QUERIES.get(provider_map)
+    if entry is None:
+      raise KeyError(f"No MSSQL handler for '{op}'")
+    if isinstance(entry, Mapping):
+      handler = entry.get(version)
+    else:
+      handler = entry
+    if handler is None:
+      raise KeyError(f"No MSSQL handler for '{op}' version {version}")
+    return handler
 
-    if inspect.isawaitable(spec):
-      spec = await spec  # type: ignore[func-returns-value]
+  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
+    handler = self._resolve_provider_callable(op)
+    request = DBRequest(op=op, params=args)
+    spec = await handler(request)
+
+    if isinstance(spec, DBResponse):
+      return spec.to_result()
 
     async def _resolve(result: Any) -> DBResult:
       if isinstance(result, Operation):
@@ -42,8 +64,7 @@ class MssqlProvider(DbProviderBase):
           ) from exc
       raise TypeError(
         f"Handler '{op}' returned unsupported result type: {type(result)!r}."
-        " Expected Operation, DBResult, or mapping with rows/rowcount."
+        " Expected Operation, DBResult, mapping, or DBResponse."
       )
 
     return await _resolve(spec)
-
