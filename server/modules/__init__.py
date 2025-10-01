@@ -31,6 +31,7 @@ class ModuleManager:
     self.app = app
     self.instances: Dict[str, BaseModule] = {}
     self.registry = RegistryDispatcher()
+    self.registry.initialise()
     setattr(app.state, "registry", self.registry)
 
     for fname in os.listdir(MODULES_FOLDER):
