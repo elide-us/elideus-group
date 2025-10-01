@@ -113,7 +113,7 @@ class DummyDb:
 
   async def run(self, op: str, args: dict):
     self.calls.append((op, args))
-    if op == 'db:service:routes:get_routes:1':
+    if op == 'db:system:routes:get_routes:1':
       rows = [{
         'element_path': '/a',
         'element_name': 'A',
@@ -122,7 +122,7 @@ class DummyDb:
         'element_roles': 1,
       }]
       return SimpleNamespace(rows=rows, rowcount=1)
-    if op in ('db:service:routes:upsert_route:1', 'db:service:routes:delete_route:1'):
+    if op in ('db:system:routes:upsert_route:1', 'db:system:routes:delete_route:1'):
       return SimpleNamespace(rows=[], rowcount=1)
     raise AssertionError(f'unexpected op {op}')
 
@@ -164,7 +164,7 @@ def test_get_routes_service():
       'required_roles': ['ROLE_SERVICE_ADMIN'],
     }]
   }
-  assert ('db:service:routes:get_routes:1', {}) in db.calls
+  assert ('db:system:routes:get_routes:1', {}) in db.calls
 
 
 def test_upsert_and_delete_route_service():
@@ -179,11 +179,11 @@ def test_upsert_and_delete_route_service():
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
   assert resp.status_code == 200
-  assert ('db:service:routes:upsert_route:1', {
+  assert ('db:system:routes:upsert_route:1', {
     'path': '/a',
     'name': 'A',
     'icon': 'home',
     'sequence': 1,
     'roles': 1,
   }) in db.calls
-  assert ('db:service:routes:delete_route:1', {'path': '/a'}) in db.calls
+  assert ('db:system:routes:delete_route:1', {'path': '/a'}) in db.calls

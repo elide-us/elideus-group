@@ -17,6 +17,7 @@ from server.registry.content.cache import (
   list_cache_request,
   upsert_cache_item_request,
 )
+from server.registry.system.config import get_config_request
 
 
 class StorageModule(BaseModule):
@@ -61,7 +62,8 @@ class StorageModule(BaseModule):
       logging.error("[StorageModule] Failed to load AZURE_BLOB_CONNECTION_STRING: %s", e)
 
     try:
-      res = await self.db.run("db:system:config:get_config:1", {"key": "StorageCacheTime"})
+      request = get_config_request("StorageCacheTime")
+      res = await self.db.run(request.op, request.params)
       value = res.rows[0]["value"] if res.rows else "15m"
       try:
         self.reindex_interval = self._parse_duration(value)
@@ -99,7 +101,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -378,7 +381,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -439,7 +443,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -487,7 +492,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -538,7 +544,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -578,7 +585,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -825,7 +833,8 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
@@ -902,7 +911,8 @@ class StorageModule(BaseModule):
         "user_folder_count": 0,
         "db_rows": db_rows,
       }
-    res = await self.db.run("db:system:config:get_config:1", {"key": "AzureBlobContainerName"})
+    request = get_config_request("AzureBlobContainerName")
+    res = await self.db.run(request.op, request.params)
     container_name = res.rows[0]["value"] if res.rows else None
     if not container_name:
       return {

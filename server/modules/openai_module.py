@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.system.config import get_config_request
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -87,7 +88,9 @@ class OpenaiModule(BaseModule):
 
   async def get_openai_token(self) -> str:
     assert self.db
-    res = await self.db.run("db:system:config:get_config:1", {"key": "OpenAIApiKey"})
+    assert self.db, "database module not initialised"
+    request = get_config_request("OpenAIApiKey")
+    res = await self.db.run(request.op, request.params)
     if res.rows:
       return res.rows[0].get("value", "")
     return ""

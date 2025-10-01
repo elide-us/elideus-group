@@ -13,6 +13,7 @@ from .providers import DBResult
 from server.registry import RegistryDispatcher
 from server.registry.types import DBRequest, DBResponse
 from server.helpers.logging import update_logging_level
+from server.registry.system.config import get_config_request
 
 
 def _current_dbresult_cls():
@@ -88,7 +89,8 @@ class DbModule(BaseModule):
     await self._provider.startup()
     if self._registry:
       self._registry.bind_provider(self._provider, provider_name=self.provider)
-    res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
+    request = get_config_request("LoggingLevel")
+    res = await self.run(request.op, request.params)
     val = res.rows[0]["value"] if res.rows else "0"
     try:
       self.logging_level = int(val)
@@ -103,13 +105,15 @@ class DbModule(BaseModule):
       self._provider = None
 
   async def get_ms_api_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "MsApiId"})
+    request = get_config_request("MsApiId")
+    res = await self.run(request.op, request.params)
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
     return res.rows[0]["value"]
 
   async def get_google_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleClientId"})
+    request = get_config_request("GoogleClientId")
+    res = await self.run(request.op, request.params)
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] GoogleClientId=%s", value)
     if not value:
@@ -126,7 +130,8 @@ class DbModule(BaseModule):
     return value
 
   async def get_discord_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "DiscordClientId"})
+    request = get_config_request("DiscordClientId")
+    res = await self.run(request.op, request.params)
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] DiscordClientId=%s", value)
     if not value:
@@ -134,14 +139,16 @@ class DbModule(BaseModule):
     return value
 
   async def get_auth_providers(self) -> list[str]:
-    res = await self.run("db:system:config:get_config:1", {"key": "AuthProviders"})
+    request = get_config_request("AuthProviders")
+    res = await self.run(request.op, request.params)
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: AuthProviders")
     return [p.strip() for p in value.split(',') if p.strip()]
 
   async def get_jwks_cache_time(self) -> int:
-    res = await self.run("db:system:config:get_config:1", {"key": "JwksCacheTime"})
+    request = get_config_request("JwksCacheTime")
+    res = await self.run(request.op, request.params)
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: JwksCacheTime")

@@ -43,13 +43,13 @@ class RoleCache:
   async def upsert_role(self, name, mask, display):
     self.upsert_args = (name, mask, display)
     if self.db:
-      await self.db.run('db:security:roles:upsert_role:1', {'name': name, 'mask': mask, 'display': display})
+      await self.db.run('db:system:roles:upsert_role:1', {'name': name, 'mask': mask, 'display': display})
     await self.refresh_role_cache()
 
   async def delete_role(self, name):
     self.delete_args = name
     if self.db:
-      await self.db.run('db:security:roles:delete_role:1', {'name': name})
+      await self.db.run('db:system:roles:delete_role:1', {'name': name})
     await self.refresh_role_cache()
 
 class AuthModule:
@@ -116,9 +116,9 @@ class DummyDb:
     if op == 'db:system:roles:list:1':
       rows = [{'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}]
       return SimpleNamespace(rows=rows, rowcount=1)
-    if op == 'db:security:roles:upsert_role:1':
+    if op == 'db:system:roles:upsert_role:1':
       return SimpleNamespace(rows=[], rowcount=1)
-    if op == 'db:security:roles:delete_role:1':
+    if op == 'db:system:roles:delete_role:1':
       return SimpleNamespace(rows=[], rowcount=1)
     raise AssertionError(f'unexpected op {op}')
 
@@ -179,6 +179,6 @@ def test_upsert_and_delete_role_service():
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:system:roles:delete_role:1', 'payload': {'name': 'ROLE_FOO'}})
   assert resp.status_code == 200
-  assert ('db:security:roles:upsert_role:1', {'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}) in db.calls
-  assert ('db:security:roles:delete_role:1', {'name': 'ROLE_FOO'}) in db.calls
+  assert ('db:system:roles:upsert_role:1', {'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}) in db.calls
+  assert ('db:system:roles:delete_role:1', {'name': 'ROLE_FOO'}) in db.calls
   assert auth.role_cache.refreshed

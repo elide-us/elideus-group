@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from . import BaseModule
 from .db_module import DbModule
+from server.registry.system.config import get_config_request
 
 
 @dataclass
@@ -43,7 +44,9 @@ class BskyModule(BaseModule):
   async def _load_optional_config(self, key: str) -> str:
     if not self.db:
       raise RuntimeError("BskyModule requires database module")
-    res = await self.db.run("db:system:config:get_config:1", {"key": key})
+    assert self.db, "database module not initialised"
+    request = get_config_request(key)
+    res = await self.db.run(request.op, request.params)
     if not res.rows:
       return ""
     return res.rows[0].get("value") or ""
