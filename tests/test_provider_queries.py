@@ -70,43 +70,48 @@ def test_mssql_get_profile_uses_profile_view():
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
-def test_mssql_accounts_security_profile_by_guid_uses_security_view():
+_SECURITY_PROFILE_CASES = [
+  ({"guid": "gid"}, ("vw_user_session_security", "auth_providers"), False),
+  (
+    {"access_token": "tok"},
+    ("vw_user_session_security", "user_roles", "auth_providers"),
+    False,
+  ),
+  ({"discord_id": "42"}, ("vw_user_session_security", "auth_providers"), True),
+  (
+    {"provider": "discord", "provider_identifier": str(uuid4())},
+    ("vw_user_session_security", "auth_providers"),
+    True,
+  ),
+]
+
+
+@pytest.mark.parametrize(
+  ("args", "expected_fragments", "joins_users_auth"),
+  _SECURITY_PROFILE_CASES,
+)
+def test_mssql_accounts_security_profile_routes_through_security_view(args, expected_fragments, joins_users_auth):
   handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler({"guid": "gid"})
+  op = handler(args)
   assert hasattr(op, "sql")
   sql = op.sql.lower()
-  assert "vw_user_session_security" in sql
-  assert "auth_providers" in sql
+  for fragment in expected_fragments:
+    assert fragment in sql
+  assert ("join users_auth" in sql) is joins_users_auth
 
 
-def test_mssql_accounts_security_profile_by_access_token_uses_security_view():
-  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler({"access_token": "tok"})
-  assert hasattr(op, "sql")
-  sql = op.sql.lower()
-  assert "vw_user_session_security" in sql
-  assert "user_roles" in sql
-  assert "auth_providers" in sql
+_REMOVED_SECURITY_URNS = [
+  "db:auth:discord:get_security:1",
+  "db:auth:session:get_by_access_token:1",
+  "db:users:profile:get_roles:1",
+  "db:users:session:get_rotkey:1",
+]
 
 
-def test_mssql_accounts_security_profile_by_discord_id_joins_users_auth():
-  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler({"discord_id": "42"})
-  assert hasattr(op, "sql")
-  sql = op.sql.lower()
-  assert "vw_user_session_security" in sql
-  assert "auth_providers" in sql
-  assert "join users_auth" in sql
-
-
-def test_mssql_accounts_security_profile_by_provider_identifier_joins_users_auth():
-  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler({"provider": "discord", "provider_identifier": str(uuid4())})
-  assert hasattr(op, "sql")
-  sql = op.sql.lower()
-  assert "vw_user_session_security" in sql
-  assert "auth_providers" in sql
-  assert "join users_auth" in sql
+@pytest.mark.parametrize("urn", _REMOVED_SECURITY_URNS)
+def test_removed_security_aliases_are_not_registered(urn):
+  with pytest.raises(KeyError):
+    get_mssql_handler(urn)
 
 
 def test_mssql_support_users_set_credits_updates_table():
