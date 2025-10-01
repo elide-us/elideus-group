@@ -13,6 +13,11 @@ from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
+from server.registry.system.roles import (
+  delete_role_request,
+  list_roles_request,
+  upsert_role_request,
+)
 from server.modules.discord_bot_module import DiscordBotModule
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
@@ -31,7 +36,9 @@ class RoleCache:
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
-      result = await self.db.run("db:system:roles:list:1", {})
+      assert self.db, "database module not initialised"
+      request = list_roles_request()
+      result = await self.db.run(request.op, request.params)
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
@@ -53,17 +60,15 @@ class RoleCache:
     await self.load_roles()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    await self.db.run(
-      "db:security:roles:upsert_role:1",
-      {"name": name, "mask": mask, "display": display},
-    )
+    assert self.db, "database module not initialised"
+    request = upsert_role_request(name, mask, display)
+    await self.db.run(request.op, request.params)
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
-    await self.db.run(
-      "db:security:roles:delete_role:1",
-      {"name": name},
-    )
+    assert self.db, "database module not initialised"
+    request = delete_role_request(name)
+    await self.db.run(request.op, request.params)
     await self.refresh_role_cache()
 
   def mask_to_names(self, mask: int) -> list[str]:

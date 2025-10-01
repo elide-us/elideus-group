@@ -5,6 +5,11 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
+from server.registry.system.routes import (
+  delete_route_request,
+  get_routes_request,
+  upsert_route_request,
+)
 from .models import (
   ServiceRoutesRouteItem1,
   ServiceRoutesList1,
@@ -21,7 +26,8 @@ async def service_routes_get_routes_v1(request: Request):
   )
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
-  res = await db.run("db:service:routes:get_routes:1", {})
+  db_request = get_routes_request()
+  res = await db.run(db_request.op, db_request.params)
   routes = []
   for row in res.rows:
     mask = int(row.get("element_roles", 0))
@@ -58,13 +64,14 @@ async def service_routes_upsert_route_v1(request: Request):
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
   mask = auth.names_to_mask(payload.required_roles)
-  await db.run("db:service:routes:upsert_route:1", {
-    "path": payload.path,
-    "name": payload.name,
-    "icon": payload.icon,
-    "sequence": payload.sequence,
-    "roles": mask,
-  })
+  db_request = upsert_route_request(
+    path=payload.path,
+    name=payload.name,
+    icon=payload.icon,
+    sequence=payload.sequence,
+    roles=mask,
+  )
+  await db.run(db_request.op, db_request.params)
   logging.debug(
     "[service_routes_upsert_route_v1] upserted route %s",
     payload.path,
@@ -86,7 +93,8 @@ async def service_routes_delete_route_v1(request: Request):
   )
   payload = ServiceRoutesDeleteRoute1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
-  await db.run("db:service:routes:delete_route:1", {"path": payload.path})
+  db_request = delete_route_request(payload.path)
+  await db.run(db_request.op, db_request.params)
   logging.debug(
     "[service_routes_delete_route_v1] deleted route %s",
     payload.path,

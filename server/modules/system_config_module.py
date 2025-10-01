@@ -4,6 +4,11 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.system.config import (
+  delete_config_request,
+  get_configs_request,
+  upsert_config_request,
+)
 from rpc.system.config.models import (
   SystemConfigConfigItem1,
   SystemConfigDeleteConfig1,
@@ -29,7 +34,9 @@ class SystemConfigModule(BaseModule):
 
   async def get_configs(self, user_guid: str, roles: list[str]) -> SystemConfigList1:
     logging.debug("[system_config_get_configs_v1] user=%s roles=%s", user_guid, roles)
-    res = await self.db.run("db:system:config:get_configs:1", {})
+    assert self.db, "database module not initialised"
+    request = get_configs_request()
+    res = await self.db.run(request.op, request.params)
     items = [
       SystemConfigConfigItem1(
         key=row.get("element_key", ""),
@@ -51,10 +58,9 @@ class SystemConfigModule(BaseModule):
       key,
       value,
     )
-    await self.db.run(
-      "db:system:config:upsert_config:1",
-      {"key": key, "value": value},
-    )
+    assert self.db, "database module not initialised"
+    request = upsert_config_request(key, value)
+    await self.db.run(request.op, request.params)
     logging.debug(
       "[system_config_upsert_config_v1] upserted config %s",
       key,
@@ -68,10 +74,9 @@ class SystemConfigModule(BaseModule):
       roles,
       key,
     )
-    await self.db.run(
-      "db:system:config:delete_config:1",
-      {"key": key},
-    )
+    assert self.db, "database module not initialised"
+    request = delete_config_request(key)
+    await self.db.run(request.op, request.params)
     logging.debug(
       "[system_config_delete_config_v1] deleted config %s",
       key,

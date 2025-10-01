@@ -1,4 +1,4 @@
-"""Service route management helpers for MSSQL."""
+"""System route queries for MSSQL."""
 
 from __future__ import annotations
 

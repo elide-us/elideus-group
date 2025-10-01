@@ -78,9 +78,9 @@ class DummyDb:
 
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "db:security:roles:get_role_members:1":
+    if op == "db:system:roles:get_role_members:1":
       return DBRes(self.members, len(self.members))
-    if op == "db:security:roles:get_role_non_members:1":
+    if op == "db:system:roles:get_role_non_members:1":
       return DBRes(self.non_members, len(self.non_members))
     return DBRes()
 
@@ -105,7 +105,7 @@ class RoleCache:
     self.upsert_args = (name, mask, display)
     if self.db:
       await self.db.run(
-        "db:security:roles:upsert_role:1",
+        "db:system:roles:upsert_role:1",
         {"name": name, "mask": mask, "display": display},
       )
     await self.refresh_role_cache()
@@ -113,7 +113,7 @@ class RoleCache:
   async def delete_role(self, name):
     self.delete_args = name
     if self.db:
-      await self.db.run("db:security:roles:delete_role:1", {"name": name})
+      await self.db.run("db:system:roles:delete_role:1", {"name": name})
     await self.refresh_role_cache()
 
   def get_role_names(self, exclude_registered=False):
@@ -266,7 +266,7 @@ def test_upsert_role_calls_db_and_loads_roles():
   assert isinstance(resp, RPCResponse)
   assert auth.role_cache.upsert_args == ("ROLE_NEW", 4, "New")
   assert (
-    "db:security:roles:upsert_role:1",
+    "db:system:roles:upsert_role:1",
     {"name": "ROLE_NEW", "mask": 4, "display": "New"},
   ) in db.calls
   assert auth.role_cache.loaded
@@ -290,7 +290,7 @@ def test_delete_role_calls_db_and_loads_roles():
   assert isinstance(resp, RPCResponse)
   assert auth.role_cache.delete_args == "ROLE_OLD"
   assert (
-    "db:security:roles:delete_role:1",
+    "db:system:roles:delete_role:1",
     {"name": "ROLE_OLD"},
   ) in db.calls
   assert auth.role_cache.loaded
