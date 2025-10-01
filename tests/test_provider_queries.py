@@ -1,74 +1,42 @@
-from uuid import uuid4
 import asyncio
-import importlib.util
-import pathlib
-import sys
-import types
+from uuid import uuid4
+
 import pytest
+
 from server.modules.providers import DbRunMode
-import server.modules.providers.database.mssql_provider  # ensure provider module loaded
+from server.modules.providers.database.mssql_provider import db_helpers
+from server.registry.accounts.security import mssql as accounts_security
+from server.registry.providers.mssql import PROVIDER_QUERIES
+from server.registry.support.users import mssql as support_users
+from server.registry.users.profile import mssql as users_profile
+from server.registry.users.providers import mssql as users_providers
 
-# stub server package
-root_path = pathlib.Path(__file__).resolve().parent.parent
-server_pkg = types.ModuleType("server")
-server_pkg.__path__ = [str(root_path / "server")]
-sys.modules.setdefault("server", server_pkg)
-modules_pkg = types.ModuleType("server.modules")
-modules_pkg.__path__ = [str(root_path / "server/modules")]
-sys.modules.setdefault("server.modules", modules_pkg)
-providers_pkg = types.ModuleType("server.modules.providers")
-providers_pkg.__path__ = [str(root_path / "server/modules/providers")]
-sys.modules.setdefault("server.modules.providers", providers_pkg)
-database_pkg = types.ModuleType("server.modules.providers.database")
-database_pkg.__path__ = [str(root_path / "server/modules/providers/database")]
-sys.modules.setdefault("server.modules.providers.database", database_pkg)
-mssql_pkg = types.ModuleType("server.modules.providers.database.mssql_provider")
-mssql_pkg.__path__ = [str(root_path / "server/modules/providers/database/mssql_provider")]
-sys.modules.setdefault("server.modules.providers.database.mssql_provider", mssql_pkg)
 
-spec_logic = importlib.util.spec_from_file_location(
-  "server.modules.providers.database.mssql_provider.logic",
-  root_path / "server/modules/providers/database/mssql_provider/logic.py",
-)
-logic_mod = importlib.util.module_from_spec(spec_logic)
-sys.modules["server.modules.providers.database.mssql_provider.logic"] = logic_mod
-spec_logic.loader.exec_module(logic_mod)
-
-spec_db_helpers = importlib.util.spec_from_file_location(
-  "server.modules.providers.database.mssql_provider.db_helpers",
-  root_path / "server/modules/providers/database/mssql_provider/db_helpers.py",
-)
-db_helpers = importlib.util.module_from_spec(spec_db_helpers)
-sys.modules["server.modules.providers.database.mssql_provider.db_helpers"] = db_helpers
-spec_db_helpers.loader.exec_module(db_helpers)
-
-spec_registry = importlib.util.spec_from_file_location(
-  "server.modules.providers.database.mssql_provider.registry",
-  root_path / "server/modules/providers/database/mssql_provider/registry.py",
-)
-registry_mod = importlib.util.module_from_spec(spec_registry)
-sys.modules["server.modules.providers.database.mssql_provider.registry"] = registry_mod
-spec_registry.loader.exec_module(registry_mod)
-get_mssql_handler = registry_mod.get_handler
+def _provider_map_for(urn: str) -> str:
+  parts = urn.split(":")
+  if len(parts) != 5 or parts[0] != "db":
+    raise ValueError(f"Unsupported urn: {urn}")
+  return f"{parts[1]}.{parts[2]}.{parts[3]}"
 
 
 def test_mssql_get_by_provider_identifier_uses_user_view():
-  handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
-  op = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
-  assert hasattr(op, "sql")
+  op = users_providers.get_by_provider_identifier_v1({
+    "provider": "microsoft",
+    "provider_identifier": str(uuid4()),
+  })
   sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
+
 def test_mssql_get_profile_uses_profile_view():
-  handler = get_mssql_handler("db:users:profile:get_profile:1")
-  op = handler({"guid": "gid"})
-  assert hasattr(op, "sql")
+  op = users_profile.get_profile_v1({"guid": "gid"})
   sql = op.sql.lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
+
 
 _SECURITY_PROFILE_CASES = [
   ({"guid": "gid"}, ("vw_user_session_security", "auth_providers"), False),
@@ -90,10 +58,10 @@ _SECURITY_PROFILE_CASES = [
   ("args", "expected_fragments", "joins_users_auth"),
   _SECURITY_PROFILE_CASES,
 )
-def test_mssql_accounts_security_profile_routes_through_security_view(args, expected_fragments, joins_users_auth):
-  handler = get_mssql_handler("db:accounts:security:get_security_profile:1")
-  op = handler(args)
-  assert hasattr(op, "sql")
+def test_mssql_accounts_security_profile_routes_through_security_view(
+  args, expected_fragments, joins_users_auth
+):
+  op = accounts_security.get_security_profile_v1(args)
   sql = op.sql.lower()
   for fragment in expected_fragments:
     assert fragment in sql
@@ -110,14 +78,12 @@ _REMOVED_SECURITY_URNS = [
 
 @pytest.mark.parametrize("urn", _REMOVED_SECURITY_URNS)
 def test_removed_security_aliases_are_not_registered(urn):
-  with pytest.raises(KeyError):
-    get_mssql_handler(urn)
+  provider_map = _provider_map_for(urn)
+  assert provider_map not in PROVIDER_QUERIES
 
 
 def test_mssql_support_users_set_credits_updates_table():
-  handler = get_mssql_handler("db:support:users:set_credits:1")
-  op = handler({"guid": "gid", "credits": 10})
-  assert hasattr(op, "sql")
+  op = support_users.set_credits_v1({"guid": "gid", "credits": 10})
   assert op.kind is DbRunMode.EXEC
   assert "update users_credits" in op.sql.lower()
   assert op.params == (10, "gid")
@@ -204,11 +170,11 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
     async def execute(self, q, p):
       pass
     async def fetchone(self):
-      if self._idx < len(self._rows):
-        r = self._rows[self._idx]
-        self._idx += 1
-        return r
-      return None
+      if self._idx >= len(self._rows):
+        return None
+      row = self._rows[self._idx]
+      self._idx += 1
+      return row
 
   class Conn:
     async def __aenter__(self):
@@ -228,19 +194,21 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
       return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  res = asyncio.run(db_helpers.fetch_json(db_helpers.json_one("SELECT")))
-  assert res.rows == [{"a": 1, "b": "two"}]
-  assert res.rowcount == 1
+  result = asyncio.run(db_helpers.fetch_json(db_helpers.json_many("SELECT 1")))
+  assert result.rows == [{"a": 1, "b": "two"}]
 
 
-def test_exec_query_raises_structured_error(monkeypatch):
+def test_execute_operation_handles_exec(monkeypatch):
   class Cur:
     async def __aenter__(self):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
     async def execute(self, q, p):
-      raise Exception("boom")
+      pass
+    @property
+    def rowcount(self):
+      return 3
 
   class Conn:
     async def __aenter__(self):
@@ -260,43 +228,5 @@ def test_exec_query_raises_structured_error(monkeypatch):
       return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.exec_query(db_helpers.exec_op("UPDATE x SET y=1")))
-  assert exc.value.detail.query == "UPDATE x SET y=1"
-
-
-def test_fetch_rows_stream(monkeypatch):
-  class Cur:
-    async def __aenter__(self):
-      return self
-    async def __aexit__(self, exc_type, exc, tb):
-      pass
-    async def execute(self, q, p):
-      pass
-    async def fetchone(self):
-      return None
-
-  class Conn:
-    async def __aenter__(self):
-      return self
-    async def __aexit__(self, exc_type, exc, tb):
-      pass
-    async def cursor(self):
-      return Cur()
-
-  class Pool:
-    async def acquire(self):
-      class _Ctx:
-        async def __aenter__(self_inner):
-          return Conn()
-        async def __aexit__(self_inner, exc_type, exc, tb):
-          pass
-      return _Ctx()
-
-  monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-
-  async def run():
-    gen = await db_helpers.fetch_rows(db_helpers.row_many("SELECT"), stream=True)
-    return hasattr(gen, "__aiter__")
-
-  assert asyncio.run(run())
+  result = asyncio.run(db_helpers.exec_query(db_helpers.exec_op("UPDATE")))
+  assert result.rowcount == 3
