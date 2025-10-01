@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import pkgutil
-from typing import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 
 from server.modules.providers import DBResult, DbProviderBase
 
@@ -46,11 +46,15 @@ class FunctionRoute:
 class RegistryRouter:
   """Hierarchical router that registers domain and subdomain functions."""
 
-  def __init__(self):
+  def __init__(self, *, default_provider: str | None = None):
     self._domains: dict[str, DomainRouter] = {}
     self._routes: dict[str, FunctionRoute] = {}
     self._aliases: dict[str, str] = {}
     self._initialised = False
+    self._provider_name = default_provider
+    self._provider_module = None
+    self._provider_queries: dict[str, Mapping[int, Executor] | Executor] = {}
+    self._provider_executors: dict[str, Executor] = {}
 
   def domain(self, name: str) -> "DomainRouter":
     if name not in self._domains:
@@ -62,6 +66,7 @@ class RegistryRouter:
     if key in self._routes:
       raise ValueError(f"Duplicate registry route registered: {key}")
     self._routes[key] = route
+    self._attach_provider_callable(route)
 
   def add_alias(self, alias: str, target: str) -> None:
     if alias in self._routes or alias in self._aliases:
@@ -88,6 +93,61 @@ class RegistryRouter:
       if callable(register):
         register(self)
     self._initialised = True
+
+  @property
+  def provider_name(self) -> str | None:
+    return self._provider_name
+
+  def set_provider(self, name: str) -> None:
+    if not name:
+      raise ValueError("Provider name cannot be empty")
+    if name != self._provider_name:
+      self._provider_name = name
+      self._provider_module = None
+      self._provider_queries = {}
+      self._provider_executors.clear()
+
+  def load_provider(self, provider: str | None = None) -> None:
+    name = provider or self._provider_name
+    if not name:
+      raise ValueError("Registry provider is not configured")
+    if self._provider_module and name == self._provider_name and self._provider_queries:
+      return
+    module = importlib.import_module(f"server.registry.providers.{name}")
+    queries = getattr(module, "PROVIDER_QUERIES", None)
+    if not isinstance(queries, dict):
+      raise ValueError(f"Provider module '{name}' missing PROVIDER_QUERIES mapping")
+    self._provider_name = name
+    self._provider_module = module
+    self._provider_queries = queries
+    self._provider_executors.clear()
+    for route in self._routes.values():
+      self._attach_provider_callable(route)
+
+  def get_executor(self, route: FunctionRoute) -> Executor | None:
+    executor = self._provider_executors.get(route.key)
+    if executor:
+      return executor
+    self._attach_provider_callable(route)
+    return self._provider_executors.get(route.key)
+
+  def _attach_provider_callable(self, route: FunctionRoute) -> None:
+    if not self._provider_queries:
+      return
+    entry = self._provider_queries.get(route.provider_map)
+    if entry is None:
+      return
+    if isinstance(entry, Mapping):
+      provider_callable = entry.get(route.version)
+    else:
+      provider_callable = entry
+    if provider_callable is None:
+      return
+    if not callable(provider_callable):
+      raise TypeError(
+        f"Provider mapping for '{route.provider_map}' version {route.version} is not callable"
+      )
+    self._provider_executors[route.key] = provider_callable
 
 
 class DomainRouter:
@@ -157,21 +217,37 @@ class RegistryDispatcher:
   def set_executor(self, executor: Executor) -> None:
     self._executor = executor
 
-  def bind_provider(self, provider: DbProviderBase) -> None:
+  def bind_provider(self, provider: DbProviderBase, *, provider_name: str | None = None) -> None:
     self.initialise()
-    async def _execute(request: DBRequest) -> DBResponse:
-      route = self.router.resolve(request.op)
-      if route and route.key != request.op:
-        request = request.model_copy(update={"op": route.key})
-      result = await provider.run(request.op, request.params)
-      DBResultCls = _current_dbresult_cls()
+    provider_key = provider_name or self.router.provider_name
+    if provider_key:
+      self.router.set_provider(provider_key)
+      self.router.load_provider(provider_key)
+    DBResultCls = _current_dbresult_cls()
+
+    def _ensure_response(result: DBResponse | DBResult | object) -> DBResponse:
       if isinstance(result, DBResponse):
         return result
       if isinstance(result, DBResultCls):
-        return result
+        return DBResponse.from_result(result)
       payload = result.model_dump() if hasattr(result, "model_dump") else result
       validated = DBResultCls.model_validate(payload)
       return DBResponse.from_result(validated)
+
+    async def _execute(request: DBRequest) -> DBResponse:
+      route = self.router.resolve(request.op)
+      if not route:
+        result = await provider.run(request.op, request.params)
+        return _ensure_response(result)
+      if route.key != request.op:
+        request = request.model_copy(update={"op": route.key})
+      executor = self.router.get_executor(route)
+      if not executor:
+        raise KeyError(
+          f"No provider callable registered for '{route.provider_map}' version {route.version}"
+        )
+      result = await executor(request)
+      return _ensure_response(result)
 
     self.set_executor(_execute)
 

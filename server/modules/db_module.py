@@ -67,12 +67,14 @@ class DbModule(BaseModule):
       request = DBRequest(op=op, params=args or {})
     response = await self._registry.execute(request)
     DBResultCls = _current_dbresult_cls()
-    if isinstance(response, DBResponse):
-      return response.to_result()
-    if isinstance(response, DBResultCls):
-      return response
-    payload = response.model_dump() if hasattr(response, "model_dump") else response
-    return DBResultCls(**payload)
+    if not isinstance(response, DBResponse):
+      if isinstance(response, DBResultCls):
+        response = DBResponse.from_result(response)
+      else:
+        payload = response.model_dump() if hasattr(response, "model_dump") else response
+        validated = DBResultCls.model_validate(payload)
+        response = DBResponse.from_result(validated)
+    return response.to_result()
 
   async def startup(self):
     env: EnvModule = self.app.state.env
@@ -85,7 +87,7 @@ class DbModule(BaseModule):
     assert self._provider
     await self._provider.startup()
     if self._registry:
-      self._registry.bind_provider(self._provider)
+      self._registry.bind_provider(self._provider, provider_name=self.provider)
     res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
     val = res.rows[0]["value"] if res.rows else "0"
     try:

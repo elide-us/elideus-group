@@ -1,4 +1,6 @@
 import asyncio
+import sys
+from types import ModuleType
 from typing import Any
 import pytest
 from fastapi import FastAPI
@@ -7,8 +9,8 @@ from server.modules.db_module import DbModule
 from server.modules.providers import DBResult, DbProviderBase
 from server.modules.providers.database.mssql_provider import MssqlProvider
 from server.modules.providers.database.mssql_provider.db_helpers import DBQueryError, QueryErrorDetail
-from server.registry import RegistryDispatcher
-from server.registry.types import DBResponse
+from server.registry import RegistryDispatcher, RegistryRouter
+from server.registry.types import DBRequest, DBResponse
 
 
 def test_init_uses_concrete_provider():
@@ -115,3 +117,46 @@ def test_db_module_run_constructs_registry_request():
   request = registry.requests[0]
   assert request.op == "db:test:op"
   assert request.params == {"key": "value"}
+
+
+def test_registry_dispatcher_executes_provider_callable(monkeypatch):
+  router = RegistryRouter()
+  router.domain("demo").subdomain("ops").add_function(
+    "test",
+    version=1,
+    provider_map="demo.ops.test",
+  )
+
+  calls: dict[str, Any] = {}
+
+  async def stub_callable(request: DBRequest) -> DBResponse:
+    calls["op"] = request.op
+    calls["params"] = request.params
+    value = request.params.get("value")
+    return DBResponse(rows=[{"value": value}], rowcount=1)
+
+  module = ModuleType("server.registry.providers.stub")
+  module.PROVIDER_QUERIES = {
+    "demo.ops.test": {1: stub_callable},
+  }
+  monkeypatch.setitem(sys.modules, module.__name__, module)
+
+  class DummyProvider(DbProviderBase):
+    async def startup(self):
+      pass
+
+    async def shutdown(self):
+      pass
+
+    async def run(self, op, args):
+      raise AssertionError("provider.run should not be used when route is registered")
+
+  dispatcher = RegistryDispatcher(router=router)
+  dispatcher.bind_provider(DummyProvider(), provider_name="stub")
+
+  response = asyncio.run(dispatcher.execute(DBRequest(op="db:demo:ops:test:1", params={"value": 7})))
+
+  assert response.rows == [{"value": 7}]
+  assert response.rowcount == 1
+  assert calls["op"] == "db:demo:ops:test:1"
+  assert calls["params"] == {"value": 7}
