@@ -17,5 +17,4 @@ def register(router: "SubdomainRouter") -> None:
     "set_gallery",
     version=1,
     provider_map="content.files.set_gallery",
-    aliases=["db:storage:files:set_gallery:1"],
   )

@@ -349,55 +349,46 @@ def _support_users_set_credits(args: Dict[str, Any]):
 @register("db:content:cache:list:1")
 def _content_cache_list(args: Dict[str, Any]):
   return content_cache_mssql.list_v1(args)
-register("db:storage:cache:list:1")(_content_cache_list)
 
 
 @register("db:content:cache:replace_user:1")
 async def _content_cache_replace_user(args: Dict[str, Any]):
   return await content_cache_mssql.replace_user_v1(args)
-register("db:storage:cache:replace_user:1")(_content_cache_replace_user)
 
 
 @register("db:content:cache:upsert:1")
 async def _content_cache_upsert(args: Dict[str, Any]):
   return await content_cache_mssql.upsert_v1(args)
-register("db:storage:cache:upsert:1")(_content_cache_upsert)
 
 
 @register("db:content:cache:delete:1")
 def _content_cache_delete(args: Dict[str, Any]):
   return content_cache_mssql.delete_v1(args)
-register("db:storage:cache:delete:1")(_content_cache_delete)
 
 
 @register("db:content:cache:delete_folder:1")
 def _content_cache_delete_folder(args: Dict[str, Any]):
   return content_cache_mssql.delete_folder_v1(args)
-register("db:storage:cache:delete_folder:1")(_content_cache_delete_folder)
 
 
 @register("db:content:cache:set_public:1")
 def _content_cache_set_public(args: Dict[str, Any]):
   return content_cache_mssql.set_public_v1(args)
-register("db:storage:cache:set_public:1")(_content_cache_set_public)
 
 
 @register("db:content:cache:set_reported:1")
 def _content_cache_set_reported(args: Dict[str, Any]):
   return content_cache_mssql.set_reported_v1(args)
-register("db:storage:cache:set_reported:1")(_content_cache_set_reported)
 
 
 @register("db:content:cache:count_rows:1")
 def _content_cache_count_rows(args: Dict[str, Any]):
   return content_cache_mssql.count_rows_v1(args)
-register("db:storage:cache:count_rows:1")(_content_cache_count_rows)
 
 
 @register("db:content:public:list_public:1")
 def _content_public_list_public(args: Dict[str, Any]):
   return content_public_mssql.list_public_v1(args)
-register("db:storage:cache:list_public:1")(_content_public_list_public)
 
 
 @register("db:content:public:get_public_files:1")
@@ -409,13 +400,11 @@ register("db:public:gallery:get_public_files:1")(_content_public_get_public_file
 @register("db:content:public:list_reported:1")
 def _content_public_list_reported(args: Dict[str, Any]):
   return content_public_mssql.list_reported_v1(args)
-register("db:storage:cache:list_reported:1")(_content_public_list_reported)
 
 
 @register("db:content:files:set_gallery:1")
 def _content_files_set_gallery(args: Dict[str, Any]):
   return content_files_mssql.set_gallery_v1(args)
-register("db:storage:files:set_gallery:1")(_content_files_set_gallery)
 
 @register("db:users:profile:set_optin:1")
 def _users_set_optin(args: Dict[str, Any]):

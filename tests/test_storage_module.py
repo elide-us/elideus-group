@@ -8,6 +8,54 @@ from server.modules import BaseModule
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult, DbRunMode
+from server.registry.types import DBRequest
+
+
+def _extract_request(request, args=None):
+  if isinstance(request, DBRequest):
+    return request.op, request.params
+  return request, args or {}
+
+
+def _ensure_result(value):
+  if isinstance(value, DBResult):
+    return value
+  if isinstance(value, list):
+    return DBResult(rows=list(value), rowcount=len(value))
+  if hasattr(value, "rows") and hasattr(value, "rowcount"):
+    rows = list(getattr(value, "rows"))
+    return DBResult(rows=rows, rowcount=getattr(value, "rowcount"))
+  if hasattr(value, "rowcount"):
+    return DBResult(rowcount=getattr(value, "rowcount"))
+  return DBResult()
+
+
+class RegistryDispatchMixin:
+  def _config_result(self, key: str | None):
+    return None
+
+  async def run(self, request, args=None):
+    op, params = _extract_request(request, args)
+    if op == "db:system:config:get_config:1":
+      value = self._config_result(params.get("key"))
+      rows = [] if value is None else [{"value": value}]
+      return DBResult(rows=rows, rowcount=len(rows))
+    if op == "db:content:cache:list:1" and hasattr(self, "list_storage_cache"):
+      res = await self.list_storage_cache(params.get("user_guid"))
+      return _ensure_result(res)
+    if op == "db:content:cache:replace_user:1" and hasattr(self, "replace_storage_cache"):
+      res = await self.replace_storage_cache(params.get("user_guid"), params.get("items", []))
+      return _ensure_result(res)
+    if op == "db:content:cache:upsert:1" and hasattr(self, "upsert_storage_cache"):
+      res = await self.upsert_storage_cache(params)
+      return _ensure_result(res)
+    if op == "db:content:cache:delete:1" and hasattr(self, "delete_storage_cache"):
+      await self.delete_storage_cache(params.get("user_guid"), params.get("path", ""), params.get("filename", ""))
+      return DBResult()
+    if op == "db:content:cache:delete_folder:1" and hasattr(self, "delete_storage_cache_folder"):
+      await self.delete_storage_cache_folder(params.get("user_guid"), params.get("path", ""))
+      return DBResult()
+    return DBResult()
 
 
 class DummyEnv(BaseModule):
@@ -25,31 +73,28 @@ class DummyEnv(BaseModule):
     return self._env.get(key)
 
 
-class DummyDb(BaseModule):
+class DummyDb(RegistryDispatchMixin, BaseModule):
   async def startup(self):
     self.mark_ready()
 
   async def shutdown(self):
     pass
 
-  async def run(self, op, args):
-    class Res:
-      def __init__(self, rows):
-        self.rows = rows
-    if op == "db:system:config:get_config:1" and args.get("key") == "StorageCacheTime":
-      return Res([{ "value": "15m" }])
-    return Res([])
+  def _config_result(self, key: str | None):
+    if key == "StorageCacheTime":
+      return "15m"
+    return None
 
   async def user_exists(self, user_guid):
     return True
 
 
-class DummyListDb:
+class DummyListDb(RegistryDispatchMixin):
   def __init__(self, rows):
     self.rows = rows
 
   async def list_storage_cache(self, user_guid):
-    return self.rows
+    return list(self.rows)
 
 
 def test_storage_module_startup_loads_connection_string_and_interval():
@@ -103,8 +148,9 @@ def test_set_gallery_sends_numeric_flag_to_db():
     def __init__(self):
       self.calls = []
 
-    async def run(self, op, args):
-      self.calls.append((op, args))
+    async def run(self, request, args=None):
+      op, params = _extract_request(request, args)
+      self.calls.append((op, params))
       return DBResult(rowcount=1)
 
   db = CaptureDb()
@@ -179,20 +225,17 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
     async def shutdown(self):
       pass
 
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.upserts = []
       self.existing = set()
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
     async def upsert_storage_cache(self, item):
       self.upserts.append(item)
       from types import SimpleNamespace
@@ -277,20 +320,17 @@ def test_reindex_skips_unknown_users(monkeypatch):
     async def shutdown(self):
       pass
 
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.upserts = []
       self.checked = []
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
     async def upsert_storage_cache(self, item):
       self.upserts.append(item)
       from types import SimpleNamespace
@@ -360,20 +400,17 @@ def test_reindex_skips_unknown_users(monkeypatch):
 
 
 def test_move_file_copies_and_updates_cache(monkeypatch):
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.deleted = None
       self.upserted = None
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
     async def delete_storage_cache(self, user_guid, path, filename):
       self.deleted = (user_guid, path, filename)
     async def upsert_storage_cache(self, item):
@@ -441,7 +478,7 @@ def test_move_file_copies_and_updates_cache(monkeypatch):
 
 
 def test_rename_file_preserves_public_flag(monkeypatch):
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.deleted = []
@@ -450,13 +487,10 @@ def test_rename_file_preserves_public_flag(monkeypatch):
     async def startup(self):
       self.mark_ready()
 
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
 
     async def delete_storage_cache(self, user_guid, path, filename):
       self.deleted.append((user_guid, path, filename))
@@ -570,7 +604,7 @@ def test_rename_file_preserves_public_flag(monkeypatch):
 
 
 def test_rename_folder_updates_nested_entries(monkeypatch):
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.deleted = []
@@ -579,13 +613,10 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
     async def startup(self):
       self.mark_ready()
 
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
 
     async def delete_storage_cache(self, user_guid, path, filename):
       self.deleted.append((user_guid, path, filename))
@@ -704,15 +735,13 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
 
 def test_get_storage_stats_counts_all_folders(monkeypatch):
   class DummyDb:
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
+    async def run(self, request, args=None):
+      op, params = _extract_request(request, args)
       if op == "db:content:cache:count_rows:1":
-        return Res([{ "count": 10 }])
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+        return DBResult(rows=[{"count": 10}], rowcount=1)
+      if op == "db:system:config:get_config:1" and params.get("key") == "AzureBlobContainerName":
+        return DBResult(rows=[{"value": "container"}], rowcount=1)
+      return DBResult()
 
   app = FastAPI()
   mod = StorageModule(app)
@@ -770,17 +799,14 @@ def test_upload_files_sets_created_on(monkeypatch):
   mod = StorageModule(app)
   mod.connection_string = "UseDevelopmentStorage=true"
 
-  class DummyDb:
+  class DummyDb(RegistryDispatchMixin):
     def __init__(self):
       self.upserts = []
 
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
 
     async def upsert_storage_cache(self, data):
       self.upserts.append(data)
@@ -832,19 +858,16 @@ def test_upload_files_sets_created_on(monkeypatch):
 
 
 def test_create_folder_creates_marker_and_cache(monkeypatch):
-  class DummyDb(BaseModule):
+  class DummyDb(RegistryDispatchMixin, BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
       self.upserts = []
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
     async def upsert_storage_cache(self, item):
       self.upserts.append(item)
       from types import SimpleNamespace
@@ -908,15 +931,13 @@ def test_create_folder_creates_marker_and_cache(monkeypatch):
 
 def test_get_storage_stats_counts_user_folders(monkeypatch):
   class DummyDb:
-    async def run(self, op, args):
-      class Res:
-        def __init__(self, rows):
-          self.rows = rows
+    async def run(self, request, args=None):
+      op, params = _extract_request(request, args)
       if op == "db:content:cache:count_rows:1":
-        return Res([{ "count": 0 }])
-      if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
-        return Res([{ "value": "container" }])
-      return Res([])
+        return DBResult(rows=[{"count": 0}], rowcount=1)
+      if op == "db:system:config:get_config:1" and params.get("key") == "AzureBlobContainerName":
+        return DBResult(rows=[{"value": "container"}], rowcount=1)
+      return DBResult()
 
   app = FastAPI()
   mod = StorageModule(app)
