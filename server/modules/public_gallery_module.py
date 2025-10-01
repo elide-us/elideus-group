@@ -22,5 +22,5 @@ class PublicGalleryModule(BaseModule):
 
   async def list_public_files(self):
     assert self.db
-    res = await self.db.run("db:public:gallery:get_public_files:1", {})
+    res = await self.db.run("db:content:public:get_public_files:1", {})
     return res.rows

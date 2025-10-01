@@ -142,7 +142,7 @@ def test_storage_files_set_gallery(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  res = asyncio.run(provider.run("db:storage:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True}))
+  res = asyncio.run(provider.run("db:content:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True}))
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
 
@@ -161,7 +161,7 @@ def test_storage_cache_set_public(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  res = asyncio.run(provider.run("db:storage:cache:set_public:1", {
+  res = asyncio.run(provider.run("db:content:cache:set_public:1", {
     "user_guid": guid,
     "path": "docs",
     "filename": "file.txt",
@@ -184,8 +184,8 @@ def test_storage_public_lists_share_query(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  asyncio.run(provider.run("db:storage:cache:list_public:1", {}))
-  asyncio.run(provider.run("db:public:gallery:get_public_files:1", {}))
+  asyncio.run(provider.run("db:content:public:list_public:1", {}))
+  asyncio.run(provider.run("db:content:public:get_public_files:1", {}))
 
   assert len(seen) == 2
   assert seen[0].sql == seen[1].sql
