@@ -17,13 +17,11 @@ def register(router: "SubdomainRouter") -> None:
     "list_public",
     version=1,
     provider_map="content.public.list_public",
-    aliases=["db:storage:cache:list_public:1"],
   )
   router.add_function(
     "list_reported",
     version=1,
     provider_map="content.public.list_reported",
-    aliases=["db:storage:cache:list_reported:1"],
   )
   router.add_function(
     "get_public_files",

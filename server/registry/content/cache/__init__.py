@@ -2,21 +2,72 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, Dict, Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
 __all__ = [
   "register",
+  "delete_cache_folder_request",
+  "delete_cache_item_request",
+  "list_cache_request",
+  "replace_user_cache_request",
+  "upsert_cache_item_request",
 ]
 
 
 _DEF_PROVIDER = "content.cache"
 
 
-def _alias(key: str) -> str:
-  return f"db:storage:cache:{key}:1"
+def _normalize_cache_item_payload(item: Dict[str, Any]) -> Dict[str, Any]:
+  normalized = dict(item)
+  name = normalized.get("filename") or normalized.get("name")
+  if name is not None:
+    normalized["filename"] = name
+  if "path" not in normalized or normalized["path"] is None:
+    normalized["path"] = ""
+  for flag in ("public", "reported"):
+    if flag in normalized and normalized[flag] is not None:
+      normalized[flag] = 1 if normalized[flag] else 0
+  return normalized
+
+
+def list_cache_request(user_guid: str):
+  from server.registry.types import DBRequest
+  return DBRequest(op="db:content:cache:list:1", params={"user_guid": user_guid})
+
+
+def replace_user_cache_request(user_guid: str, items: Iterable[Dict[str, Any]]):
+  from server.registry.types import DBRequest
+  normalized = [_normalize_cache_item_payload(item) for item in items]
+  return DBRequest(op="db:content:cache:replace_user:1", params={
+    "user_guid": user_guid,
+    "items": normalized,
+  })
+
+
+def upsert_cache_item_request(item: Dict[str, Any]):
+  from server.registry.types import DBRequest
+  normalized = _normalize_cache_item_payload(item)
+  return DBRequest(op="db:content:cache:upsert:1", params=normalized)
+
+
+def delete_cache_item_request(user_guid: str, path: str, filename: str):
+  from server.registry.types import DBRequest
+  return DBRequest(op="db:content:cache:delete:1", params={
+    "user_guid": user_guid,
+    "path": path,
+    "filename": filename,
+  })
+
+
+def delete_cache_folder_request(user_guid: str, path: str):
+  from server.registry.types import DBRequest
+  return DBRequest(op="db:content:cache:delete_folder:1", params={
+    "user_guid": user_guid,
+    "path": path,
+  })
 
 
 def register(router: "SubdomainRouter") -> None:
@@ -24,47 +75,39 @@ def register(router: "SubdomainRouter") -> None:
     "list",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.list",
-    aliases=[_alias("list")],
   )
   router.add_function(
     "replace_user",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.replace_user",
-    aliases=[_alias("replace_user")],
   )
   router.add_function(
     "upsert",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.upsert",
-    aliases=[_alias("upsert")],
   )
   router.add_function(
     "delete",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.delete",
-    aliases=[_alias("delete")],
   )
   router.add_function(
     "delete_folder",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.delete_folder",
-    aliases=[_alias("delete_folder")],
   )
   router.add_function(
     "set_public",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.set_public",
-    aliases=[_alias("set_public")],
   )
   router.add_function(
     "set_reported",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.set_reported",
-    aliases=[_alias("set_reported")],
   )
   router.add_function(
     "count_rows",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.count_rows",
-    aliases=[_alias("count_rows")],
   )

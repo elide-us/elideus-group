@@ -11,6 +11,12 @@ from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.content.cache import (
+  delete_cache_folder_request,
+  delete_cache_item_request,
+  list_cache_request,
+  upsert_cache_item_request,
+)
 
 
 class StorageModule(BaseModule):
@@ -150,10 +156,11 @@ class StorageModule(BaseModule):
         filename = parts[-1]
         path = "/".join(parts[1:-1])
         if guid not in public_map:
-          rows = await self.db.list_storage_cache(guid)
+          request = list_cache_request(guid)
+          res = await self.db.run(request)
           public_map[guid] = {
             (r.get("path") or "", r.get("filename")): r.get("public", 0)
-            for r in rows
+            for r in res.rows
             if r.get("content_type") != "path/folder"
           }
         # index folders along the path (up to 4 levels)
@@ -165,7 +172,7 @@ class StorageModule(BaseModule):
             logging.debug(
               "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
             )
-            res = await self.db.upsert_storage_cache({
+            res = await self.db.run(upsert_cache_item_request({
               "user_guid": guid,
               "path": parent,
               "filename": folder_name,
@@ -176,7 +183,7 @@ class StorageModule(BaseModule):
               "url": None,
               "reported": 0,
               "moderation_recid": None,
-            })
+            }))
             if res.rowcount == 0:
               logging.error(
                 "[StorageModule] Failed to upsert folder %s/%s",
@@ -194,7 +201,7 @@ class StorageModule(BaseModule):
             logging.debug(
               "[StorageModule] indexing folder %s/%s", path or ".", filename
             )
-            res = await self.db.upsert_storage_cache({
+            res = await self.db.run(upsert_cache_item_request({
               "user_guid": guid,
               "path": path,
               "filename": filename,
@@ -205,7 +212,7 @@ class StorageModule(BaseModule):
               "url": None,
               "reported": 0,
               "moderation_recid": None,
-            })
+            }))
             if res.rowcount == 0:
               logging.error(
                 "[StorageModule] Failed to upsert folder %s/%s",
@@ -229,7 +236,7 @@ class StorageModule(BaseModule):
           "[StorageModule] indexing file %s/%s", path or ".", filename
         )
         public_val = public_map.get(guid, {}).get((path, filename), 0)
-        res = await self.db.upsert_storage_cache({
+        res = await self.db.run(upsert_cache_item_request({
           "user_guid": guid,
           "path": path,
           "filename": filename,
@@ -240,7 +247,7 @@ class StorageModule(BaseModule):
           "url": url,
           "reported": 0,
           "moderation_recid": None,
-        })
+        }))
         if res.rowcount == 0:
           logging.error(
             "[StorageModule] Failed to upsert file %s/%s",
@@ -254,13 +261,13 @@ class StorageModule(BaseModule):
         existing = public_map.get(user_guid, {})
         for key in list(existing.keys()):
           if key not in files_seen.get(user_guid, set()):
-            await self.db.delete_storage_cache(user_guid, key[0], key[1])
+            await self.db.run(delete_cache_item_request(user_guid, key[0], key[1]))
       else:
         for guid, items_seen in files_seen.items():
           existing = public_map.get(guid, {})
           for key in list(existing.keys()):
             if key not in items_seen:
-              await self.db.delete_storage_cache(guid, key[0], key[1])
+              await self.db.run(delete_cache_item_request(guid, key[0], key[1]))
     finally:
       logging.debug(
         "[StorageModule] Reindex found %d files and %d folders%s",
@@ -278,7 +285,7 @@ class StorageModule(BaseModule):
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
     assert self.db
-    res = await self.db.upsert_storage_cache({
+    res = await self.db.run(upsert_cache_item_request({
       "user_guid": user_guid,
       "path": path,
       "filename": filename,
@@ -289,7 +296,7 @@ class StorageModule(BaseModule):
       "url": kwargs.get("url"),
       "reported": kwargs.get("reported", 0),
       "moderation_recid": kwargs.get("moderation_recid"),
-    })
+    }))
     if res.rowcount == 0:
       logging.error(
         "[StorageModule] Failed to upsert file %s/%s",
@@ -300,7 +307,8 @@ class StorageModule(BaseModule):
   async def list_files_by_user(self, user_guid: str):
     """Return files belonging to ``user_guid``."""
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    res = await self.db.run(list_cache_request(user_guid))
+    rows = res.rows
     out = []
     for row in rows:
       if row.get("content_type") == "path/folder":
@@ -320,7 +328,8 @@ class StorageModule(BaseModule):
   async def list_folder(self, user_guid: str, folder: str):
     """Return files and subfolders under ``folder`` for ``user_guid``."""
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    res = await self.db.run(list_cache_request(user_guid))
+    rows = res.rows
     folder = folder.strip("/")
     prefix = f"{folder}/" if folder else ""
     files: list[dict[str, str | None]] = []
@@ -406,7 +415,7 @@ class StorageModule(BaseModule):
         filename = name.split("/")[-1]
         url = f"{container.url}/{blob_name}"
         try:
-          res = await self.db.upsert_storage_cache({
+          res = await self.db.run(upsert_cache_item_request({
             "user_guid": user_guid,
             "path": path,
             "filename": filename,
@@ -417,7 +426,7 @@ class StorageModule(BaseModule):
             "url": url,
             "reported": 0,
             "moderation_recid": None,
-          })
+          }))
           if res.rowcount == 0:
             logging.error("[StorageModule] Failed to upsert file %s/%s", path or '.', filename)
         except Exception as e:
@@ -447,7 +456,7 @@ class StorageModule(BaseModule):
         except Exception as e:
           logging.error("[StorageModule] Failed to delete %s: %s", blob_name, e)
         try:
-          await self.db.delete_storage_cache(user_guid, path, filename)
+          await self.db.run(delete_cache_item_request(user_guid, path, filename))
         except Exception as e:
           logging.error(
             "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -502,7 +511,7 @@ class StorageModule(BaseModule):
         overwrite=True,
       )
       try:
-        await self.db.upsert_storage_cache({
+        await self.db.run(upsert_cache_item_request({
           "user_guid": user_guid,
           "path": parent,
           "filename": folder_name,
@@ -513,7 +522,7 @@ class StorageModule(BaseModule):
           "url": None,
           "reported": 0,
           "moderation_recid": None,
-        })
+        }))
       except Exception as e:
         logging.error(
           "[StorageModule] Failed to update cache for %s/%s: %s",
@@ -549,7 +558,7 @@ class StorageModule(BaseModule):
         file_path = "/".join(parts[1:-1])
         filename = parts[-1]
         try:
-          await self.db.delete_storage_cache(user_guid, file_path, filename)
+          await self.db.run(delete_cache_item_request(user_guid, file_path, filename))
         except Exception as e:
           logging.error(
             "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -557,7 +566,7 @@ class StorageModule(BaseModule):
             filename,
             e,
           )
-      await self.db.delete_storage_cache_folder(user_guid, path.lstrip('/'))
+      await self.db.run(delete_cache_folder_request(user_guid, path.lstrip('/')))
     finally:
       await container.close()
       await bsc.close()
@@ -586,13 +595,13 @@ class StorageModule(BaseModule):
       props = await src_blob.get_blob_properties()
       await dst_blob.start_copy_from_url(src_blob.url)
       await src_blob.delete_blob()
-      await self.db.delete_storage_cache(user_guid, src_path, src_filename)
+      await self.db.run(delete_cache_item_request(user_guid, src_path, src_filename))
       ct = None
       if getattr(props, "content_settings", None):
         ct = getattr(props.content_settings, "content_type", None)
       created_on = getattr(props, "creation_time", None) or getattr(props, "created_on", None)
       modified_on = getattr(props, "last_modified", None)
-      await self.db.upsert_storage_cache({
+      await self.db.run(upsert_cache_item_request({
         "user_guid": user_guid,
         "path": dst_path,
         "filename": dst_filename,
@@ -603,7 +612,7 @@ class StorageModule(BaseModule):
         "url": dst_blob.url,
         "reported": 0,
         "moderation_recid": None,
-      })
+      }))
     except Exception as e:
       logging.error("[StorageModule] Failed to move %s to %s: %s", src, dst, e)
     finally:
@@ -625,7 +634,7 @@ class StorageModule(BaseModule):
     old_path, old_filename = old_rel.rsplit("/", 1) if "/" in old_rel else ("", old_rel)
     new_path, new_filename = new_rel.rsplit("/", 1) if "/" in new_rel else ("", new_rel)
     try:
-      await self.db.delete_storage_cache(user_guid, old_path, old_filename)
+      await self.db.run(delete_cache_item_request(user_guid, old_path, old_filename))
     except Exception as e:
       logging.error(
         "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -655,7 +664,7 @@ class StorageModule(BaseModule):
         rel = f"{user_guid}/{new_rel}".lstrip("/")
         url = f"{base}/{rel}" if base else existing
     try:
-      await self.db.upsert_storage_cache({
+      await self.db.run(upsert_cache_item_request({
         "user_guid": user_guid,
         "path": new_path,
         "filename": new_filename,
@@ -666,7 +675,7 @@ class StorageModule(BaseModule):
         "url": url,
         "reported": cache_entry.get("reported", 0),
         "moderation_recid": cache_entry.get("moderation_recid"),
-      })
+      }))
     except Exception as e:
       logging.error(
         "[StorageModule] Failed to update cache for %s/%s: %s",
@@ -830,7 +839,8 @@ class StorageModule(BaseModule):
       return
     bsc = BlobServiceClient.from_connection_string(self.connection_string)
     container = bsc.get_container_client(container_name)
-    cache_rows = await self.db.list_storage_cache(user_guid)
+    res = await self.db.run(list_cache_request(user_guid))
+    cache_rows = res.rows
     cache_map: dict[str, dict[str, Any]] = {}
     for row in cache_rows:
       path = row.get("path") or ""

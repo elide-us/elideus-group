@@ -87,10 +87,8 @@ content moderation, etc.). Mapping the existing URNs:
 | `db:content:files:set_gallery:1` | `content.files` | Gallery state toggle. |
 | `db:content:public:get_public_files:1` | `content.public` | Public gallery uses the same underlying SQL. |
 
-During the migration the legacy `db:storage:*` keys will continue to exist behind
-temporary aliases so that the DbModule can transition incrementally. Once the
-modules are updated to call the new `db:content:*` operations the old names can
-be dropped.
+The legacy `db:storage:*` keys have been retired; modules now call the
+`db:content:*` namespace exclusively through the registry.
 
 `content.public` exposes the shared public listing helpers that power
 both the content module and the external public gallery without duplicating SQL
