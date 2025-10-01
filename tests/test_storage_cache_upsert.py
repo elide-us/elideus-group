@@ -31,6 +31,7 @@ logic_mod.close_pool = lambda *args, **kwargs: None
 async def _dummy_tx():
   yield
 logic_mod.transaction = lambda: _dummy_tx()
+logic_mod._pool = object()
 sys.modules['server.modules.providers.database.mssql_provider.logic'] = logic_mod
 
 
@@ -80,18 +81,12 @@ async def execute_operation(operation: Operation):
   return await dummy_fetch_json(operation)
 
 
-helpers_mod = types.ModuleType('server.modules.providers.database.mssql_provider.db_helpers')
-helpers_mod.Operation = Operation
-helpers_mod.json_one = json_one
-helpers_mod.json_many = json_many
-helpers_mod.row_one = row_one
-helpers_mod.row_many = row_many
-helpers_mod.exec_op = exec_op
+helpers_mod = sys.modules['server.modules.providers.database.mssql_provider.db_helpers']
 helpers_mod.fetch_rows = dummy_fetch_rows
 helpers_mod.fetch_json = dummy_fetch_json
 helpers_mod.exec_query = dummy_exec_query
 helpers_mod.execute_operation = execute_operation
-sys.modules['server.modules.providers.database.mssql_provider.db_helpers'] = helpers_mod
+helpers_mod.logic._pool = True
 
 spec = importlib.util.spec_from_file_location(
   'server.modules.providers.database.mssql_provider.registry',
@@ -101,14 +96,18 @@ registry_mod = importlib.util.module_from_spec(spec)
 sys.modules['server.modules.providers.database.mssql_provider.registry'] = registry_mod
 spec.loader.exec_module(registry_mod)
 
+cache_mod = sys.modules['server.registry.content.cache.mssql']
+cache_mod.fetch_json = dummy_fetch_json
+cache_mod.exec_query = dummy_exec_query
+
 
 def test_storage_cache_upsert_sets_created_on(monkeypatch):
   captured = []
   async def fake_exec_query(operation):
     captured.append(operation.params)
     return DBResult(rowcount=1)
-  monkeypatch.setattr(registry_mod, 'exec_query', fake_exec_query)
-  handler = registry_mod.get_handler('db:storage:cache:upsert:1')
+  monkeypatch.setattr(cache_mod, 'exec_query', fake_exec_query)
+  handler = registry_mod.get_handler('db:content:cache:upsert:1')
   args = {
   'user_guid': 'u',
   'path': '',

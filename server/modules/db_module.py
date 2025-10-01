@@ -20,6 +20,19 @@ def _current_dbresult_cls():
   return ProvidersDBResult
 
 
+def _normalize_cache_item_payload(item: Dict[str, Any]) -> Dict[str, Any]:
+  normalized = dict(item)
+  name = normalized.get("filename") or normalized.get("name")
+  if name is not None:
+    normalized["filename"] = name
+  if "path" not in normalized or normalized["path"] is None:
+    normalized["path"] = ""
+  for flag in ("public", "reported"):
+    if flag in normalized and normalized[flag] is not None:
+      normalized[flag] = 1 if normalized[flag] else 0
+  return normalized
+
+
 class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -57,11 +70,16 @@ class DbModule(BaseModule):
   def set_registry(self, registry: RegistryDispatcher) -> None:
     self._registry = registry
 
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
+  async def run(self, op: str | DBRequest, args: Dict[str, Any] | None = None) -> DBResult:
     assert self._provider, "db_module not initialized"
     if not self._registry:
       raise RuntimeError("registry dispatcher not configured")
-    request = DBRequest(op=op, params=args)
+    if isinstance(op, DBRequest):
+      if args is not None:
+        raise ValueError("Arguments are not supported when passing a DBRequest")
+      request = op
+    else:
+      request = DBRequest(op=op, params=args or {})
     response = await self._registry.execute(request)
     DBResultCls = _current_dbresult_cls()
     if isinstance(response, DBResponse):
@@ -143,13 +161,24 @@ class DbModule(BaseModule):
     return int(value)
 
   async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
-    res = await self.run("db:storage:cache:list:1", {"user_guid": user_guid})
+    request = DBRequest(
+      op="db:content:cache:list:1",
+      params={"user_guid": user_guid},
+    )
+    res = await self.run(request)
     return res.rows
 
   async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
+    normalized_items = [_normalize_cache_item_payload(item) for item in items]
+    payload = {
+      "user_guid": user_guid,
+      "items": normalized_items,
+    }
     await self.run(
-      "db:storage:cache:replace_user:1",
-      {"user_guid": user_guid, "items": items},
+      DBRequest(
+        op="db:content:cache:replace_user:1",
+        params=payload,
+      )
     )
 
   async def user_exists(self, user_guid: str) -> bool:
@@ -157,17 +186,19 @@ class DbModule(BaseModule):
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResult:
-    return await self.run("db:storage:cache:upsert:1", item)
+    normalized_item = _normalize_cache_item_payload(item)
+    request = DBRequest(op="db:content:cache:upsert:1", params=normalized_item)
+    return await self.run(request)
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
-    await self.run(
-      "db:storage:cache:delete:1",
-      {"user_guid": user_guid, "path": path, "filename": filename},
-    )
+    await self.run(DBRequest(
+      op="db:content:cache:delete:1",
+      params={"user_guid": user_guid, "path": path, "filename": filename},
+    ))
 
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
-    await self.run(
-      "db:storage:cache:delete_folder:1",
-      {"user_guid": user_guid, "path": path},
-    )
+    await self.run(DBRequest(
+      op="db:content:cache:delete_folder:1",
+      params={"user_guid": user_guid, "path": path},
+    ))
 

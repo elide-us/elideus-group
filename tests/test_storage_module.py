@@ -114,12 +114,12 @@ def test_set_gallery_sends_numeric_flag_to_db():
   asyncio.run(mod.set_gallery("u1", "a.txt", False))
 
   assert db.calls[0] == (
-    "db:storage:files:set_gallery:1",
-    {"user_guid": "u1", "name": "docs/a.txt", "gallery": 1},
+    "db:content:files:set_gallery:1",
+    {"user_guid": "u1", "name": "docs/a.txt", "gallery": True},
   )
   assert db.calls[1] == (
-    "db:storage:files:set_gallery:1",
-    {"user_guid": "u1", "name": "a.txt", "gallery": 0},
+    "db:content:files:set_gallery:1",
+    {"user_guid": "u1", "name": "a.txt", "gallery": False},
   )
 
 
@@ -708,7 +708,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:storage:cache:count_rows:1":
+      if op == "db:content:cache:count_rows:1":
         return Res([{ "count": 10 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])
@@ -912,7 +912,7 @@ def test_get_storage_stats_counts_user_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:storage:cache:count_rows:1":
+      if op == "db:content:cache:count_rows:1":
         return Res([{ "count": 0 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])
