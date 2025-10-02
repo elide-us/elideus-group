@@ -6,6 +6,8 @@ from server.modules.providers import DBResult, DbRunMode
 from server.modules.providers.database.mssql_provider import MssqlProvider
 from server.registry.providers import mssql as registry_mssql
 from server.registry.types import DBResponse
+from server.registry.content.files import set_gallery_request
+from server.registry.content.cache import set_public_request
 
 
 def _set_provider_callable(monkeypatch, provider_map: str, handler):
@@ -145,11 +147,9 @@ def test_storage_files_set_gallery(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  res = asyncio.run(provider.run("db:content:files:set_gallery:1", {
-    "user_guid": guid,
-    "name": "file.txt",
-    "gallery": True,
-  }))
+  request = set_gallery_request(guid, "file.txt", True)
+
+  res = asyncio.run(provider.run(request.op, request.params))
 
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
@@ -169,12 +169,14 @@ def test_storage_cache_set_public(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  res = asyncio.run(provider.run("db:content:cache:set_public:1", {
-    "user_guid": guid,
-    "path": "docs",
-    "filename": "file.txt",
-    "public": False,
-  }))
+  request = set_public_request(
+    guid,
+    public=False,
+    path="docs",
+    filename="file.txt",
+  )
+
+  res = asyncio.run(provider.run(request.op, request.params))
 
   assert isinstance(res, DBResult)
   assert res.rowcount == 1

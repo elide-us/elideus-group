@@ -12,11 +12,14 @@ from .env_module import EnvModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
 from server.registry.content.cache import (
+  count_rows_request,
   delete_cache_folder_request,
   delete_cache_item_request,
   list_cache_request,
+  set_reported_request,
   upsert_cache_item_request,
 )
+from server.registry.content.files import set_gallery_request
 from server.registry.content.public import (
   list_public_request,
   list_reported_request,
@@ -481,18 +484,12 @@ class StorageModule(BaseModule):
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
-    await self.db.run(
-      "db:content:files:set_gallery:1",
-      {"user_guid": user_guid, "name": name, "gallery": bool(gallery)},
-    )
+    await self.db.run(set_gallery_request(user_guid, name, bool(gallery)))
 
   async def report_file(self, user_guid: str, name: str):
     assert self.db
     path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-    await self.db.run(
-      "db:content:cache:set_reported:1",
-      {"user_guid": user_guid, "path": path, "filename": filename, "reported": True},
-    )
+    await self.db.run(set_reported_request(user_guid, path=path, filename=filename, reported=True))
 
   async def create_folder(self, user_guid: str, path: str):
     if not self.connection_string or not self.db:
@@ -907,7 +904,7 @@ class StorageModule(BaseModule):
 
   async def get_storage_stats(self):
     assert self.db
-    db_res = await self.db.run("db:content:cache:count_rows:1", {})
+    db_res = await self.db.run(count_rows_request())
     db_rows = db_res.rows[0]["count"] if db_res.rows else 0
     if not self.connection_string:
       return {
