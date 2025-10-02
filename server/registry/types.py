@@ -3,23 +3,16 @@
 from __future__ import annotations
 
 from typing import Any
-import importlib
 
 from pydantic import BaseModel, Field
 
-from server.modules.providers import DBResult
+from server.modules.providers import DBResult, get_dbresult_cls
 
 __all__ = [
   "DBRequest",
   "DBResponse",
   "DBResult",
 ]
-
-
-def _current_dbresult_cls():
-  providers_mod = importlib.import_module("server.modules.providers")
-  return getattr(providers_mod, "DBResult")
-
 
 class DBRequest(BaseModel):
   """Payload describing a database registry operation."""
@@ -45,5 +38,5 @@ class DBResponse(BaseModel):
     return cls(rows=list(result.rows), rowcount=result.rowcount, meta=meta)
 
   def to_result(self) -> DBResult:
-    DBResultCls = _current_dbresult_cls()
+    DBResultCls = get_dbresult_cls()
     return DBResultCls(rows=list(self.rows), rowcount=self.rowcount)
