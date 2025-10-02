@@ -9,6 +9,7 @@ from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult, DbRunMode
 from server.registry.types import DBRequest
+from server.registry.content.files import set_gallery_request
 
 
 def _extract_request(request, args=None):
@@ -149,8 +150,11 @@ def test_set_gallery_sends_numeric_flag_to_db():
       self.calls = []
 
     async def run(self, request, args=None):
-      op, params = _extract_request(request, args)
-      self.calls.append((op, params))
+      if isinstance(request, DBRequest):
+        req = request
+      else:
+        req = DBRequest(op=request, params=args or {})
+      self.calls.append(req)
       return DBResult(rowcount=1)
 
   db = CaptureDb()
@@ -159,14 +163,10 @@ def test_set_gallery_sends_numeric_flag_to_db():
   asyncio.run(mod.set_gallery("u1", "docs/a.txt", True))
   asyncio.run(mod.set_gallery("u1", "a.txt", False))
 
-  assert db.calls[0] == (
-    "db:content:files:set_gallery:1",
-    {"user_guid": "u1", "name": "docs/a.txt", "gallery": True},
-  )
-  assert db.calls[1] == (
-    "db:content:files:set_gallery:1",
-    {"user_guid": "u1", "name": "a.txt", "gallery": False},
-  )
+  assert isinstance(db.calls[0], DBRequest)
+  assert isinstance(db.calls[1], DBRequest)
+  assert db.calls[0] == set_gallery_request("u1", "docs/a.txt", True)
+  assert db.calls[1] == set_gallery_request("u1", "a.txt", False)
 
 
 def test_list_files_by_user():
