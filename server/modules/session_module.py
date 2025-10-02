@@ -8,6 +8,7 @@ from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.accounts.profile import set_profile_image_request
 from server.registry.security.accounts import get_security_profile_request
 from server.registry.security.sessions import (
   create_session_request,
@@ -72,10 +73,12 @@ class SessionModule(BaseModule):
 
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await self.db.run(
-        "urn:users:profile:set_profile_image:1",
-        {"guid": user["guid"], "image_b64": new_img, "provider": provider},
+      request = set_profile_image_request(
+        guid=user["guid"],
+        provider=provider,
+        image_b64=new_img,
       )
+      await self.db.run(request)
       user["profile_image"] = new_img
 
     user_guid = user["guid"]

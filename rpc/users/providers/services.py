@@ -14,6 +14,10 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 from server.modules.oauth_module import OauthModule
+from server.registry.accounts.profile import (
+  get_profile_request,
+  update_if_unedited_request,
+)
 from server.registry.security.identities import (
   create_from_provider_request,
   get_by_provider_identifier_request,
@@ -130,14 +134,12 @@ async def users_providers_set_provider_v1(request: Request):
     raw_name = (profile.get("username") or "").strip()
     email = raw_email
     display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
-    await db.run(
-      "db:users:profile:update_if_unedited:1",
-      {
-        "guid": auth_ctx.user_guid,
-        "email": email,
-        "display_name": display_name,
-      },
+    update_request = update_if_unedited_request(
+      guid=auth_ctx.user_guid,
+      email=email,
+      display_name=display_name,
     )
+    await db.run(update_request)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -257,10 +259,8 @@ async def users_providers_unlink_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
-  res_prof = await db.run(
-    "db:users:profile:get_profile:1",
-    {"guid": auth_ctx.user_guid},
-  )
+  profile_request = get_profile_request(guid=auth_ctx.user_guid)
+  res_prof = await db.run(profile_request)
   default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
   unlink_request = unlink_provider_request(
     guid=auth_ctx.user_guid,
