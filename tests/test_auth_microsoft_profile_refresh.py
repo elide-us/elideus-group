@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI
 
 from server.modules.oauth_module import OauthModule
+from server.registry.accounts.profile import update_if_unedited_request
 import json
 
 
@@ -26,23 +27,32 @@ class DBRes:
     self.rowcount = rowcount
 
 
+UPDATE_IF_UNEDITED_OP = update_if_unedited_request(guid="", email=None, display_name=None).op
+
+
 class DummyDb:
   def __init__(self, allow_update):
     self.calls = []
     self.allow_update = allow_update
-  async def run(self, op, args):
-    self.calls.append((op, args))
-    if op == "db:security:identities:get_by_provider_identifier:1":
+  async def run(self, op, args=None):
+    if hasattr(op, "op") and hasattr(op, "params"):
+      key = op.op
+      params = op.params
+    else:
+      key = op
+      params = args
+    self.calls.append((key, params))
+    if key == "db:security:identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "provider_name": "microsoft" }], 1)
-    if op == "db:users:profile:update_if_unedited:1":
-      if self.allow_update:
-        return DBRes([{ "display_name": args["display_name"], "email": args["email"] }], 1)
+    if key == UPDATE_IF_UNEDITED_OP:
+      if self.allow_update and isinstance(params, dict):
+        return DBRes([{ "display_name": params.get("display_name"), "email": params.get("email") }], 1)
       return DBRes([], 0)
-    if op == "db:security:sessions:set_rotkey:1":
+    if key == "db:security:sessions:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:security:sessions:create_session:1":
+    if key == "db:security:sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:security:sessions:update_device_token:1":
+    if key == "db:security:sessions:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -120,7 +130,7 @@ def test_updates_profile_if_unedited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:users:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(op == UPDATE_IF_UNEDITED_OP for op, _ in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "New"
 
@@ -131,7 +141,7 @@ def test_leaves_profile_if_edited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:users:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(op == UPDATE_IF_UNEDITED_OP for op, _ in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "User"
 

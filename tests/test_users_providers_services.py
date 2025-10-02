@@ -14,6 +14,25 @@ from server.modules.oauth_module import OauthModule
 
 import pytest
 from fastapi import HTTPException
+from server.registry.accounts.profile import (
+  get_profile_request,
+  set_profile_image_request,
+  update_if_unedited_request,
+)
+
+PROFILE_GET_REQUEST = get_profile_request(guid="")
+PROFILE_IMAGE_REQUEST = set_profile_image_request(guid="", provider="", image_b64=None)
+UPDATE_IF_UNEDITED_REQUEST = update_if_unedited_request(
+  guid="",
+  email=None,
+  display_name=None,
+)
+
+
+def _normalize_db_call(op, args=None):
+  if hasattr(op, "op") and hasattr(op, "params"):
+    return op.op, op.params
+  return op, args
 
 # stub rpc package
 pkg = types.ModuleType("rpc")
@@ -79,8 +98,9 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args):
-    self.calls.append((op, args))
+  async def run(self, op, args=None):
+    key, params = _normalize_db_call(op, args)
+    self.calls.append((key, params))
     return DBRes()
 
 class DummyState:
@@ -123,10 +143,12 @@ def test_set_provider_calls_db():
   req = DummyRequest(DummyState(db, auth=DummyAuth()))
   resp = asyncio.run(users_providers_set_provider_v1(req))
   assert ("db:security:identities:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
-  assert (
-    "db:users:profile:update_if_unedited:1",
-    {"guid": "u1", "email": "e", "display_name": "n"},
-  ) in db.calls
+  expected_update = update_if_unedited_request(
+    guid="u1",
+    email="e",
+    display_name="n",
+  )
+  assert (expected_update.op, expected_update.params) in db.calls
   assert isinstance(resp, RPCResponse)
   assert resp.payload["provider"] == "microsoft"
 
@@ -160,10 +182,12 @@ def test_set_provider_defaults_blank_profile():
       return "pid", {"email": "", "username": ""}, {}
   req = DummyRequest(DummyState(db, auth=DummyAuth()))
   asyncio.run(users_providers_set_provider_v1(req))
-  assert (
-    "db:users:profile:update_if_unedited:1",
-    {"guid": "u1", "email": "", "display_name": "User"},
-  ) in db.calls
+  expected_update = update_if_unedited_request(
+    guid="u1",
+    email="",
+    display_name="User",
+  )
+  assert (expected_update.op, expected_update.params) in db.calls
 
 
 def test_link_provider_google_normalizes_identifier():
@@ -198,11 +222,12 @@ def test_link_provider_google_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:system:config:get_config:1":
-        key = args["key"]
-        if key == "Hostname":
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
+      if key == "db:system:config:get_config:1":
+        config_key = params.get("key") if isinstance(params, dict) else None
+        if config_key == "Hostname":
           return DBRes(rows=[{"value": "redirect"}])
       return DBRes()
 
@@ -310,8 +335,9 @@ def test_link_provider_microsoft_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
-      self.calls.append((op, args))
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
       return DBRes()
 
   db = DummyDb()
@@ -330,11 +356,12 @@ def test_unlink_non_default_provider_retains_tokens():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:users:profile:get_profile:1":
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
+      if key == PROFILE_GET_REQUEST.op:
         return DBRes(rows=[{"default_provider": "microsoft"}])
-      if op == "db:security:identities:unlink_provider:1":
+      if key == "db:security:identities:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
@@ -354,11 +381,12 @@ def test_unlink_default_provider_without_new_default_raises():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:users:profile:get_profile:1":
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
+      if key == PROFILE_GET_REQUEST.op:
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "db:security:identities:unlink_provider:1":
+      if key == "db:security:identities:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
@@ -377,11 +405,12 @@ def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:users:profile:get_profile:1":
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
+      if key == PROFILE_GET_REQUEST.op:
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "db:security:identities:unlink_provider:1":
+      if key == "db:security:identities:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
       return DBRes()
 
@@ -401,13 +430,14 @@ def test_unlink_last_provider_soft_deletes_and_revokes():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
-      self.calls.append((op, args))
-      if op == "db:users:profile:get_profile:1":
+    async def run(self, op, args=None):
+      key, params = _normalize_db_call(op, args)
+      self.calls.append((key, params))
+      if key == PROFILE_GET_REQUEST.op:
         return DBRes(rows=[{"default_provider": "google"}])
-      if op == "db:security:identities:unlink_provider:1":
+      if key == "db:security:identities:unlink_provider:1":
         return DBRes(rows=[{"providers_remaining": 0}], rowcount=1)
-      if op == "db:security:identities:unlink_last_provider:1":
+      if key == "db:security:identities:unlink_last_provider:1":
         return DBRes([], 1)
       return DBRes()
 

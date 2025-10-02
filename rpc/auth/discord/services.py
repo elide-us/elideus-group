@@ -11,6 +11,10 @@ from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
+from server.registry.accounts.profile import (
+  set_profile_image_request,
+  update_if_unedited_request,
+)
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
 
 
@@ -87,20 +91,20 @@ async def auth_discord_oauth_login_v1(request: Request):
   user_guid = user["guid"]
   new_img = profile.get("profilePicture")
   if new_img and new_img != user.get("profile_image"):
-    await db.run(
-      "db:users:profile:set_profile_image:1",
-      {"guid": user_guid, "image_b64": new_img, "provider": provider},
+    image_request = set_profile_image_request(
+      guid=user_guid,
+      provider=provider,
+      image_b64=new_img,
     )
+    await db.run(image_request)
     user["profile_image"] = new_img
   if user.get("provider_name") == "discord":
-    res_prof = await db.run(
-      "db:users:profile:update_if_unedited:1",
-      {
-        "guid": user_guid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-      },
+    update_request = update_if_unedited_request(
+      guid=user_guid,
+      email=profile["email"],
+      display_name=profile["username"],
     )
+    res_prof = await db.run(update_request)
     if res_prof.rows:
       updated = res_prof.rows[0]
       if updated.get("display_name"):

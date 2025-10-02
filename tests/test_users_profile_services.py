@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from server.registry.accounts.profile import set_profile_image_request
 
 # stub rpc package
 pkg = types.ModuleType("rpc")
@@ -68,23 +69,32 @@ class DBRes:
     self.rows = rows or []
     self.rowcount = rowcount
 
+PROFILE_IMAGE_REQUEST = set_profile_image_request(guid="", provider="", image_b64=None)
+
+
 class DummyDb:
   def __init__(self, roles=0):
     self.calls = []
     self.roles = roles
-  async def run(self, op, args):
-    self.calls.append((op, args))
-    if op == "db:security:accounts:get_security_profile:1":
+  async def run(self, op, args=None):
+    if hasattr(op, "op") and hasattr(op, "params"):
+      key = op.op
+      params = op.params
+    else:
+      key = op
+      params = args
+    self.calls.append((key, params))
+    if key == "db:security:accounts:get_security_profile:1":
       return DBRes([
         {
-          "guid": args.get("guid"),
-          "user_guid": args.get("guid"),
+          "guid": params.get("guid"),
+          "user_guid": params.get("guid"),
           "user_roles": self.roles,
           "provider_name": "microsoft",
           "provider_display": "Microsoft",
         }
       ], 1)
-    if op == "db:users:profile:set_profile_image:1":
+    if key == PROFILE_IMAGE_REQUEST.op:
       return DBRes([], 1)
     return DBRes()
 
@@ -121,7 +131,8 @@ def test_set_profile_image_calls_db():
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
-  assert ("db:users:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
+  expected_request = set_profile_image_request(guid="u1", image_b64="abc", provider="microsoft")
+  assert (expected_request.op, expected_request.params) in db.calls
   assert resp.payload["image_b64"] == "abc"
 
 
