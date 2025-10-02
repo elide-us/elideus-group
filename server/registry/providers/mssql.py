@@ -99,7 +99,6 @@ _PROVIDER_SPECS: dict[str, tuple[str, str]] = {
   "content.public.get_public_files": ("server.registry.content.public.mssql", "get_public_files_v1"),
   "content.public.list_public": ("server.registry.content.public.mssql", "list_public_v1"),
   "content.public.list_reported": ("server.registry.content.public.mssql", "list_reported_v1"),
-  "public.gallery.get_public_files": ("server.registry.content.public.mssql", "get_public_files_v1"),
   "public.links.get_home_links": ("server.registry.public.links.mssql", "get_home_links_v1"),
   "public.links.get_navbar_routes": ("server.registry.public.links.mssql", "get_navbar_routes_v1"),
   "public.users.get_profile": ("server.registry.public.users.mssql", "get_profile_v1"),

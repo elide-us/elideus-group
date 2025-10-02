@@ -50,5 +50,4 @@ def register(router: "SubdomainRouter") -> None:
     "get_public_files",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.get_public_files",
-    aliases=["db:public:gallery:get_public_files:1"],
   )
