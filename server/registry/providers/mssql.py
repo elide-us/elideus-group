@@ -107,6 +107,7 @@ _PROVIDER_SPECS: dict[str, tuple[str, str]] = {
   "public.vars.get_hostname": ("server.registry.public.vars.mssql", "get_hostname_v1"),
   "public.vars.get_repo": ("server.registry.public.vars.mssql", "get_repo_v1"),
   "public.vars.get_version": ("server.registry.public.vars.mssql", "get_version_v1"),
+  "account.users.set_credits": ("server.registry.account.users.mssql", "set_credits_v1"),
   "support.users.set_credits": ("server.registry.support.users.mssql", "set_credits_v1"),
   "system.config.delete_config": ("server.registry.system.config.mssql", "delete_config_v1"),
   "system.config.get_config": ("server.registry.system.config.mssql", "get_config_v1"),

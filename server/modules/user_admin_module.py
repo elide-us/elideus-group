@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.account.users import set_credits_request
 from server.registry.accounts.profile import (
   get_profile_request,
   set_display_request,
@@ -44,10 +45,8 @@ class UserAdminModule(BaseModule):
     return credits
 
   async def set_credits(self, guid: str, credits: int) -> None:
-    await self.db.run(
-      "db:support:users:set_credits:1",
-      {"guid": guid, "credits": credits},
-    )
+    request = set_credits_request(guid=guid, credits=credits)
+    await self.db.run(request)
 
   async def reset_display(self, guid: str) -> None:
     request = set_display_request(guid=guid, display_name="Default User")
