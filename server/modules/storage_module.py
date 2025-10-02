@@ -17,6 +17,10 @@ from server.registry.content.cache import (
   list_cache_request,
   upsert_cache_item_request,
 )
+from server.registry.content.public import (
+  list_public_request,
+  list_reported_request,
+)
 from server.registry.system.config import get_config_request
 
 
@@ -368,13 +372,15 @@ class StorageModule(BaseModule):
   async def list_public_files(self):
     """Return files marked as publicly accessible."""
     assert self.db
-    res = await self.db.run("db:content:public:list_public:1", {})
+    request = list_public_request()
+    res = await self.db.run(request.op, request.params)
     return res.rows
 
   async def list_flagged_for_moderation(self):
     """Return files that have been reported for moderation review."""
     assert self.db
-    res = await self.db.run("db:content:public:list_reported:1", {})
+    request = list_reported_request()
+    res = await self.db.run(request.op, request.params)
     return res.rows
 
   async def upload_files(self, user_guid: str, files):
