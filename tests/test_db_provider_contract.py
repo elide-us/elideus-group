@@ -1,20 +1,24 @@
 import asyncio
 from uuid import UUID
 
-from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult, DbRunMode
+from server.modules.providers.database.mssql_provider import MssqlProvider
+from server.registry.providers import mssql as registry_mssql
+from server.registry.types import DBResponse
+
+
+def _set_provider_callable(monkeypatch, provider_map: str, handler):
+  monkeypatch.setitem(mssql_provider.PROVIDER_QUERIES, provider_map, {1: handler})
 
 
 def test_run_json_one(monkeypatch):
   provider = MssqlProvider()
+  op = "db:test:queries:json_one:1"
 
-  def fake_get_handler(op):
-    assert op == "test:json_one"
-    def handler(args):
-      assert args == {}
-      return mssql_provider.Operation(DbRunMode.JSON_ONE, "select 1", ())
-    return handler
+  def fake_handler(params):
+    assert params == {}
+    return mssql_provider.Operation(DbRunMode.JSON_ONE, "select 1", ())
 
   async def fake_execute_operation(operation):
     assert isinstance(operation, mssql_provider.Operation)
@@ -23,10 +27,11 @@ def test_run_json_one(monkeypatch):
     assert operation.params == ()
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  _set_provider_callable(monkeypatch, "test.queries.json_one", registry_mssql._wrap(fake_handler))
 
-  res = asyncio.run(provider.run("test:json_one", {}))
+  res = asyncio.run(provider.run(op, {}))
+
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
@@ -34,13 +39,11 @@ def test_run_json_one(monkeypatch):
 
 def test_run_row_one(monkeypatch):
   provider = MssqlProvider()
+  op = "db:test:queries:row_one:1"
 
-  def fake_get_handler(op):
-    assert op == "test:row_one"
-    def handler(args):
-      assert args == {}
-      return mssql_provider.Operation(DbRunMode.ROW_ONE, "select 1", ())
-    return handler
+  def fake_handler(params):
+    assert params == {}
+    return mssql_provider.Operation(DbRunMode.ROW_ONE, "select 1", ())
 
   async def fake_execute_operation(operation):
     assert isinstance(operation, mssql_provider.Operation)
@@ -49,10 +52,11 @@ def test_run_row_one(monkeypatch):
     assert operation.params == ()
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  _set_provider_callable(monkeypatch, "test.queries.row_one", registry_mssql._wrap(fake_handler))
 
-  res = asyncio.run(provider.run("test:row_one", {}))
+  res = asyncio.run(provider.run(op, {}))
+
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
@@ -73,6 +77,7 @@ def test_run_row_many(monkeypatch):
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
   res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
+
   assert isinstance(res, DBResult)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
   assert res.rowcount == 2
@@ -80,23 +85,22 @@ def test_run_row_many(monkeypatch):
 
 def test_run_json_many(monkeypatch):
   provider = MssqlProvider()
+  op = "db:test:queries:json_many:1"
 
-  def fake_get_handler(op):
-    assert op == "test:json_many"
-    def handler(args):
-      assert args == {}
-      return mssql_provider.Operation(DbRunMode.JSON_MANY, "select", ())
-    return handler
+  def fake_handler(params):
+    assert params == {}
+    return mssql_provider.Operation(DbRunMode.JSON_MANY, "select", ())
 
   async def fake_execute_operation(operation):
     assert isinstance(operation, mssql_provider.Operation)
     assert operation.kind is DbRunMode.JSON_MANY
     return DBResult(rows=[{"v": 1}, {"v": 2}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  _set_provider_callable(monkeypatch, "test.queries.json_many", registry_mssql._wrap(fake_handler))
 
-  res = asyncio.run(provider.run("test:json_many", {}))
+  res = asyncio.run(provider.run(op, {}))
+
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}, {"v": 2}]
   assert res.rowcount == 2
@@ -104,13 +108,11 @@ def test_run_json_many(monkeypatch):
 
 def test_run_exec(monkeypatch):
   provider = MssqlProvider()
+  op = "db:test:queries:exec:1"
 
-  def fake_get_handler(op):
-    assert op == "test:exec"
-    def handler(args):
-      assert args == {}
-      return mssql_provider.Operation(DbRunMode.EXEC, "update", (1,))
-    return handler
+  def fake_handler(params):
+    assert params == {}
+    return mssql_provider.Operation(DbRunMode.EXEC, "update", (1,))
 
   async def fake_execute_operation(operation):
     assert isinstance(operation, mssql_provider.Operation)
@@ -119,10 +121,11 @@ def test_run_exec(monkeypatch):
     assert operation.params == (1,)
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  _set_provider_callable(monkeypatch, "test.queries.exec", registry_mssql._wrap(fake_handler))
 
-  res = asyncio.run(provider.run("test:exec", {}))
+  res = asyncio.run(provider.run(op, {}))
+
   assert isinstance(res, DBResult)
   assert res.rows == []
   assert res.rowcount == 1
@@ -142,7 +145,12 @@ def test_storage_files_set_gallery(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
 
-  res = asyncio.run(provider.run("db:content:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True}))
+  res = asyncio.run(provider.run("db:content:files:set_gallery:1", {
+    "user_guid": guid,
+    "name": "file.txt",
+    "gallery": True,
+  }))
+
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
 
@@ -167,6 +175,7 @@ def test_storage_cache_set_public(monkeypatch):
     "filename": "file.txt",
     "public": False,
   }))
+
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
 
@@ -195,20 +204,20 @@ def test_unlink_provider_dict_result(monkeypatch):
   provider = MssqlProvider()
   guid = "00000000-0000-0000-0000-000000000002"
 
-  def fake_get_handler(op):
-    assert op == "db:security:identities:unlink_provider:1"
+  async def fake_callable(request):
+    assert request.op == "db:security:identities:unlink_provider:1"
+    assert request.params == {
+      "guid": guid,
+      "provider": "google",
+      "new_provider_recid": 123,
+    }
+    return DBResponse(rows=[{"providers_remaining": 1}], rowcount=1)
 
-    async def handler(args):
-      assert args == {
-        "guid": guid,
-        "provider": "google",
-        "new_provider_recid": 123,
-      }
-      return {"rows": [{"providers_remaining": 1}], "rowcount": 1}
-
-    return handler
-
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
+  _set_provider_callable(
+    monkeypatch,
+    "security.identities.unlink_provider",
+    fake_callable,
+  )
 
   res = asyncio.run(provider.run("db:security:identities:unlink_provider:1", {
     "guid": guid,
@@ -225,27 +234,24 @@ def test_create_session_dict_result(monkeypatch):
   provider = MssqlProvider()
   guid = "00000000-0000-0000-0000-000000000003"
 
-  def fake_get_handler(op):
-    assert op == "db:security:sessions:create_session:1"
+  async def fake_callable(request):
+    assert request.op == "db:security:sessions:create_session:1"
+    assert request.params == {
+      "access_token": "token",
+      "expires": "2024-01-01T00:00:00Z",
+      "fingerprint": "fingerprint",
+      "user_agent": "pytest",
+      "ip_address": "127.0.0.1",
+      "user_guid": guid,
+      "provider": "google",
+    }
+    return DBResponse(rows=[{"session_guid": "sess", "device_guid": "device"}], rowcount=1)
 
-    async def handler(args):
-      assert args == {
-        "access_token": "token",
-        "expires": "2024-01-01T00:00:00Z",
-        "fingerprint": "fingerprint",
-        "user_agent": "pytest",
-        "ip_address": "127.0.0.1",
-        "user_guid": guid,
-        "provider": "google",
-      }
-      return {
-        "rows": [{"session_guid": "sess", "device_guid": "device"}],
-        "rowcount": 1,
-      }
-
-    return handler
-
-  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
+  _set_provider_callable(
+    monkeypatch,
+    "security.sessions.create_session",
+    fake_callable,
+  )
 
   res = asyncio.run(provider.run("db:security:sessions:create_session:1", {
     "access_token": "token",
