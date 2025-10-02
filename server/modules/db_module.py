@@ -8,18 +8,12 @@ import logging
 
 from . import BaseModule
 from .env_module import EnvModule
-from .providers import DbProviderBase
-from .providers import DBResult
+from .providers import DBResult, DbProviderBase, get_dbresult_cls
 from server.registry import RegistryDispatcher
 from server.registry.types import DBRequest, DBResponse
 from server.helpers.logging import update_logging_level
 from server.registry.security.accounts import account_exists_request
 from server.registry.system.config import get_config_request
-
-
-def _current_dbresult_cls():
-  from server.modules.providers import DBResult as ProvidersDBResult
-  return ProvidersDBResult
 class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -68,7 +62,7 @@ class DbModule(BaseModule):
     else:
       request = DBRequest(op=op, params=args or {})
     response = await self._registry.execute(request)
-    DBResultCls = _current_dbresult_cls()
+    DBResultCls = get_dbresult_cls()
     if not isinstance(response, DBResponse):
       if isinstance(response, DBResultCls):
         response = DBResponse.from_result(response)

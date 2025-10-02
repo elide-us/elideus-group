@@ -7,7 +7,7 @@ import importlib
 import pkgutil
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 
-from server.modules.providers import DBResult, DbProviderBase
+from server.modules.providers import DBResult, DbProviderBase, get_dbresult_cls
 
 from .types import DBRequest, DBResponse
 
@@ -23,13 +23,6 @@ __all__ = [
 
 
 Executor = Callable[[DBRequest], Awaitable[DBResponse]]
-
-
-def _current_dbresult_cls():
-  from server.modules.providers import DBResult as ProvidersDBResult
-  return ProvidersDBResult
-
-
 @dataclass(slots=True)
 class FunctionRoute:
   domain: str
@@ -223,7 +216,7 @@ class RegistryDispatcher:
     if provider_key:
       self.router.set_provider(provider_key)
       self.router.load_provider(provider_key)
-    DBResultCls = _current_dbresult_cls()
+    DBResultCls = get_dbresult_cls()
 
     def _ensure_response(result: DBResponse | DBResult | object) -> DBResponse:
       if isinstance(result, DBResponse):

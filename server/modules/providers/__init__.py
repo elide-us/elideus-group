@@ -22,12 +22,17 @@ __all__ = [
   "DbProviderBase",
   "DBResult",
   "DbRunMode",
+  "get_dbresult_cls",
 ]
 
 
 class DBResult(BaseModel):
   rows: list[dict] = Field(default_factory=list)
   rowcount: int = 0
+
+
+def get_dbresult_cls() -> type[DBResult]:
+  return DBResult
 
 
 class DbRunMode(str, Enum):
