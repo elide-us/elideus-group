@@ -8,6 +8,14 @@ from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.security.accounts import get_security_profile_request
+from server.registry.security.sessions import (
+  create_session_request,
+  revoke_device_token_request,
+  set_rotkey_request,
+  update_device_token_request,
+  update_session_request,
+)
 
 
 class SessionModule(BaseModule):
@@ -104,42 +112,34 @@ class SessionModule(BaseModule):
       minutes=DEFAULT_SESSION_TOKEN_EXPIRY
     )
     placeholder = uuid.uuid4().hex
-    res = await self.db.run(
-      "db:auth:session:create_session:1",
-      {
-        "access_token": placeholder,
-        "expires": session_exp,
-        "fingerprint": fingerprint,
-        "user_agent": user_agent,
-        "ip_address": ip_address,
-        "user_guid": user_guid,
-        "provider": provider,
-      },
+    request = create_session_request(
+      access_token=placeholder,
+      expires=session_exp,
+      fingerprint=fingerprint,
+      user_guid=user_guid,
+      provider=provider,
+      user_agent=user_agent,
+      ip_address=ip_address,
     )
+    res = await self.db.run(request.op, request.params)
     row2 = res.rows[0] if res.rows else {}
     session_guid = row2.get("session_guid")
     device_guid = row2.get("device_guid")
     session_token, _ = self.auth.make_session_token(
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
     )
-    await self.db.run(
-      "db:auth:session:update_device_token:1",
-      {"device_guid": device_guid, "access_token": session_token},
-    )
+    update_request = update_device_token_request(device_guid=device_guid, access_token=session_token)
+    await self.db.run(update_request.op, update_request.params)
     return session_token
 
   async def invalidate_token(self, user_guid: str) -> None:
     now = datetime.now(timezone.utc)
-    await self.db.run(
-      "db:users:session:set_rotkey:1",
-      {"guid": user_guid, "rotkey": "", "iat": now, "exp": now},
-    )
+    request = set_rotkey_request(guid=user_guid, rotkey="", iat=now, exp=now)
+    await self.db.run(request.op, request.params)
 
   async def logout_device(self, token: str) -> None:
-    await self.db.run(
-      "db:auth:session:revoke_device_token:1",
-      {"access_token": token},
-    )
+    request = revoke_device_token_request(access_token=token)
+    await self.db.run(request.op, request.params)
 
   async def get_session(
     self,
@@ -147,9 +147,8 @@ class SessionModule(BaseModule):
     ip_address: str | None,
     user_agent: str | None,
   ) -> dict:
-    res = await self.db.run(
-      "db:accounts:security:get_security_profile:1", {"access_token": token}
-    )
+    request = get_security_profile_request(access_token=token)
+    res = await self.db.run(request.op, request.params)
     session = res.rows[0] if res.rows else None
     if not session:
       raise HTTPException(status_code=401, detail="Invalid session token")
@@ -171,10 +170,12 @@ class SessionModule(BaseModule):
         raise HTTPException(status_code=401, detail="Session expired")
 
     try:
-      await self.db.run(
-        "db:auth:session:update_session:1",
-        {"access_token": token, "ip_address": ip_address, "user_agent": user_agent},
+      request = update_session_request(
+        access_token=token,
+        ip_address=ip_address,
+        user_agent=user_agent,
       )
+      await self.db.run(request.op, request.params)
     except Exception as e:
       logging.error("[SessionModule.get_session] Failed to update session metadata: %s", e)
 

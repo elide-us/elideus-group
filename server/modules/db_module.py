@@ -13,6 +13,7 @@ from .providers import DBResult
 from server.registry import RegistryDispatcher
 from server.registry.types import DBRequest, DBResponse
 from server.helpers.logging import update_logging_level
+from server.registry.security.accounts import account_exists_request
 from server.registry.system.config import get_config_request
 
 
@@ -155,6 +156,7 @@ class DbModule(BaseModule):
     return int(value)
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run("db:users:account:exists:1", {"user_guid": user_guid})
+    request = account_exists_request(user_guid)
+    res = await self.run(request.op, request.params)
     return bool(res.rows)
 

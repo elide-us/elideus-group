@@ -14,6 +14,16 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 from server.modules.oauth_module import OauthModule
+from server.registry.security.identities import (
+  create_from_provider_request,
+  get_by_provider_identifier_request,
+  get_user_by_email_request,
+  link_provider_request,
+  set_provider_request,
+  unlink_last_provider_request,
+  unlink_provider_request,
+)
+from server.registry.security.sessions import revoke_provider_tokens_request
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -113,13 +123,8 @@ async def users_providers_set_provider_v1(request: Request):
     else:
       raise HTTPException(status_code=400, detail="Unsupported auth provider")
     _, profile, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
-  await db.run(
-    "db:users:providers:set_provider:1",
-    {
-      "guid": auth_ctx.user_guid,
-      "provider": payload.provider,
-    },
-  )
+  set_request = set_provider_request(guid=auth_ctx.user_guid, provider=payload.provider)
+  await db.run(set_request.op, set_request.params)
   if profile:
     raw_email = (profile.get("email") or "").strip()
     raw_name = (profile.get("username") or "").strip()
@@ -230,20 +235,19 @@ async def users_providers_link_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail="Unsupported auth provider")
   provider_uid, _, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
   provider_uid = normalize_provider_identifier(provider_uid)
-  res = await db.run(
-    "db:users:providers:get_by_provider_identifier:1",
-    {"provider": payload.provider, "provider_identifier": provider_uid},
+  request_db = get_by_provider_identifier_request(
+    provider=payload.provider,
+    provider_identifier=provider_uid,
   )
+  res = await db.run(request_db.op, request_db.params)
   if res.rows and res.rows[0].get("guid") != auth_ctx.user_guid:
     raise HTTPException(status_code=409, detail="Provider already linked")
-  await db.run(
-    "db:users:providers:link_provider:1",
-    {
-      "guid": auth_ctx.user_guid,
-      "provider": payload.provider,
-      "provider_identifier": provider_uid,
-    },
+  link_request = link_provider_request(
+    guid=auth_ctx.user_guid,
+    provider=payload.provider,
+    provider_identifier=provider_uid,
   )
+  await db.run(link_request.op, link_request.params)
   return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
 
 async def users_providers_unlink_provider_v1(request: Request):
@@ -258,27 +262,31 @@ async def users_providers_unlink_provider_v1(request: Request):
     {"guid": auth_ctx.user_guid},
   )
   default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
-  res = await db.run(
-    "db:users:providers:unlink_provider:1",
-    {"guid": auth_ctx.user_guid, "provider": payload.provider},
+  unlink_request = unlink_provider_request(
+    guid=auth_ctx.user_guid,
+    provider=payload.provider,
   )
+  res = await db.run(unlink_request.op, unlink_request.params)
   remaining = res.rows[0].get("providers_remaining") if res.rows else 0
   if remaining == 0:
-    await db.run(
-      "db:auth:providers:unlink_last_provider:1",
-      {"guid": auth_ctx.user_guid, "provider": payload.provider},
+    final_unlink_request = unlink_last_provider_request(
+      guid=auth_ctx.user_guid,
+      provider=payload.provider,
     )
+    await db.run(final_unlink_request.op, final_unlink_request.params)
   elif payload.provider == default_provider:
     if not payload.new_default:
       raise HTTPException(status_code=400, detail="new_default required")
-    await db.run(
-      "db:users:providers:set_provider:1",
-      {"guid": auth_ctx.user_guid, "provider": payload.new_default},
+    set_request = set_provider_request(
+      guid=auth_ctx.user_guid,
+      provider=payload.new_default,
     )
-    await db.run(
-      "db:auth:session:revoke_provider_tokens:1",
-      {"guid": auth_ctx.user_guid, "provider": payload.provider},
+    await db.run(set_request.op, set_request.params)
+    revoke_request = revoke_provider_tokens_request(
+      guid=auth_ctx.user_guid,
+      provider=payload.provider,
     )
+    await db.run(revoke_request.op, revoke_request.params)
   return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
 
 async def users_providers_get_by_provider_identifier_v1(request: Request):
@@ -288,10 +296,11 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
-  res = await db.run(
-    "db:users:providers:get_by_provider_identifier:1",
-    payload.model_dump(),
+  lookup_request = get_by_provider_identifier_request(
+    provider=payload.provider,
+    provider_identifier=payload.provider_identifier,
   )
+  res = await db.run(lookup_request.op, lookup_request.params)
   row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 
@@ -302,16 +311,18 @@ async def users_providers_create_from_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
-  res = await db.run(
-    "db:users:providers:get_user_by_email:1",
-    {"email": payload.provider_email},
-  )
+  email_request = get_user_by_email_request(email=payload.provider_email)
+  res = await db.run(email_request.op, email_request.params)
   if res.rows:
     raise HTTPException(status_code=409, detail="Email already registered")
-  res = await db.run(
-    "db:users:providers:create_from_provider:1",
-    payload.model_dump(),
+  create_request = create_from_provider_request(
+    provider=payload.provider,
+    provider_identifier=payload.provider_identifier,
+    provider_email=payload.provider_email,
+    provider_displayname=payload.provider_displayname,
+    provider_profile_image=payload.provider_profile_image,
   )
+  res = await db.run(create_request.op, create_request.params)
   row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 

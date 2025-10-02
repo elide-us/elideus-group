@@ -38,24 +38,24 @@ class DummyDb:
     self.linked = False
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "db:users:providers:get_by_provider_identifier:1":
+    if op == "db:security:identities:get_by_provider_identifier:1":
       if self.linked:
         return DBRes([
           {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
         ], 1)
       return DBRes([], 0)
-    if op == "db:auth:google:oauth_relink:1":
+    if op == "db:security:oauth:relink_google:1":
       if args.get("confirm"):
         self.linked = True
         return DBRes([
           {"guid": "existing-guid", "display_name": "User", "credits": 0, "profile_image": None}
         ], 1)
       raise HTTPException(status_code=409, detail={"default_provider": "microsoft"})
-    if op == "db:users:session:set_rotkey:1":
+    if op == "db:security:sessions:set_rotkey:1":
       return DBRes(rowcount=1)
-    if op == "db:auth:session:create_session:1":
+    if op == "db:security:sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:security:sessions:update_device_token:1":
       return DBRes(rowcount=1)
     if op == "db:system:config:get_config:1":
       key = args.get("key")
@@ -157,8 +157,8 @@ def test_email_exists_prompt(monkeypatch):
     asyncio.run(auth_google_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert exc.value.detail == {"default_provider": "microsoft"}
-  assert any(op == "db:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
-  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:security:oauth:relink_google:1" for op, _ in req.app.state.db.calls)
+  assert not any(op == "db:security:identities:create_from_provider:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
 
 
@@ -226,5 +226,5 @@ def test_email_exists_confirm_links(monkeypatch):
   res = asyncio.run(auth_google_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
-  assert any(op == "db:auth:google:oauth_relink:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:security:oauth:relink_google:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

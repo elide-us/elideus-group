@@ -74,7 +74,7 @@ class DummyDb:
     self.roles = roles
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "db:accounts:security:get_security_profile:1":
+    if op == "db:security:accounts:get_security_profile:1":
       return DBRes([
         {
           "guid": args.get("guid"),
@@ -111,7 +111,7 @@ def test_get_roles_service_returns_mask():
   resp = asyncio.run(users_profile_get_roles_v1(req))
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
-  assert ("db:accounts:security:get_security_profile:1", {"guid": "u1"}) in db.calls
+  assert ("db:security:accounts:get_security_profile:1", {"guid": "u1"}) in db.calls
 
 def test_set_profile_image_calls_db():
   async def fake_img(request):

@@ -2,8 +2,8 @@ import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from server.modules.providers.database.mssql_provider import registry
 from server.modules.providers import DBResult
+from server.registry.security.identities import mssql as identities_registry
 
 
 def test_create_from_provider_inserts_profile_image(monkeypatch):
@@ -31,11 +31,9 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
       return DBResult(rows=[], rowcount=0)
     return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
-  monkeypatch.setattr(registry, "transaction", dummy_transaction)
-  monkeypatch.setattr(registry, "get_auth_provider_recid", fake_get_provider)
-  monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
-
-  handler = registry.get_handler("db:users:providers:create_from_provider:1")
+  monkeypatch.setattr(identities_registry, "transaction", dummy_transaction)
+  monkeypatch.setattr(identities_registry, "get_auth_provider_recid", fake_get_provider)
+  monkeypatch.setattr(identities_registry, "fetch_json", fake_fetch_json)
   args = {
     "provider": "microsoft",
     "provider_identifier": str(uuid4()),
@@ -43,7 +41,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
     "provider_displayname": "User",
     "provider_profile_image": "img",
   }
-  res = asyncio.run(handler(args))
+  res = asyncio.run(identities_registry.create_from_provider_v1(args))
 
   assert any("insert into users_profileimg" in sql for sql in executed)
   assert any("insert into users_roles" in sql for sql in executed)

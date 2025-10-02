@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from server.registry.auth.session import mssql as auth_session
+from server.registry.security.sessions import mssql as security_sessions
 
 
 def test_create_session_updates_existing(monkeypatch):
@@ -31,8 +31,8 @@ def test_create_session_updates_existing(monkeypatch):
     lookups.append((provider, cursor is not None))
     return 1
 
-  monkeypatch.setattr(auth_session, "transaction", fake_tx)
-  monkeypatch.setattr(auth_session, "get_auth_provider_recid", fake_lookup)
+  monkeypatch.setattr(security_sessions, "transaction", fake_tx)
+  monkeypatch.setattr(security_sessions, "get_auth_provider_recid", fake_lookup)
 
   args = {
     "access_token": "tok",
@@ -44,7 +44,7 @@ def test_create_session_updates_existing(monkeypatch):
     "provider": "microsoft",
   }
 
-  asyncio.run(auth_session.create_session_v1(args))
+  asyncio.run(security_sessions.create_session_v1(args))
 
   assert any("update users_sessions" in q for q in executed)
   assert not any("insert into users_sessions" in q for q in executed)

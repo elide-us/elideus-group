@@ -3,6 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
+from server.registry.security.accounts import get_security_profile_request
 from .models import (
   UsersProfileProfile1,
   UsersProfileSetDisplay1,
@@ -86,7 +87,8 @@ async def users_profile_get_roles_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   db: DbModule = request.app.state.db
-  res = await db.run("db:accounts:security:get_security_profile:1", {"guid": user_guid})
+  request_db = get_security_profile_request(guid=user_guid)
+  res = await db.run(request_db.op, request_db.params)
   row = res.rows[0] if res.rows else {}
   roles = int(row.get("user_roles") or row.get("element_roles") or 0)
   payload = UsersProfileRoles1(roles=roles)

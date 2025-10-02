@@ -28,13 +28,13 @@ class DummyDb:
     self.calls = []
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "db:users:providers:get_by_provider_identifier:1":
+    if op == "db:security:identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "db:users:session:set_rotkey:1":
+    if op == "db:security:sessions:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:auth:session:create_session:1":
+    if op == "db:security:sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:security:sessions:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -107,4 +107,4 @@ def test_lookup_with_home_account_id(monkeypatch):
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  assert not any(op == "db:users:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  assert not any(op == "db:security:identities:create_from_provider:1" for op, _ in req.app.state.db.calls)

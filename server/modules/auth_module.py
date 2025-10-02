@@ -13,6 +13,7 @@ from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
+from server.registry.security.accounts import get_security_profile_request
 from server.registry.system.roles import (
   delete_role_request,
   list_roles_request,
@@ -116,7 +117,8 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached security profile for %s", guid)
       return self._user_security[guid]
     logging.debug("[RoleCache] Fetching security profile for %s", guid)
-    res = await self.db.run("db:accounts:security:get_security_profile:1", {"guid": guid})
+    request = get_security_profile_request(guid=guid)
+    res = await self.db.run(request.op, request.params)
     row = res.rows[0] if res.rows else None
     return self._hydrate_security_profile(str(guid), row)
 
@@ -373,7 +375,8 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run("db:accounts:security:get_security_profile:1", {"discord_id": discord_id})
+    request = get_security_profile_request(discord_id=discord_id)
+    res = await self.db.run(request.op, request.params)
     if not res.rows:
       return "", [], 0
     profile = self.role_cache.cache_security_profile(res.rows[0])

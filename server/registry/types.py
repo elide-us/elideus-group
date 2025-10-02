@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import importlib
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,11 @@ __all__ = [
   "DBResponse",
   "DBResult",
 ]
+
+
+def _current_dbresult_cls():
+  providers_mod = importlib.import_module("server.modules.providers")
+  return getattr(providers_mod, "DBResult")
 
 
 class DBRequest(BaseModel):
@@ -39,4 +45,5 @@ class DBResponse(BaseModel):
     return cls(rows=list(result.rows), rowcount=result.rowcount, meta=meta)
 
   def to_result(self) -> DBResult:
-    return DBResult(rows=list(self.rows), rowcount=self.rowcount)
+    DBResultCls = _current_dbresult_cls()
+    return DBResultCls(rows=list(self.rows), rowcount=self.rowcount)
