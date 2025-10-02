@@ -8,6 +8,18 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.generation.conversations import (
+  find_recent_request,
+  insert_conversation_request,
+  update_output_request,
+)
+from server.registry.generation.models import list_models_request
+from server.registry.generation.personas import (
+  delete_persona_request,
+  get_persona_by_name_request,
+  list_personas_request,
+  upsert_persona_request,
+)
 from server.registry.system.config import get_config_request
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -106,7 +118,8 @@ class OpenaiModule(BaseModule):
     if not self.db:
       return None
     try:
-      res = await self.db.run("db:assistant:personas:get_by_name:1", {"name": name})
+      request = get_persona_by_name_request(name)
+      res = await self.db.run(request)
       if res.rows:
         return res.rows[0]
     except Exception:
@@ -136,12 +149,12 @@ class OpenaiModule(BaseModule):
 
   async def list_models(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:models:list:1", {})
+    res = await self.db.run(list_models_request())
     return list(res.rows or [])
 
   async def list_personas(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:personas:list:1", {})
+    res = await self.db.run(list_personas_request())
     personas: List[Dict[str, Any]] = []
     for row in res.rows or []:
       personas.append({
@@ -170,14 +183,18 @@ class OpenaiModule(BaseModule):
     }
     if not payload["name"]:
       raise ValueError("name required")
-    await self.db.run("db:assistant:personas:upsert:1", payload)
+    request = upsert_persona_request(
+      recid=payload["recid"],
+      name=payload["name"],
+      prompt=payload["prompt"],
+      tokens=payload["tokens"],
+      models_recid=payload["models_recid"],
+    )
+    await self.db.run(request)
 
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
     assert self.db
-    await self.db.run(
-      "db:assistant:personas:delete:1",
-      {"recid": recid, "name": name},
-    )
+    await self.db.run(delete_persona_request(recid=recid, name=name))
 
   async def _log_conversation_start(
     self,
@@ -192,37 +209,30 @@ class OpenaiModule(BaseModule):
     if not self.db or personas_recid is None or models_recid is None:
       return None
     try:
-      guild_id_str = str(guild_id) if guild_id is not None else None
-      channel_id_str = str(channel_id) if channel_id is not None else None
-      user_id_str = str(user_id) if user_id is not None else None
-      existing = await self.db.run(
-        "db:assistant:conversations:find_recent:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-        },
+      request = find_recent_request(
+        personas_recid=personas_recid,
+        models_recid=models_recid,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_data=input_data,
       )
+      existing = await self.db.run(request)
       if existing.rows:
         recid = existing.rows[0].get("recid")
         if recid is not None:
           return recid
-      res = await self.db.run(
-        "db:assistant:conversations:insert:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-          "output_data": "",
-          "tokens": tokens,
-        },
+      insert_request = insert_conversation_request(
+        personas_recid=personas_recid,
+        models_recid=models_recid,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_data=input_data,
+        output_data="",
+        tokens=tokens,
       )
+      res = await self.db.run(insert_request)
       if res.rows:
         return res.rows[0].get("recid")
     except Exception:
@@ -239,8 +249,7 @@ class OpenaiModule(BaseModule):
       return
     try:
       res = await self.db.run(
-        "db:assistant:conversations:update_output:1",
-        {"recid": recid, "output_data": output_data, "tokens": tokens},
+        update_output_request(recid=recid, output_data=output_data, tokens=tokens)
       )
       if res.rowcount == 0:
         logging.warning(
