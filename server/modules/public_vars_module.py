@@ -5,6 +5,11 @@ from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.public.vars import (
+  get_hostname_request,
+  get_repo_request,
+  get_version_request,
+)
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -40,15 +45,21 @@ class PublicVarsModule(BaseModule):
       return result.stdout, result.stderr
 
   async def get_version(self) -> str:
-    res = await self.db.run("db:public:vars:get_version:1", {})
+    assert self.db
+    request = get_version_request()
+    res = await self.db.run(request.op, request.params)
     return res.rows[0].get("version") if res.rows else ""
 
   async def get_hostname(self) -> str:
-    res = await self.db.run("db:public:vars:get_hostname:1", {})
+    assert self.db
+    request = get_hostname_request()
+    res = await self.db.run(request.op, request.params)
     return res.rows[0].get("hostname") if res.rows else ""
 
   async def get_repo(self) -> str:
-    res = await self.db.run("db:public:vars:get_repo:1", {})
+    assert self.db
+    request = get_repo_request()
+    res = await self.db.run(request.op, request.params)
     return res.rows[0].get("repo") if res.rows else ""
 
   async def get_ffmpeg_version(self) -> str:
