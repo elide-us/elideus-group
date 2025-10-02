@@ -1,15 +1,16 @@
-"""MSSQL provider helpers for account security queries."""
+"""MSSQL helpers for security account operations."""
 
 from __future__ import annotations
 
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Iterable
-from uuid import UUID, NAMESPACE_URL, uuid5
+from typing import Any, Iterable
+from uuid import UUID
 
-if TYPE_CHECKING:
-  from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.modules.providers import DbRunMode
+from server.modules.providers.database.mssql_provider.db_helpers import Operation
 
 __all__ = [
+  "account_exists_v1",
   "get_security_profile_v1",
 ]
 
@@ -67,6 +68,8 @@ def _normalise_provider_identifier(identifier: str) -> str:
 
 
 def _normalise_discord_identifier(discord_id: str) -> str:
+  from uuid import NAMESPACE_URL, uuid5
+
   return str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{discord_id}"))))
 
 
@@ -80,7 +83,7 @@ def _unique(sequence: Iterable[str]) -> list[str]:
   return items
 
 
-def _make_operation(sql: str, params: Iterable[Any]) -> "Operation":
+def _make_operation(sql: str, params: Iterable[Any]) -> Operation:
   db_helpers = import_module("server.modules.providers.database.mssql_provider.db_helpers")
   json_one = getattr(db_helpers, "json_one", None)
   payload = tuple(params)
@@ -102,7 +105,7 @@ def _make_operation(sql: str, params: Iterable[Any]) -> "Operation":
     return op
 
 
-def get_security_profile_v1(params: dict[str, Any]) -> "Operation":
+def get_security_profile_v1(params: dict[str, Any]) -> Operation:
   """Return an operation that fetches security metadata for a user context."""
 
   filters: list[str] = []
@@ -144,3 +147,14 @@ def get_security_profile_v1(params: dict[str, Any]) -> "Operation":
   where_sql = " AND\n    ".join(filters)
   sql = f"{_BASE_QUERY}{join_sql}  WHERE {where_sql}\n  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;"
   return _make_operation(sql, args)
+
+
+def account_exists_v1(args: dict[str, Any]) -> Operation:
+  guid = str(UUID(args["user_guid"]))
+  sql = """
+    SELECT 1 AS exists_flag
+    FROM account_users
+    WHERE element_guid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return Operation(DbRunMode.JSON_ONE, sql, (guid,))

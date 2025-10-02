@@ -1,4 +1,4 @@
-"""MSSQL provider helpers for user identity linkage."""
+"""MSSQL helpers for security identity linkage."""
 
 from __future__ import annotations
 
@@ -15,18 +15,38 @@ from server.modules.providers.database.mssql_provider.db_helpers import (
 )
 from server.modules.providers.database.mssql_provider.logic import transaction
 
-from server.registry.auth.providers.mssql import get_auth_provider_recid
-
 __all__ = [
   "create_from_provider_v1",
   "get_any_by_provider_identifier_v1",
+  "get_auth_provider_recid",
   "get_by_provider_identifier_v1",
   "get_user_by_email_v1",
   "link_provider_v1",
   "set_provider_v1",
   "soft_delete_account_v1",
+  "unlink_last_provider_v1",
   "unlink_provider_v1",
 ]
+
+
+async def get_auth_provider_recid(provider: str, *, cursor=None) -> int:
+  """Return the auth provider recid for ``provider`` or raise a uniform error."""
+  if cursor is not None:
+    await cursor.execute(
+      "SELECT recid FROM auth_providers WHERE element_name = ?;",
+      (provider,),
+    )
+    row = await cursor.fetchone()
+    if not row:
+      raise ValueError(f"Unknown auth provider: {provider}")
+    return row[0]
+  res = await fetch_json(json_one(
+    "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (provider,),
+  ))
+  if not res.rows:
+    raise ValueError(f"Unknown auth provider: {provider}")
+  return res.rows[0]["recid"]
 
 
 def get_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
@@ -65,8 +85,8 @@ def get_any_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
 
 
 async def create_from_provider_v1(args: dict[str, Any]) -> DBResult:
-  from uuid import uuid4
   from datetime import datetime, timezone
+  from uuid import uuid4
 
   new_guid = str(uuid4())
   element_rotkey = ""
@@ -233,3 +253,10 @@ async def set_provider_v1(args: dict[str, Any]) -> DBResult:
     "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
     (ap_recid, guid),
   ))
+
+
+def unlink_last_provider_v1(args: dict[str, Any]) -> Operation:
+  guid = args["guid"]
+  provider = args["provider"]
+  sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
+  return Operation(DbRunMode.EXEC, sql, (guid, provider))

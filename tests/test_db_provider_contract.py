@@ -196,7 +196,7 @@ def test_unlink_provider_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000002"
 
   def fake_get_handler(op):
-    assert op == "db:users:providers:unlink_provider:1"
+    assert op == "db:security:identities:unlink_provider:1"
 
     async def handler(args):
       assert args == {
@@ -210,7 +210,7 @@ def test_unlink_provider_dict_result(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:users:providers:unlink_provider:1", {
+  res = asyncio.run(provider.run("db:security:identities:unlink_provider:1", {
     "guid": guid,
     "provider": "google",
     "new_provider_recid": 123,
@@ -226,7 +226,7 @@ def test_create_session_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000003"
 
   def fake_get_handler(op):
-    assert op == "db:auth:session:create_session:1"
+    assert op == "db:security:sessions:create_session:1"
 
     async def handler(args):
       assert args == {
@@ -247,7 +247,7 @@ def test_create_session_dict_result(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:auth:session:create_session:1", {
+  res = asyncio.run(provider.run("db:security:sessions:create_session:1", {
     "access_token": "token",
     "expires": "2024-01-01T00:00:00Z",
     "fingerprint": "fingerprint",

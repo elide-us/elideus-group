@@ -30,17 +30,17 @@ class DummyDb:
     self.allow_update = allow_update
   async def run(self, op, args):
     self.calls.append((op, args))
-    if op == "db:users:providers:get_by_provider_identifier:1":
+    if op == "db:security:identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "provider_name": "google" }], 1)
     if op == "db:users:profile:update_if_unedited:1":
       if self.allow_update:
         return DBRes([{ "display_name": args["display_name"], "email": args["email"] }], 1)
       return DBRes([], 0)
-    if op == "db:users:session:set_rotkey:1":
+    if op == "db:security:sessions:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:auth:session:create_session:1":
+    if op == "db:security:sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:security:sessions:update_device_token:1":
       return DBRes([], 1)
     if op == "db:system:config:get_config:1":
       if args.get("key") == "Hostname":

@@ -1,8 +1,14 @@
+import importlib
 import json, logging
 from dataclasses import dataclass
 from typing import Any, Iterable, AsyncIterator, Awaitable, Callable, Dict
 from . import logic
 from ... import DBResult, DbRunMode
+
+
+def _current_run_mode():
+  providers_mod = importlib.import_module("server.modules.providers")
+  return getattr(providers_mod, "DbRunMode")
 
 
 @dataclass(slots=True)
@@ -13,6 +19,17 @@ class Operation:
   postprocess: Callable[[DBResult], DBResult] | None = None
 
   def __post_init__(self):
+    run_mode_cls = _current_run_mode()
+    if not isinstance(self.kind, run_mode_cls):
+      value = getattr(self.kind, "value", self.kind)
+      try:
+        coerced = run_mode_cls(value)
+      except Exception as exc:
+        try:
+          coerced = run_mode_cls(str(value))
+        except Exception as inner_exc:
+          raise TypeError(f"Unsupported run mode value: {value!r}") from inner_exc
+      object.__setattr__(self, "kind", coerced)
     if not isinstance(self.params, tuple):
       object.__setattr__(self, "params", tuple(self.params))
 
@@ -66,11 +83,12 @@ def _rowdict(cols: Iterable[str], row: Iterable[Any]):
 
 async def fetch_rows(operation: Operation, *, stream: bool = False) -> DBResult | AsyncIterator[dict]:
   assert logic._pool, "MSSQL pool not initialized"
-  if operation.kind not in (DbRunMode.ROW_ONE, DbRunMode.ROW_MANY):
+  run_mode_cls = _current_run_mode()
+  if operation.kind not in (run_mode_cls.ROW_ONE, run_mode_cls.ROW_MANY):
     raise ValueError(f"Operation kind '{operation.kind}' is not row fetch capable")
   query = operation.sql
   params = operation.params
-  one = operation.kind is DbRunMode.ROW_ONE
+  one = operation.kind is run_mode_cls.ROW_ONE
   async def _ensure_result_set(cur) -> bool:
     if cur.description is not None:
       return True
@@ -115,11 +133,12 @@ async def fetch_rows(operation: Operation, *, stream: bool = False) -> DBResult 
 
 async def fetch_json(operation: Operation) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
-  if operation.kind not in (DbRunMode.JSON_ONE, DbRunMode.JSON_MANY):
+  run_mode_cls = _current_run_mode()
+  if operation.kind not in (run_mode_cls.JSON_ONE, run_mode_cls.JSON_MANY):
     raise ValueError(f"Operation kind '{operation.kind}' is not JSON fetch capable")
   query = operation.sql
   params = operation.params
-  many = operation.kind is DbRunMode.JSON_MANY
+  many = operation.kind is run_mode_cls.JSON_MANY
   try:
     async with logic._pool.acquire() as conn:
       async with conn.cursor() as cur:
@@ -147,7 +166,8 @@ async def fetch_json(operation: Operation) -> DBResult:
 
 async def exec_query(operation: Operation) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
-  if operation.kind is not DbRunMode.EXEC:
+  run_mode_cls = _current_run_mode()
+  if operation.kind is not run_mode_cls.EXEC:
     raise ValueError(f"Operation kind '{operation.kind}' is not executable")
   query = operation.sql
   params = operation.params
@@ -160,18 +180,17 @@ async def exec_query(operation: Operation) -> DBResult:
     _raise_query_error(query, params, e, log=logging.error)
 
 
-_RUNNERS: Dict[DbRunMode, Callable[[Operation], Awaitable[DBResult]]] = {
-  DbRunMode.ROW_ONE: fetch_rows,
-  DbRunMode.ROW_MANY: fetch_rows,
-  DbRunMode.JSON_ONE: fetch_json,
-  DbRunMode.JSON_MANY: fetch_json,
-  DbRunMode.EXEC: exec_query,
-}
-
-
 async def execute_operation(operation: Operation) -> DBResult:
+  run_mode_cls = _current_run_mode()
+  runners: Dict[DbRunMode, Callable[[Operation], Awaitable[DBResult]]] = {
+    run_mode_cls.ROW_ONE: fetch_rows,
+    run_mode_cls.ROW_MANY: fetch_rows,
+    run_mode_cls.JSON_ONE: fetch_json,
+    run_mode_cls.JSON_MANY: fetch_json,
+    run_mode_cls.EXEC: exec_query,
+  }
   try:
-    runner = _RUNNERS[operation.kind]
+    runner = runners[operation.kind]
   except KeyError:
     raise ValueError(f"Unknown operation kind: {operation.kind}") from None
   result = await runner(operation)

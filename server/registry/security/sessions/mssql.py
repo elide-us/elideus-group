@@ -1,4 +1,4 @@
-"""MSSQL helpers for auth session management."""
+"""MSSQL helpers for security session workflows."""
 
 from __future__ import annotations
 
@@ -9,13 +9,14 @@ from server.modules.providers import DBResult, DbRunMode
 from server.modules.providers.database.mssql_provider.db_helpers import Operation, exec_op, exec_query
 from server.modules.providers.database.mssql_provider.logic import transaction
 
-from server.registry.auth.providers.mssql import get_auth_provider_recid
+from server.registry.security.identities.mssql import get_auth_provider_recid
 
 __all__ = [
   "create_session_v1",
   "revoke_all_device_tokens_v1",
   "revoke_device_token_v1",
   "revoke_provider_tokens_v1",
+  "set_rotkey_v1",
   "update_device_token_v1",
   "update_session_v1",
 ]
@@ -154,3 +155,16 @@ def revoke_provider_tokens_v1(args: dict[str, Any]) -> Operation:
     WHERE us.users_guid = ? AND ap.element_name = ?;
   """
   return Operation(DbRunMode.EXEC, sql, (guid, provider))
+
+
+def set_rotkey_v1(args: dict[str, Any]) -> Operation:
+  guid = args["guid"]
+  rotkey = args["rotkey"]
+  iat = args["iat"]
+  exp = args["exp"]
+  sql = """
+    UPDATE account_users
+    SET element_rotkey = ?, element_rotkey_iat = ?, element_rotkey_exp = ?
+    WHERE element_guid = ?;
+  """
+  return Operation(DbRunMode.EXEC, sql, (rotkey, iat, exp, guid))

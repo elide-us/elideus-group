@@ -14,7 +14,7 @@ from server.modules.providers.database.mssql_provider.db_helpers import (
   json_one,
 )
 
-from server.registry.auth.providers.mssql import get_auth_provider_recid
+from server.registry.security.identities.mssql import get_auth_provider_recid
 
 __all__ = [
   "get_profile_v1",

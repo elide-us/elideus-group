@@ -8,7 +8,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from server.modules.providers import DBResult
-from server.modules.providers.database.mssql_provider.db_helpers import Operation, execute_operation
+import server.modules.providers.database.mssql_provider as mssql_provider
+from server.modules.providers.database.mssql_provider.db_helpers import Operation
 from server.registry.types import DBRequest, DBResponse
 
 from . import ProviderCallable, ProviderQueryMap
@@ -24,7 +25,7 @@ async def _coerce_response(spec: Any) -> DBResponse:
   if inspect.isawaitable(spec):
     return await _coerce_response(await spec)
   if isinstance(spec, Operation):
-    result = await execute_operation(spec)
+    result = await mssql_provider.execute_operation(spec)
     return DBResponse.from_result(result)
   if isinstance(spec, DBResult):
     return DBResponse.from_result(spec)
@@ -54,7 +55,8 @@ def _wrap_lazy(module_path: str, attr_name: str) -> ProviderCallable:
 
 
 _PROVIDER_SPECS: dict[str, tuple[str, str]] = {
-  "accounts.security.get_security_profile": ("server.registry.accounts.security.mssql", "get_security_profile_v1"),
+  "security.accounts.get_security_profile": ("server.registry.security.accounts.mssql", "get_security_profile_v1"),
+  "security.accounts.account_exists": ("server.registry.security.accounts.mssql", "account_exists_v1"),
   "assistant.conversations.find_recent": ("server.registry.assistant.conversations.mssql", "find_recent_v1"),
   "assistant.conversations.insert": ("server.registry.assistant.conversations.mssql", "insert_conversation_v1"),
   "assistant.conversations.list_by_time": ("server.registry.assistant.conversations.mssql", "list_by_time_v1"),
@@ -66,16 +68,25 @@ _PROVIDER_SPECS: dict[str, tuple[str, str]] = {
   "assistant.personas.get_by_name": ("server.registry.assistant.personas.mssql", "get_by_name_v1"),
   "assistant.personas.list": ("server.registry.assistant.personas.mssql", "list_personas_v1"),
   "assistant.personas.upsert": ("server.registry.assistant.personas.mssql", "upsert_persona_v1"),
-  "auth.discord.oauth_relink": ("server.registry.auth.discord.mssql", "oauth_relink_v1"),
-  "auth.google.oauth_relink": ("server.registry.auth.google.mssql", "oauth_relink_v1"),
-  "auth.microsoft.oauth_relink": ("server.registry.auth.microsoft.mssql", "oauth_relink_v1"),
-  "auth.providers.unlink_last_provider": ("server.registry.auth.providers.mssql", "unlink_last_provider_v1"),
-  "auth.session.create_session": ("server.registry.auth.session.mssql", "create_session_v1"),
-  "auth.session.revoke_all_device_tokens": ("server.registry.auth.session.mssql", "revoke_all_device_tokens_v1"),
-  "auth.session.revoke_device_token": ("server.registry.auth.session.mssql", "revoke_device_token_v1"),
-  "auth.session.revoke_provider_tokens": ("server.registry.auth.session.mssql", "revoke_provider_tokens_v1"),
-  "auth.session.update_device_token": ("server.registry.auth.session.mssql", "update_device_token_v1"),
-  "auth.session.update_session": ("server.registry.auth.session.mssql", "update_session_v1"),
+  "security.oauth.relink_discord": ("server.registry.security.oauth.mssql", "relink_discord_v1"),
+  "security.oauth.relink_google": ("server.registry.security.oauth.mssql", "relink_google_v1"),
+  "security.oauth.relink_microsoft": ("server.registry.security.oauth.mssql", "relink_microsoft_v1"),
+  "security.identities.unlink_last_provider": ("server.registry.security.identities.mssql", "unlink_last_provider_v1"),
+  "security.identities.create_from_provider": ("server.registry.security.identities.mssql", "create_from_provider_v1"),
+  "security.identities.get_any_by_provider_identifier": ("server.registry.security.identities.mssql", "get_any_by_provider_identifier_v1"),
+  "security.identities.get_by_provider_identifier": ("server.registry.security.identities.mssql", "get_by_provider_identifier_v1"),
+  "security.identities.get_user_by_email": ("server.registry.security.identities.mssql", "get_user_by_email_v1"),
+  "security.identities.link_provider": ("server.registry.security.identities.mssql", "link_provider_v1"),
+  "security.identities.set_provider": ("server.registry.security.identities.mssql", "set_provider_v1"),
+  "security.identities.soft_delete_account": ("server.registry.security.identities.mssql", "soft_delete_account_v1"),
+  "security.identities.unlink_provider": ("server.registry.security.identities.mssql", "unlink_provider_v1"),
+  "security.sessions.create_session": ("server.registry.security.sessions.mssql", "create_session_v1"),
+  "security.sessions.revoke_all_device_tokens": ("server.registry.security.sessions.mssql", "revoke_all_device_tokens_v1"),
+  "security.sessions.revoke_device_token": ("server.registry.security.sessions.mssql", "revoke_device_token_v1"),
+  "security.sessions.revoke_provider_tokens": ("server.registry.security.sessions.mssql", "revoke_provider_tokens_v1"),
+  "security.sessions.update_device_token": ("server.registry.security.sessions.mssql", "update_device_token_v1"),
+  "security.sessions.update_session": ("server.registry.security.sessions.mssql", "update_session_v1"),
+  "security.sessions.set_rotkey": ("server.registry.security.sessions.mssql", "set_rotkey_v1"),
   "content.cache.count_rows": ("server.registry.content.cache.mssql", "count_rows_v1"),
   "content.cache.delete": ("server.registry.content.cache.mssql", "delete_v1"),
   "content.cache.delete_folder": ("server.registry.content.cache.mssql", "delete_folder_v1"),
@@ -111,22 +122,12 @@ _PROVIDER_SPECS: dict[str, tuple[str, str]] = {
   "system.routes.delete_route": ("server.registry.system.routes.mssql", "delete_route_v1"),
   "system.routes.get_routes": ("server.registry.system.routes.mssql", "get_routes_v1"),
   "system.routes.upsert_route": ("server.registry.system.routes.mssql", "upsert_route_v1"),
-  "users.account.exists": ("server.registry.users.account.mssql", "account_exists_v1"),
   "users.profile.get_profile": ("server.registry.users.profile.mssql", "get_profile_v1"),
   "users.profile.set_display": ("server.registry.users.profile.mssql", "set_display_v1"),
   "users.profile.set_optin": ("server.registry.users.profile.mssql", "set_optin_v1"),
   "users.profile.set_profile_image": ("server.registry.users.profile.mssql", "set_profile_image_v1"),
   "users.profile.set_roles": ("server.registry.users.profile.mssql", "set_roles_v1"),
   "users.profile.update_if_unedited": ("server.registry.users.profile.mssql", "update_if_unedited_v1"),
-  "users.providers.create_from_provider": ("server.registry.users.providers.mssql", "create_from_provider_v1"),
-  "users.providers.get_any_by_provider_identifier": ("server.registry.users.providers.mssql", "get_any_by_provider_identifier_v1"),
-  "users.providers.get_by_provider_identifier": ("server.registry.users.providers.mssql", "get_by_provider_identifier_v1"),
-  "users.providers.get_user_by_email": ("server.registry.users.providers.mssql", "get_user_by_email_v1"),
-  "users.providers.link_provider": ("server.registry.users.providers.mssql", "link_provider_v1"),
-  "users.providers.set_provider": ("server.registry.users.providers.mssql", "set_provider_v1"),
-  "users.providers.soft_delete_account": ("server.registry.users.providers.mssql", "soft_delete_account_v1"),
-  "users.providers.unlink_provider": ("server.registry.users.providers.mssql", "unlink_provider_v1"),
-  "users.session.set_rotkey": ("server.registry.users.session.mssql", "set_rotkey_v1"),
 }
 
 
