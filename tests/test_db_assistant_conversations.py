@@ -3,7 +3,6 @@ import asyncio
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
 
 
 def test_assistant_conversations_list_by_time(monkeypatch):
@@ -12,11 +11,12 @@ def test_assistant_conversations_list_by_time(monkeypatch):
   start = '2024-01-01'
   end = '2024-01-02'
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, Operation)
-    assert operation.kind is DbRunMode.JSON_MANY
-    sql = operation.sql
-    params = operation.params
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     assert "element_modified_on" in sql
     assert "element_user_id" in sql
     assert "element_tokens" in sql
@@ -25,7 +25,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
     assert params == (personas_recid, start, end)
     return DBResult(rows=[{"recid": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'execute_operation', fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run(
     'db:assistant:conversations:list_by_time:1',
@@ -33,6 +33,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
   ))
   assert isinstance(res, DBResult)
   assert res.rows == [{"recid": 1}]
+  assert captured["kind"] in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
 
 
 def test_assistant_conversations_insert(monkeypatch):
@@ -48,20 +49,22 @@ def test_assistant_conversations_insert(monkeypatch):
     'tokens': 5,
   }
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, Operation)
-    assert operation.kind is DbRunMode.JSON_ONE
-    sql = operation.sql
-    params = operation.params
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     assert "INSERT INTO assistant_conversations" in sql
     assert "FOR JSON PATH" in sql
     assert params == (1, 2, '1', '2', '3', 'hi', '', 5)
     return DBResult(rows=[{'recid': 9}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'execute_operation', fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run('db:assistant:conversations:insert:1', args))
   assert res.rows == [{'recid': 9}]
+  assert captured["kind"] in (DbRunMode.JSON_ONE, DbRunMode.JSON_ONE.value)
 
 
 def test_assistant_conversations_find_recent(monkeypatch):
@@ -76,51 +79,56 @@ def test_assistant_conversations_find_recent(monkeypatch):
     'window_seconds': 120,
   }
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, Operation)
-    assert operation.kind is DbRunMode.JSON_ONE
-    sql = operation.sql
-    params = operation.params
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     assert "SELECT TOP 1 recid" in sql
     assert "DATEADD" in sql
     assert "FOR JSON PATH" in sql
     assert params == (1, 2, 'hi', '1', '1', '2', '2', '3', '3', 120)
     return DBResult(rows=[{'recid': 5}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'execute_operation', fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run('db:assistant:conversations:find_recent:1', args))
   assert res.rows == [{'recid': 5}]
+  assert captured["kind"] in (DbRunMode.JSON_ONE, DbRunMode.JSON_ONE.value)
 
 
 def test_assistant_conversations_update_output(monkeypatch):
   provider = MssqlProvider()
   args = {'recid': 9, 'output_data': 'out', 'tokens': 12}
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, Operation)
-    assert operation.kind is DbRunMode.EXEC
-    sql = operation.sql
-    params = operation.params
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     assert "element_modified_on" not in sql
     assert "element_tokens" in sql
     assert params == ('out', 12, 9)
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'execute_operation', fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run('db:assistant:conversations:update_output:1', args))
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.EXEC, DbRunMode.EXEC.value)
 
 
 def test_assistant_conversations_list_recent(monkeypatch):
   provider = MssqlProvider()
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, Operation)
-    assert operation.kind is DbRunMode.JSON_MANY
-    sql = operation.sql
-    params = operation.params
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     assert "SELECT TOP (2)" in sql
     assert "element_output" in sql
     assert "ORDER BY element_created_on DESC" in sql
@@ -129,9 +137,10 @@ def test_assistant_conversations_list_recent(monkeypatch):
     assert params == ()
     return DBResult(rows=[{"recid": 2}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'execute_operation', fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run('db:assistant:conversations:list_recent:1', {}))
   assert isinstance(res, DBResult)
   assert res.rows == [{"recid": 2}]
+  assert captured["kind"] in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
 

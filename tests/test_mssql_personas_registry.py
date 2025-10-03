@@ -1,16 +1,25 @@
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+import asyncio
+
 from server.registry.assistant.personas import mssql as personas_mssql
+from server.registry.types import DBResponse
 
 
-def test_persona_lookup_query_targets_element_name():
-  op = personas_mssql.get_by_name_v1({"name": "stark"})
+def test_persona_lookup_query_targets_element_name(monkeypatch):
+  captured: dict[str, object] = {}
 
-  assert isinstance(op, Operation)
-  assert op.kind is DbRunMode.JSON_ONE
-  assert "FROM vw_personas vp" in op.sql
-  assert "JOIN assistant_personas ap ON ap.element_name = vp.persona_name" in op.sql
-  assert "WHERE vp.persona_name = ?" in op.sql
-  assert "FOR JSON PATH" in op.sql
-  assert "vp.model_name AS element_model" in op.sql
-  assert op.params == ("stark",)
+  async def fake_run_json_one(sql, params=(), *, meta=None):
+    captured["sql"] = sql
+    captured["params"] = params
+    return DBResponse()
+
+  monkeypatch.setattr(personas_mssql, "run_json_one", fake_run_json_one)
+
+  asyncio.run(personas_mssql.get_by_name_v1({"name": "stark"}))
+
+  sql = captured["sql"].lower()
+  assert "from vw_personas vp" in sql
+  assert "join assistant_personas ap on ap.element_name = vp.persona_name" in sql
+  assert "where vp.persona_name = ?" in sql
+  assert "for json path" in sql
+  assert "vp.model_name as element_model" in sql
+  assert captured["params"] == ("stark",)

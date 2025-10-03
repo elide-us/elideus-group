@@ -11,25 +11,26 @@ from server.registry.content.cache import set_public_request
 
 
 def _set_provider_callable(monkeypatch, provider_map: str, handler):
-  monkeypatch.setitem(mssql_provider.PROVIDER_QUERIES, provider_map, {1: handler})
+  monkeypatch.setitem(registry_mssql.PROVIDER_QUERIES, provider_map, {1: handler})
 
 
 def test_run_json_one(monkeypatch):
   provider = MssqlProvider()
   op = "db:test:queries:json_one:1"
 
+  captured: dict[str, object] = {}
+
   def fake_handler(params):
     assert params == {}
-    return mssql_provider.Operation(DbRunMode.JSON_ONE, "select 1", ())
+    return registry_mssql.run_json_one("select 1")
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.JSON_ONE
-    assert operation.sql == "select 1"
-    assert operation.params == ()
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
   _set_provider_callable(monkeypatch, "test.queries.json_one", registry_mssql._wrap(fake_handler))
 
   res = asyncio.run(provider.run(op, {}))
@@ -37,24 +38,28 @@ def test_run_json_one(monkeypatch):
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.JSON_ONE, DbRunMode.JSON_ONE.value)
+  assert captured["sql"] == "select 1"
+  assert captured["params"] == ()
 
 
 def test_run_row_one(monkeypatch):
   provider = MssqlProvider()
   op = "db:test:queries:row_one:1"
 
+  captured: dict[str, object] = {}
+
   def fake_handler(params):
     assert params == {}
-    return mssql_provider.Operation(DbRunMode.ROW_ONE, "select 1", ())
+    return registry_mssql._run_operation("row_one", "select 1")
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.ROW_ONE
-    assert operation.sql == "select 1"
-    assert operation.params == ()
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rows=[{"v": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
   _set_provider_callable(monkeypatch, "test.queries.row_one", registry_mssql._wrap(fake_handler))
 
   res = asyncio.run(provider.run(op, {}))
@@ -62,6 +67,9 @@ def test_run_row_one(monkeypatch):
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.ROW_ONE, DbRunMode.ROW_ONE.value)
+  assert captured["sql"] == "select 1"
+  assert captured["params"] == ()
 
 
 def test_run_row_many(monkeypatch):
@@ -69,36 +77,43 @@ def test_run_row_many(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000000"
   expected_guid = str(UUID(guid))
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.JSON_MANY
-    assert "FOR JSON PATH" in operation.sql
-    assert operation.params == (expected_guid,)
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rows=[{"path": "a"}, {"path": "b"}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
 
   assert isinstance(res, DBResult)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
   assert res.rowcount == 2
+  assert captured["kind"] in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
+  assert "FOR JSON PATH" in str(captured["sql"]).upper()
+  assert captured["params"] == (expected_guid,)
 
 
 def test_run_json_many(monkeypatch):
   provider = MssqlProvider()
   op = "db:test:queries:json_many:1"
 
+  captured: dict[str, object] = {}
+
   def fake_handler(params):
     assert params == {}
-    return mssql_provider.Operation(DbRunMode.JSON_MANY, "select", ())
+    return registry_mssql.run_json_many("select")
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.JSON_MANY
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rows=[{"v": 1}, {"v": 2}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
   _set_provider_callable(monkeypatch, "test.queries.json_many", registry_mssql._wrap(fake_handler))
 
   res = asyncio.run(provider.run(op, {}))
@@ -106,24 +121,28 @@ def test_run_json_many(monkeypatch):
   assert isinstance(res, DBResult)
   assert res.rows == [{"v": 1}, {"v": 2}]
   assert res.rowcount == 2
+  assert captured["kind"] in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
+  assert captured["sql"] == "select"
+  assert captured["params"] == ()
 
 
 def test_run_exec(monkeypatch):
   provider = MssqlProvider()
   op = "db:test:queries:exec:1"
 
+  captured: dict[str, object] = {}
+
   def fake_handler(params):
     assert params == {}
-    return mssql_provider.Operation(DbRunMode.EXEC, "update", (1,))
+    return registry_mssql.run_exec("update", (1,))
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.EXEC
-    assert operation.sql == "update"
-    assert operation.params == (1,)
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
   _set_provider_callable(monkeypatch, "test.queries.exec", registry_mssql._wrap(fake_handler))
 
   res = asyncio.run(provider.run(op, {}))
@@ -131,6 +150,9 @@ def test_run_exec(monkeypatch):
   assert isinstance(res, DBResult)
   assert res.rows == []
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.EXEC, DbRunMode.EXEC.value)
+  assert captured["sql"] == "update"
+  assert captured["params"] == (1,)
 
 
 def test_storage_files_set_gallery(monkeypatch):
@@ -138,14 +160,15 @@ def test_storage_files_set_gallery(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000000"
   expected_guid = str(UUID(guid))
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.EXEC
-    assert "UPDATE users_storage_cache" in operation.sql
-    assert operation.params == (1, expected_guid, "", "file.txt")
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   request = set_gallery_request(guid, "file.txt", True)
 
@@ -153,6 +176,9 @@ def test_storage_files_set_gallery(monkeypatch):
 
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.EXEC, DbRunMode.EXEC.value)
+  assert "UPDATE USERS_STORAGE_CACHE" in str(captured["sql"]).upper()
+  assert captured["params"] == (1, expected_guid, "", "file.txt")
 
 
 def test_storage_cache_set_public(monkeypatch):
@@ -160,14 +186,15 @@ def test_storage_cache_set_public(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000001"
   expected_guid = str(UUID(guid))
 
-  async def fake_execute_operation(operation):
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.EXEC
-    assert operation.params == (0, expected_guid, "docs", "file.txt")
-    assert "UPDATE users_storage_cache" in operation.sql
+  captured: dict[str, object] = {}
+
+  async def fake_run_operation(kind, sql, params):
+    captured["kind"] = kind
+    captured["sql"] = sql
+    captured["params"] = params
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   request = set_public_request(
     guid,
@@ -180,26 +207,28 @@ def test_storage_cache_set_public(monkeypatch):
 
   assert isinstance(res, DBResult)
   assert res.rowcount == 1
+  assert captured["kind"] in (DbRunMode.EXEC, DbRunMode.EXEC.value)
+  assert captured["params"] == (0, expected_guid, "docs", "file.txt")
+  assert "UPDATE USERS_STORAGE_CACHE" in str(captured["sql"]).upper()
 
 
 def test_storage_public_lists_share_query(monkeypatch):
   provider = MssqlProvider()
-  seen = []
+  seen: list[tuple[object, str, tuple]] = []
 
-  async def fake_execute_operation(operation):
-    seen.append(operation)
-    assert isinstance(operation, mssql_provider.Operation)
-    assert operation.kind is DbRunMode.JSON_MANY
-    assert operation.params == ()
+  async def fake_run_operation(kind, sql, params):
+    seen.append((kind, sql, params))
+    assert kind in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
+    assert params == ()
     return DBResult(rows=[], rowcount=0)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   asyncio.run(provider.run("db:content:public:list_public:1", {}))
   asyncio.run(provider.run("db:content:public:get_public_files:1", {}))
 
   assert len(seen) == 2
-  assert seen[0].sql == seen[1].sql
+  assert seen[0][1] == seen[1][1]
 
 
 def test_unlink_provider_dict_result(monkeypatch):

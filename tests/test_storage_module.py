@@ -121,16 +121,16 @@ def test_list_public_files(monkeypatch):
   app = FastAPI()
   provider = MssqlProvider()
 
-  async def fake_execute_operation(operation):
-    assert operation.kind is DbRunMode.JSON_MANY
-    assert "FOR JSON PATH" in operation.sql
-    assert operation.params == ()
+  async def fake_run_operation(kind, sql, params):
+    assert kind in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
+    assert "FOR JSON PATH" in sql
+    assert params == ()
     return DBResult(rows=[
       {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
       {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
     ], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "execute_operation", fake_execute_operation)
+  monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   mod = StorageModule(app)
   mod.db = provider

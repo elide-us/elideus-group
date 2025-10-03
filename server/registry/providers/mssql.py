@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import importlib
 import inspect
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from typing import Any
 
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
 from server.registry.types import DBRequest, DBResponse
 
 from . import ProviderCallable, ProviderQueryMap
@@ -24,25 +23,10 @@ def _get_provider():
   return importlib.import_module("server.modules.providers.database.mssql_provider")
 
 
-def _response_from_payload(payload: Any, *, meta: dict[str, Any] | None = None) -> DBResponse:
-  rows_attr = getattr(payload, "rows", None)
-  rowcount_attr = getattr(payload, "rowcount", None)
-  if rows_attr is not None or rowcount_attr is not None:
-    rows = list(rows_attr or []) if rows_attr is not None else []
-    rowcount = int(rowcount_attr) if rowcount_attr is not None else len(rows)
-    return DBResponse(rows=rows, rowcount=rowcount, meta=meta)
-  if isinstance(payload, Mapping):
-    return DBResponse(rows=[dict(payload)], rowcount=1, meta=meta)
-  if payload is None:
-    return DBResponse(meta=meta)
-  raise TypeError(f"Unsupported provider specification result: {type(payload)!r}")
-
-
 async def _run_operation(kind: str, sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
-  operation = Operation(kind, sql, tuple(params))
   provider = _get_provider()
-  result = await provider.execute_operation(operation)
-  return _response_from_payload(result, meta=meta)
+  result = await provider.run_operation(kind, sql, tuple(params))
+  return DBResponse.from_result(result, meta=meta)
 
 
 async def run_json_one(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
@@ -58,18 +42,11 @@ async def run_exec(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any]
 
 
 async def _coerce_response(spec: Any) -> DBResponse:
-  if isinstance(spec, DBResponse):
-    return spec
   if inspect.isawaitable(spec):
-    return await _coerce_response(await spec)
-  if isinstance(spec, Operation):
-    provider = _get_provider()
-    result = await provider.execute_operation(spec)
-    return _response_from_payload(result)
-  try:
-    return _response_from_payload(spec)
-  except TypeError:
-    raise
+    spec = await spec
+  if not isinstance(spec, DBResponse):
+    raise TypeError(f"Expected DBResponse from provider callable, received {type(spec)!r}")
+  return spec
 
 
 def _wrap(fn: Any) -> ProviderCallable:

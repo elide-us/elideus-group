@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from server.modules.providers.database.mssql_provider import db_helpers
+from server.modules.providers import DbRunMode
 from server.registry.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.support.users import mssql as support_users
@@ -154,7 +155,7 @@ def test_fetch_rows_raises_structured_error(monkeypatch):
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.fetch_rows(db_helpers.row_one("SELECT 1")))
+    asyncio.run(db_helpers.fetch_rows(DbRunMode.ROW_ONE, "SELECT 1"))
   assert exc.value.detail.query == "SELECT 1"
   assert exc.value.detail.params == ()
 
@@ -189,7 +190,7 @@ def test_fetch_json_raises_structured_error(monkeypatch):
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   with pytest.raises(db_helpers.DBQueryError) as exc:
-    asyncio.run(db_helpers.fetch_json(db_helpers.json_one("SELECT 1")))
+    asyncio.run(db_helpers.fetch_json(DbRunMode.JSON_ONE, "SELECT 1"))
   assert exc.value.detail.query == "SELECT 1"
 
 
@@ -229,11 +230,11 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
       return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  result = asyncio.run(db_helpers.fetch_json(db_helpers.json_many("SELECT 1")))
+  result = asyncio.run(db_helpers.fetch_json(DbRunMode.JSON_MANY, "SELECT 1"))
   assert result.rows == [{"a": 1, "b": "two"}]
 
 
-def test_execute_operation_handles_exec(monkeypatch):
+def test_run_operation_handles_exec(monkeypatch):
   class Cur:
     async def __aenter__(self):
       return self
@@ -263,5 +264,5 @@ def test_execute_operation_handles_exec(monkeypatch):
       return _Ctx()
 
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
-  result = asyncio.run(db_helpers.exec_query(db_helpers.exec_op("UPDATE")))
+  result = asyncio.run(db_helpers.run_operation(DbRunMode.EXEC, "UPDATE"))
   assert result.rowcount == 3
