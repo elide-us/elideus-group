@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from server.modules.providers.database.mssql_provider import registry
+from server.registry.security.identities import mssql as identities_registry
 
 class FakeCursor:
   def __init__(self, fetches, log):
@@ -25,17 +25,17 @@ def test_unlink_last_provider_clears_profile(monkeypatch):
     (0,),  # remaining linked providers
   ]
   monkeypatch.setattr(
-    registry,
+    identities_registry,
     "transaction",
     lambda: fake_transaction(fetches, log),
   )
   res = asyncio.run(
-    registry._users_unlink_provider({
+    identities_registry.unlink_provider_v1({
       "guid": "00000000-0000-0000-0000-000000000001",
       "provider": "google",
     })
   )
-  assert res["rows"][0]["providers_remaining"] == 0
+  assert res.rows[0]["providers_remaining"] == 0
   assert any(
     "element_display = ''" in sql and "element_email = ''" in sql
     for sql, _ in log
