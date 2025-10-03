@@ -1,5 +1,6 @@
 import types, asyncio
 from fastapi import HTTPException
+from server.registry.types import DBRequest
 
 from server.modules.role_admin_module import RoleAdminModule
 
@@ -9,7 +10,11 @@ class DummyDb:
     self.roles = roles or []
   async def on_ready(self):
     pass
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     if op == "db:system:roles:list:1":
       return types.SimpleNamespace(rows=self.roles)
     return types.SimpleNamespace(rows=[])

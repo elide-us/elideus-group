@@ -4,6 +4,7 @@ import pathlib
 import sys
 import types
 from types import SimpleNamespace
+from server.registry.types import DBRequest
 
 import pytest
 from fastapi import HTTPException
@@ -77,6 +78,10 @@ class DummyDb:
     self.calls = []
     self.roles = roles
   async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     if hasattr(op, "op") and hasattr(op, "params"):
       key = op.op
       params = op.params

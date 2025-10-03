@@ -27,10 +27,10 @@ def _register_on_ready_handler(bot_module: "DiscordBotModule", bot: commands.Bot
     channel = bot.get_channel(bot_module.syschan)
     if channel:
       request = get_config_request("Version")
-      res = await bot_module.db.run(request.op, request.params)
+      res = await bot_module.db.run(request)
       version = res.rows[0]["value"] if res.rows else None
       name_request = get_config_request("BotName")
-      name_res = await bot_module.db.run(name_request.op, name_request.params)
+      name_res = await bot_module.db.run(name_request)
       bot_name = name_res.rows[0]["value"] if name_res.rows else None
       msg = f"{(bot_name or 'TheOracleGPT-Dev')} Online. Version: {version or 'unknown'}"
       if await bot_module._try_send_channel(channel.id, msg):

@@ -15,6 +15,7 @@ from server.registry.accounts.profile import (
   set_profile_image_request,
   update_if_unedited_request,
 )
+from server.registry.system.config import get_config_request
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
 
 
@@ -56,7 +57,7 @@ async def auth_discord_oauth_login_v1(request: Request):
   if not client_secret:
     raise HTTPException(status_code=500, detail="DISCORD_AUTH_SECRET not configured")
 
-  res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+  res_redirect = await db.run(get_config_request("Hostname"))
   if not res_redirect.rows:
     raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]

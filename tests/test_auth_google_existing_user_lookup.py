@@ -8,6 +8,7 @@ import uuid
 from fastapi import FastAPI
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.oauth_module import OauthModule
+from server.registry.types import DBRequest
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -38,7 +39,11 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == "db:security:identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)

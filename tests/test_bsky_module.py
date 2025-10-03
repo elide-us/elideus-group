@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from server.registry.types import DBRequest
 
 import pytest
 from fastapi import FastAPI
@@ -19,7 +20,11 @@ class DummyDb(BaseModule):
   async def shutdown(self):
     pass
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     class Res:
       def __init__(self, rows):
         self.rows = rows

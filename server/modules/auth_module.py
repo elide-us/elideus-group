@@ -39,7 +39,7 @@ class RoleCache:
     try:
       assert self.db, "database module not initialised"
       request = list_roles_request()
-      result = await self.db.run(request.op, request.params)
+      result = await self.db.run(request)
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
@@ -63,13 +63,13 @@ class RoleCache:
   async def upsert_role(self, name: str, mask: int, display: str | None):
     assert self.db, "database module not initialised"
     request = upsert_role_request(name, mask, display)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
     assert self.db, "database module not initialised"
     request = delete_role_request(name)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     await self.refresh_role_cache()
 
   def mask_to_names(self, mask: int) -> list[str]:
@@ -118,7 +118,7 @@ class RoleCache:
       return self._user_security[guid]
     logging.debug("[RoleCache] Fetching security profile for %s", guid)
     request = get_security_profile_request(guid=guid)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     row = res.rows[0] if res.rows else None
     return self._hydrate_security_profile(str(guid), row)
 
@@ -376,7 +376,7 @@ class AuthModule(BaseModule):
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
     request = get_security_profile_request(discord_id=discord_id)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     if not res.rows:
       return "", [], 0
     profile = self.role_cache.cache_security_profile(res.rows[0])

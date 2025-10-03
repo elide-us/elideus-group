@@ -28,11 +28,11 @@ class PublicLinksModule(BaseModule):
   async def get_home_links(self):
     assert self.db
     request = get_home_links_request()
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     return res.rows
 
   async def get_navbar_routes(self, role_mask: int):
     assert self.db
     request = get_navbar_routes_request(role_mask=role_mask)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     return res.rows

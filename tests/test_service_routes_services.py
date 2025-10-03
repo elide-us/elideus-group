@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
+from server.registry.types import DBRequest
 
 # Stub rpc packages
 pkg = types.ModuleType('rpc')
@@ -111,7 +112,11 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == 'db:system:routes:get_routes:1':
       rows = [{

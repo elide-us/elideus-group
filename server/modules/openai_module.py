@@ -102,7 +102,7 @@ class OpenaiModule(BaseModule):
     assert self.db
     assert self.db, "database module not initialised"
     request = get_config_request("OpenAIApiKey")
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     if res.rows:
       return res.rows[0].get("value", "")
     return ""

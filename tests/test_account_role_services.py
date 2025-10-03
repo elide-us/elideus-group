@@ -1,5 +1,6 @@
 import types, sys, pathlib, asyncio, importlib
 from fastapi import HTTPException
+from server.registry.types import DBRequest
 
 # stub rpc package and load required modules
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -41,8 +42,9 @@ class DummyDb:
     self.non_members = non_members or []
     self.roles = roles or []
 
-  async def run(self, op, args):
-    self.calls.append((op, args))
+  async def run(self, request: DBRequest):
+    self.calls.append(request)
+    op = request.op
     if op == "db:system:roles:get_role_members:1":
       return DBRes(self.members, len(self.members))
     if op == "db:system:roles:get_role_non_members:1":
@@ -66,15 +68,17 @@ class RoleCache:
     self.upsert_args = (name, mask, display)
     if self.db:
       await self.db.run(
-        "db:system:roles:upsert_role:1",
-        {"name": name, "mask": mask, "display": display},
+        DBRequest(
+          op="db:system:roles:upsert_role:1",
+          params={"name": name, "mask": mask, "display": display},
+        )
       )
     await self.refresh_role_cache()
 
   async def delete_role(self, name):
     self.delete_args = name
     if self.db:
-      await self.db.run("db:system:roles:delete_role:1", {"name": name})
+      await self.db.run(DBRequest(op="db:system:roles:delete_role:1", params={"name": name}))
     await self.refresh_role_cache()
 
   async def refresh_user_roles(self, guid):
@@ -101,7 +105,7 @@ class DummyRoleAdmin:
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def list_roles(self, actor_mask: int | None = None):
-    res = await self.db.run("db:system:roles:list:1", {})
+    res = await self.db.run(DBRequest(op="db:system:roles:list:1", params={}))
     roles = [
       {
         "name": r.get("name", ""),
@@ -118,8 +122,8 @@ class DummyRoleAdmin:
     return roles
 
   async def get_role_members(self, role):
-    mem_res = await self.db.run("db:system:roles:get_role_members:1", {"role": role})
-    non_res = await self.db.run("db:system:roles:get_role_non_members:1", {"role": role})
+    mem_res = await self.db.run(DBRequest(op="db:system:roles:get_role_members:1", params={"role": role}))
+    non_res = await self.db.run(DBRequest(op="db:system:roles:get_role_non_members:1", params={"role": role}))
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
       for r in mem_res.rows
@@ -135,8 +139,10 @@ class DummyRoleAdmin:
       role_mask = self.auth.role_cache.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
-      "db:system:roles:add_role_member:1",
-      {"role": role, "user_guid": user_guid},
+      DBRequest(
+        op="db:system:roles:add_role_member:1",
+        params={"role": role, "user_guid": user_guid},
+      )
     )
     await self.auth.role_cache.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
@@ -146,8 +152,10 @@ class DummyRoleAdmin:
       role_mask = self.auth.role_cache.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
-      "db:system:roles:remove_role_member:1",
-      {"role": role, "user_guid": user_guid},
+      DBRequest(
+        op="db:system:roles:remove_role_member:1",
+        params={"role": role, "user_guid": user_guid},
+      )
     )
     await self.auth.role_cache.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
@@ -207,7 +215,7 @@ def test_add_and_remove_member():
   helpers.unbox_request = fake_get_add
   svc_mod.unbox_request = fake_get_add
   resp = asyncio.run(account_role_add_role_member_v1(req))
-  assert any(op == "db:system:roles:add_role_member:1" for op, _ in db.calls)
+  assert any(c.op == "db:system:roles:add_role_member:1" for c in db.calls)
   assert resp.payload["members"] == [{"guid": "u1", "displayName": "User 1"}]
   assert resp.payload["nonMembers"] == [{"guid": "u2", "displayName": "User 2"}]
 
@@ -230,7 +238,7 @@ def test_add_and_remove_member():
   helpers.unbox_request = fake_get_remove
   svc_mod.unbox_request = fake_get_remove
   resp2 = asyncio.run(account_role_remove_role_member_v1(req))
-  assert any(op == "db:system:roles:remove_role_member:1" for op, _ in db.calls)
+  assert any(c.op == "db:system:roles:remove_role_member:1" for c in db.calls)
   assert resp2.payload["members"] == []
   assert resp2.payload["nonMembers"] == [
     {"guid": "u1", "displayName": "User 1"},
@@ -257,11 +265,12 @@ def test_upsert_and_delete_role():
   svc_mod.unbox_request = fake_upsert
   resp = asyncio.run(account_role_upsert_role_v1(req))
   assert auth.role_cache.upsert_args == ("ROLE_NEW", 8, "New")
-  assert (
-    "db:system:roles:upsert_role:1",
-    {"name": "ROLE_NEW", "mask": 8, "display": "New"},
-  ) in db.calls
-  assert isinstance(resp, models_mod.RPCResponse)
+  assert any(
+    c.op == "db:system:roles:upsert_role:1"
+    and c.params == {"name": "ROLE_NEW", "mask": 8, "display": "New"}
+    for c in db.calls
+  )
+  assert getattr(resp, "op", None) == "urn:account:role:upsert_role:1"
 
   db.calls.clear()
 
@@ -278,8 +287,12 @@ def test_upsert_and_delete_role():
   svc_mod.unbox_request = fake_delete
   resp2 = asyncio.run(account_role_delete_role_v1(req))
   assert auth.role_cache.delete_args == "ROLE_NEW"
-  assert ("db:system:roles:delete_role:1", {"name": "ROLE_NEW"}) in db.calls
-  assert isinstance(resp2, models_mod.RPCResponse)
+  assert any(
+    c.op == "db:system:roles:delete_role:1"
+    and c.params == {"name": "ROLE_NEW"}
+    for c in db.calls
+  )
+  assert getattr(resp2, "op", None) == "urn:account:role:delete_role:1"
 
 
 def test_get_roles_filters_by_mask():

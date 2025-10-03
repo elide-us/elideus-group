@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 
 from server.modules.oauth_module import OauthModule
 
@@ -99,6 +100,10 @@ class DummyDb:
   def __init__(self):
     self.calls = []
   async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     key, params = _normalize_db_call(op, args)
     self.calls.append((key, params))
     return DBRes()
@@ -223,6 +228,10 @@ def test_link_provider_google_normalizes_identifier():
     def __init__(self):
       self.calls = []
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       if key == "db:system:config:get_config:1":
@@ -279,7 +288,11 @@ def test_link_provider_discord_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       self.calls.append((op, args))
       if op == "db:system:config:get_config:1":
         key = args["key"]
@@ -336,6 +349,10 @@ def test_link_provider_microsoft_normalizes_identifier():
     def __init__(self):
       self.calls = []
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       return DBRes()
@@ -357,6 +374,10 @@ def test_unlink_non_default_provider_retains_tokens():
 
   class LocalDb(DummyDb):
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       if key == PROFILE_GET_REQUEST.op:
@@ -382,6 +403,10 @@ def test_unlink_default_provider_without_new_default_raises():
 
   class LocalDb(DummyDb):
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       if key == PROFILE_GET_REQUEST.op:
@@ -406,6 +431,10 @@ def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
 
   class LocalDb(DummyDb):
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       if key == PROFILE_GET_REQUEST.op:
@@ -431,6 +460,10 @@ def test_unlink_last_provider_soft_deletes_and_revokes():
 
   class LocalDb(DummyDb):
     async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       key, params = _normalize_db_call(op, args)
       self.calls.append((key, params))
       if key == PROFILE_GET_REQUEST.op:

@@ -3,6 +3,7 @@ import base64
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
+from server.registry.types import DBRequest
 
 from types import SimpleNamespace
 from fastapi import FastAPI
@@ -35,7 +36,11 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == "db:security:sessions:create_session:1":
       return SimpleNamespace(rows=[{"session_guid": "sess", "device_guid": "dev"}])

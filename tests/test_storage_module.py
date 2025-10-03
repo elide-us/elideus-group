@@ -133,7 +133,15 @@ def test_list_public_files(monkeypatch):
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
   mod = StorageModule(app)
-  mod.db = provider
+  class ProviderAdapter:
+    def __init__(self, provider):
+      self.provider = provider
+
+    async def run(self, request, args=None):
+      op, params = _extract_request(request, args)
+      return await self.provider.run(op, params)
+
+  mod.db = ProviderAdapter(provider)
   rows = asyncio.run(mod.list_public_files())
   assert rows == [
     {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},

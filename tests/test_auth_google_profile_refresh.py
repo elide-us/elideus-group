@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 import json
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 
 from server.modules.oauth_module import OauthModule
 from server.registry.accounts.profile import update_if_unedited_request
@@ -33,6 +34,10 @@ class DummyDb:
     self.calls = []
     self.allow_update = allow_update
   async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     if hasattr(op, "op") and hasattr(op, "params"):
       key = op.op
       params = op.params

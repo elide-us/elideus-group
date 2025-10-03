@@ -91,7 +91,7 @@ async def users_profile_get_roles_v1(request: Request):
 
   db: DbModule = request.app.state.db
   request_db = get_security_profile_request(guid=user_guid)
-  res = await db.run(request_db.op, request_db.params)
+  res = await db.run(request_db)
   row = res.rows[0] if res.rows else {}
   roles = int(row.get("user_roles") or row.get("element_roles") or 0)
   payload = UsersProfileRoles1(roles=roles)

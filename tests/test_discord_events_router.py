@@ -1,5 +1,6 @@
 import asyncio, logging
 from types import SimpleNamespace
+from server.registry.types import DBRequest
 
 import pytest
 from fastapi import FastAPI
@@ -35,7 +36,11 @@ class DummyDb:
     self.values = values
     self.calls: list[tuple[str, dict]] = []
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     value = self.values.get(args.get("key"))
     rows = [{"value": value}] if value is not None else []
