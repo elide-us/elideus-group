@@ -46,7 +46,7 @@ class BskyModule(BaseModule):
       raise RuntimeError("BskyModule requires database module")
     assert self.db, "database module not initialised"
     request = get_config_request(key)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     if not res.rows:
       return ""
     return res.rows[0].get("value") or ""

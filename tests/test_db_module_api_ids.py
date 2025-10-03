@@ -3,15 +3,16 @@ from fastapi import FastAPI
 
 from server.modules.db_module import DbModule
 from server.modules.providers import DBResult
+from server.registry.types import DBRequest
 
 
 def test_get_google_client_id():
   app = FastAPI()
   db = DbModule(app)
 
-  async def fake_run(op, args):
-    assert op == "db:system:config:get_config:1"
-    assert args == {"key": "GoogleClientId"}
+  async def fake_run(request: DBRequest):
+    assert request.op == "db:system:config:get_config:1"
+    assert request.params == {"key": "GoogleClientId"}
     return DBResult(rows=[{"value": "gid"}], rowcount=1)
 
   db.run = fake_run
@@ -35,9 +36,9 @@ def test_get_discord_client_id():
   app = FastAPI()
   db = DbModule(app)
 
-  async def fake_run(op, args):
-    assert op == "db:system:config:get_config:1"
-    assert args == {"key": "DiscordClientId"}
+  async def fake_run(request: DBRequest):
+    assert request.op == "db:system:config:get_config:1"
+    assert request.params == {"key": "DiscordClientId"}
     return DBResult(rows=[{"value": "dcid"}], rowcount=1)
 
   db.run = fake_run
@@ -48,9 +49,9 @@ def test_get_ms_api_id():
   app = FastAPI()
   db = DbModule(app)
 
-  async def fake_run(op, args):
-    assert op == "db:system:config:get_config:1"
-    assert args == {"key": "MsApiId"}
+  async def fake_run(request: DBRequest):
+    assert request.op == "db:system:config:get_config:1"
+    assert request.params == {"key": "MsApiId"}
     return DBResult(rows=[{"value": "mid"}], rowcount=1)
 
   db.run = fake_run
@@ -61,9 +62,9 @@ def test_get_auth_providers():
   app = FastAPI()
   db = DbModule(app)
 
-  async def fake_run(op, args):
-    assert op == "db:system:config:get_config:1"
-    assert args == {"key": "AuthProviders"}
+  async def fake_run(request: DBRequest):
+    assert request.op == "db:system:config:get_config:1"
+    assert request.params == {"key": "AuthProviders"}
     return DBResult(rows=[{"value": "microsoft,google,discord"}], rowcount=1)
 
   db.run = fake_run
@@ -74,9 +75,9 @@ def test_get_jwks_cache_time():
   app = FastAPI()
   db = DbModule(app)
 
-  async def fake_run(op, args):
-    assert op == "db:system:config:get_config:1"
-    assert args == {"key": "JwksCacheTime"}
+  async def fake_run(request: DBRequest):
+    assert request.op == "db:system:config:get_config:1"
+    assert request.params == {"key": "JwksCacheTime"}
     return DBResult(rows=[{"value": "45"}], rowcount=1)
 
   db.run = fake_run

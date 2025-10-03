@@ -24,5 +24,5 @@ class PublicGalleryModule(BaseModule):
   async def list_public_files(self):
     assert self.db
     request = get_public_files_request()
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     return res.rows

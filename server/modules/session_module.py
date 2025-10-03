@@ -124,7 +124,7 @@ class SessionModule(BaseModule):
       user_agent=user_agent,
       ip_address=ip_address,
     )
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     row2 = res.rows[0] if res.rows else {}
     session_guid = row2.get("session_guid")
     device_guid = row2.get("device_guid")
@@ -132,17 +132,17 @@ class SessionModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
     )
     update_request = update_device_token_request(device_guid=device_guid, access_token=session_token)
-    await self.db.run(update_request.op, update_request.params)
+    await self.db.run(update_request)
     return session_token
 
   async def invalidate_token(self, user_guid: str) -> None:
     now = datetime.now(timezone.utc)
     request = set_rotkey_request(guid=user_guid, rotkey="", iat=now, exp=now)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
 
   async def logout_device(self, token: str) -> None:
     request = revoke_device_token_request(access_token=token)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
 
   async def get_session(
     self,
@@ -151,7 +151,7 @@ class SessionModule(BaseModule):
     user_agent: str | None,
   ) -> dict:
     request = get_security_profile_request(access_token=token)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     session = res.rows[0] if res.rows else None
     if not session:
       raise HTTPException(status_code=401, detail="Invalid session token")
@@ -178,7 +178,7 @@ class SessionModule(BaseModule):
         ip_address=ip_address,
         user_agent=user_agent,
       )
-      await self.db.run(request.op, request.params)
+      await self.db.run(request)
     except Exception as e:
       logging.error("[SessionModule.get_session] Failed to update session metadata: %s", e)
 

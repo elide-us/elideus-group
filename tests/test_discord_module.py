@@ -1,5 +1,6 @@
 import asyncio, logging
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 
 from server.modules import BaseModule
 from server.modules.discord_bot_module import DiscordBotModule
@@ -31,7 +32,11 @@ class DummyDb(BaseModule):
   async def shutdown(self):
     pass
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     class Res:
       def __init__(self, rows):
         self.rows = rows

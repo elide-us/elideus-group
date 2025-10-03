@@ -36,7 +36,7 @@ class SystemConfigModule(BaseModule):
     logging.debug("[system_config_get_configs_v1] user=%s roles=%s", user_guid, roles)
     assert self.db, "database module not initialised"
     request = get_configs_request()
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     items = [
       SystemConfigConfigItem1(
         key=row.get("element_key", ""),
@@ -60,7 +60,7 @@ class SystemConfigModule(BaseModule):
     )
     assert self.db, "database module not initialised"
     request = upsert_config_request(key, value)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     logging.debug(
       "[system_config_upsert_config_v1] upserted config %s",
       key,
@@ -76,7 +76,7 @@ class SystemConfigModule(BaseModule):
     )
     assert self.db, "database module not initialised"
     request = delete_config_request(key)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     logging.debug(
       "[system_config_delete_config_v1] deleted config %s",
       key,

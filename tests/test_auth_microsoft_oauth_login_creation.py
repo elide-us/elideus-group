@@ -2,6 +2,7 @@ import sys, types, pytest, importlib.util, importlib.machinery, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 
 from server.modules.oauth_module import OauthModule
 
@@ -24,7 +25,11 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == "db:security:identities:get_by_provider_identifier:1":
       if len([c for c in self.calls if c[0] == op]) == 1:

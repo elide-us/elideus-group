@@ -28,6 +28,7 @@ from server.registry.security.identities import (
   unlink_provider_request,
 )
 from server.registry.security.sessions import revoke_provider_tokens_request
+from server.registry.system.config import get_config_request
 
 
 def normalize_provider_identifier(pid: str) -> str:
@@ -57,7 +58,7 @@ async def users_providers_set_provider_v1(request: Request):
         client_secret = env.get("GOOGLE_AUTH_SECRET")
         if not client_secret:
           raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+        res_redirect = await db.run(get_config_request("Hostname"))
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
@@ -82,7 +83,7 @@ async def users_providers_set_provider_v1(request: Request):
         client_secret = env.get("DISCORD_AUTH_SECRET")
         if not client_secret:
           raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
-        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+        res_redirect = await db.run(get_config_request("Hostname"))
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
@@ -107,7 +108,7 @@ async def users_providers_set_provider_v1(request: Request):
         client_secret = env.get("MICROSOFT_AUTH_SECRET")
         if not client_secret:
           raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-        res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+        res_redirect = await db.run(get_config_request("Hostname"))
         if not res_redirect.rows:
           raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
         redirect_uri = res_redirect.rows[0]["value"]
@@ -128,7 +129,7 @@ async def users_providers_set_provider_v1(request: Request):
       raise HTTPException(status_code=400, detail="Unsupported auth provider")
     _, profile, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
   set_request = set_provider_request(guid=auth_ctx.user_guid, provider=payload.provider)
-  await db.run(set_request.op, set_request.params)
+  await db.run(set_request)
   if profile:
     raw_email = (profile.get("email") or "").strip()
     raw_name = (profile.get("username") or "").strip()
@@ -166,7 +167,7 @@ async def users_providers_link_provider_v1(request: Request):
     client_secret = env.get("GOOGLE_AUTH_SECRET")
     if not client_secret:
       raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-    res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+    res_redirect = await db.run(get_config_request("Hostname"))
     if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
     redirect_uri = res_redirect.rows[0]["value"]
@@ -189,7 +190,7 @@ async def users_providers_link_provider_v1(request: Request):
       client_secret = env.get("DISCORD_AUTH_SECRET")
       if not client_secret:
         raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
-      res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+      res_redirect = await db.run(get_config_request("Hostname"))
       if not res_redirect.rows:
         raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
       redirect_uri = res_redirect.rows[0]["value"]
@@ -215,7 +216,7 @@ async def users_providers_link_provider_v1(request: Request):
       client_secret = env.get("MICROSOFT_AUTH_SECRET")
       if not client_secret:
         raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-      res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+      res_redirect = await db.run(get_config_request("Hostname"))
       if not res_redirect.rows:
         raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
       redirect_uri = res_redirect.rows[0]["value"]
@@ -241,7 +242,7 @@ async def users_providers_link_provider_v1(request: Request):
     provider=payload.provider,
     provider_identifier=provider_uid,
   )
-  res = await db.run(request_db.op, request_db.params)
+  res = await db.run(request_db)
   if res.rows and res.rows[0].get("guid") != auth_ctx.user_guid:
     raise HTTPException(status_code=409, detail="Provider already linked")
   link_request = link_provider_request(
@@ -249,7 +250,7 @@ async def users_providers_link_provider_v1(request: Request):
     provider=payload.provider,
     provider_identifier=provider_uid,
   )
-  await db.run(link_request.op, link_request.params)
+  await db.run(link_request)
   return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
 
 async def users_providers_unlink_provider_v1(request: Request):
@@ -266,14 +267,14 @@ async def users_providers_unlink_provider_v1(request: Request):
     guid=auth_ctx.user_guid,
     provider=payload.provider,
   )
-  res = await db.run(unlink_request.op, unlink_request.params)
+  res = await db.run(unlink_request)
   remaining = res.rows[0].get("providers_remaining") if res.rows else 0
   if remaining == 0:
     final_unlink_request = unlink_last_provider_request(
       guid=auth_ctx.user_guid,
       provider=payload.provider,
     )
-    await db.run(final_unlink_request.op, final_unlink_request.params)
+    await db.run(final_unlink_request)
   elif payload.provider == default_provider:
     if not payload.new_default:
       raise HTTPException(status_code=400, detail="new_default required")
@@ -281,12 +282,12 @@ async def users_providers_unlink_provider_v1(request: Request):
       guid=auth_ctx.user_guid,
       provider=payload.new_default,
     )
-    await db.run(set_request.op, set_request.params)
+    await db.run(set_request)
     revoke_request = revoke_provider_tokens_request(
       guid=auth_ctx.user_guid,
       provider=payload.provider,
     )
-    await db.run(revoke_request.op, revoke_request.params)
+    await db.run(revoke_request)
   return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
 
 async def users_providers_get_by_provider_identifier_v1(request: Request):
@@ -300,7 +301,7 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
     provider=payload.provider,
     provider_identifier=payload.provider_identifier,
   )
-  res = await db.run(lookup_request.op, lookup_request.params)
+  res = await db.run(lookup_request)
   row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 
@@ -312,7 +313,7 @@ async def users_providers_create_from_provider_v1(request: Request):
     raise HTTPException(status_code=400, detail=str(e))
   db: DbModule = request.app.state.db
   email_request = get_user_by_email_request(email=payload.provider_email)
-  res = await db.run(email_request.op, email_request.params)
+  res = await db.run(email_request)
   if res.rows:
     raise HTTPException(status_code=409, detail="Email already registered")
   create_request = create_from_provider_request(
@@ -322,7 +323,7 @@ async def users_providers_create_from_provider_v1(request: Request):
     provider_displayname=payload.provider_displayname,
     provider_profile_image=payload.provider_profile_image,
   )
-  res = await db.run(create_request.op, create_request.params)
+  res = await db.run(create_request)
   row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 

@@ -28,11 +28,11 @@ class PublicUsersModule(BaseModule):
   async def get_profile(self, guid: str):
     assert self.db
     request = get_profile_request(guid=guid)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     return res.rows[0] if res.rows else None
 
   async def get_published_files(self, guid: str):
     assert self.db
     request = get_published_files_request(guid=guid)
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     return res.rows

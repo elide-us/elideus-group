@@ -43,7 +43,7 @@ class RoleAdminModule(BaseModule):
   async def list_roles(self, actor_mask: int | None = None) -> list[dict]:
     assert self.db, "database module not initialised"
     request = list_roles_request()
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     roles = [
       {
         "name": r.get("name", ""),
@@ -62,9 +62,9 @@ class RoleAdminModule(BaseModule):
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
     assert self.db, "database module not initialised"
     mem_request = get_role_members_request(role)
-    mem_res = await self.db.run(mem_request.op, mem_request.params)
+    mem_res = await self.db.run(mem_request)
     non_request = get_role_non_members_request(role)
-    non_res = await self.db.run(non_request.op, non_request.params)
+    non_res = await self.db.run(non_request)
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
       for r in mem_res.rows
@@ -81,7 +81,7 @@ class RoleAdminModule(BaseModule):
       self._ensure_can_manage(actor_mask, role_mask)
     assert self.db, "database module not initialised"
     request = add_role_member_request(role, user_guid)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
@@ -91,7 +91,7 @@ class RoleAdminModule(BaseModule):
       self._ensure_can_manage(actor_mask, role_mask)
     assert self.db, "database module not initialised"
     request = remove_role_member_request(role, user_guid)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 

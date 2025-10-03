@@ -6,6 +6,7 @@ import types
 from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 
 root = pathlib.Path(__file__).resolve().parent.parent
 
@@ -45,7 +46,11 @@ sys.modules['server.modules'] = modules_pkg
 
 db_module_pkg = types.ModuleType('server.modules.db_module')
 class DbModule:
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     raise NotImplementedError
 
 db_module_pkg.DbModule = DbModule
@@ -65,7 +70,11 @@ class DummyDb(DbModule):
     self.calls = []
   async def on_ready(self):
     pass
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == 'db:system:config:get_configs:1':
       rows = [{'element_key': 'LoggingLevel', 'element_value': '4'}]

@@ -85,7 +85,7 @@ class DbModule(BaseModule):
     if self._registry:
       self._registry.bind_provider(self._provider, provider_name=self.provider)
     request = get_config_request("LoggingLevel")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     val = res.rows[0]["value"] if res.rows else "0"
     try:
       self.logging_level = int(val)
@@ -101,14 +101,14 @@ class DbModule(BaseModule):
 
   async def get_ms_api_id(self) -> str:
     request = get_config_request("MsApiId")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
     return res.rows[0]["value"]
 
   async def get_google_client_id(self) -> str:
     request = get_config_request("GoogleClientId")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] GoogleClientId=%s", value)
     if not value:
@@ -126,7 +126,7 @@ class DbModule(BaseModule):
 
   async def get_discord_client_id(self) -> str:
     request = get_config_request("DiscordClientId")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] DiscordClientId=%s", value)
     if not value:
@@ -135,7 +135,7 @@ class DbModule(BaseModule):
 
   async def get_auth_providers(self) -> list[str]:
     request = get_config_request("AuthProviders")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: AuthProviders")
@@ -143,7 +143,7 @@ class DbModule(BaseModule):
 
   async def get_jwks_cache_time(self) -> int:
     request = get_config_request("JwksCacheTime")
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: JwksCacheTime")
@@ -151,6 +151,6 @@ class DbModule(BaseModule):
 
   async def user_exists(self, user_guid: str) -> bool:
     request = account_exists_request(user_guid)
-    res = await self.run(request.op, request.params)
+    res = await self.run(request)
     return bool(res.rows)
 

@@ -77,7 +77,7 @@ class DiscordBotModule(BaseModule):
       update_logging_level(self.db.logging_level)
       configure_discord_logging(self)
       request = get_config_request("DiscordSyschan")
-      res = await self.db.run(request.op, request.params)
+      res = await self.db.run(request)
       if not res.rows:
         raise ValueError("Missing config value for key: DiscordSyschan")
       self.syschan = int(res.rows[0]["value"] or 0)

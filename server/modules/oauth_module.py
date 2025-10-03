@@ -181,7 +181,7 @@ class OauthModule(BaseModule):
       checked.add(uid)
       logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
       request = get_by_provider_identifier_request(provider=provider, provider_identifier=uid)
-      res = await self.db.run(request.op, request.params)
+      res = await self.db.run(request)
       if res.rows:
         logging.debug(f"[lookup_user] user found with identifier={pid[:40]}")
         return res.rows[0]
@@ -199,7 +199,7 @@ class OauthModule(BaseModule):
     logging.debug(f"[create_session] rotation_token={rotation_token[:40]}")
     now = datetime.now(timezone.utc)
     request = set_rotkey_request(guid=user_guid, rotkey=rotation_token, iat=now, exp=rot_exp)
-    await self.db.run(request.op, request.params)
+    await self.db.run(request)
     roles, _ = await self.auth.get_user_roles(user_guid)
     session_exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
     placeholder = uuid.uuid4().hex
@@ -212,7 +212,7 @@ class OauthModule(BaseModule):
       user_agent=user_agent,
       ip_address=ip_address,
     )
-    res = await self.db.run(request.op, request.params)
+    res = await self.db.run(request)
     row = res.rows[0] if res.rows else {}
     session_guid = row.get("session_guid")
     device_guid = row.get("device_guid")
@@ -220,7 +220,7 @@ class OauthModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp,
     )
     update_request = update_device_token_request(device_guid=device_guid, access_token=session_token)
-    await self.db.run(update_request.op, update_request.params)
+    await self.db.run(update_request)
     logging.debug(f"[create_session] session_token={session_token[:40]}")
     return session_token, session_exp, rotation_token, rot_exp
 
@@ -243,7 +243,7 @@ class OauthModule(BaseModule):
         provider=provider,
         provider_identifier=provider_uid,
       )
-      await self.db.run(request.op, request.params)
+      await self.db.run(request)
       needs_relink = True
 
     if needs_relink:
@@ -258,7 +258,7 @@ class OauthModule(BaseModule):
         )
       except KeyError as exc:
         raise HTTPException(status_code=400, detail="Unsupported auth provider") from exc
-      res = await self.db.run(relink_request.op, relink_request.params)
+      res = await self.db.run(relink_request)
       user = res.rows[0] if res.rows else None
 
     if not user:
@@ -269,14 +269,14 @@ class OauthModule(BaseModule):
         provider_displayname=profile["username"],
         provider_profile_image=profile.get("profilePicture"),
       )
-      res = await self.db.run(request.op, request.params)
+      res = await self.db.run(request)
       user = res.rows[0] if res.rows else None
       if not user:
         request = get_by_provider_identifier_request(
           provider=provider,
           provider_identifier=provider_uid,
         )
-        res = await self.db.run(request.op, request.params)
+        res = await self.db.run(request)
         user = res.rows[0] if res.rows else None
       if not user:
         logging.debug("[resolve_user] failed to create user")

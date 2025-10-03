@@ -35,7 +35,11 @@ def test_db_module_run_propagates_query_error():
     async def shutdown(self):
       pass
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       raise DBQueryError(detail)
 
   db._provider = FailingProvider()
@@ -44,7 +48,7 @@ def test_db_module_run_propagates_query_error():
   db.set_registry(registry)
 
   with pytest.raises(DBQueryError) as exc:
-    asyncio.run(db.run("db:test:error", {}))
+    asyncio.run(db.run(DBRequest(op="db:test:error", params={})))
   assert exc.value.detail == detail
 
 
@@ -63,7 +67,11 @@ def test_db_module_forwards_operations_verbatim():
     async def shutdown(self):
       pass
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       captured["op"] = op
       captured["args"] = args
       return DBResult(rows=[{"ok": True}], rowcount=1)
@@ -73,7 +81,7 @@ def test_db_module_forwards_operations_verbatim():
   registry.bind_provider(db._provider)
   db.set_registry(registry)
 
-  result = asyncio.run(db.run("db:test:urn-op:1", {"foo": "bar"}))
+  result = asyncio.run(db.run(DBRequest(op="db:test:urn-op:1", params={"foo": "bar"})))
   assert captured["op"] == "db:test:urn-op:1"
   assert captured["args"] == {"foo": "bar"}
   assert isinstance(result, DBResult)
@@ -92,7 +100,11 @@ def test_db_module_run_constructs_registry_request():
     async def shutdown(self):
       pass
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       raise AssertionError("provider should not be invoked in this test")
 
   class RecordingRegistry(RegistryDispatcher):
@@ -109,7 +121,7 @@ def test_db_module_run_constructs_registry_request():
   registry = RecordingRegistry()
   db.set_registry(registry)
 
-  result = asyncio.run(db.run("db:test:op", {"key": "value"}))
+  result = asyncio.run(db.run(DBRequest(op="db:test:op", params={"key": "value"})))
 
   assert result.rows == [{"ok": True}]
   assert result.rowcount == 1
@@ -148,7 +160,11 @@ def test_registry_dispatcher_executes_provider_callable(monkeypatch):
     async def shutdown(self):
       pass
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if isinstance(op, DBRequest):
+        args = op.params
+        op = op.op
+      args = args or {}
       raise AssertionError("provider.run should not be used when route is registered")
 
   dispatcher = RegistryDispatcher(router=router)

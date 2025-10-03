@@ -1,6 +1,7 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
+from server.registry.types import DBRequest
 
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from fastapi import FastAPI
@@ -43,7 +44,11 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if isinstance(op, DBRequest):
+      args = op.params
+      op = op.op
+    args = args or {}
     self.calls.append((op, args))
     if op == "db:security:identities:get_by_provider_identifier:1":
       return DBRes([

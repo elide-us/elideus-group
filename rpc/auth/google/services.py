@@ -13,6 +13,7 @@ from server.registry.accounts.profile import (
   set_profile_image_request,
   update_if_unedited_request,
 )
+from server.registry.system.config import get_config_request
 from .models import AuthGoogleOauthLogin1, AuthGoogleOauthLoginPayload1
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -60,7 +61,7 @@ async def auth_google_oauth_login_v1(request: Request):
     raise HTTPException(status_code=500, detail="GOOGLE_AUTH_SECRET not configured")
 
   # Require redirect_uri from system config
-  res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+  res_redirect = await db.run(get_config_request("Hostname"))
   if not res_redirect.rows:
       raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]
