@@ -5,7 +5,7 @@ import inspect
 
 from ... import DbProviderBase, DBResult
 from .logic import init_pool, close_pool
-from .db_helpers import Operation, execute_operation
+from .db_helpers import run_operation
 
 from importlib import import_module
 
