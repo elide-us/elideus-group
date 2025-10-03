@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -23,6 +21,16 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "system.roles"
+_PROVIDER_MODULE = "server.registry.system.roles.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "list": "list_roles_v1",
+  "get_role_members": "get_role_members_v1",
+  "get_role_non_members": "get_role_non_members_v1",
+  "add_role_member": "add_role_member_v1",
+  "remove_role_member": "remove_role_member_v1",
+  "upsert_role": "upsert_role_v1",
+  "delete_role": "delete_role_v1",
+}
 
 
 def list_roles_request() -> DBRequest:
@@ -64,38 +72,10 @@ def delete_role_request(name: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "list",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.list",
-  )
-  router.add_function(
-    "get_role_members",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_role_members",
-  )
-  router.add_function(
-    "get_role_non_members",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_role_non_members",
-  )
-  router.add_function(
-    "add_role_member",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.add_role_member",
-  )
-  router.add_function(
-    "remove_role_member",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.remove_role_member",
-  )
-  router.add_function(
-    "upsert_role",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.upsert_role",
-  )
-  router.add_function(
-    "delete_role",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.delete_role",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

@@ -160,3 +160,15 @@ def test_registry_dispatcher_executes_provider_callable(monkeypatch):
   assert response.rowcount == 1
   assert calls["op"] == "db:demo:ops:test:1"
   assert calls["params"] == {"value": 7}
+
+
+def test_mssql_provider_requires_binding():
+  router = RegistryRouter()
+  router.domain("demo").subdomain("ops").add_function(
+    "missing",
+    version=1,
+    provider_map="demo.ops.missing",
+  )
+
+  with pytest.raises(ValueError, match="does not declare a provider binding"):
+    router.load_provider("mssql")

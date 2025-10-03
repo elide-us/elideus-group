@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -19,6 +17,12 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "public.vars"
+_PROVIDER_MODULE = "server.registry.public.vars.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "get_version": "get_version_v1",
+  "get_hostname": "get_hostname_v1",
+  "get_repo": "get_repo_v1",
+}
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
@@ -38,18 +42,10 @@ def get_repo_request() -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "get_version",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_version",
-  )
-  router.add_function(
-    "get_hostname",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_hostname",
-  )
-  router.add_function(
-    "get_repo",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_repo",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

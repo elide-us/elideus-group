@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 from enum import Enum
+import sys
+from types import SimpleNamespace
 
 import aiohttp
 from fastapi import HTTPException, status
@@ -31,8 +33,18 @@ class DBResult(BaseModel):
   rowcount: int = 0
 
 
+_CANONICAL = sys.modules.setdefault(
+  "server.modules.providers._canonical",
+  SimpleNamespace(DBResult=None),
+)
+if _CANONICAL.DBResult is None:
+  _CANONICAL.DBResult = DBResult
+else:
+  DBResult = _CANONICAL.DBResult
+
+
 def get_dbresult_cls() -> type[DBResult]:
-  return DBResult
+  return _CANONICAL.DBResult
 
 
 class DbRunMode(str, Enum):

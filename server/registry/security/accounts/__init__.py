@@ -6,8 +6,6 @@ from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401 - ensure provider modules are discoverable
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -18,6 +16,11 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "security.accounts"
+_PROVIDER_MODULE = "server.registry.security.accounts.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "get_security_profile": "get_security_profile_v1",
+  "account_exists": "account_exists_v1",
+}
 
 
 def get_security_profile_request(
@@ -50,13 +53,10 @@ def account_exists_request(user_guid: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "get_security_profile",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_security_profile",
-  )
-  router.add_function(
-    "account_exists",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.account_exists",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

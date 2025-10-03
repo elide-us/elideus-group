@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable, Iterable, Mapping
 
 from server.modules.providers import DBResult, DbProviderBase, get_dbresult_cls
 
+from .providers import ProviderDescriptor
 from .types import DBRequest, DBResponse
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
   "DBResponse",
   "DBResult",
   "DomainRouter",
+  "ProviderBinding",
   "RegistryDispatcher",
   "RegistryRouter",
   "SubdomainRouter",
@@ -36,6 +38,14 @@ class FunctionRoute:
     return f"db:{self.domain}:{self.subdomain}:{self.name}:{self.version}"
 
 
+@dataclass(slots=True)
+class ProviderBinding:
+  canonical: str
+  provider_map: str
+  version: int
+  descriptor: ProviderDescriptor | None
+
+
 class RegistryRouter:
   """Hierarchical router that registers domain and subdomain functions."""
 
@@ -48,6 +58,7 @@ class RegistryRouter:
     self._provider_module = None
     self._provider_queries: dict[str, Mapping[int, Executor] | Executor] = {}
     self._provider_executors: dict[str, Executor] = {}
+    self._provider_bindings: dict[str, ProviderBinding] = {}
 
   def domain(self, name: str) -> "DomainRouter":
     if name not in self._domains:
@@ -107,7 +118,11 @@ class RegistryRouter:
     if self._provider_module and name == self._provider_name and self._provider_queries:
       return
     module = importlib.import_module(f"server.registry.providers.{name}")
-    queries = getattr(module, "PROVIDER_QUERIES", None)
+    build = getattr(module, "build_provider_queries", None)
+    if callable(build):
+      queries = build(self._provider_bindings.values())
+    else:
+      queries = getattr(module, "PROVIDER_QUERIES", None)
     if not isinstance(queries, dict):
       raise ValueError(f"Provider module '{name}' missing PROVIDER_QUERIES mapping")
     self._provider_name = name
@@ -116,6 +131,22 @@ class RegistryRouter:
     self._provider_executors.clear()
     for route in self._routes.values():
       self._attach_provider_callable(route)
+
+  @property
+  def provider_bindings(self) -> Mapping[str, ProviderBinding]:
+    return self._provider_bindings
+
+  def register_provider_binding(
+    self,
+    route: FunctionRoute,
+    provider: ProviderDescriptor | None,
+  ) -> None:
+    self._provider_bindings[route.key] = ProviderBinding(
+      canonical=route.key,
+      provider_map=route.provider_map,
+      version=route.version,
+      descriptor=provider,
+    )
 
   def get_executor(self, route: FunctionRoute) -> Executor | None:
     executor = self._provider_executors.get(route.key)
@@ -184,6 +215,7 @@ class SubdomainRouter:
     version: int,
     provider_map: str,
     aliases: Iterable[str] | None = None,
+    provider: ProviderDescriptor | None = None,
   ) -> None:
     route = FunctionRoute(
       domain=self._domain.name,
@@ -193,6 +225,7 @@ class SubdomainRouter:
       provider_map=provider_map,
     )
     self._registry.add_route(route)
+    self._registry.register_provider_binding(route, provider)
     for alias in aliases or []:
       self._registry.add_alias(alias, route.key)
 

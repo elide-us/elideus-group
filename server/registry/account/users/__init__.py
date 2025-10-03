@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
-from . import mssql  # noqa: F401 - ensure provider import
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -16,6 +14,7 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "account.users"
+_PROVIDER_DESCRIPTOR = ("server.registry.account.users.mssql", "set_credits_v1")
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
@@ -31,4 +30,5 @@ def register(router: "SubdomainRouter") -> None:
     "set_credits",
     version=1,
     provider_map=f"{_DEF_PROVIDER}.set_credits",
+    provider=_PROVIDER_DESCRIPTOR,
   )

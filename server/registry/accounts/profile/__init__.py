@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
-from server.registry.users.profile import mssql as _mssql  # noqa: F401 - ensure provider import
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -21,6 +19,15 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "users.profile"
+_PROVIDER_MODULE = "server.registry.users.profile.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "get_profile": "get_profile_v1",
+  "set_display": "set_display_v1",
+  "set_optin": "set_optin_v1",
+  "set_profile_image": "set_profile_image_v1",
+  "set_roles": "set_roles_v1",
+  "update_if_unedited": "update_if_unedited_v1",
+}
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
@@ -72,33 +79,10 @@ def update_if_unedited_request(
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "get_profile",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_profile",
-  )
-  router.add_function(
-    "set_display",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_display",
-  )
-  router.add_function(
-    "set_optin",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_optin",
-  )
-  router.add_function(
-    "set_profile_image",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_profile_image",
-  )
-  router.add_function(
-    "set_roles",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_roles",
-  )
-  router.add_function(
-    "update_if_unedited",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.update_if_unedited",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

@@ -21,6 +21,17 @@ __all__ = [
 
 
 _DEF_PROVIDER = "content.cache"
+_PROVIDER_MODULE = "server.registry.content.cache.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "list": "list_v1",
+  "replace_user": "replace_user_v1",
+  "upsert": "upsert_v1",
+  "delete": "delete_v1",
+  "delete_folder": "delete_folder_v1",
+  "set_public": "set_public_v1",
+  "set_reported": "set_reported_v1",
+  "count_rows": "count_rows_v1",
+}
 
 
 def _normalize_cache_item_payload(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -117,43 +128,10 @@ def count_rows_request():
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "list",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.list",
-  )
-  router.add_function(
-    "replace_user",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.replace_user",
-  )
-  router.add_function(
-    "upsert",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.upsert",
-  )
-  router.add_function(
-    "delete",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.delete",
-  )
-  router.add_function(
-    "delete_folder",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.delete_folder",
-  )
-  router.add_function(
-    "set_public",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_public",
-  )
-  router.add_function(
-    "set_reported",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_reported",
-  )
-  router.add_function(
-    "count_rows",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.count_rows",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

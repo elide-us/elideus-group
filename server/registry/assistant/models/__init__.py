@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401 - ensure provider imports are discoverable
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -19,6 +17,11 @@ __all__ = [
 
 _OP_PREFIX = "db:assistant:models"
 _PROVIDER_MAP = "assistant.models"
+_PROVIDER_MODULE = "server.registry.assistant.models.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "get_by_name": "get_by_name_v1",
+  "list": "list_models_v1",
+}
 
 
 def _op(name: str) -> str:
@@ -34,13 +37,10 @@ def get_model_by_name_request(name: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "get_by_name",
-    version=1,
-    provider_map=f"{_PROVIDER_MAP}.get_by_name",
-  )
-  router.add_function(
-    "list",
-    version=1,
-    provider_map=f"{_PROVIDER_MAP}.list",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_PROVIDER_MAP}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

@@ -6,8 +6,6 @@ from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -25,6 +23,18 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "security.identities"
+_PROVIDER_MODULE = "server.registry.security.identities.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "create_from_provider": "create_from_provider_v1",
+  "get_any_by_provider_identifier": "get_any_by_provider_identifier_v1",
+  "get_by_provider_identifier": "get_by_provider_identifier_v1",
+  "get_user_by_email": "get_user_by_email_v1",
+  "link_provider": "link_provider_v1",
+  "set_provider": "set_provider_v1",
+  "soft_delete_account": "soft_delete_account_v1",
+  "unlink_last_provider": "unlink_last_provider_v1",
+  "unlink_provider": "unlink_provider_v1",
+}
 
 
 def _request(op: str, params: dict[str, Any]) -> DBRequest:
@@ -145,48 +155,10 @@ def unlink_last_provider_request(*, guid: str, provider: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "create_from_provider",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.create_from_provider",
-  )
-  router.add_function(
-    "get_by_provider_identifier",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_by_provider_identifier",
-  )
-  router.add_function(
-    "get_any_by_provider_identifier",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_any_by_provider_identifier",
-  )
-  router.add_function(
-    "get_user_by_email",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_user_by_email",
-  )
-  router.add_function(
-    "link_provider",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.link_provider",
-  )
-  router.add_function(
-    "set_provider",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_provider",
-  )
-  router.add_function(
-    "soft_delete_account",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.soft_delete_account",
-  )
-  router.add_function(
-    "unlink_provider",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.unlink_provider",
-  )
-  router.add_function(
-    "unlink_last_provider",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.unlink_last_provider",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

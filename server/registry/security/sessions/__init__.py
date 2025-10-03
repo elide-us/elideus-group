@@ -6,8 +6,6 @@ from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -23,6 +21,16 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "security.sessions"
+_PROVIDER_MODULE = "server.registry.security.sessions.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "create_session": "create_session_v1",
+  "update_session": "update_session_v1",
+  "update_device_token": "update_device_token_v1",
+  "revoke_device_token": "revoke_device_token_v1",
+  "revoke_all_device_tokens": "revoke_all_device_tokens_v1",
+  "revoke_provider_tokens": "revoke_provider_tokens_v1",
+  "set_rotkey": "set_rotkey_v1",
+}
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
@@ -114,38 +122,10 @@ def set_rotkey_request(
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "create_session",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.create_session",
-  )
-  router.add_function(
-    "update_session",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.update_session",
-  )
-  router.add_function(
-    "update_device_token",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.update_device_token",
-  )
-  router.add_function(
-    "revoke_device_token",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.revoke_device_token",
-  )
-  router.add_function(
-    "revoke_all_device_tokens",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.revoke_all_device_tokens",
-  )
-  router.add_function(
-    "revoke_provider_tokens",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.revoke_provider_tokens",
-  )
-  router.add_function(
-    "set_rotkey",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_rotkey",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )
