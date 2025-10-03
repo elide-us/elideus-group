@@ -31,4 +31,5 @@ def register(router: "SubdomainRouter") -> None:
     "set_gallery",
     version=1,
     provider_map="content.files.set_gallery",
+    provider=("server.registry.content.files.mssql", "set_gallery_v1"),
   )

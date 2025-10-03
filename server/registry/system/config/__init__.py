@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
-from . import mssql  # noqa: F401 - ensure provider modules are discoverable
-
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -20,6 +18,13 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "system.config"
+_PROVIDER_MODULE = "server.registry.system.config.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "get_config": "get_config_v1",
+  "get_configs": "get_configs_v1",
+  "upsert_config": "upsert_config_v1",
+  "delete_config": "delete_config_v1",
+}
 
 
 def get_config_request(key: str) -> DBRequest:
@@ -42,23 +47,10 @@ def delete_config_request(key: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "get_config",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_config",
-  )
-  router.add_function(
-    "get_configs",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_configs",
-  )
-  router.add_function(
-    "upsert_config",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.upsert_config",
-  )
-  router.add_function(
-    "delete_config",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.delete_config",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

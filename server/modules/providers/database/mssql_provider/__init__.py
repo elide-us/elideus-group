@@ -25,6 +25,7 @@ class MssqlProvider(DbProviderBase):
     await close_pool()
 
   def _resolve_provider_callable(self, op: str):
+    provider_queries = _get_provider_queries()
     parts = op.split(":")
     if len(parts) != 5 or parts[0] != "db":
       raise KeyError(f"Unsupported operation key: {op}")
@@ -34,7 +35,6 @@ class MssqlProvider(DbProviderBase):
     except ValueError as exc:
       raise KeyError(f"Invalid operation version for '{op}'") from exc
     provider_map = f"{domain}.{subdomain}.{name}"
-    provider_queries = _get_provider_queries()
     entry = provider_queries.get(provider_map)
     if entry is None:
       raise KeyError(f"No MSSQL handler for '{op}'")

@@ -17,6 +17,12 @@ __all__ = [
 ]
 
 _DEF_PROVIDER = "content.public"
+_PROVIDER_MODULE = "server.registry.content.public.mssql"
+_PROVIDER_ATTRS: dict[str, str] = {
+  "list_public": "list_public_v1",
+  "list_reported": "list_reported_v1",
+  "get_public_files": "get_public_files_v1",
+}
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
@@ -36,18 +42,10 @@ def get_public_files_request() -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "list_public",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.list_public",
-  )
-  router.add_function(
-    "list_reported",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.list_reported",
-  )
-  router.add_function(
-    "get_public_files",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.get_public_files",
-  )
+  for name, attr in _PROVIDER_ATTRS.items():
+    router.add_function(
+      name,
+      version=1,
+      provider_map=f"{_DEF_PROVIDER}.{name}",
+      provider=(_PROVIDER_MODULE, attr),
+    )

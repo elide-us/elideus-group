@@ -38,5 +38,6 @@ class DBResponse(BaseModel):
     return cls(rows=list(result.rows), rowcount=result.rowcount, meta=meta)
 
   def to_result(self) -> DBResult:
-    DBResultCls = get_dbresult_cls()
+    DBResultCls = _DBRESULT_CLASS or get_dbresult_cls()
     return DBResultCls(rows=list(self.rows), rowcount=self.rowcount)
+_DBRESULT_CLASS = DBResult
