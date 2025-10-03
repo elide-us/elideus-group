@@ -5,15 +5,15 @@ from __future__ import annotations
 from typing import Any, Dict
 from uuid import UUID
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_exec
+from server.registry.types import DBResponse
 
 __all__ = [
   "set_gallery_v1",
 ]
 
 
-def set_gallery_v1(args: Dict[str, Any]) -> Operation:
+async def set_gallery_v1(args: Dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["user_guid"]))
   name = args.get("name")
   if name:
@@ -27,4 +27,4 @@ def set_gallery_v1(args: Dict[str, Any]) -> Operation:
     SET element_public = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (gallery, guid, path, filename))
+  return await run_exec(sql, (gallery, guid, path, filename))

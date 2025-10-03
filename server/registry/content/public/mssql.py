@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_json_many
+from server.registry.types import DBResponse
 
 __all__ = [
   "get_public_files_v1",
@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-def list_public_v1(_: Dict[str, Any]) -> Operation:
+async def list_public_v1(_: Dict[str, Any]) -> DBResponse:
   sql = """
     SELECT usc.users_guid AS user_guid,
            au.element_display AS display_name,
@@ -29,14 +29,14 @@ def list_public_v1(_: Dict[str, Any]) -> Operation:
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)
 
 
-def get_public_files_v1(params: Dict[str, Any]) -> Operation:
-  return list_public_v1(params)
+async def get_public_files_v1(params: Dict[str, Any]) -> DBResponse:
+  return await list_public_v1(params)
 
 
-def list_reported_v1(_: Dict[str, Any]) -> Operation:
+async def list_reported_v1(_: Dict[str, Any]) -> DBResponse:
   sql = """
     SELECT usc.users_guid AS user_guid,
            usc.element_path AS path,
@@ -49,4 +49,4 @@ def list_reported_v1(_: Dict[str, Any]) -> Operation:
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)

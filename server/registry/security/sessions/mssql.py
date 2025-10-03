@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
-from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation, exec_op, exec_query
+from server.registry.providers.mssql import run_exec
+from server.registry.types import DBResponse
 from server.modules.providers.database.mssql_provider.logic import transaction
 
 from server.registry.security.identities.mssql import get_auth_provider_recid
@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 
-async def create_session_v1(args: dict[str, Any]) -> DBResult:
+async def create_session_v1(args: dict[str, Any]) -> DBResponse:
   access_token = args["access_token"]
   expires = args["expires"]
   fingerprint = args.get("fingerprint")
@@ -95,10 +95,10 @@ async def create_session_v1(args: dict[str, Any]) -> DBResult:
         ),
       )
 
-  return DBResult(rows=[{"session_guid": session_guid, "device_guid": device_guid}], rowcount=1)
+  return DBResponse(rows=[{"session_guid": session_guid, "device_guid": device_guid}], rowcount=1)
 
 
-def update_session_v1(args: dict[str, Any]) -> Operation:
+async def update_session_v1(args: dict[str, Any]) -> DBResponse:
   token = args["access_token"]
   ip_address = args.get("ip_address")
   user_agent = args.get("user_agent")
@@ -107,10 +107,10 @@ def update_session_v1(args: dict[str, Any]) -> Operation:
       SET element_ip_last_seen = ?, element_user_agent = ?
       WHERE element_token = ?;
     """
-  return Operation(DbRunMode.EXEC, sql, (ip_address, user_agent, token))
+  return await run_exec(sql, (ip_address, user_agent, token))
 
 
-def update_device_token_v1(args: dict[str, Any]) -> Operation:
+async def update_device_token_v1(args: dict[str, Any]) -> DBResponse:
   device_guid = str(UUID(args["device_guid"]))
   token = args["access_token"]
   sql = """
@@ -118,20 +118,20 @@ def update_device_token_v1(args: dict[str, Any]) -> Operation:
     SET element_token = ?
     WHERE element_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (token, device_guid))
+  return await run_exec(sql, (token, device_guid))
 
 
-def revoke_device_token_v1(args: dict[str, Any]) -> Operation:
+async def revoke_device_token_v1(args: dict[str, Any]) -> DBResponse:
   token = args["access_token"]
   sql = """
     UPDATE sessions_devices
     SET element_revoked_at = SYSDATETIMEOFFSET()
     WHERE element_token = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (token,))
+  return await run_exec(sql, (token,))
 
 
-def revoke_all_device_tokens_v1(args: dict[str, Any]) -> Operation:
+async def revoke_all_device_tokens_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   sql = """
     UPDATE sd
@@ -140,10 +140,10 @@ def revoke_all_device_tokens_v1(args: dict[str, Any]) -> Operation:
     JOIN users_sessions us ON us.element_guid = sd.sessions_guid
     WHERE us.users_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (guid,))
+  return await run_exec(sql, (guid,))
 
 
-def revoke_provider_tokens_v1(args: dict[str, Any]) -> Operation:
+async def revoke_provider_tokens_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   provider = args["provider"]
   sql = """
@@ -154,10 +154,10 @@ def revoke_provider_tokens_v1(args: dict[str, Any]) -> Operation:
     JOIN auth_providers ap ON ap.recid = sd.providers_recid
     WHERE us.users_guid = ? AND ap.element_name = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (guid, provider))
+  return await run_exec(sql, (guid, provider))
 
 
-def set_rotkey_v1(args: dict[str, Any]) -> Operation:
+async def set_rotkey_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   rotkey = args["rotkey"]
   iat = args["iat"]
@@ -167,4 +167,4 @@ def set_rotkey_v1(args: dict[str, Any]) -> Operation:
     SET element_rotkey = ?, element_rotkey_iat = ?, element_rotkey_exp = ?
     WHERE element_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (rotkey, iat, exp, guid))
+  return await run_exec(sql, (rotkey, iat, exp, guid))

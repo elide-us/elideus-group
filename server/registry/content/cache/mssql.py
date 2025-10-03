@@ -7,14 +7,8 @@ import logging
 from typing import Any, Dict
 from uuid import UUID
 
-from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import (
-  Operation,
-  exec_op,
-  exec_query,
-  fetch_json,
-  json_one,
-)
+from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
+from server.registry.types import DBResponse
 from server.modules.providers.database.mssql_provider.logic import transaction
 
 __all__ = [
@@ -30,11 +24,11 @@ __all__ = [
 
 
 async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
-  async def _fetch_type(target: str):
-    return await fetch_json(json_one(
+  async def _fetch_type(target: str) -> DBResponse:
+    return await run_json_one(
       "SELECT recid FROM storage_types WHERE element_mimetype = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
       (target,),
-    ))
+    )
 
   res = await _fetch_type(mimetype)
   if res.rows:
@@ -44,7 +38,7 @@ async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
     raise ValueError(f"Unknown storage mimetype: {mimetype}")
 
   if mimetype == "path/folder":
-    await exec_query(exec_op(
+    await run_exec(
       """
       MERGE storage_types AS target
       USING (SELECT 16 AS recid, 'path/folder' AS element_mimetype, 'Folder' AS element_displaytype) AS src
@@ -53,8 +47,7 @@ async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
         INSERT (recid, element_mimetype, element_displaytype)
         VALUES (src.recid, src.element_mimetype, src.element_displaytype);
       """,
-      (),
-    ))
+    )
     res = await _fetch_type(mimetype)
     if res.rows:
       return res.rows[0]["recid"]
@@ -66,7 +59,7 @@ async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
   return 1
 
 
-def list_v1(args: Dict[str, Any]) -> Operation:
+async def list_v1(args: Dict[str, Any]) -> DBResponse:
   user_guid = args["user_guid"]
   sql = """
     SELECT
@@ -81,10 +74,10 @@ def list_v1(args: Dict[str, Any]) -> Operation:
     ORDER BY usc.element_path, usc.element_filename
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, (user_guid,))
+  return await run_json_many(sql, (user_guid,))
 
 
-async def replace_user_v1(args: Dict[str, Any]) -> DBResult:
+async def replace_user_v1(args: Dict[str, Any]) -> DBResponse:
   user_guid = args["user_guid"]
   items: list[Dict[str, Any]] = args.get("items", [])
   async with transaction() as cur:
@@ -100,10 +93,10 @@ async def replace_user_v1(args: Dict[str, Any]) -> DBResult:
           VALUES (?, ?, ?, ?, ?, NULL, 0);""",
         (user_guid, type_recid, path, filename, item.get("public", 0)),
       )
-  return DBResult(rows=[], rowcount=len(items))
+  return DBResponse(rows=[], rowcount=len(items))
 
 
-async def upsert_v1(args: Dict[str, Any]):
+async def upsert_v1(args: Dict[str, Any]) -> DBResponse:
   user_guid = args["user_guid"]
   path = args.get("path", "")
   filename = args.get("filename", "")
@@ -153,7 +146,7 @@ async def upsert_v1(args: Dict[str, Any]):
     reported,
     moderation_recid,
   )
-  rc = await exec_query(exec_op(sql, params))
+  rc = await run_exec(sql, params)
   if rc.rowcount == 0:
     logging.error(
       "[MSSQL] storage_cache_upsert affected 0 rows for %s/%s",
@@ -163,7 +156,7 @@ async def upsert_v1(args: Dict[str, Any]):
   return rc
 
 
-def delete_v1(args: Dict[str, Any]) -> Operation:
+async def delete_v1(args: Dict[str, Any]) -> DBResponse:
   user_guid = args["user_guid"]
   path = args.get("path", "")
   filename = args.get("filename", "")
@@ -171,10 +164,10 @@ def delete_v1(args: Dict[str, Any]) -> Operation:
     DELETE FROM users_storage_cache
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (user_guid, path, filename))
+  return await run_exec(sql, (user_guid, path, filename))
 
 
-def delete_folder_v1(args: Dict[str, Any]) -> Operation:
+async def delete_folder_v1(args: Dict[str, Any]) -> DBResponse:
   user_guid = args["user_guid"]
   path = args.get("path", "").lstrip("/")
   parent, name = path.rsplit("/", 1) if "/" in path else ("", path)
@@ -187,10 +180,10 @@ def delete_folder_v1(args: Dict[str, Any]) -> Operation:
       OR element_path LIKE ?
     );
   """
-  return Operation(DbRunMode.EXEC, sql, (user_guid, parent, name, path, like))
+  return await run_exec(sql, (user_guid, parent, name, path, like))
 
 
-def set_public_v1(args: Dict[str, Any]) -> Operation:
+async def set_public_v1(args: Dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["user_guid"]))
   name = args.get("name")
   if name:
@@ -204,10 +197,10 @@ def set_public_v1(args: Dict[str, Any]) -> Operation:
     SET element_public = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (flag_value, guid, path, filename))
+  return await run_exec(sql, (flag_value, guid, path, filename))
 
 
-def set_reported_v1(args: Dict[str, Any]) -> Operation:
+async def set_reported_v1(args: Dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["user_guid"]))
   path = args.get("path", "")
   filename = args.get("filename", "")
@@ -217,14 +210,14 @@ def set_reported_v1(args: Dict[str, Any]) -> Operation:
     SET element_reported = ?
     WHERE users_guid = ? AND element_path = ? AND element_filename = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (reported, guid, path, filename))
+  return await run_exec(sql, (reported, guid, path, filename))
 
 
-def count_rows_v1(_: Dict[str, Any]) -> Operation:
+async def count_rows_v1(_: Dict[str, Any]) -> DBResponse:
   sql = """
     SELECT COUNT(*) AS count
     FROM users_storage_cache
     WHERE element_deleted = 0
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, ())
+  return await run_json_one(sql)

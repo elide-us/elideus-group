@@ -1,20 +1,20 @@
 import asyncio
 
-from server.modules.providers import DBResult
 from server.registry.content.cache import mssql as content_cache
+from server.registry.types import DBResponse
 
 
 def test_storage_cache_upsert_sets_created_on(monkeypatch):
   captured = []
 
-  async def fake_exec_query(operation):
-    captured.append(operation.params)
-    return DBResult(rowcount=1)
+  async def fake_run_exec(sql, params):
+    captured.append(params)
+    return DBResponse(rowcount=1)
 
   async def fake_get_storage_type_recid(*_args, **_kwargs):
     return 1
 
-  monkeypatch.setattr(content_cache, "exec_query", fake_exec_query)
+  monkeypatch.setattr(content_cache, "run_exec", fake_run_exec)
   monkeypatch.setattr(content_cache, "_get_storage_type_recid", fake_get_storage_type_recid)
 
   args = {

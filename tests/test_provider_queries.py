@@ -1,15 +1,16 @@
 import asyncio
+from typing import Any
 from uuid import uuid4
 
 import pytest
 
-from server.modules.providers import DbRunMode
 from server.modules.providers.database.mssql_provider import db_helpers
 from server.registry.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.support.users import mssql as support_users
 from server.registry.users.profile import mssql as users_profile
 from server.registry.security.identities import mssql as security_identities
+from server.registry.types import DBResponse
 
 
 def _provider_map_for(urn: str) -> str:
@@ -19,20 +20,36 @@ def _provider_map_for(urn: str) -> str:
   return f"{parts[1]}.{parts[2]}.{parts[3]}"
 
 
-def test_mssql_get_by_provider_identifier_uses_user_view():
-  op = security_identities.get_by_provider_identifier_v1({
+def test_mssql_get_by_provider_identifier_uses_user_view(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_one(sql, params=(), *, meta=None):
+    captured["sql"] = sql
+    captured["params"] = params
+    return DBResponse()
+
+  monkeypatch.setattr(security_identities, "run_json_one", fake_run_json_one)
+  asyncio.run(security_identities.get_by_provider_identifier_v1({
     "provider": "microsoft",
     "provider_identifier": str(uuid4()),
-  })
-  sql = op.sql.lower()
+  }))
+  sql = captured["sql"].lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
 
 
-def test_mssql_get_profile_uses_profile_view():
-  op = users_profile.get_profile_v1({"guid": "gid"})
-  sql = op.sql.lower()
+def test_mssql_get_profile_uses_profile_view(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_one(sql, params=(), *, meta=None):
+    captured["sql"] = sql
+    captured["params"] = params
+    return DBResponse()
+
+  monkeypatch.setattr(users_profile, "run_json_one", fake_run_json_one)
+  asyncio.run(users_profile.get_profile_v1({"guid": "gid"}))
+  sql = captured["sql"].lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
@@ -59,10 +76,21 @@ _SECURITY_PROFILE_CASES = [
   _SECURITY_PROFILE_CASES,
 )
 def test_mssql_accounts_security_profile_routes_through_security_view(
-  args, expected_fragments, joins_users_auth
+  monkeypatch,
+  args,
+  expected_fragments,
+  joins_users_auth,
 ):
-  op = security_accounts.get_security_profile_v1(args)
-  sql = op.sql.lower()
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_one(sql, params=(), *, meta=None):
+    captured["sql"] = sql
+    captured["params"] = params
+    return DBResponse()
+
+  monkeypatch.setattr(security_accounts, "run_json_one", fake_run_json_one)
+  asyncio.run(security_accounts.get_security_profile_v1(args))
+  sql = captured["sql"].lower()
   for fragment in expected_fragments:
     assert fragment in sql
   assert ("join users_auth" in sql) is joins_users_auth
@@ -82,11 +110,18 @@ def test_removed_security_aliases_are_not_registered(urn):
   assert provider_map not in PROVIDER_QUERIES
 
 
-def test_mssql_support_users_set_credits_updates_table():
-  op = support_users.set_credits_v1({"guid": "gid", "credits": 10})
-  assert op.kind is DbRunMode.EXEC
-  assert "update users_credits" in op.sql.lower()
-  assert op.params == (10, "gid")
+def test_mssql_support_users_set_credits_updates_table(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params, *, meta=None):
+    captured["sql"] = sql
+    captured["params"] = params
+    return DBResponse()
+
+  monkeypatch.setattr(support_users, "run_exec", fake_run_exec)
+  asyncio.run(support_users.set_credits_v1({"guid": "gid", "credits": 10}))
+  assert "update users_credits" in captured["sql"].lower()
+  assert captured["params"] == (10, "gid")
 
 
 def test_fetch_rows_raises_structured_error(monkeypatch):

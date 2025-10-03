@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation, exec_op, exec_query
+from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
+from server.registry.types import DBResponse
 
 __all__ = [
   "delete_persona_v1",
@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-def get_by_name_v1(args: dict[str, Any]) -> Operation:
+async def get_by_name_v1(args: dict[str, Any]) -> DBResponse:
   name = args["name"]
   sql = """
     SELECT
@@ -39,10 +39,10 @@ def get_by_name_v1(args: dict[str, Any]) -> Operation:
     WHERE vp.persona_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (name,))
+  return await run_json_one(sql, (name,))
 
 
-def list_personas_v1(_: dict[str, Any]) -> Operation:
+async def list_personas_v1(_: dict[str, Any]) -> DBResponse:
   sql = """
     SELECT
       ap.recid,
@@ -65,17 +65,17 @@ def list_personas_v1(_: dict[str, Any]) -> Operation:
     ORDER BY vp.persona_name
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)
 
 
-async def upsert_persona_v1(args: dict[str, Any]) -> DBResult:
+async def upsert_persona_v1(args: dict[str, Any]) -> DBResponse:
   recid = args.get("recid")
   name = args["name"]
   prompt = args["prompt"]
   tokens = int(args["tokens"])
   models_recid = int(args["models_recid"])
   if recid is not None:
-    rc = await exec_query(exec_op(
+    rc = await run_exec(
       """
         UPDATE assistant_personas
         SET element_name = ?,
@@ -86,10 +86,10 @@ async def upsert_persona_v1(args: dict[str, Any]) -> DBResult:
         WHERE recid = ?;
       """,
       (name, prompt, tokens, models_recid, recid),
-    ))
+    )
     if rc.rowcount:
       return rc
-  rc = await exec_query(exec_op(
+  rc = await run_exec(
     """
       UPDATE assistant_personas
       SET element_prompt = ?,
@@ -99,10 +99,10 @@ async def upsert_persona_v1(args: dict[str, Any]) -> DBResult:
       WHERE element_name = ?;
     """,
     (prompt, tokens, models_recid, name),
-  ))
+  )
   if rc.rowcount:
     return rc
-  return await exec_query(exec_op(
+  return await run_exec(
     """
       INSERT INTO assistant_personas (
         element_name,
@@ -112,10 +112,10 @@ async def upsert_persona_v1(args: dict[str, Any]) -> DBResult:
       ) VALUES (?, ?, ?, ?);
     """,
     (name, prompt, tokens, models_recid),
-  ))
+  )
 
 
-def delete_persona_v1(args: dict[str, Any]) -> Operation:
+async def delete_persona_v1(args: dict[str, Any]) -> DBResponse:
   recid = args.get("recid")
   name = args.get("name")
   if recid is not None:
@@ -126,4 +126,4 @@ def delete_persona_v1(args: dict[str, Any]) -> Operation:
     params = (name,)
   else:
     raise ValueError("Missing identifier for persona delete")
-  return Operation(DbRunMode.EXEC, sql, params)
+  return await run_exec(sql, params)

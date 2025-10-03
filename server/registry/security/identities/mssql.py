@@ -5,14 +5,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import (
-  Operation,
-  exec_op,
-  exec_query,
-  fetch_json,
-  json_one,
-)
+from server.registry.providers.mssql import run_exec, run_json_one
+from server.registry.types import DBResponse
 from server.modules.providers.database.mssql_provider.logic import transaction
 
 __all__ = [
@@ -40,16 +34,16 @@ async def get_auth_provider_recid(provider: str, *, cursor=None) -> int:
     if not row:
       raise ValueError(f"Unknown auth provider: {provider}")
     return row[0]
-  res = await fetch_json(json_one(
+  res = await run_json_one(
     "SELECT recid FROM auth_providers WHERE element_name = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
     (provider,),
-  ))
+  )
   if not res.rows:
     raise ValueError(f"Unknown auth provider: {provider}")
   return res.rows[0]["recid"]
 
 
-def get_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
+async def get_by_provider_identifier_v1(args: dict[str, Any]) -> DBResponse:
   provider = args["provider"]
   identifier = str(UUID(args["provider_identifier"]))
   sql = """
@@ -67,10 +61,10 @@ def get_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
     WHERE ap.element_name = ? AND ua.element_identifier = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (provider, identifier))
+  return await run_json_one(sql, (provider, identifier))
 
 
-def get_any_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
+async def get_any_by_provider_identifier_v1(args: dict[str, Any]) -> DBResponse:
   identifier = str(UUID(args["provider_identifier"]))
   sql = """
     SELECT TOP 1
@@ -81,10 +75,10 @@ def get_any_by_provider_identifier_v1(args: dict[str, Any]) -> Operation:
     WHERE ua.element_identifier = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (identifier,))
+  return await run_json_one(sql, (identifier,))
 
 
-async def create_from_provider_v1(args: dict[str, Any]) -> DBResult:
+async def create_from_provider_v1(args: dict[str, Any]) -> DBResponse:
   from datetime import datetime, timezone
   from uuid import uuid4
 
@@ -100,25 +94,24 @@ async def create_from_provider_v1(args: dict[str, Any]) -> DBResult:
 
   ap_recid = await get_auth_provider_recid(provider)
 
-  dup = await fetch_json(json_one(
+  dup = await run_json_one(
     "SELECT users_guid FROM users_auth WHERE element_identifier = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
     (identifier,),
-  ))
+  )
   if dup.rows:
     existing_guid = dup.rows[0]["users_guid"]
-    await exec_query(exec_op(
+    await run_exec(
       "UPDATE users_auth SET element_linked = 1, providers_recid = ? WHERE element_identifier = ?;",
       (ap_recid, identifier),
-    ))
-    await exec_query(exec_op(
+    )
+    await run_exec(
       "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
       (ap_recid, existing_guid),
-    ))
-    sel = get_by_provider_identifier_v1({
+    )
+    return await get_by_provider_identifier_v1({
       "provider": provider,
       "provider_identifier": identifier,
     })
-    return await fetch_json(sel)
 
   async with transaction() as cur:
     await cur.execute(
@@ -145,19 +138,18 @@ async def create_from_provider_v1(args: dict[str, Any]) -> DBResult:
       (new_guid, 1),
     )
 
-  sel = get_by_provider_identifier_v1({
+  return await get_by_provider_identifier_v1({
     "provider": provider,
     "provider_identifier": identifier,
   })
-  return await fetch_json(sel)
 
 
-async def link_provider_v1(args: dict[str, Any]) -> DBResult:
+async def link_provider_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   provider = args["provider"]
   identifier = str(UUID(args["provider_identifier"]))
   ap_recid = await get_auth_provider_recid(provider)
-  return await exec_query(exec_op(
+  return await run_exec(
     """
     MERGE users_auth AS target
     USING (SELECT ? AS users_guid, ? AS providers_recid, ? AS element_identifier) AS source
@@ -169,10 +161,10 @@ async def link_provider_v1(args: dict[str, Any]) -> DBResult:
       VALUES (source.users_guid, source.providers_recid, source.element_identifier, 1);
     """,
     (guid, ap_recid, identifier),
-  ))
+  )
 
 
-async def unlink_provider_v1(args: dict[str, Any]) -> DBResult:
+async def unlink_provider_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   provider = args["provider"]
   new_recid = args.get("new_provider_recid")
@@ -220,20 +212,20 @@ async def unlink_provider_v1(args: dict[str, Any]) -> DBResult:
           "UPDATE account_users SET providers_recid = NULL WHERE element_guid = ?;",
           (guid,),
         )
-  return DBResult(rows=[{"providers_remaining": cnt}], rowcount=1)
+  return DBResponse(rows=[{"providers_remaining": cnt}], rowcount=1)
 
 
-def soft_delete_account_v1(args: dict[str, Any]) -> Operation:
+async def soft_delete_account_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   sql = """
     UPDATE account_users
     SET element_soft_deleted_at = SYSDATETIMEOFFSET()
     WHERE element_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (guid,))
+  return await run_exec(sql, (guid,))
 
 
-def get_user_by_email_v1(args: dict[str, Any]) -> Operation:
+async def get_user_by_email_v1(args: dict[str, Any]) -> DBResponse:
   email = args["email"]
   sql = """
     SELECT TOP 1
@@ -242,21 +234,21 @@ def get_user_by_email_v1(args: dict[str, Any]) -> Operation:
     WHERE element_email = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (email,))
+  return await run_json_one(sql, (email,))
 
 
-async def set_provider_v1(args: dict[str, Any]) -> DBResult:
+async def set_provider_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   provider = args["provider"]
   ap_recid = await get_auth_provider_recid(provider)
-  return await exec_query(exec_op(
+  return await run_exec(
     "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
     (ap_recid, guid),
-  ))
+  )
 
 
-def unlink_last_provider_v1(args: dict[str, Any]) -> Operation:
+async def unlink_last_provider_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   provider = args["provider"]
   sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
-  return Operation(DbRunMode.EXEC, sql, (guid, provider))
+  return await run_exec(sql, (guid, provider))
