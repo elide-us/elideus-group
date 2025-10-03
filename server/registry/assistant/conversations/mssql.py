@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation, json_one
+from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
+from server.registry.types import DBResponse
 
 __all__ = [
   "find_recent_v1",
@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-def insert_conversation_v1(args: dict[str, Any]) -> Operation:
+async def insert_conversation_v1(args: dict[str, Any]) -> DBResponse:
   personas_recid = args["personas_recid"]
   models_recid = args["models_recid"]
   guild_id = args.get("guild_id")
@@ -39,8 +39,7 @@ def insert_conversation_v1(args: dict[str, Any]) -> Operation:
     SELECT SCOPE_IDENTITY() AS recid
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(
-    DbRunMode.JSON_ONE,
+  return await run_json_one(
     sql,
     (
       personas_recid,
@@ -55,7 +54,7 @@ def insert_conversation_v1(args: dict[str, Any]) -> Operation:
   )
 
 
-def find_recent_v1(args: dict[str, Any]):
+async def find_recent_v1(args: dict[str, Any]) -> DBResponse:
   personas_recid = args["personas_recid"]
   models_recid = args["models_recid"]
   guild_id = args.get("guild_id")
@@ -84,7 +83,7 @@ def find_recent_v1(args: dict[str, Any]):
     ORDER BY element_created_on DESC
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return json_one(
+  return await run_json_one(
     sql,
     (
       personas_recid,
@@ -101,7 +100,7 @@ def find_recent_v1(args: dict[str, Any]):
   )
 
 
-def update_output_v1(args: dict[str, Any]) -> Operation:
+async def update_output_v1(args: dict[str, Any]) -> DBResponse:
   recid = args["recid"]
   output_data = args.get("output_data")
   tokens = args.get("tokens")
@@ -111,10 +110,10 @@ def update_output_v1(args: dict[str, Any]) -> Operation:
         element_tokens = ?
     WHERE recid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (output_data, tokens, recid))
+  return await run_exec(sql, (output_data, tokens, recid))
 
 
-def list_by_time_v1(args: dict[str, Any]) -> Operation:
+async def list_by_time_v1(args: dict[str, Any]) -> DBResponse:
   personas_recid = args["personas_recid"]
   start = args["start"]
   end = args["end"]
@@ -134,10 +133,10 @@ def list_by_time_v1(args: dict[str, Any]) -> Operation:
     ORDER BY element_created_on
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
+  return await run_json_many(sql, (personas_recid, start, end))
 
 
-def list_recent_v1(_: dict[str, Any]) -> Operation:
+async def list_recent_v1(_: dict[str, Any]) -> DBResponse:
   sql = """
     SELECT TOP (2)
            recid,
@@ -153,4 +152,4 @@ def list_recent_v1(_: dict[str, Any]) -> Operation:
     ORDER BY element_created_on DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)

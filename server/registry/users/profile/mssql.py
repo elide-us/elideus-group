@@ -5,14 +5,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from server.modules.providers import DBResult, DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import (
-  Operation,
-  exec_op,
-  exec_query,
-  fetch_json,
-  json_one,
-)
+from server.registry.providers.mssql import run_exec, run_json_one
+from server.registry.types import DBResponse
 
 from server.registry.security.identities.mssql import get_auth_provider_recid
 
@@ -26,7 +20,7 @@ __all__ = [
 ]
 
 
-def get_profile_v1(args: dict[str, Any]) -> Operation:
+async def get_profile_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(args["guid"])
   sql = """
     SELECT TOP 1
@@ -50,10 +44,10 @@ def get_profile_v1(args: dict[str, Any]) -> Operation:
     WHERE v.user_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
+  return await run_json_one(sql, (guid,))
 
 
-def set_display_v1(args: dict[str, Any]) -> Operation:
+async def set_display_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   display_name = args["display_name"]
   sql = """
@@ -61,10 +55,10 @@ def set_display_v1(args: dict[str, Any]) -> Operation:
     SET element_display = ?
     WHERE element_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (display_name, guid))
+  return await run_exec(sql, (display_name, guid))
 
 
-def set_optin_v1(args: dict[str, Any]) -> Operation:
+async def set_optin_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   display_email = args["display_email"]
   sql = """
@@ -72,23 +66,23 @@ def set_optin_v1(args: dict[str, Any]) -> Operation:
     SET element_optin = ?
     WHERE element_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (display_email, guid))
+  return await run_exec(sql, (display_email, guid))
 
 
-async def update_if_unedited_v1(args: dict[str, Any]) -> DBResult:
+async def update_if_unedited_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   email = args.get("email")
   display = args.get("display_name")
-  res = await exec_query(exec_op(
+  res = await run_exec(
     """
     UPDATE account_users
     SET element_email = ?, element_display = ?
     WHERE element_guid = ? AND (element_email <> ? OR element_display <> ?);
     """,
     (email, display, guid, email, display),
-  ))
+  )
   if res.rowcount > 0:
-    return await fetch_json(json_one(
+    return await run_json_one(
       """
       SELECT element_display AS display_name, element_email AS email
       FROM account_users
@@ -96,39 +90,39 @@ async def update_if_unedited_v1(args: dict[str, Any]) -> DBResult:
       FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
       """,
       (guid,),
-    ))
-  return DBResult()
+    )
+  return DBResponse()
 
 
-async def set_roles_v1(args: dict[str, Any]) -> DBResult:
+async def set_roles_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   roles = int(args["roles"])
   if roles == 0:
-    return await exec_query(exec_op("DELETE FROM users_roles WHERE users_guid = ?;", (guid,)))
-  res = await exec_query(exec_op(
+    return await run_exec("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
+  res = await run_exec(
     "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
     (roles, guid),
-  ))
+  )
   if res.rowcount == 0:
-    res = await exec_query(exec_op(
+    res = await run_exec(
       "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
       (guid, roles),
-    ))
+    )
   return res
 
 
-async def set_profile_image_v1(args: dict[str, Any]) -> DBResult:
+async def set_profile_image_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   image_b64 = args["image_b64"]
   provider = args["provider"]
   ap_recid = await get_auth_provider_recid(provider)
-  rc = await exec_query(exec_op(
+  rc = await run_exec(
     "UPDATE users_profileimg SET element_base64 = ?, providers_recid = ? WHERE users_guid = ?;",
     (image_b64, ap_recid, guid),
-  ))
+  )
   if rc.rowcount == 0:
-    rc = await exec_query(exec_op(
+    rc = await run_exec(
       "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
       (guid, image_b64, ap_recid),
-    ))
+    )
   return rc

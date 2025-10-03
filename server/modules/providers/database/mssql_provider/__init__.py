@@ -7,8 +7,14 @@ from ... import DbProviderBase, DBResult
 from .logic import init_pool, close_pool
 from .db_helpers import Operation, execute_operation
 
-from server.registry.providers.mssql import PROVIDER_QUERIES
+from importlib import import_module
+
 from server.registry.types import DBRequest, DBResponse
+
+
+def _get_provider_queries():
+  module = import_module("server.registry.providers.mssql")
+  return getattr(module, "PROVIDER_QUERIES")
 
 
 class MssqlProvider(DbProviderBase):
@@ -28,7 +34,8 @@ class MssqlProvider(DbProviderBase):
     except ValueError as exc:
       raise KeyError(f"Invalid operation version for '{op}'") from exc
     provider_map = f"{domain}.{subdomain}.{name}"
-    entry = PROVIDER_QUERIES.get(provider_map)
+    provider_queries = _get_provider_queries()
+    entry = provider_queries.get(provider_map)
     if entry is None:
       raise KeyError(f"No MSSQL handler for '{op}'")
     if isinstance(entry, Mapping):

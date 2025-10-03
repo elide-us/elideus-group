@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_json_many
+from server.registry.types import DBResponse
 
 __all__ = [
   "get_home_links_v1",
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-def get_home_links_v1(_: dict[str, Any]) -> Operation:
+async def get_home_links_v1(_: dict[str, Any]) -> DBResponse:
   sql = """
     SELECT
       element_title AS title,
@@ -22,10 +22,10 @@ def get_home_links_v1(_: dict[str, Any]) -> Operation:
     ORDER BY element_sequence
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)
 
 
-def get_navbar_routes_v1(args: dict[str, Any]) -> Operation:
+async def get_navbar_routes_v1(args: dict[str, Any]) -> DBResponse:
   mask = int(args.get("role_mask", 0))
   sql = """
     SELECT
@@ -38,4 +38,4 @@ def get_navbar_routes_v1(args: dict[str, Any]) -> Operation:
     ORDER BY element_sequence
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, (mask,))
+  return await run_json_many(sql, (mask,))

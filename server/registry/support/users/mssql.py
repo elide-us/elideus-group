@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_exec
+from server.registry.types import DBResponse
 
 __all__ = [
   "set_credits_v1",
 ]
 
 
-def set_credits_v1(args: dict[str, Any]) -> Operation:
+async def set_credits_v1(args: dict[str, Any]) -> DBResponse:
   guid = args["guid"]
   credits = args["credits"]
   sql = """
@@ -20,4 +20,4 @@ def set_credits_v1(args: dict[str, Any]) -> Operation:
     SET element_credits = ?
     WHERE users_guid = ?;
   """
-  return Operation(DbRunMode.EXEC, sql, (credits, guid))
+  return await run_exec(sql, (credits, guid))

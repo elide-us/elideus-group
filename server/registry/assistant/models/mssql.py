@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_json_many, run_json_one
+from server.registry.types import DBResponse
 
 __all__ = [
   "get_by_name_v1",
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-def list_models_v1(_: dict[str, Any]) -> Operation:
+async def list_models_v1(_: dict[str, Any]) -> DBResponse:
   sql = """
     SELECT
       recid,
@@ -22,13 +22,13 @@ def list_models_v1(_: dict[str, Any]) -> Operation:
     ORDER BY element_name
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, ())
+  return await run_json_many(sql)
 
 
-def get_by_name_v1(args: dict[str, Any]) -> Operation:
+async def get_by_name_v1(args: dict[str, Any]) -> DBResponse:
   name = args["name"]
   sql = """
     SELECT recid FROM assistant_models WHERE element_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (name,))
+  return await run_json_one(sql, (name,))

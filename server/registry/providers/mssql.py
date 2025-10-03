@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import importlib
 import inspect
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
-from server.modules.providers import DBResult
-import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers.database.mssql_provider.db_helpers import Operation
 from server.registry.types import DBRequest, DBResponse
 
@@ -16,7 +14,47 @@ from . import ProviderCallable, ProviderQueryMap
 
 __all__ = [
   "PROVIDER_QUERIES",
+  "run_exec",
+  "run_json_many",
+  "run_json_one",
 ]
+
+
+def _get_provider():
+  return importlib.import_module("server.modules.providers.database.mssql_provider")
+
+
+def _response_from_payload(payload: Any, *, meta: dict[str, Any] | None = None) -> DBResponse:
+  rows_attr = getattr(payload, "rows", None)
+  rowcount_attr = getattr(payload, "rowcount", None)
+  if rows_attr is not None or rowcount_attr is not None:
+    rows = list(rows_attr or []) if rows_attr is not None else []
+    rowcount = int(rowcount_attr) if rowcount_attr is not None else len(rows)
+    return DBResponse(rows=rows, rowcount=rowcount, meta=meta)
+  if isinstance(payload, Mapping):
+    return DBResponse(rows=[dict(payload)], rowcount=1, meta=meta)
+  if payload is None:
+    return DBResponse(meta=meta)
+  raise TypeError(f"Unsupported provider specification result: {type(payload)!r}")
+
+
+async def _run_operation(kind: str, sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
+  operation = Operation(kind, sql, tuple(params))
+  provider = _get_provider()
+  result = await provider.execute_operation(operation)
+  return _response_from_payload(result, meta=meta)
+
+
+async def run_json_one(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
+  return await _run_operation("json_one", sql, params, meta=meta)
+
+
+async def run_json_many(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
+  return await _run_operation("json_many", sql, params, meta=meta)
+
+
+async def run_exec(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
+  return await _run_operation("exec", sql, params, meta=meta)
 
 
 async def _coerce_response(spec: Any) -> DBResponse:
@@ -25,18 +63,13 @@ async def _coerce_response(spec: Any) -> DBResponse:
   if inspect.isawaitable(spec):
     return await _coerce_response(await spec)
   if isinstance(spec, Operation):
-    result = await mssql_provider.execute_operation(spec)
-    return DBResponse.from_result(result)
-  if isinstance(spec, DBResult):
-    return DBResponse.from_result(spec)
-  if isinstance(spec, Mapping):
-    validator = getattr(DBResult, "model_validate", None)
-    if callable(validator):
-      return DBResponse.from_result(validator(spec))
-    return DBResponse.from_result(DBResult(**spec))
-  if spec is None:
-    return DBResponse()
-  raise TypeError(f"Unsupported provider specification result: {type(spec)!r}")
+    provider = _get_provider()
+    result = await provider.execute_operation(spec)
+    return _response_from_payload(result)
+  try:
+    return _response_from_payload(spec)
+  except TypeError:
+    raise
 
 
 def _wrap(fn: Any) -> ProviderCallable:

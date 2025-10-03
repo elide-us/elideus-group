@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_json_many, run_json_one
+from server.registry.types import DBResponse
 
 __all__ = [
   "get_profile_v1",
@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-def get_profile_v1(args: dict[str, Any]) -> Operation:
+async def get_profile_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   sql = """
     SELECT TOP 1
@@ -26,10 +26,10 @@ def get_profile_v1(args: dict[str, Any]) -> Operation:
     WHERE au.element_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
+  return await run_json_one(sql, (guid,))
 
 
-def get_published_files_v1(args: dict[str, Any]) -> Operation:
+async def get_published_files_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["guid"]))
   sql = """
     SELECT
@@ -43,4 +43,4 @@ def get_published_files_v1(args: dict[str, Any]) -> Operation:
     ORDER BY usc.element_created_on
     FOR JSON PATH;
   """
-  return Operation(DbRunMode.JSON_MANY, sql, (guid,))
+  return await run_json_many(sql, (guid,))

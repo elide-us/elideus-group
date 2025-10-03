@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from importlib import import_module
 from typing import Any, Iterable
 from uuid import UUID
 
-from server.modules.providers import DbRunMode
-from server.modules.providers.database.mssql_provider.db_helpers import Operation
+from server.registry.providers.mssql import run_json_one
+from server.registry.types import DBResponse
 
 __all__ = [
   "account_exists_v1",
@@ -83,29 +82,7 @@ def _unique(sequence: Iterable[str]) -> list[str]:
   return items
 
 
-def _make_operation(sql: str, params: Iterable[Any]) -> Operation:
-  db_helpers = import_module("server.modules.providers.database.mssql_provider.db_helpers")
-  json_one = getattr(db_helpers, "json_one", None)
-  payload = tuple(params)
-  if callable(json_one):
-    op = json_one(sql, payload)
-    if op is not None:
-      return op
-  operation_cls = getattr(db_helpers, "Operation")
-  providers_mod = import_module("server.modules.providers")
-  db_run_mode = getattr(providers_mod, "DbRunMode")
-  try:
-    return operation_cls(db_run_mode.JSON_ONE, sql, payload)
-  except TypeError:
-    op = operation_cls()
-    setattr(op, "kind", db_run_mode.JSON_ONE)
-    setattr(op, "sql", sql)
-    setattr(op, "params", payload)
-    setattr(op, "postprocess", None)
-    return op
-
-
-def get_security_profile_v1(params: dict[str, Any]) -> Operation:
+async def get_security_profile_v1(params: dict[str, Any]) -> DBResponse:
   """Return an operation that fetches security metadata for a user context."""
 
   filters: list[str] = []
@@ -146,10 +123,10 @@ def get_security_profile_v1(params: dict[str, Any]) -> Operation:
   join_sql = "".join(_unique(joins))
   where_sql = " AND\n    ".join(filters)
   sql = f"{_BASE_QUERY}{join_sql}  WHERE {where_sql}\n  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;"
-  return _make_operation(sql, args)
+  return await run_json_one(sql, args)
 
 
-def account_exists_v1(args: dict[str, Any]) -> Operation:
+async def account_exists_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(UUID(args["user_guid"]))
   sql = """
     SELECT 1 AS exists_flag
@@ -157,4 +134,4 @@ def account_exists_v1(args: dict[str, Any]) -> Operation:
     WHERE element_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return Operation(DbRunMode.JSON_ONE, sql, (guid,))
+  return await run_json_one(sql, (guid,))
