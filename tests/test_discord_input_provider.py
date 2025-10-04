@@ -1,6 +1,4 @@
 import asyncio
-import sys
-import types
 from types import SimpleNamespace
 
 from fastapi import FastAPI
@@ -8,7 +6,7 @@ from fastapi import FastAPI
 from server.modules.providers.social.discord_input_provider import DiscordInputProvider
 
 
-def test_summarize_command_relies_on_ack(monkeypatch):
+def test_summarize_command_relies_on_ack():
   app = FastAPI()
 
   class DummyChatModule:
@@ -70,6 +68,7 @@ def test_summarize_command_relies_on_ack(monkeypatch):
       self.sent_user_messages = []
       self.sent_channel_messages = []
       self.rate_limits = []
+      self.rpc_calls = []
 
     def bump_rate_limits(self, guild_id, user_id):
       self.rate_limits.append((guild_id, user_id))
@@ -79,6 +78,10 @@ def test_summarize_command_relies_on_ack(monkeypatch):
 
     async def send_user_message(self, user_id, message):
       self.sent_user_messages.append((user_id, message))
+
+    async def call_rpc(self, op, payload=None, *, metadata=None):
+      self.rpc_calls.append((op, payload, metadata))
+      return DummyResponse(ack_payload)
 
   social_module = SimpleNamespace()
   discord = DummyDiscord(app)
@@ -104,14 +107,6 @@ def test_summarize_command_relies_on_ack(monkeypatch):
     def __init__(self, payload):
       self.payload = payload
 
-  async def fake_dispatch_rpc_op(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    fake_dispatch_rpc_op.calls.append((app_obj, op, payload, discord_ctx))
-    return DummyResponse(ack_payload)
-
-  fake_dispatch_rpc_op.calls = []
-  fake_handler_module = types.SimpleNamespace(dispatch_rpc_op=fake_dispatch_rpc_op)
-  monkeypatch.setitem(sys.modules, 'rpc.handler', fake_handler_module)
-
   ctx = SimpleNamespace(
     guild=SimpleNamespace(id=1),
     channel=SimpleNamespace(id=2),
@@ -126,8 +121,8 @@ def test_summarize_command_relies_on_ack(monkeypatch):
   assert app.state.openai.summary_queue.calls == []
   assert ack_payload['queue_id']
   assert discord.rate_limits == [(1, 3)]
-  assert fake_dispatch_rpc_op.calls
-  _, op, payload, metadata = fake_dispatch_rpc_op.calls[0]
+  assert discord.rpc_calls
+  op, payload, metadata = discord.rpc_calls[0]
   assert op == 'urn:discord:chat:summarize_channel:1'
   assert payload['guild_id'] == 1
   assert payload['channel_id'] == 2

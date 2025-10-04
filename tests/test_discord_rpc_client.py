@@ -1,0 +1,74 @@
+import asyncio
+import json
+from types import SimpleNamespace
+
+from fastapi import FastAPI
+
+from server.modules.discord_bot_module import DiscordBotModule
+
+
+def test_call_rpc_builds_headers(monkeypatch):
+  app = FastAPI()
+  module = DiscordBotModule(app)
+  module.rpc_base_url = "https://example.test/api"
+  module.rpc_token = "super-secret"
+
+  captured = {}
+
+  class DummyResponse:
+    status = 200
+
+    async def __aenter__(self):
+      return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+      return False
+
+    async def text(self):
+      return json.dumps({"op": "urn:test:op:1", "payload": {"ok": True}})
+
+  class DummySession:
+    def __init__(self, *args, **kwargs):
+      captured["session_args"] = (args, kwargs)
+
+    async def __aenter__(self):
+      return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+      return False
+
+    def post(self, url, *, json=None, headers=None):
+      captured["url"] = url
+      captured["json"] = json
+      captured["headers"] = headers
+      return DummyResponse()
+
+  import server.modules.discord_bot_module as discord_bot_module
+
+  monkeypatch.setattr(
+    discord_bot_module,
+    "aiohttp",
+    SimpleNamespace(ClientSession=DummySession),
+  )
+
+  response = asyncio.run(
+    module.call_rpc(
+      "urn:test:op:1",
+      {"foo": "bar"},
+      metadata={"user_id": 7, "guild_id": 9, "channel_id": 11},
+    )
+  )
+
+  assert hasattr(response, "payload")
+  assert response.payload["ok"] is True
+  assert captured["url"] == "https://example.test/api/rpc"
+  assert captured["json"] == {
+    "op": "urn:test:op:1",
+    "payload": {"foo": "bar"},
+  }
+  headers = captured["headers"]
+  assert headers["Authorization"] == "Bearer super-secret"
+  assert headers["Content-Type"] == "application/json"
+  assert headers["X-Discord-Id"] == "7"
+  assert headers["X-Discord-Guild-Id"] == "9"
+  assert headers["X-Discord-Channel-Id"] == "11"

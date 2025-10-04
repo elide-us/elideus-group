@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 
+from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.providers.social.discord_input_provider import DiscordInputProvider
@@ -61,8 +62,8 @@ def _make_ctx():
 def test_summarize_command(monkeypatch):
   bot_module, provider, output = _setup_bot()
 
-  class DummyResp:
-    payload = {
+  responses = {
+    "urn:discord:chat:summarize_channel:1": {
       "success": True,
       "queue_id": "queue-123",
       "messages_collected": 1,
@@ -73,22 +74,22 @@ def test_summarize_command(monkeypatch):
       "reason": None,
       "ack_message": "Summary queued for delivery to <@3>.",
     }
+  }
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
-    return DummyResp()
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
+    return RPCResponse(op=op, payload=responses[op])
+
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="2"))
 
-  assert dummy_dispatch.calls
-  _, op, payload, metadata = dummy_dispatch.calls[0]
+  assert rpc_calls
+  op, payload, metadata = rpc_calls[0]
   assert op == "urn:discord:chat:summarize_channel:1"
   assert payload["hours"] == 2
   assert payload["user_id"] == ctx.author.id
@@ -110,8 +111,8 @@ def test_summarize_command_usage_error(monkeypatch):
 def test_summarize_command_empty_history(monkeypatch):
   bot_module, provider, output = _setup_bot()
 
-  class DummyResp:
-    payload = {
+  responses = {
+    "urn:discord:chat:summarize_channel:1": {
       "success": False,
       "queue_id": "queue-123",
       "messages_collected": 0,
@@ -122,22 +123,22 @@ def test_summarize_command_empty_history(monkeypatch):
       "reason": "no_messages",
       "ack_message": "No messages found in the specified time range",
     }
+  }
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
-    return DummyResp()
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
+    return RPCResponse(op=op, payload=responses[op])
+
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
 
-  assert dummy_dispatch.calls
-  _, _, payload, metadata = dummy_dispatch.calls[0]
+  assert rpc_calls
+  _, payload, metadata = rpc_calls[0]
   assert payload["user_id"] == ctx.author.id
   assert metadata["user_id"] == ctx.author.id
   assert output.channel_messages == [(ctx.channel.id, "No messages found in the specified time range")]
@@ -146,8 +147,8 @@ def test_summarize_command_empty_history(monkeypatch):
 def test_summarize_command_cap_hit(monkeypatch):
   bot_module, provider, output = _setup_bot()
 
-  class DummyResp:
-    payload = {
+  responses = {
+    "urn:discord:chat:summarize_channel:1": {
       "success": False,
       "queue_id": "queue-123",
       "messages_collected": 5000,
@@ -158,22 +159,22 @@ def test_summarize_command_cap_hit(monkeypatch):
       "reason": "cap_hit",
       "ack_message": "Channel too active to summarize; message cap hit",
     }
+  }
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
-    return DummyResp()
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
+    return RPCResponse(op=op, payload=responses[op])
+
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
 
-  assert dummy_dispatch.calls
-  _, _, payload, metadata = dummy_dispatch.calls[0]
+  assert rpc_calls
+  _, payload, metadata = rpc_calls[0]
   assert payload["user_id"] == ctx.author.id
   assert metadata["user_id"] == ctx.author.id
   assert output.channel_messages == [(ctx.channel.id, "Channel too active to summarize; message cap hit")]
@@ -182,21 +183,20 @@ def test_summarize_command_cap_hit(monkeypatch):
 def test_summarize_command_transient_error(monkeypatch):
   bot_module, provider, output = _setup_bot()
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
+
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
     raise RuntimeError("boom")
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="1"))
 
-  assert dummy_dispatch.calls
-  _, _, payload, metadata = dummy_dispatch.calls[0]
+  assert rpc_calls
+  _, payload, metadata = rpc_calls[0]
   assert payload["user_id"] == ctx.author.id
   assert metadata["user_id"] == ctx.author.id
   assert output.channel_messages == [(ctx.channel.id, "Failed to fetch messages. Please try again later.")]
@@ -204,10 +204,6 @@ def test_summarize_command_transient_error(monkeypatch):
 
 def test_persona_command_workflow(monkeypatch):
   bot_module, provider, output = _setup_bot()
-
-  class DummyResp:
-    def __init__(self, payload):
-      self.payload = payload
 
   responses = {
     "urn:discord:chat:persona_command:1": {"success": True, "model": "gpt-4o-mini", "max_tokens": 512},
@@ -241,20 +237,19 @@ def test_persona_command_workflow(monkeypatch):
     },
   }
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((op, payload, discord_ctx))
-    return DummyResp(responses.get(op, {"success": True}))
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
+    return RPCResponse(op=op, payload=responses.get(op, {"success": True}))
+
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("persona")
   asyncio.run(cmd.callback(ctx, request="helper Hello world"))
 
-  assert [call[0] for call in dummy_dispatch.calls] == [
+  assert [call[0] for call in rpc_calls] == [
     "urn:discord:chat:persona_command:1",
     "urn:discord:chat:get_persona:1",
     "urn:discord:chat:get_conversation_history:1",
@@ -263,8 +258,8 @@ def test_persona_command_workflow(monkeypatch):
     "urn:discord:chat:generate_persona_response:1",
     "urn:discord:chat:deliver_persona_response:1",
   ]
-  first_payload = dummy_dispatch.calls[0][1]
-  first_metadata = dummy_dispatch.calls[0][2]
+  first_payload = rpc_calls[0][1]
+  first_metadata = rpc_calls[0][2]
   assert first_payload["persona"] == "helper"
   assert first_payload["message"] == "Hello world"
   assert first_metadata == {"guild_id": ctx.guild.id, "channel_id": ctx.channel.id, "user_id": ctx.author.id}

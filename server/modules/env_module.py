@@ -14,6 +14,8 @@ class EnvModule(BaseModule):
   async def startup(self):
     self._getenv("DISCORD_SECRET", "MISSING_ENV_DISCORD_SECRET")
     self._getenv("DISCORD_AUTH_SECRET", "MISSING_ENV_DISCORD_AUTH_SECRET")
+    self._getenv("DISCORD_RPC_BASE_URL", "MISSING_ENV_DISCORD_RPC_BASE_URL")
+    self._getenv("DISCORD_RPC_TOKEN", "MISSING_ENV_DISCORD_RPC_TOKEN")
     self._getenv("JWT_SECRET", "MISSING_ENV_JWT_SECRET")
     self._getenv("GOOGLE_AUTH_SECRET", "MISSING_ENV_GOOGLE_AUTH_SECRET")
     self._getenv("DATABASE_PROVIDER", "MISSING_DATABASE_PROVIDER")

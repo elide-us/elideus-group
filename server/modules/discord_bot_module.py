@@ -1,9 +1,10 @@
 """Discord bot coordination module."""
 
-import logging, discord, asyncio, os
+import json, logging, discord, asyncio, os
 from typing import IO, TYPE_CHECKING, Any
 from fastapi import FastAPI
 from discord.ext import commands
+import aiohttp
 
 try:  # pragma: no cover - platform dependent import
   import fcntl
@@ -18,6 +19,7 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
+from server.models import RPCResponse
 from server.registry.system.config import get_config_request
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
@@ -51,6 +53,8 @@ class DiscordBotModule(BaseModule):
     self.output_module: "DiscordOutputModule" | None = None
     self.social_input_module: "SocialInputModule" | None = None
     self.input_provider: "DiscordInputProvider" | None = None
+    self.rpc_base_url: str | None = None
+    self.rpc_token: str | None = None
     if not getattr(self.app.state, "discord_bot", None):
       setattr(self.app.state, "discord_bot", self)
 
@@ -71,6 +75,8 @@ class DiscordBotModule(BaseModule):
       self.owns_bot = True
       setattr(self.app.state, "discord_bot", self)
       self.secret = self.env.get("DISCORD_SECRET")
+      self.rpc_base_url = (self.env.get("DISCORD_RPC_BASE_URL") or "").rstrip('/')
+      self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
@@ -184,6 +190,51 @@ class DiscordBotModule(BaseModule):
 
   def register_input_provider(self, provider: "DiscordInputProvider") -> None:
     self.input_provider = provider
+
+  async def call_rpc(
+    self,
+    op: str,
+    payload: dict | None = None,
+    *,
+    metadata: dict | None = None,
+  ) -> RPCResponse:
+    if not self.rpc_base_url or not self.rpc_token:
+      raise RuntimeError("Discord RPC endpoint is not configured")
+    url = f"{self.rpc_base_url}/rpc"
+    headers = {
+      "Authorization": f"Bearer {self.rpc_token}",
+      "Content-Type": "application/json",
+    }
+    metadata = metadata or {}
+    user_id = metadata.get("user_id")
+    if user_id:
+      headers["X-Discord-Id"] = str(user_id)
+    guild_id = metadata.get("guild_id")
+    if guild_id:
+      headers["X-Discord-Guild-Id"] = str(guild_id)
+    channel_id = metadata.get("channel_id")
+    if channel_id:
+      headers["X-Discord-Channel-Id"] = str(channel_id)
+    body = {"op": op}
+    if payload is not None:
+      body["payload"] = payload
+    async with aiohttp.ClientSession() as session:
+      async with session.post(url, json=body, headers=headers) as response:
+        text = await response.text()
+        if response.status >= 400:
+          logging.error(
+            "[DiscordBotModule] RPC call failed",
+            extra={"op": op, "status": response.status, "response": text},
+          )
+          raise RuntimeError(f"RPC call failed with status {response.status}: {text}")
+    try:
+      data = json.loads(text)
+    except json.JSONDecodeError as exc:
+      logging.error(
+        "[DiscordBotModule] Invalid RPC response", extra={"op": op, "response": text}
+      )
+      raise RuntimeError("Invalid RPC response payload") from exc
+    return RPCResponse(**data)
 
   def _get_output_module(self) -> "DiscordOutputModule | None":
     if self.output_module:

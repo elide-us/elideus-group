@@ -9,7 +9,11 @@ from server.modules.discord_bot_module import DiscordBotModule
 class DummyEnv(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
-    self._env = {"DISCORD_SECRET": "secret"}
+    self._env = {
+      "DISCORD_SECRET": "secret",
+      "DISCORD_RPC_BASE_URL": "https://api.example.com",
+      "DISCORD_RPC_TOKEN": "token",
+    }
 
   async def startup(self):
     self.mark_ready()
