@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Authentication module handling login and token workflows."""
 
 import base64, logging, uuid
@@ -6,7 +8,7 @@ from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Any, Dict
 
-from server.modules import BaseModule
+from server.modules import BaseModule, AuthService
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
 from server.modules.providers import AuthProviderBase
@@ -160,6 +162,23 @@ class RoleCache:
     await self.get_user_security_profile(guid, refresh=True)
 
 
+class _AuthServiceFacade:
+  def __init__(self, module: AuthModule | None = None):
+    self._module = module
+
+  def bind(self, module: AuthModule):
+    self._module = module
+    return self
+
+  def require_role_mask(self, name: str) -> int:
+    assert self._module, "Auth module is not bound"
+    return self._module.require_role_mask(name)
+
+  async def user_has_role(self, guid: str, required_mask: int) -> bool:
+    assert self._module, "Auth module is not bound"
+    return await self._module.user_has_role(guid, required_mask)
+
+
 class AuthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -169,6 +188,7 @@ class AuthModule(BaseModule):
     self.jwks_cache_minutes: int = 60
     self.role_cache = RoleCache()
     self.discord: DiscordBotModule | None = None
+    self._service_facade = _AuthServiceFacade(self)
 
   @property
   def roles(self) -> dict[str, int]:
@@ -189,6 +209,9 @@ class AuthModule(BaseModule):
   @property
   def _user_security(self) -> dict[str, dict[str, Any]]:
     return self.role_cache._user_security
+
+  def create_service(self) -> AuthService:
+    return self._service_facade.bind(self)
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
