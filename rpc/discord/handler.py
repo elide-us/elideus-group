@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException, Request
 
-from rpc.helpers import unbox_request
+from rpc.helpers import resolve_required_mask, unbox_request
 from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 
@@ -17,7 +17,7 @@ async def handle_discord_request(parts: list[str], request: Request) -> RPCRespo
   _, auth_ctx, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
   role_name = REQUIRED_ROLES.get(subdomain)
-  required_mask = auth.roles.get(role_name, 0) if role_name else 0
+  required_mask = resolve_required_mask(auth, role_name) if role_name else 0
   if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
     detail = FORBIDDEN_DETAILS.get(subdomain, 'Forbidden')
     raise HTTPException(status_code=403, detail=detail)

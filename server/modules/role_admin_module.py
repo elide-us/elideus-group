@@ -77,7 +77,10 @@ class RoleAdminModule(BaseModule):
 
   async def add_role_member(self, role: str, user_guid: str, actor_mask: int | None = None) -> tuple[list[dict], list[dict]]:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      try:
+        role_mask = self.auth.require_role_mask(role)
+      except KeyError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
       self._ensure_can_manage(actor_mask, role_mask)
     assert self.db, "database module not initialised"
     request = add_role_member_request(role, user_guid)
@@ -87,7 +90,10 @@ class RoleAdminModule(BaseModule):
 
   async def remove_role_member(self, role: str, user_guid: str, actor_mask: int | None = None) -> tuple[list[dict], list[dict]]:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      try:
+        role_mask = self.auth.require_role_mask(role)
+      except KeyError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
       self._ensure_can_manage(actor_mask, role_mask)
     assert self.db, "database module not initialised"
     request = remove_role_member_request(role, user_guid)
@@ -102,6 +108,9 @@ class RoleAdminModule(BaseModule):
 
   async def delete_role(self, name: str, actor_mask: int | None = None) -> None:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(name, 0)
+      try:
+        role_mask = self.auth.require_role_mask(name)
+      except KeyError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
       self._ensure_can_manage(actor_mask, role_mask)
     await self.auth.delete_role(name)

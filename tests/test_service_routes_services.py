@@ -43,8 +43,11 @@ class RoleCache:
 
   def names_to_mask(self, names):
     mask = 0
+    missing = [n for n in names if n not in self.roles]
+    if missing:
+      raise KeyError(f"Undefined roles: {', '.join(missing)}")
     for n in names:
-      mask |= self.roles.get(n, 0)
+      mask |= self.roles[n]
     return mask
 
 class AuthModule:

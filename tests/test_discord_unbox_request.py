@@ -28,6 +28,20 @@ class AuthModule:
   def __init__(self):
     self.roles = {"ROLE_REGISTERED": 0x1}
     self.role_registered = 0x1
+
+  async def decode_session_token(self, token: str) -> dict:
+    if token != "valid":
+      raise ValueError("invalid token")
+    return {"sub": "service-guid", "provider": "discord"}
+
+  async def get_user_roles(self, guid: str):
+    return (["ROLE_REGISTERED"], 0x1)
+
+  def require_role_mask(self, name: str) -> int:
+    if name not in self.roles:
+      raise KeyError(f"Role {name} is not defined")
+    return self.roles[name]
+
   async def get_discord_user_security(self, discord_id: str):
     guid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
     return (guid, ["ROLE_REGISTERED"], 0x1)
@@ -36,7 +50,34 @@ modules_pkg.auth_module = auth_module_pkg
 sys.modules['server.modules.auth_module'] = auth_module_pkg
 
 
-def test_unbox_request_with_discord_id():
+def _headers_with_token(**extra):
+  headers = {"Authorization": "Bearer valid"}
+  headers.update({k: str(v) for k, v in extra.items()})
+  return headers
+
+
+def test_unbox_request_requires_token_for_discord():
+  if 'rpc.helpers' in sys.modules:
+    del sys.modules['rpc.helpers']
+  helpers = importlib.import_module('rpc.helpers')
+
+  app = FastAPI()
+  app.state.auth = AuthModule()
+
+  @app.post('/rpc')
+  async def endpoint(request: Request):
+    await helpers.unbox_request(request)
+    return {}
+
+  client = TestClient(app)
+  resp = client.post(
+    '/rpc',
+    json={'op': 'urn:discord:command:get_roles:1'},
+  )
+  assert resp.status_code == 401
+
+
+def test_unbox_request_with_discord_header_and_token():
   if 'rpc.helpers' in sys.modules:
     del sys.modules['rpc.helpers']
   helpers = importlib.import_module('rpc.helpers')
@@ -53,62 +94,11 @@ def test_unbox_request_with_discord_id():
   resp = client.post(
     '/rpc',
     json={'op': 'urn:discord:command:get_roles:1'},
-    headers={'x-discord-id': '42'}
+    headers=_headers_with_token(**{'x-discord-id': '42'})
   )
   assert resp.status_code == 200
   data = resp.json()
   expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:42'))
-  assert data['user_guid'] == expected_guid
-  assert data['roles'] == ['ROLE_REGISTERED']
-
-
-def test_unbox_request_with_discord_user_id():
-  if 'rpc.helpers' in sys.modules:
-    del sys.modules['rpc.helpers']
-  helpers = importlib.import_module('rpc.helpers')
-
-  app = FastAPI()
-  app.state.auth = AuthModule()
-
-  @app.post('/rpc')
-  async def endpoint(request: Request):
-    rpc_request, auth_ctx, _ = await helpers.unbox_request(request)
-    return {'user_guid': rpc_request.user_guid, 'roles': auth_ctx.roles}
-
-  client = TestClient(app)
-  resp = client.post(
-    '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1'},
-    headers={'x-discord-user-id': '99'}
-  )
-  assert resp.status_code == 200
-  data = resp.json()
-  expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:99'))
-  assert data['user_guid'] == expected_guid
-  assert data['roles'] == ['ROLE_REGISTERED']
-
-
-def test_unbox_request_with_payload_discord_id():
-  if 'rpc.helpers' in sys.modules:
-    del sys.modules['rpc.helpers']
-  helpers = importlib.import_module('rpc.helpers')
-
-  app = FastAPI()
-  app.state.auth = AuthModule()
-
-  @app.post('/rpc')
-  async def endpoint(request: Request):
-    rpc_request, auth_ctx, _ = await helpers.unbox_request(request)
-    return {'user_guid': rpc_request.user_guid, 'roles': auth_ctx.roles}
-
-  client = TestClient(app)
-  resp = client.post(
-    '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1', 'payload': {'discord_id': '123'}},
-  )
-  assert resp.status_code == 200
-  data = resp.json()
-  expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:123'))
   assert data['user_guid'] == expected_guid
   assert data['roles'] == ['ROLE_REGISTERED']
 
@@ -136,9 +126,32 @@ def test_unbox_request_with_context_discord_id():
   resp = client.post(
     '/rpc',
     json={'op': 'urn:discord:command:get_roles:1'},
+    headers=_headers_with_token()
   )
   assert resp.status_code == 200
   data = resp.json()
   expected_guid = str(uuid.uuid5(uuid.NAMESPACE_URL, 'discord:555'))
   assert data['user_guid'] == expected_guid
   assert data['roles'] == ['ROLE_REGISTERED']
+
+
+def test_unbox_request_rejects_payload_discord_id():
+  if 'rpc.helpers' in sys.modules:
+    del sys.modules['rpc.helpers']
+  helpers = importlib.import_module('rpc.helpers')
+
+  app = FastAPI()
+  app.state.auth = AuthModule()
+
+  @app.post('/rpc')
+  async def endpoint(request: Request):
+    rpc_request, auth_ctx, _ = await helpers.unbox_request(request)
+    return {'user_guid': rpc_request.user_guid, 'roles': auth_ctx.roles}
+
+  client = TestClient(app)
+  resp = client.post(
+    '/rpc',
+    json={'op': 'urn:discord:command:get_roles:1', 'payload': {'discord_id': '123'}},
+    headers=_headers_with_token()
+  )
+  assert resp.status_code == 401

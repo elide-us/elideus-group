@@ -1,6 +1,8 @@
 from fastapi import Request
 import logging
 
+from fastapi import HTTPException
+
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
@@ -63,7 +65,10 @@ async def service_routes_upsert_route_v1(request: Request):
   payload = ServiceRoutesRouteItem1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   auth: AuthModule = request.app.state.auth
-  mask = auth.names_to_mask(payload.required_roles)
+  try:
+    mask = auth.names_to_mask(payload.required_roles)
+  except KeyError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
   db_request = upsert_route_request(
     path=payload.path,
     name=payload.name,
