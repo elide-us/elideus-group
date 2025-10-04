@@ -66,8 +66,6 @@ class DiscordInputProvider(SocialInputProvider):
     }
 
   async def _handle_rpc_command(self, ctx, *, op: str):
-    from rpc.handler import dispatch_rpc_op
-
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
     user_id = getattr(ctx.author, "id", 0)
@@ -80,12 +78,7 @@ class DiscordInputProvider(SocialInputProvider):
     }
 
     try:
-      resp = await dispatch_rpc_op(
-        self.discord.app,
-        op,
-        None,
-        discord_ctx=metadata,
-      )
+      resp = await self.discord.call_rpc(op, None, metadata=metadata)
       payload = resp.payload
       if hasattr(payload, "model_dump"):
         data = json.dumps(payload.model_dump())
@@ -118,8 +111,6 @@ class DiscordInputProvider(SocialInputProvider):
       await self._queue_channel_notice(ctx, f"Error: {exc}", reason="rpc_command_error")
 
   async def _handle_summarize_command(self, ctx, hours: str):
-    from rpc.handler import dispatch_rpc_op
-
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
     user_id = getattr(ctx.author, "id", 0)
@@ -148,11 +139,10 @@ class DiscordInputProvider(SocialInputProvider):
     }
 
     try:
-      resp = await dispatch_rpc_op(
-        self.discord.app,
+      resp = await self.discord.call_rpc(
         "urn:discord:chat:summarize_channel:1",
         payload,
-        discord_ctx=metadata,
+        metadata=metadata,
       )
       payload = resp.payload
       if hasattr(payload, "model_dump"):

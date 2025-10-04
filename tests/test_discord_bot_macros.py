@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 
+from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.providers.social.discord_input_provider import DiscordInputProvider
 from server.modules.social_input_module import SocialInputModule
@@ -74,8 +75,8 @@ def test_summarize_macro_dm(monkeypatch):
   module, output = _setup_bot()
   module.bot._connection.user = SimpleNamespace(id=0)
 
-  class DummyResp:
-    payload = {
+  responses = {
+    "urn:discord:chat:summarize_channel:1": {
       "success": True,
       "queue_id": "queue-123",
       "messages_collected": 1,
@@ -86,23 +87,23 @@ def test_summarize_macro_dm(monkeypatch):
       "reason": None,
       "ack_message": "Summary queued for delivery to <@3>.",
     }
+  }
 
-  async def dummy_dispatch(app_obj, op, payload=None, *, discord_ctx=None, headers=None):
-    dummy_dispatch.calls.append((app_obj, op, payload, discord_ctx))
-    return DummyResp()
+  rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
-  dummy_dispatch.calls = []
-  import importlib
-  rpc_mod = importlib.import_module("rpc.handler")
-  monkeypatch.setattr(rpc_mod, "dispatch_rpc_op", dummy_dispatch)
+  async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
+    rpc_calls.append((op, payload, metadata))
+    return RPCResponse(op=op, payload=responses[op])
+
+  monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
   channel = DummyChannel()
   author = DummyAuthor()
   message = DummyMessage("!summarize 2", channel, author, state=module.bot._connection)
   asyncio.run(module.bot.process_commands(message))
 
-  assert dummy_dispatch.calls
-  _, op, payload, metadata = dummy_dispatch.calls[0]
+  assert rpc_calls
+  op, payload, metadata = rpc_calls[0]
   assert op == "urn:discord:chat:summarize_channel:1"
   assert payload["hours"] == 2
   assert payload["user_id"] == author.id

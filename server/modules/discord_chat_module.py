@@ -471,15 +471,9 @@ class DiscordChatModule(BaseModule):
     return context
 
   async def _dispatch_persona_rpc(self, op: str, payload: dict, metadata: dict) -> dict:
-    from rpc.handler import dispatch_rpc_op
-
     try:
-      response = await dispatch_rpc_op(
-        self.app,
-        op,
-        payload,
-        discord_ctx=metadata,
-      )
+      assert self.discord is not None
+      response = await self.discord.call_rpc(op, payload, metadata=metadata)
     except Exception:
       logging.exception(
         "[DiscordChatModule] persona RPC dispatch failed",
