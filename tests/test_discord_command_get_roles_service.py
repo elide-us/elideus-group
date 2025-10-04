@@ -40,7 +40,7 @@ client = TestClient(app)
 def test_discord_command_get_roles_service():
   async def _stub_unbox_request(request):
     return (
-      RPCRequest(op='urn:discord:command:get_roles:1'),
+      RPCRequest(op='urn:discord:command:get_roles:1', version=1),
       AuthContext(user_guid='u1', roles=['ROLE_STORAGE'], role_mask=0x2),
       [],
     )
@@ -48,7 +48,7 @@ def test_discord_command_get_roles_service():
   original = discord_services.unbox_request
   discord_services.unbox_request = _stub_unbox_request
   try:
-    resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
+    resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1', 'version': 1})
   finally:
     discord_services.unbox_request = original
   assert resp.status_code == 200

@@ -72,7 +72,7 @@ def test_unbox_request_requires_token_for_discord():
   client = TestClient(app)
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1'},
+    json={'op': 'urn:discord:command:get_roles:1', 'version': 1},
   )
   assert resp.status_code == 401
 
@@ -93,7 +93,7 @@ def test_unbox_request_with_discord_header_and_token():
   client = TestClient(app)
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1'},
+    json={'op': 'urn:discord:command:get_roles:1', 'version': 1},
     headers=_headers_with_token(**{'x-discord-id': '42'})
   )
   assert resp.status_code == 200
@@ -125,7 +125,7 @@ def test_unbox_request_with_context_discord_id():
   client = TestClient(app)
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1'},
+    json={'op': 'urn:discord:command:get_roles:1', 'version': 1},
     headers=_headers_with_token()
   )
   assert resp.status_code == 200
@@ -151,7 +151,7 @@ def test_unbox_request_rejects_payload_discord_id():
   client = TestClient(app)
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:command:get_roles:1', 'payload': {'discord_id': '123'}},
+    json={'op': 'urn:discord:command:get_roles:1', 'payload': {'discord_id': '123'}, 'version': 1},
     headers=_headers_with_token()
   )
   assert resp.status_code == 401

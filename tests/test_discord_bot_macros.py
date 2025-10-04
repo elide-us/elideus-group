@@ -93,7 +93,7 @@ def test_summarize_macro_dm(monkeypatch):
 
   async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
     rpc_calls.append((op, payload, metadata))
-    return RPCResponse(op=op, payload=responses[op])
+    return RPCResponse(op=op, payload=responses[op], version=1)
 
   monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 

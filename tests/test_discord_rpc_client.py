@@ -25,7 +25,7 @@ def test_call_rpc_builds_headers(monkeypatch):
       return False
 
     async def text(self):
-      return json.dumps({"op": "urn:test:op:1", "payload": {"ok": True}})
+      return json.dumps({"op": "urn:test:ops:trigger:1", "payload": {"ok": True}, "version": 1})
 
   class DummySession:
     def __init__(self, *args, **kwargs):
@@ -53,7 +53,7 @@ def test_call_rpc_builds_headers(monkeypatch):
 
   response = asyncio.run(
     module.call_rpc(
-      "urn:test:op:1",
+      "urn:test:ops:trigger:1",
       {"foo": "bar"},
       metadata={"user_id": 7, "guild_id": 9, "channel_id": 11},
     )
@@ -63,8 +63,9 @@ def test_call_rpc_builds_headers(monkeypatch):
   assert response.payload["ok"] is True
   assert captured["url"] == "https://example.test/api/rpc"
   assert captured["json"] == {
-    "op": "urn:test:op:1",
+    "op": "urn:test:ops:trigger:1",
     "payload": {"foo": "bar"},
+    "version": 1,
   }
   headers = captured["headers"]
   assert headers["Authorization"] == "Bearer super-secret"

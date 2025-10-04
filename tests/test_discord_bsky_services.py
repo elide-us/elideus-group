@@ -55,7 +55,7 @@ def test_bsky_post_message_handler():
 
   async def fake_unbox(request):
     return (
-      RPCRequest(op='urn:discord:bsky:post:1', payload={'message': 'hello world'}),
+      RPCRequest(op='urn:discord:bsky:post:1', payload={'message': 'hello world'}, version=1),
       AuthContext(),
       [],
     )
@@ -68,7 +68,7 @@ def test_bsky_post_message_handler():
     return await bsky_services.discord_bsky_post_message_v1(request)
 
   client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:bsky:post:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:bsky:post:1', 'version': 1})
   assert resp.status_code == 200
   assert module.ready is True
   assert module.calls == ['hello world']
@@ -91,7 +91,7 @@ def test_bsky_post_message_handler_error():
 
   async def fake_unbox(request):
     return (
-      RPCRequest(op='urn:discord:bsky:post:1', payload={'message': 'hello world'}),
+      RPCRequest(op='urn:discord:bsky:post:1', payload={'message': 'hello world'}, version=1),
       AuthContext(),
       [],
     )
@@ -104,7 +104,7 @@ def test_bsky_post_message_handler_error():
     return await bsky_services.discord_bsky_post_message_v1(request)
 
   client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:bsky:post:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:bsky:post:1', 'version': 1})
   assert resp.status_code == 400
   assert module.calls == ['hello world']
   data = resp.json()

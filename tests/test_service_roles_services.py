@@ -256,7 +256,7 @@ def test_get_roles_allows_system_admin():
   async def stub(parts, request):
     nonlocal called
     called = True
-    return RPCResponse(op="ok", payload=None, version=1)
+    return RPCResponse(op="urn:service:roles:get_roles:1", payload=None, version=1)
 
   service_pkg.HANDLERS["roles"] = stub
   req = DummyRequest(DummyState(DummyDb(), DummyAuth()))

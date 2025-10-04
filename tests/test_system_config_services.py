@@ -25,7 +25,8 @@ models_pkg = types.ModuleType('server.models')
 class RPCResponse(BaseModel):
   op: str
   payload: dict
-  version: int = 1
+  version: int
+  error: dict | None = None
 
 class AuthContext(BaseModel):
   user_guid: str = ''
@@ -33,6 +34,7 @@ class AuthContext(BaseModel):
 
 models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
@@ -97,7 +99,7 @@ async def rpc_endpoint(request: Request):
 client = TestClient(app)
 
 def test_get_configs_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:config:get_configs:1'})
+  resp = client.post('/rpc', json={'op': 'urn:system:config:get_configs:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -106,9 +108,9 @@ def test_get_configs_service():
   assert ('get_configs', 'u1', []) in mod.calls
 
 def test_upsert_and_delete_config_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:config:upsert_config:1', 'payload': {'key': 'LoggingLevel', 'value': '2'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:config:upsert_config:1', 'payload': {'key': 'LoggingLevel', 'value': '2'}, 'version': 1})
   assert resp.status_code == 200
-  resp = client.post('/rpc', json={'op': 'urn:system:config:delete_config:1', 'payload': {'key': 'LoggingLevel'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:config:delete_config:1', 'payload': {'key': 'LoggingLevel'}, 'version': 1})
   assert resp.status_code == 200
   assert ('upsert_config', 'LoggingLevel', '2') in mod.calls
   assert ('delete_config', 'LoggingLevel') in mod.calls

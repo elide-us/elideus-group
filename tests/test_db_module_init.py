@@ -48,7 +48,7 @@ def test_db_module_run_propagates_query_error():
   db.set_registry(registry)
 
   with pytest.raises(DBQueryError) as exc:
-    asyncio.run(db.run(DBRequest(op="db:test:error", params={})))
+    asyncio.run(db.run(DBRequest(op="db:test:error:trigger:1", params={})))
   assert exc.value.detail == detail
 
 
@@ -121,13 +121,13 @@ def test_db_module_run_constructs_registry_request():
   registry = RecordingRegistry()
   db.set_registry(registry)
 
-  result = asyncio.run(db.run(DBRequest(op="db:test:op", params={"key": "value"})))
+  result = asyncio.run(db.run(DBRequest(op="db:test:ops:trigger:1", params={"key": "value"})))
 
   assert result.rows == [{"ok": True}]
   assert result.rowcount == 1
   assert len(registry.requests) == 1
   request = registry.requests[0]
-  assert request.op == "db:test:op"
+  assert request.op == "db:test:ops:trigger:1"
   assert request.params == {"key": "value"}
 
 

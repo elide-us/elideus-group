@@ -73,7 +73,7 @@ def test_support_routes_reuse_account_routes():
 
   async def fake_displayname(request):
     calls.append("get_displayname")
-    return RPCResponse(op="o", payload={}, version=1)
+    return RPCResponse(op="urn:support:users:get_displayname:1", payload={}, version=1)
 
   orig_displayname = account_mod.account_user_get_displayname_v1
   account_mod.account_user_get_displayname_v1 = fake_displayname
@@ -83,7 +83,7 @@ def test_support_routes_reuse_account_routes():
 
   async def fake_credits(request):
     calls.append("get_credits")
-    return RPCResponse(op="o", payload={}, version=1)
+    return RPCResponse(op="urn:support:users:get_credits:1", payload={}, version=1)
 
   orig_credits = account_mod.account_user_get_credits_v1
   account_mod.account_user_get_credits_v1 = fake_credits
@@ -93,7 +93,7 @@ def test_support_routes_reuse_account_routes():
 
   async def fake_set_credits(request):
     calls.append("set_credits")
-    return RPCResponse(op="o", payload={}, version=1)
+    return RPCResponse(op="urn:support:users:set_credits:1", payload={}, version=1)
 
   orig_set_credits = account_mod.account_user_set_credits_v1
   account_mod.account_user_set_credits_v1 = fake_set_credits
@@ -103,7 +103,7 @@ def test_support_routes_reuse_account_routes():
 
   async def fake_reset_display(request):
     calls.append("reset_display")
-    return RPCResponse(op="o", payload={}, version=1)
+    return RPCResponse(op="urn:support:users:reset_display:1", payload={}, version=1)
 
   orig_reset_display = account_mod.account_user_reset_display_v1
   account_mod.account_user_reset_display_v1 = fake_reset_display

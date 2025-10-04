@@ -7,6 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # Avoid importing rpc.__init__ which has side effects that trigger circular imports
 pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(ROOT / 'rpc')]
+pkg.HANDLERS = {}
 sys.modules.setdefault('rpc', pkg)
 
 spec_helpers = importlib.util.spec_from_file_location('rpc.helpers', ROOT / 'rpc/helpers.py')
@@ -24,8 +25,13 @@ class RPCResponse:
   def __init__(self, **data):
     self.__dict__.update(data)
 
+class AuthContext:
+  def __init__(self, **data):
+    self.__dict__.update(data)
+
 models_mod.RPCRequest = RPCRequest
 models_mod.RPCResponse = RPCResponse
+models_mod.AuthContext = AuthContext
 sys.modules['server.models'] = models_mod
 
 if str(ROOT) not in sys.path:
@@ -62,12 +68,12 @@ async def parse_rpc(request: Request):
 client = TestClient(app)
 
 def test_public_request_without_token():
-  resp = client.post('/rpc', json={'op': 'urn:public:links:get_home_links:1'})
+  resp = client.post('/rpc', json={'op': 'urn:public:links:get_home_links:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['user_role'] == 0
   assert data['parts'][1] == 'public'
 
 def test_private_request_requires_token():
-  resp = client.post('/rpc', json={'op': 'urn:users:profile:get_profile:1'})
+  resp = client.post('/rpc', json={'op': 'urn:users:profile:get_profile:1', 'version': 1})
   assert resp.status_code == 401

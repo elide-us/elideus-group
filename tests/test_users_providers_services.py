@@ -133,7 +133,7 @@ class DummyRequest:
 def test_set_provider_calls_db():
   async def fake_get(request):
     rpc = RPCRequest(
-      op="db:security:identities:set_provider:1",
+      op="urn:users:providers:set_provider:1",
       payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
       version=1,
     )

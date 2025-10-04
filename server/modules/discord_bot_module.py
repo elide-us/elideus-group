@@ -215,7 +215,11 @@ class DiscordBotModule(BaseModule):
     channel_id = metadata.get("channel_id")
     if channel_id:
       headers["X-Discord-Channel-Id"] = str(channel_id)
-    body = {"op": op}
+    try:
+      version = int(op.split(":")[-1])
+    except (ValueError, IndexError) as exc:
+      raise ValueError(f"Invalid RPC operation key: {op}") from exc
+    body = {"op": op, "version": version}
     if payload is not None:
       body["payload"] = payload
     async with aiohttp.ClientSession() as session:

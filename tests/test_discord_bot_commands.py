@@ -80,7 +80,7 @@ def test_summarize_command(monkeypatch):
 
   async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
     rpc_calls.append((op, payload, metadata))
-    return RPCResponse(op=op, payload=responses[op])
+    return RPCResponse(op=op, payload=responses[op], version=1)
 
   monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
@@ -129,7 +129,7 @@ def test_summarize_command_empty_history(monkeypatch):
 
   async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
     rpc_calls.append((op, payload, metadata))
-    return RPCResponse(op=op, payload=responses[op])
+    return RPCResponse(op=op, payload=responses[op], version=1)
 
   monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
@@ -165,7 +165,7 @@ def test_summarize_command_cap_hit(monkeypatch):
 
   async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
     rpc_calls.append((op, payload, metadata))
-    return RPCResponse(op=op, payload=responses[op])
+    return RPCResponse(op=op, payload=responses[op], version=1)
 
   monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 
@@ -241,7 +241,7 @@ def test_persona_command_workflow(monkeypatch):
 
   async def dummy_call_rpc(self, op, payload=None, *, metadata=None):
     rpc_calls.append((op, payload, metadata))
-    return RPCResponse(op=op, payload=responses.get(op, {"success": True}))
+    return RPCResponse(op=op, payload=responses.get(op, {"success": True}), version=1)
 
   monkeypatch.setattr(DiscordBotModule, "call_rpc", dummy_call_rpc)
 

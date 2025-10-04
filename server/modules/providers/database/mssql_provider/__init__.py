@@ -61,4 +61,4 @@ class MssqlProvider(DbProviderBase):
         f"Handler '{op}' returned unsupported result type: {type(response)!r}."
         " Expected DBResponse."
       )
-    return response.to_result()
+    return response.to_result(result_cls=DBResult)

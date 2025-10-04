@@ -26,7 +26,8 @@ models_pkg = types.ModuleType('server.models')
 class RPCResponse(BaseModel):
   op: str
   payload: dict
-  version: int = 1
+  version: int
+  error: dict | None = None
 
 
 class AuthContext(BaseModel):
@@ -36,6 +37,7 @@ class AuthContext(BaseModel):
 
 models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)

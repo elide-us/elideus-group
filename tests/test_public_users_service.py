@@ -15,15 +15,20 @@ from pydantic import BaseModel
 class RPCRequest(BaseModel):
   op: str
   payload: dict | None = None
-  version: int = 1
+  version: int
 
 class RPCResponse(BaseModel):
   op: str
   payload: dict
-  version: int = 1
+  version: int
+  error: dict | None = None
+
+def ensure_json_serializable(value, *, field_name):
+  return value
 
 models_pkg.RPCRequest = RPCRequest
 models_pkg.RPCResponse = RPCResponse
+models_pkg.ensure_json_serializable = ensure_json_serializable
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
@@ -57,7 +62,7 @@ async def rpc_endpoint(request: Request):
 client = TestClient(app)
 
 def test_get_profile_service():
-  resp = client.post('/rpc', json={'op': 'urn:public:users:get_profile:1', 'payload': {'guid': '123'}})
+  resp = client.post('/rpc', json={'op': 'urn:public:users:get_profile:1', 'payload': {'guid': '123'}, 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -67,7 +72,7 @@ def test_get_profile_service():
   }
 
 def test_get_published_files_service():
-  resp = client.post('/rpc', json={'op': 'urn:public:users:get_published_files:1', 'payload': {'guid': '123'}})
+  resp = client.post('/rpc', json={'op': 'urn:public:users:get_published_files:1', 'payload': {'guid': '123'}, 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {

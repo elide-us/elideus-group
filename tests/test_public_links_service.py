@@ -15,19 +15,24 @@ from pydantic import BaseModel
 class RPCRequest(BaseModel):
   op: str
   payload: dict | None = None
-  version: int = 1
+  version: int
 
 class RPCResponse(BaseModel):
   op: str
   payload: dict
-  version: int = 1
+  version: int
+  error: dict | None = None
 
 class AuthContext(BaseModel):
   role_mask: int = 0
 
+def ensure_json_serializable(value, *, field_name):
+  return value
+
 models_pkg.RPCRequest = RPCRequest
 models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
+models_pkg.ensure_json_serializable = ensure_json_serializable
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
@@ -64,7 +69,7 @@ client = TestClient(app)
 
 
 def test_get_home_links_service():
-  resp = client.post("/rpc", json={"op": "urn:public:links:get_home_links:1"})
+  resp = client.post("/rpc", json={"op": "urn:public:links:get_home_links:1", "version": 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:links:get_home_links:1"
@@ -74,7 +79,7 @@ def test_get_home_links_service():
 
 
 def test_get_navbar_routes_service():
-  resp = client.post("/rpc", json={"op": "urn:public:links:get_navbar_routes:1"})
+  resp = client.post("/rpc", json={"op": "urn:public:links:get_navbar_routes:1", "version": 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:links:get_navbar_routes:1"

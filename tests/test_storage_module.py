@@ -861,8 +861,10 @@ def test_upload_files_sets_created_on(monkeypatch):
 
   assert fake_container.uploads[0][0] == "u1/docs/a.txt"
   created_on = mod.db.upserts[0]["created_on"]
-  assert isinstance(created_on, datetime)
-  assert created_on.tzinfo == timezone.utc
+  assert isinstance(created_on, str)
+  parsed = datetime.fromisoformat(created_on)
+  assert parsed.tzinfo == timezone.utc
+  assert (datetime.now(timezone.utc) - parsed).total_seconds() < 5
 
 
 def test_create_folder_creates_marker_and_cache(monkeypatch):
