@@ -76,6 +76,7 @@ class AuthContext:
     self.__dict__.update(data)
 
 models_pkg.AuthContext = AuthContext
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.modules = modules_pkg
 server_pkg.models = models_pkg
 
@@ -168,7 +169,7 @@ async def rpc_endpoint(request: Request):
 client = TestClient(app)
 
 def test_get_roles_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:roles:get_roles:1'})
+  resp = client.post('/rpc', json={'op': 'urn:system:roles:get_roles:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -177,9 +178,9 @@ def test_get_roles_service():
   assert any(c.op == 'db:system:roles:list:1' and c.params == {} for c in db.calls)
 
 def test_upsert_and_delete_role_service():
-  resp = client.post('/rpc', json={'op': 'urn:system:roles:upsert_role:1', 'payload': {'name': 'ROLE_FOO', 'mask': '1', 'display': 'Foo'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:roles:upsert_role:1', 'payload': {'name': 'ROLE_FOO', 'mask': '1', 'display': 'Foo'}, 'version': 1})
   assert resp.status_code == 200
-  resp = client.post('/rpc', json={'op': 'urn:system:roles:delete_role:1', 'payload': {'name': 'ROLE_FOO'}})
+  resp = client.post('/rpc', json={'op': 'urn:system:roles:delete_role:1', 'payload': {'name': 'ROLE_FOO'}, 'version': 1})
   assert resp.status_code == 200
   assert any(
     c.op == 'db:system:roles:upsert_role:1'

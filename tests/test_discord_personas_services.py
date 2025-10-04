@@ -64,10 +64,12 @@ server_pkg.modules = modules_pkg
 
 class RPCResponse:
   def __init__(self, **data):
+    data.setdefault('error', None)
     self.__dict__.update(data)
 
 
 models_pkg.RPCResponse = RPCResponse
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.models = models_pkg
 
 sys.modules.setdefault('server', server_pkg)
@@ -126,7 +128,7 @@ client = TestClient(app)
 
 
 def test_get_personas_service():
-  resp = client.post('/rpc', json={'op': 'urn:discord:personas:get_personas:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:personas:get_personas:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -144,7 +146,7 @@ def test_get_personas_service():
 
 
 def test_get_models_service():
-  resp = client.post('/rpc', json={'op': 'urn:discord:personas:get_models:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:personas:get_models:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -167,12 +169,12 @@ def test_upsert_and_delete_persona_service():
   }
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:personas:upsert_persona:1', 'payload': upsert_payload},
+    json={'op': 'urn:discord:personas:upsert_persona:1', 'payload': upsert_payload, 'version': 1},
   )
   assert resp.status_code == 200
   resp = client.post(
     '/rpc',
-    json={'op': 'urn:discord:personas:delete_persona:1', 'payload': {'recid': 1}},
+    json={'op': 'urn:discord:personas:delete_persona:1', 'payload': {'recid': 1}, 'version': 1},
   )
   assert resp.status_code == 200
   assert db.upserts == [upsert_payload]

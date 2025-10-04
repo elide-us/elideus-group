@@ -71,10 +71,12 @@ modules_pkg.auth_module = auth_module_pkg
 
 class RPCResponse:
   def __init__(self, **data):
+    data.setdefault('error', None)
     self.__dict__.update(data)
 
 
 models_pkg.RPCResponse = RPCResponse
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.modules = modules_pkg
 server_pkg.models = models_pkg
 
@@ -160,7 +162,7 @@ client = TestClient(app)
 
 
 def test_get_routes_service():
-  resp = client.post('/rpc', json={'op': 'urn:service:routes:get_routes:1'})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:get_routes:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {
@@ -183,9 +185,9 @@ def test_upsert_and_delete_route_service():
     'sequence': 1,
     'required_roles': ['ROLE_SERVICE_ADMIN'],
   }
-  resp = client.post('/rpc', json={'op': 'urn:service:routes:upsert_route:1', 'payload': upsert_payload})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:upsert_route:1', 'payload': upsert_payload, 'version': 1})
   assert resp.status_code == 200
-  resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}, 'version': 1})
   assert resp.status_code == 200
   assert ('db:system:routes:upsert_route:1', {
     'path': '/a',

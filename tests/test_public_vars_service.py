@@ -15,12 +15,13 @@ from pydantic import BaseModel
 class RPCRequest(BaseModel):
   op: str
   payload: dict | None = None
-  version: int = 1
+  version: int
 
 class RPCResponse(BaseModel):
   op: str
   payload: dict
-  version: int = 1
+  version: int
+  error: dict | None = None
 
 class AuthContext(BaseModel):
   role_mask: int = 0
@@ -28,6 +29,7 @@ class AuthContext(BaseModel):
 models_pkg.RPCRequest = RPCRequest
 models_pkg.RPCResponse = RPCResponse
 models_pkg.AuthContext = AuthContext
+models_pkg.ensure_json_serializable = lambda value, *, field_name: value
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
@@ -71,7 +73,7 @@ client = TestClient(app)
 
 
 def test_get_hostname_service():
-  resp = client.post("/rpc", json={"op": "urn:public:vars:get_hostname:1"})
+  resp = client.post("/rpc", json={"op": "urn:public:vars:get_hostname:1", "version": 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:vars:get_hostname:1"
@@ -91,7 +93,7 @@ client_version = TestClient(app_version)
 
 
 def test_get_version_service():
-  resp = client_version.post("/rpc", json={"op": "urn:public:vars:get_version:1"})
+  resp = client_version.post("/rpc", json={"op": "urn:public:vars:get_version:1", "version": 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:vars:get_version:1"
@@ -104,7 +106,7 @@ app_versions.state.public_vars = DummyVarsVersionsModule()
 
 @app_versions.post("/rpc")
 async def rpc_endpoint_versions(request: Request):
-  request.state.rpc_request = RPCRequest(op="urn:public:vars:get_versions:1")
+  request.state.rpc_request = RPCRequest(op="urn:public:vars:get_versions:1", version=1)
   request.state.auth_ctx = AuthContext(role_mask=0)
   return await public_vars_get_versions_v1(request)
 
@@ -126,7 +128,7 @@ app_versions_admin.state.public_vars = DummyVarsVersionsModule()
 
 @app_versions_admin.post("/rpc")
 async def rpc_endpoint_versions_admin(request: Request):
-  request.state.rpc_request = RPCRequest(op="urn:public:vars:get_versions:1")
+  request.state.rpc_request = RPCRequest(op="urn:public:vars:get_versions:1", version=1)
   request.state.auth_ctx = AuthContext(role_mask=1)
   return await public_vars_get_versions_v1(request)
 

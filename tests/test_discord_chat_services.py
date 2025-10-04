@@ -121,7 +121,7 @@ def test_summarize_channel_handler():
 
   async def fake_unbox(request):
     return (
-      RPCRequest(op='urn:discord:chat:summarize_channel:1', payload={'guild_id': 1, 'channel_id': 2, 'hours': 1, 'user_id': 3}),
+      RPCRequest(op='urn:discord:chat:summarize_channel:1', payload={'guild_id': 1, 'channel_id': 2, 'hours': 1, 'user_id': 3}, version=1),
       AuthContext(),
       [],
     )
@@ -134,7 +134,7 @@ def test_summarize_channel_handler():
     return await chat_services.discord_chat_summarize_channel_v1(request)
 
   client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1', 'version': 1})
   assert resp.status_code == 200
   assert module.summary_called
   assert len(module.delivery_calls) == 1
@@ -175,6 +175,7 @@ def test_persona_response_handler():
           'channel_id': 2,
           'user_id': 3,
         },
+        version=1,
       ),
       AuthContext(),
       [],
@@ -188,7 +189,7 @@ def test_persona_response_handler():
     return await chat_services.discord_chat_persona_response_v1(request)
 
   client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1', 'version': 1})
   assert resp.status_code == 200
   assert module.calls == [('stark', 'Tell me about rain', 1, 2, 3)]
   data = resp.json()
@@ -226,6 +227,7 @@ def test_persona_response_handler_uses_openai_results():
           'channel_id': 2,
           'user_id': 3,
         },
+        version=1,
       ),
       AuthContext(),
       [],
@@ -239,7 +241,7 @@ def test_persona_response_handler_uses_openai_results():
     return await chat_services.discord_chat_persona_response_v1(request)
 
   client = TestClient(app)
-  resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:chat:persona_response:1', 'version': 1})
   assert resp.status_code == 200
   assert module.calls == [('stark', 'Tell me about rain', 1, 2, 3)]
   data = resp.json()

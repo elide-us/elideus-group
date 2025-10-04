@@ -1,3 +1,4 @@
+import importlib
 import importlib.util
 import pathlib
 import sys
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 # Stub rpc package to avoid side effects from rpc.__init__
 pkg = types.ModuleType('rpc')
 pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc')]
+pkg.HANDLERS = {}
 sys.modules.setdefault('rpc', pkg)
 
 # Load server models
@@ -26,8 +28,7 @@ AuthContext = models.AuthContext
 RPCResponse = models.RPCResponse
 
 # Stub server modules
-modules_pkg = types.ModuleType('server.modules')
-sys.modules.setdefault('server.modules', modules_pkg)
+modules_pkg = importlib.import_module('server.modules')
 auth_module_pkg = types.ModuleType('server.modules.auth_module')
 class AuthModule: ...
 auth_module_pkg.AuthModule = AuthModule
@@ -37,7 +38,7 @@ sys.modules['server.modules.auth_module'] = auth_module_pkg
 from rpc.discord import handler as discord_handler
 
 async def _stub_unbox_request(request):
-  return RPCRequest(op='urn:discord:command:get_roles:1'), AuthContext(user_guid='u1'), []
+  return RPCRequest(op='urn:discord:command:get_roles:1', version=1), AuthContext(user_guid='u1'), []
 
 discord_handler.unbox_request = _stub_unbox_request
 
@@ -68,7 +69,7 @@ def _get_client(allowed: bool):
 
 def test_discord_handler_rejects_missing_role():
   client = _get_client(False)
-  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1', 'version': 1})
   assert resp.status_code == 403
   data = resp.json()
   assert (
@@ -78,7 +79,7 @@ def test_discord_handler_rejects_missing_role():
 
 def test_discord_handler_allows_role():
   client = _get_client(True)
-  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1'})
+  resp = client.post('/rpc', json={'op': 'urn:discord:command:get_roles:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
   assert data['payload'] == {'roles': ['ROLE_A']}

@@ -70,7 +70,7 @@ class DbModule(BaseModule):
         payload = response.model_dump() if hasattr(response, "model_dump") else response
         validated = DBResultCls.model_validate(payload)
         response = DBResponse.from_result(validated)
-    return response.to_result()
+    return response.to_result(result_cls=DBResultCls)
 
   async def startup(self):
     env: EnvModule = self.app.state.env

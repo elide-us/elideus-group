@@ -74,7 +74,7 @@ def test_rpc_handlers_deny_unauthorised_access(monkeypatch, module_name, handler
     monkeypatch.setattr(module, 'FORBIDDEN_DETAILS', {})
 
   async def fake_unbox_request(request):
-    return SimpleNamespace(op='urn:test', version='1'), SimpleNamespace(user_guid='user', role_mask=0), []
+    return SimpleNamespace(op='urn:test:noop:op:1', version=1), SimpleNamespace(user_guid='user', role_mask=0), []
 
   monkeypatch.setattr(module, 'unbox_request', fake_unbox_request)
 

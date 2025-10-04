@@ -39,7 +39,7 @@ def test_handle_files_request_dispatches():
   async def stub_service(request):
     nonlocal called
     called = True
-    return RPCResponse(op="ok", payload=None, version=1)
+    return RPCResponse(op="urn:storage:files:get_files:1", payload=None, version=1)
 
   files_pkg.DISPATCHERS[("get_files", "1")] = stub_service
   req = DummyRequest()
