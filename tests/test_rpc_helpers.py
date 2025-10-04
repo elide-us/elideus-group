@@ -38,7 +38,21 @@ sys.modules['server'] = server_pkg
 
 from rpc.helpers import unbox_request
 
+class DummyAuth:
+  role_registered = 1
+
+  async def decode_session_token(self, token):
+    raise NotImplementedError
+
+  async def get_user_roles(self, guid):
+    return ([], 0)
+
+  def require_role_mask(self, name):
+    return 1
+
+
 app = FastAPI()
+app.state.auth = DummyAuth()
 
 @app.post('/rpc')
 async def parse_rpc(request: Request):

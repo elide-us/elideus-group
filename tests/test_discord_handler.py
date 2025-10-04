@@ -49,6 +49,9 @@ class DummyAuth:
     self.allowed = allowed
     self.roles = {"ROLE_DISCORD_BOT": 0x40}
 
+  def require_role_mask(self, name: str) -> int:
+    return self.roles[name]
+
   async def user_has_role(self, guid: str, mask: int) -> bool:
     return self.allowed
 

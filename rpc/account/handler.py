@@ -5,7 +5,7 @@ Handles account operations requiring ROLE_ACCOUNT_ADMIN.
 
 from fastapi import HTTPException, Request
 
-from rpc.helpers import unbox_request
+from rpc.helpers import resolve_required_mask, unbox_request
 from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from . import HANDLERS
@@ -14,7 +14,7 @@ from . import HANDLERS
 async def handle_account_request(parts: list[str], request: Request) -> RPCResponse:
   _, auth_ctx, _ = await unbox_request(request)
   auth: AuthModule = request.app.state.auth
-  required_mask = auth.roles.get("ROLE_ACCOUNT_ADMIN", 0)
+  required_mask = resolve_required_mask(auth, "ROLE_ACCOUNT_ADMIN")
   if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
     raise HTTPException(status_code=403, detail="Forbidden")
 

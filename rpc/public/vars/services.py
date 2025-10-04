@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Request
-from rpc.helpers import unbox_request
+from rpc.helpers import resolve_required_mask, unbox_request
 from server.models import RPCResponse
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
   vars_mod: PublicVarsModule = request.app.state.public_vars
   required_mask = 0
   if vars_mod.auth:
-    required_mask = vars_mod.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+    required_mask = resolve_required_mask(vars_mod.auth, "ROLE_SERVICE_ADMIN")
   if not (auth_ctx.role_mask & required_mask):
     raise HTTPException(status_code=403, detail="Forbidden")
   try:
@@ -71,7 +71,7 @@ async def public_vars_get_odbc_version_v1(request: Request):
   vars_mod: PublicVarsModule = request.app.state.public_vars
   required_mask = 0
   if vars_mod.auth:
-    required_mask = vars_mod.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+    required_mask = resolve_required_mask(vars_mod.auth, "ROLE_SERVICE_ADMIN")
   if not (auth_ctx.role_mask & required_mask):
     raise HTTPException(status_code=403, detail="Forbidden")
   try:

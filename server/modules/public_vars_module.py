@@ -117,7 +117,10 @@ class PublicVarsModule(BaseModule):
     res = {"version": version, "hostname": hostname, "repo": repo}
     required_mask = 0
     if self.auth:
-      required_mask = self.auth.roles.get("ROLE_SERVICE_ADMIN", 0)
+      try:
+        required_mask = self.auth.require_role_mask("ROLE_SERVICE_ADMIN")
+      except KeyError as exc:
+        raise RuntimeError(str(exc)) from exc
     if role_mask & required_mask:
       ffmpeg_version = await self.get_ffmpeg_version()
       odbc_version = await self.get_odbc_version()

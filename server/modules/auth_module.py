@@ -50,7 +50,9 @@ class RoleCache:
     self.roles.clear()
     for r in rows:
       self.roles[r["name"]] = int(r["mask"])
-    self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
+    if "ROLE_REGISTERED" not in self.roles:
+      raise RuntimeError('Role ROLE_REGISTERED is not defined')
+    self.role_registered = self.roles["ROLE_REGISTERED"]
     self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
     self._user_roles.clear()
     self._user_security.clear()
@@ -77,9 +79,18 @@ class RoleCache:
 
   def names_to_mask(self, names: list[str]) -> int:
     mask = 0
+    missing = [name for name in names if name not in self.roles]
+    if missing:
+      missing_str = ', '.join(missing)
+      raise KeyError(f'Undefined roles: {missing_str}')
     for name in names:
-      mask |= self.roles.get(name, 0)
+      mask |= self.roles[name]
     return mask
+
+  def require_role_mask(self, name: str) -> int:
+    if name not in self.roles:
+      raise KeyError(f'Role {name} is not defined')
+    return self.roles[name]
 
   def get_role_names(self, exclude_registered: bool = False) -> list[str]:
     if exclude_registered:
@@ -370,6 +381,9 @@ class AuthModule(BaseModule):
 
   def names_to_mask(self, names: list[str]) -> int:
     return self.role_cache.names_to_mask(names)
+
+  def require_role_mask(self, role_name: str) -> int:
+    return self.role_cache.require_role_mask(role_name)
 
   def get_role_names(self, exclude_registered: bool = False) -> list[str]:
     return self.role_cache.get_role_names(exclude_registered)

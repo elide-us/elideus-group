@@ -127,9 +127,17 @@ class RoleCache:
 
   def names_to_mask(self, names):
     mask = 0
+    missing = [n for n in names if n not in self.roles]
+    if missing:
+      raise KeyError(f"Undefined roles: {', '.join(missing)}")
     for n in names:
-      mask |= self.roles.get(n, 0)
+      mask |= self.roles[n]
     return mask
+
+  def require_role_mask(self, name):
+    if name not in self.roles:
+      raise KeyError(f"Role {name} is not defined")
+    return self.roles[name]
 
   async def user_has_role(self, guid: str, mask: int) -> bool:
     return bool(self.user_roles.get(guid, 0) & mask)
@@ -157,6 +165,9 @@ class DummyAuth:
 
   def names_to_mask(self, names):
     return self.role_cache.names_to_mask(names)
+
+  def require_role_mask(self, name):
+    return self.role_cache.require_role_mask(name)
 
   async def user_has_role(self, guid: str, mask: int) -> bool:
     return await self.role_cache.user_has_role(guid, mask)
