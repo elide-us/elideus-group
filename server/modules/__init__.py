@@ -1,11 +1,37 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from types import SimpleNamespace
+from typing import Dict, Optional, Protocol, runtime_checkable
+
 from fastapi import FastAPI
-from typing import Dict
+
 from server.helpers.strings import camel_case
 import asyncio, os, importlib
 from server.registry import RegistryDispatcher
 
 MODULES_FOLDER = os.path.dirname(__file__)
+
+
+class ModuleServices(SimpleNamespace):
+  """Container for RPC-facing service facades."""
+
+  def require(self, name: str):
+    service = getattr(self, name, None)
+    if not service:
+      raise RuntimeError(f"Service facade '{name}' is not registered")
+    return service
+
+
+@runtime_checkable
+class AuthService(Protocol):
+  """RPC-safe authentication service facade."""
+
+  def require_role_mask(self, name: str) -> int:
+    ...
+
+  async def user_has_role(self, guid: str, required_mask: int) -> bool:
+    ...
 
 class BaseModule(ABC):
   def __init__(self, app: FastAPI):
@@ -26,13 +52,19 @@ class BaseModule(ABC):
   async def on_ready(self):
     await self._ready_event.wait()
 
+  def create_service(self) -> Optional[object]:
+    """Return an optional RPC-facing facade for this module."""
+    return None
+
 class ModuleManager:
   def __init__(self, app: FastAPI):
     self.app = app
     self.instances: Dict[str, BaseModule] = {}
+    self.services = ModuleServices()
     self.registry = RegistryDispatcher()
     self.registry.initialise()
     setattr(app.state, "registry", self.registry)
+    setattr(app.state, "services", self.services)
 
     for fname in os.listdir(MODULES_FOLDER):
       if not fname.endswith("_module.py") or fname == "__init__.py":
@@ -54,6 +86,10 @@ class ModuleManager:
 
       setattr(app.state, module_name, instance)
       self.instances[module_name] = instance
+
+      service = instance.create_service()
+      if service is not None:
+        setattr(self.services, module_name, service)
 
   async def startup_all(self):
     await asyncio.gather(*(mod.startup() for mod in self.instances.values()))

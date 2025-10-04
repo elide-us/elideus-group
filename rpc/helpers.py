@@ -8,7 +8,7 @@ from server.models import AuthContext
 from server.models import RPCRequest
 
 if TYPE_CHECKING:
-  from server.modules.auth_module import AuthModule
+  from server.modules import AuthService
 
 
 def mask_to_bit(mask: int) -> int:
@@ -52,7 +52,7 @@ def _get_mtls_subject(request: Request) -> str | None:
   return None
 
 
-def resolve_required_mask(auth: AuthModule, role_name: str) -> int:
+def resolve_required_mask(auth: 'AuthService', role_name: str) -> int:
   if not role_name:
     raise HTTPException(status_code=500, detail='Role name must be provided')
   try:

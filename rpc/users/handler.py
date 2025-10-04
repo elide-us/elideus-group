@@ -6,16 +6,17 @@ Auth and public domains are exempt from role checks.
 
 from fastapi import HTTPException, Request
 
+from rpc.dependencies import get_auth_service
 from rpc.helpers import resolve_required_mask, unbox_request
 from server.models import RPCResponse
-from server.modules.auth_module import AuthModule
+from server.modules import AuthService
 
 from . import HANDLERS
 
 
 async def handle_users_request(parts: list[str], request: Request) -> RPCResponse:
   _, auth_ctx, _ = await unbox_request(request)
-  auth: AuthModule = request.app.state.auth
+  auth: AuthService = get_auth_service(request)
   required_mask = resolve_required_mask(auth, "ROLE_REGISTERED")
   if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
     raise HTTPException(status_code=403, detail='Forbidden')
