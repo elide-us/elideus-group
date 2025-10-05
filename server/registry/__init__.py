@@ -130,7 +130,11 @@ class RegistryRouter:
     self._provider_queries = queries
     self._provider_executors.clear()
     for route in self._routes.values():
-      self._attach_provider_callable(route)
+      try:
+        self._attach_provider_callable(route)
+      except (KeyError, TypeError):
+        pass
+    self.verify_provider_coverage()
 
   @property
   def provider_bindings(self) -> Mapping[str, ProviderBinding]:
@@ -153,25 +157,64 @@ class RegistryRouter:
     if executor:
       return executor
     self._attach_provider_callable(route)
-    return self._provider_executors.get(route.key)
+    executor = self._provider_executors.get(route.key)
+    if executor:
+      return executor
+    raise KeyError(
+      f"No provider callable registered for '{route.provider_map}' version {route.version}"
+    )
 
   def _attach_provider_callable(self, route: FunctionRoute) -> None:
     if not self._provider_queries:
       return
     entry = self._provider_queries.get(route.provider_map)
     if entry is None:
-      return
+      raise KeyError(f"No provider callable registered for '{route.provider_map}'")
     if isinstance(entry, Mapping):
       provider_callable = entry.get(route.version)
     else:
       provider_callable = entry
     if provider_callable is None:
-      return
+      raise KeyError(
+        f"No provider callable registered for '{route.provider_map}' version {route.version}"
+      )
     if not callable(provider_callable):
       raise TypeError(
         f"Provider mapping for '{route.provider_map}' version {route.version} is not callable"
       )
     self._provider_executors[route.key] = provider_callable
+
+  def verify_provider_coverage(self) -> None:
+    if not self._provider_queries:
+      if self._routes:
+        provider = self._provider_name or "<unset>"
+        details = "\n  ".join(
+          f"{route.key} (provider module returned no callables)"
+          for route in sorted(self._routes.values(), key=lambda item: item.key)
+        )
+        raise RuntimeError(
+          "Provider '"
+          + provider
+          + "' is missing callables for the following registry operations:\n  "
+          + details
+        )
+      return
+    missing: list[str] = []
+    for route in sorted(self._routes.values(), key=lambda item: item.key):
+      try:
+        if route.key not in self._provider_executors:
+          self._attach_provider_callable(route)
+      except (KeyError, TypeError) as exc:
+        missing.append(f"{route.key} ({exc})")
+    if missing:
+      provider = self._provider_name or "<unset>"
+      details = "\n  ".join(missing)
+      raise RuntimeError(
+        "Provider '"
+        + provider
+        + "' is missing callables for the following registry operations:\n  "
+        + details
+      )
 
 
 class DomainRouter:
@@ -249,6 +292,7 @@ class RegistryDispatcher:
     if provider_key:
       self.router.set_provider(provider_key)
       self.router.load_provider(provider_key)
+      self.router.verify_provider_coverage()
     DBResultCls = get_dbresult_cls()
 
     def _ensure_response(result: DBResponse | DBResult | object) -> DBResponse:
@@ -263,15 +307,10 @@ class RegistryDispatcher:
     async def _execute(request: DBRequest) -> DBResponse:
       route = self.router.resolve(request.op)
       if not route:
-        result = await provider.run(request.op, request.params)
-        return _ensure_response(result)
+        raise KeyError(f"Unknown registry operation: {request.op}")
       if route.key != request.op:
         request = request.model_copy(update={"op": route.key})
       executor = self.router.get_executor(route)
-      if not executor:
-        raise KeyError(
-          f"No provider callable registered for '{route.provider_map}' version {route.version}"
-        )
       result = await executor(request)
       return _ensure_response(result)
 

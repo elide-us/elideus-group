@@ -59,6 +59,7 @@ class DummyAuth:
 def _get_client(allowed: bool):
   app = FastAPI()
   app.state.auth = DummyAuth(allowed)
+  app.state.services = types.SimpleNamespace(auth=app.state.auth)
   discord_handler.HANDLERS = {'command': dummy_handler}
 
   @app.post('/rpc')

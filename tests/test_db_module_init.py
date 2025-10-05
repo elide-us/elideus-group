@@ -13,6 +13,31 @@ from server.registry import RegistryDispatcher, RegistryRouter
 from server.registry.types import DBRequest, DBResponse
 
 
+def _install_stub_provider(monkeypatch, name: str, queries: dict[str, Any]) -> str:
+  module_name = f"server.registry.providers.{name}"
+  module = ModuleType(module_name)
+  module.PROVIDER_QUERIES = queries
+  monkeypatch.setitem(sys.modules, module_name, module)
+  return name
+
+
+class _NoopProvider(DbProviderBase):
+  async def startup(self):
+    pass
+
+  async def shutdown(self):
+    pass
+
+  async def run(self, op, args=None):
+    raise AssertionError("provider.run should not be invoked in tests")
+
+
+class _StubRegistryRouter(RegistryRouter):
+  def register_domains(self) -> None:
+    if not getattr(self, "_initialised", False):
+      self._initialised = True
+
+
 def test_init_uses_concrete_provider():
   app = FastAPI()
   db = DbModule(app)
@@ -20,31 +45,31 @@ def test_init_uses_concrete_provider():
   assert isinstance(db._provider, MssqlProvider)
 
 
-def test_db_module_run_propagates_query_error():
+def test_db_module_run_propagates_query_error(monkeypatch):
   app = FastAPI()
   db = DbModule(app)
   detail = QueryErrorDetail(query="SELECT 1", params=(), message="boom")
 
-  class FailingProvider(DbProviderBase):
-    def __init__(self):
-      super().__init__()
+  router = _StubRegistryRouter()
+  router.domain("test").subdomain("error").add_function(
+    "trigger",
+    version=1,
+    provider_map="test.error.trigger",
+  )
 
-    async def startup(self):
-      pass
+  async def failing_callable(request: DBRequest) -> DBResponse:
+    raise DBQueryError(detail)
 
-    async def shutdown(self):
-      pass
+  provider_name = _install_stub_provider(
+    monkeypatch,
+    "stub_error",
+    {"test.error.trigger": {1: failing_callable}},
+  )
 
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      raise DBQueryError(detail)
-
-  db._provider = FailingProvider()
-  registry = RegistryDispatcher()
-  registry.bind_provider(db._provider)
+  provider = _NoopProvider()
+  db._provider = provider
+  registry = RegistryDispatcher(router=router)
+  registry.bind_provider(provider, provider_name=provider_name)
   db.set_registry(registry)
 
   with pytest.raises(DBQueryError) as exc:
@@ -52,37 +77,39 @@ def test_db_module_run_propagates_query_error():
   assert exc.value.detail == detail
 
 
-def test_db_module_forwards_operations_verbatim():
+def test_db_module_forwards_operations_verbatim(monkeypatch):
   app = FastAPI()
   db = DbModule(app)
   captured: dict[str, Any] = {}
 
-  class RecordingProvider(DbProviderBase):
-    def __init__(self):
-      super().__init__()
+  router = _StubRegistryRouter()
+  router.domain("test").subdomain("ops").add_function(
+    "urn_op",
+    version=1,
+    provider_map="test.ops.urn_op",
+  )
 
-    async def startup(self):
-      pass
+  async def recording_callable(request: DBRequest) -> DBResponse:
+    captured["op"] = request.op
+    captured["args"] = request.params
+    return DBResponse(rows=[{"ok": True}], rowcount=1)
 
-    async def shutdown(self):
-      pass
+  provider_name = _install_stub_provider(
+    monkeypatch,
+    "stub_record",
+    {"test.ops.urn_op": {1: recording_callable}},
+  )
 
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      captured["op"] = op
-      captured["args"] = args
-      return DBResult(rows=[{"ok": True}], rowcount=1)
-
-  db._provider = RecordingProvider()
-  registry = RegistryDispatcher()
-  registry.bind_provider(db._provider)
+  provider = _NoopProvider()
+  db._provider = provider
+  registry = RegistryDispatcher(router=router)
+  registry.bind_provider(provider, provider_name=provider_name)
   db.set_registry(registry)
 
-  result = asyncio.run(db.run(DBRequest(op="db:test:urn-op:1", params={"foo": "bar"})))
-  assert captured["op"] == "db:test:urn-op:1"
+  result = asyncio.run(
+    db.run(DBRequest(op="db:test:ops:urn_op:1", params={"foo": "bar"}))
+  )
+  assert captured["op"] == "db:test:ops:urn_op:1"
   assert captured["args"] == {"foo": "bar"}
   assert isinstance(result, DBResult)
   assert result.rows == [{"ok": True}]
@@ -132,7 +159,7 @@ def test_db_module_run_constructs_registry_request():
 
 
 def test_registry_dispatcher_executes_provider_callable(monkeypatch):
-  router = RegistryRouter()
+  router = _StubRegistryRouter()
   router.domain("demo").subdomain("ops").add_function(
     "test",
     version=1,
@@ -147,11 +174,11 @@ def test_registry_dispatcher_executes_provider_callable(monkeypatch):
     value = request.params.get("value")
     return DBResponse(rows=[{"value": value}], rowcount=1)
 
-  module = ModuleType("server.registry.providers.stub")
-  module.PROVIDER_QUERIES = {
-    "demo.ops.test": {1: stub_callable},
-  }
-  monkeypatch.setitem(sys.modules, module.__name__, module)
+  provider_name = _install_stub_provider(
+    monkeypatch,
+    "stub",
+    {"demo.ops.test": {1: stub_callable}},
+  )
 
   class DummyProvider(DbProviderBase):
     async def startup(self):
@@ -168,7 +195,7 @@ def test_registry_dispatcher_executes_provider_callable(monkeypatch):
       raise AssertionError("provider.run should not be used when route is registered")
 
   dispatcher = RegistryDispatcher(router=router)
-  dispatcher.bind_provider(DummyProvider(), provider_name="stub")
+  dispatcher.bind_provider(DummyProvider(), provider_name=provider_name)
 
   response = asyncio.run(dispatcher.execute(DBRequest(op="db:demo:ops:test:1", params={"value": 7})))
 
@@ -188,3 +215,33 @@ def test_mssql_provider_requires_binding():
 
   with pytest.raises(ValueError, match="does not declare a provider binding"):
     router.load_provider("mssql")
+
+
+def test_dispatcher_raises_for_unknown_operation(monkeypatch):
+  dispatcher = RegistryDispatcher(router=_StubRegistryRouter())
+  provider = _NoopProvider()
+  provider_name = _install_stub_provider(monkeypatch, "stub_unknown", {})
+  dispatcher.bind_provider(provider, provider_name=provider_name)
+
+  with pytest.raises(KeyError, match="Unknown registry operation"):
+    asyncio.run(
+      dispatcher.execute(DBRequest(op="db:test:missing:op:1", params={}))
+    )
+
+
+def test_provider_startup_checks_missing_callable(monkeypatch):
+  router = _StubRegistryRouter()
+  router.domain("demo").subdomain("ops").add_function(
+    "missing",
+    version=1,
+    provider_map="demo.ops.missing",
+  )
+
+  provider = _NoopProvider()
+  provider_name = _install_stub_provider(monkeypatch, "stub_incomplete", {})
+  dispatcher = RegistryDispatcher(router=router)
+
+  with pytest.raises(RuntimeError) as exc:
+    dispatcher.bind_provider(provider, provider_name=provider_name)
+
+  assert "db:demo:ops:missing:1" in str(exc.value)
