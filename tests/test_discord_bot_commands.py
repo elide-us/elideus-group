@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.discord_chat_module import DiscordChatModule
-from server.modules.providers.social.discord_input_provider import DiscordInputProvider
 from server.modules.social_input_module import SocialInputModule
 
 
@@ -37,19 +36,18 @@ def _setup_bot():
   bot_module.output_module = output
   app.state.discord_output = output
 
-  social = SocialInputModule(app)
-  social.discord = bot_module
-  bot_module.register_social_input_module(social)
-
-  provider = DiscordInputProvider(social, bot_module)
-  asyncio.run(social.register_provider(provider))
-
   chat_module = DiscordChatModule(app)
   chat_module.discord = bot_module
   app.state.discord_chat = chat_module
   chat_module.mark_ready()
 
-  return bot_module, provider, output
+  social = SocialInputModule(app)
+  asyncio.run(social.startup())
+
+  provider = social.get_provider("discord")
+  assert provider is not None
+
+  return bot_module, social, output
 
 
 def _make_ctx():
@@ -60,7 +58,7 @@ def _make_ctx():
 
 
 def test_summarize_command(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
 
   responses = {
     "urn:discord:chat:summarize_channel:1": {
@@ -101,7 +99,7 @@ def test_summarize_command(monkeypatch):
 
 
 def test_summarize_command_usage_error(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("summarize")
   asyncio.run(cmd.callback(ctx, hours="bad"))
@@ -109,7 +107,7 @@ def test_summarize_command_usage_error(monkeypatch):
 
 
 def test_summarize_command_empty_history(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
 
   responses = {
     "urn:discord:chat:summarize_channel:1": {
@@ -145,7 +143,7 @@ def test_summarize_command_empty_history(monkeypatch):
 
 
 def test_summarize_command_cap_hit(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
 
   responses = {
     "urn:discord:chat:summarize_channel:1": {
@@ -181,7 +179,7 @@ def test_summarize_command_cap_hit(monkeypatch):
 
 
 def test_summarize_command_transient_error(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
 
   rpc_calls: list[tuple[str, dict | None, dict | None]] = []
 
@@ -203,7 +201,8 @@ def test_summarize_command_transient_error(monkeypatch):
 
 
 def test_persona_command_workflow(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
+  module = bot_module.app.state.discord_chat
 
   responses = {
     "urn:discord:chat:persona_command:1": {"success": True, "model": "gpt-4o-mini", "max_tokens": 512},
@@ -267,7 +266,7 @@ def test_persona_command_workflow(monkeypatch):
 
 
 def test_persona_command_usage_error():
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
   ctx = _make_ctx()
   cmd = bot_module.bot.get_command("persona")
   asyncio.run(cmd.callback(ctx, request=None))
@@ -275,7 +274,7 @@ def test_persona_command_usage_error():
 
 
 def test_persona_command_failure(monkeypatch):
-  bot_module, provider, output = _setup_bot()
+  bot_module, _, output = _setup_bot()
   module = bot_module.app.state.discord_chat
 
   async def dummy_handle(**kwargs):

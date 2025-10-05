@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
-from server.modules.providers.social.discord_input_provider import DiscordInputProvider
+from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.social_input_module import SocialInputModule
 
 
@@ -62,12 +62,15 @@ def _setup_bot():
   module.output_module = output
   app.state.discord_output = output
 
-  social = SocialInputModule(app)
-  social.discord = module
-  module.register_social_input_module(social)
+  chat_module = DiscordChatModule(app)
+  chat_module.discord = module
+  app.state.discord_chat = chat_module
+  chat_module.mark_ready()
 
-  provider = DiscordInputProvider(social, module)
-  asyncio.run(social.register_provider(provider))
+  social = SocialInputModule(app)
+  asyncio.run(social.startup())
+  assert social.get_provider("discord") is not None
+
   return module, output
 
 
@@ -111,3 +114,4 @@ def test_summarize_macro_dm(monkeypatch):
   assert output.user_messages == []
   assert output.channel_messages == []
   assert channel.sent == []
+
