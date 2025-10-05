@@ -202,6 +202,7 @@ class DummyState:
     self.db = db
     self.auth = auth
     self.role_admin = DummyRoleAdmin(db, auth)
+    self.services = SimpleNamespace(auth=auth, role_admin=self.role_admin)
 
 
 class DummyApp:
