@@ -109,12 +109,43 @@ def test_storage_module_startup_loads_connection_string_and_interval():
   asyncio.run(mod.startup())
   assert mod.connection_string == "UseDevelopmentStorage=true"
   assert mod.reindex_interval == 15 * 60
+  assert mod.reindex_chunk_size == 100
+  assert mod.reindex_pause == 0.0
+  assert mod.db_timeout == 30.0
+  assert mod.azure_timeout == 30.0
 
 
 def test_parse_duration_shorthand():
   assert StorageModule._parse_duration("10m") == 600
   assert StorageModule._parse_duration("1d") == 86400
   assert StorageModule._parse_duration("2w") == 1209600
+
+
+def test_startup_applies_reindex_backpressure_config():
+  class ConfigDb(DummyDb):
+    def _config_result(self, key: str | None):
+      overrides = {
+        "StorageCacheTime": "30m",
+        "StorageReindexBatchSize": "25",
+        "StorageReindexPause": "0.5",
+        "StorageReindexDbTimeout": "12",
+        "StorageReindexAzureTimeout": "18.5",
+      }
+      return overrides.get(key)
+
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = ConfigDb(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+
+  mod = StorageModule(app)
+  asyncio.run(mod.startup())
+  assert mod.reindex_interval == 30 * 60
+  assert mod.reindex_chunk_size == 25
+  assert mod.reindex_pause == 0.5
+  assert mod.db_timeout == 12.0
+  assert mod.azure_timeout == 18.5
 
 
 def test_list_public_files(monkeypatch):
@@ -405,6 +436,125 @@ def test_reindex_skips_unknown_users(monkeypatch):
   assert all(item["user_guid"] == known_guid for item in app.state.db.upserts)
   assert orphan_guid in app.state.db.checked
   assert known_guid in app.state.db.checked
+
+
+def test_reindex_batches_large_dataset_with_backpressure(monkeypatch):
+  class DummyEnv(BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+    async def startup(self):
+      self.mark_ready()
+    def get(self, key: str):
+      return "UseDevelopmentStorage=true"
+    async def shutdown(self):
+      pass
+
+  class BackpressureDb(RegistryDispatchMixin, BaseModule):
+    def __init__(self, app: FastAPI):
+      super().__init__(app)
+      self.upserts = []
+    async def startup(self):
+      self.mark_ready()
+    def _config_result(self, key: str | None):
+      if key == "AzureBlobContainerName":
+        return "container"
+      return None
+    async def upsert_storage_cache(self, item):
+      self.upserts.append(item)
+      from types import SimpleNamespace
+      return SimpleNamespace(rowcount=1)
+    async def list_storage_cache(self, user_guid):
+      return []
+    async def user_exists(self, user_guid):
+      return True
+    async def shutdown(self):
+      pass
+
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = BackpressureDb(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+
+  mod = StorageModule(app)
+  mod.env = app.state.env
+  mod.db = app.state.db
+  mod.connection_string = "UseDevelopmentStorage=true"
+  mod.reindex_chunk_size = 7
+  mod.reindex_pause = 0.0
+
+  from types import SimpleNamespace
+
+  class FakeBlob:
+    def __init__(self, name):
+      self.name = name
+      self.content_settings = SimpleNamespace(content_type="text/plain")
+      self.creation_time = None
+      self.last_modified = None
+      self.metadata = {}
+
+  user_guid = "123e4567-e89b-12d3-a456-426614174000"
+  fake_blobs = [
+    FakeBlob(f"{user_guid}/docs/file_{idx}.txt")
+    for idx in range(25)
+  ]
+
+  class FakeContainer:
+    def __init__(self, blobs):
+      self.blobs = blobs
+      self.url = "http://blob"
+    def list_blobs(self, name_starts_with=None):
+      async def gen():
+        for blob in self.blobs:
+          if not name_starts_with or blob.name.startswith(name_starts_with):
+            yield blob
+      return gen()
+    async def close(self):
+      pass
+
+  fake_container = FakeContainer(fake_blobs)
+
+  class FakeBSC:
+    def get_container_client(self, name):
+      return fake_container
+    async def close(self):
+      pass
+
+  monkeypatch.setattr(
+    storage_module,
+    "BlobServiceClient",
+    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
+  )
+
+  pause_calls = 0
+  original_pause = mod._apply_backpressure
+
+  async def counting_pause():
+    nonlocal pause_calls
+    pause_calls += 1
+    await original_pause()
+
+  mod._apply_backpressure = counting_pause
+
+  expected_chunks = (len(fake_blobs) + mod.reindex_chunk_size - 1) // mod.reindex_chunk_size
+
+  async def run_reindex():
+    loop_ran = {"value": False}
+
+    async def monitor():
+      await asyncio.sleep(0)
+      loop_ran["value"] = True
+
+    monitor_task = asyncio.create_task(monitor())
+    await mod.reindex()
+    await monitor_task
+    assert loop_ran["value"] is True
+
+  asyncio.run(run_reindex())
+
+  file_upserts = [item for item in app.state.db.upserts if item.get("content_type") != "path/folder"]
+  assert len(file_upserts) == len(fake_blobs)
+  assert pause_calls == expected_chunks
 
 
 def test_move_file_copies_and_updates_cache(monkeypatch):

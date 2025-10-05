@@ -1,6 +1,6 @@
 """Storage management module for indexing Azure Blob contents."""
 
-import asyncio, logging, re, base64
+import asyncio, logging, re, base64, inspect
 from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
@@ -42,6 +42,10 @@ class StorageModule(BaseModule):
     self.connection_string: str | None = None
     self._reindex_task: asyncio.Task | None = None
     self.reindex_interval = 15 * 60
+    self.reindex_chunk_size = 100
+    self.reindex_pause = 0.0
+    self.db_timeout = 30.0
+    self.azure_timeout = 30.0
     self.discord: DiscordBotModule | None = None
 
   @staticmethod
@@ -52,6 +56,53 @@ class StorageModule(BaseModule):
     num, unit = match.groups()
     mult = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
     return int(num) * mult[unit]
+
+  @staticmethod
+  def _parse_positive_int(value: str) -> int:
+    parsed = int(str(value).strip())
+    if parsed <= 0:
+      raise ValueError(f"Invalid positive integer: {value}")
+    return parsed
+
+  @staticmethod
+  def _parse_seconds(value: str) -> float:
+    text = str(value).strip()
+    try:
+      seconds = float(text)
+    except ValueError:
+      seconds = float(StorageModule._parse_duration(text))
+    if seconds < 0:
+      raise ValueError(f"Invalid seconds: {value}")
+    return seconds
+
+  @staticmethod
+  def _parse_positive_seconds(value: str) -> float:
+    seconds = StorageModule._parse_seconds(value)
+    if seconds <= 0:
+      raise ValueError(f"Invalid positive seconds: {value}")
+    return seconds
+
+  async def _load_config_value(self, key: str, parser, attr: str):
+    if not self.db:
+      return
+    try:
+      res = await self._db_run(get_config_request(key), desc=f"{key} configuration lookup")
+    except asyncio.TimeoutError:
+      return
+    except Exception as e:
+      logging.error("[StorageModule] Failed to load %s: %s", key, e)
+      return
+    if not getattr(res, "rows", None):
+      return
+    raw = res.rows[0].get("value")
+    if raw is None or raw == "":
+      return
+    try:
+      value = parser(raw)
+    except Exception:
+      logging.error("[StorageModule] Invalid %s '%s'", key, raw)
+      return
+    setattr(self, attr, value)
 
   async def startup(self):
     self.env = self.app.state.env
@@ -68,16 +119,11 @@ class StorageModule(BaseModule):
     except Exception as e:
       logging.error("[StorageModule] Failed to load AZURE_BLOB_CONNECTION_STRING: %s", e)
 
-    try:
-      request = get_config_request("StorageCacheTime")
-      res = await self.db.run(request)
-      value = res.rows[0]["value"] if res.rows else "15m"
-      try:
-        self.reindex_interval = self._parse_duration(value)
-      except Exception:
-        logging.error("[StorageModule] Invalid StorageCacheTime '%s'", value)
-    except Exception as e:
-      logging.error("[StorageModule] Failed to load StorageCacheTime: %s", e)
+    await self._load_config_value("StorageCacheTime", self._parse_duration, "reindex_interval")
+    await self._load_config_value("StorageReindexBatchSize", self._parse_positive_int, "reindex_chunk_size")
+    await self._load_config_value("StorageReindexPause", self._parse_seconds, "reindex_pause")
+    await self._load_config_value("StorageReindexDbTimeout", self._parse_positive_seconds, "db_timeout")
+    await self._load_config_value("StorageReindexAzureTimeout", self._parse_positive_seconds, "azure_timeout")
     self._reindex_task = asyncio.create_task(self._reindex_loop())
     logging.info("Storage module loaded")
     self.mark_ready()
@@ -99,6 +145,66 @@ class StorageModule(BaseModule):
       except Exception as e:
         logging.error("[StorageModule] Reindex failed: %s", e)
 
+  async def _db_run(self, request, *args, desc: str | None = None, **kwargs):
+    assert self.db
+    message = desc or "database operation"
+    try:
+      async with asyncio.timeout(self.db_timeout):
+        return await self.db.run(request, *args, **kwargs)
+    except asyncio.TimeoutError:
+      logging.error("[StorageModule] Timed out during %s", message)
+      raise
+
+  async def _db_call(self, func, *args, desc: str | None = None, **kwargs):
+    assert self.db
+    message = desc or getattr(func, "__name__", "database call")
+    try:
+      async with asyncio.timeout(self.db_timeout):
+        result = func(*args, **kwargs)
+        if inspect.isawaitable(result):
+          return await result
+        return result
+    except asyncio.TimeoutError:
+      logging.error("[StorageModule] Timed out during %s", message)
+      raise
+
+  async def _iter_blob_batches(self, container, prefix: str | None):
+    chunk_size = max(1, int(self.reindex_chunk_size or 1))
+    iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
+    chunk: list[Any] = []
+    while True:
+      try:
+        async with asyncio.timeout(self.azure_timeout):
+          blob = await anext(iterator)
+      except StopAsyncIteration:
+        break
+      except asyncio.TimeoutError:
+        logging.error("[StorageModule] Timed out while listing Azure blobs")
+        raise
+      chunk.append(blob)
+      if len(chunk) >= chunk_size:
+        yield chunk
+        chunk = []
+    if chunk:
+      yield chunk
+
+  async def _apply_backpressure(self):
+    delay = max(self.reindex_pause, 0.0)
+    await asyncio.sleep(delay)
+
+  async def _close_resource(self, resource, name: str):
+    if not resource:
+      return
+    closer = getattr(resource, "close", None)
+    if not closer:
+      return
+    try:
+      result = closer()
+      if inspect.isawaitable(result):
+        await result
+    except Exception as e:
+      logging.error("[StorageModule] Failed to close %s: %s", name, e)
+
   async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
     logging.info(
@@ -108,9 +214,17 @@ class StorageModule(BaseModule):
     if not self.connection_string or not self.db:
       logging.error("[StorageModule] Missing connection string or database module")
       return
-    request = get_config_request("AzureBlobContainerName")
-    res = await self.db.run(request)
-    container_name = res.rows[0]["value"] if res.rows else None
+    try:
+      res = await self._db_run(
+        get_config_request("AzureBlobContainerName"),
+        desc="AzureBlobContainerName lookup",
+      )
+    except asyncio.TimeoutError:
+      return
+    except Exception as e:
+      logging.error("[StorageModule] Failed to load AzureBlobContainerName: %s", e)
+      return
+    container_name = res.rows[0]["value"] if getattr(res, "rows", None) else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
       return
@@ -118,179 +232,203 @@ class StorageModule(BaseModule):
     missing_users: set[str] = set()
     if user_guid:
       try:
-        if not await self.db.user_exists(user_guid):
+        if not await self._db_call(
+          self.db.user_exists,
+          user_guid,
+          desc=f"validate user {user_guid}",
+        ):
           logging.warning("[StorageModule] Skipping reindex for unknown user %s", user_guid)
           return
         valid_users.add(user_guid)
       except Exception as e:
         logging.error("[StorageModule] Failed to validate user %s: %s", user_guid, e)
         return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
+    bsc = None
+    container = None
     files_seen: dict[str, set[tuple[str, str]]] = {}
     folder_seen: dict[str, set[tuple[str, str]]] = {}
     public_map: dict[str, dict[tuple[str, str], int]] = {}
     files_indexed = 0
     folders_indexed = 0
     prefix = f"{user_guid}/" if user_guid else None
+    suffix = f" for {user_guid}" if user_guid else ""
     try:
-      iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
-      async for blob in iterator:
-        name = getattr(blob, "name", None)
-        if not name:
-          continue
-        parts = name.split("/")
-        if len(parts) < 2:
-          continue
-        guid = parts[0]
-        try:
-          UUID(guid)
-        except Exception:
-          continue
-        if user_guid and guid != user_guid:
-          continue
-        if guid in missing_users:
-          continue
-        if guid not in valid_users:
-          try:
-            exists = await self.db.user_exists(guid)
-          except Exception as e:
-            logging.error("[StorageModule] Failed to validate user %s: %s", guid, e)
-            missing_users.add(guid)
+      bsc = BlobServiceClient.from_connection_string(self.connection_string)
+      container = bsc.get_container_client(container_name)
+      async for batch in self._iter_blob_batches(container, prefix):
+        for blob in batch:
+          name = getattr(blob, "name", None)
+          if not name:
             continue
+          parts = name.split("/")
+          if len(parts) < 2:
+            continue
+          guid = parts[0]
+          try:
+            UUID(guid)
+          except Exception:
+            continue
+          if user_guid and guid != user_guid:
+            continue
+          if guid in missing_users:
+            continue
+          if guid not in valid_users:
+            try:
+              exists = await self._db_call(
+                self.db.user_exists,
+                guid,
+                desc=f"validate user {guid}",
+              )
+            except Exception as e:
+              logging.error("[StorageModule] Failed to validate user %s: %s", guid, e)
+              missing_users.add(guid)
+              continue
           if not exists:
             logging.warning("[StorageModule] Skipping blob for unknown user %s", guid)
             missing_users.add(guid)
             continue
           valid_users.add(guid)
-        filename = parts[-1]
-        path = "/".join(parts[1:-1])
-        if guid not in public_map:
-          request = list_cache_request(guid)
-          res = await self.db.run(request)
-          public_map[guid] = {
-            (r.get("path") or "", r.get("filename")): r.get("public", 0)
-            for r in res.rows
-            if r.get("content_type") != "path/folder"
-          }
-        # index folders along the path (up to 4 levels)
-        parent = ""
-        fset = folder_seen.setdefault(guid, set())
-        for folder_name in parts[1:-1][:4]:
-          key = (parent, folder_name)
-          if key not in fset:
-            logging.debug(
-              "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
+          filename = parts[-1]
+          path = "/".join(parts[1:-1])
+          if guid not in public_map:
+            cache_res = await self._db_run(
+              list_cache_request(guid),
+              desc=f"list cache for {guid}",
             )
-            res = await self.db.run(upsert_cache_item_request({
-              "user_guid": guid,
-              "path": parent,
-              "filename": folder_name,
-              "content_type": "path/folder",
-              "public": 0,
-              "created_on": None,
-              "modified_on": None,
-              "url": None,
-              "reported": 0,
-              "moderation_recid": None,
-            }))
-            if res.rowcount == 0:
-              logging.error(
-                "[StorageModule] Failed to upsert folder %s/%s",
-                parent or ".",
-                folder_name,
+            rows = getattr(cache_res, "rows", [])
+            public_map[guid] = {
+              (r.get("path") or "", r.get("filename")): r.get("public", 0)
+              for r in rows
+              if r.get("content_type") != "path/folder"
+            }
+          # index folders along the path (up to 4 levels)
+          parent = ""
+          fset = folder_seen.setdefault(guid, set())
+          for folder_name in parts[1:-1][:4]:
+            key = (parent, folder_name)
+            if key not in fset:
+              logging.debug(
+                "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
               )
-            fset.add(key)
-            folders_indexed += 1
-          parent = f"{parent}/{folder_name}" if parent else folder_name
-        # handle explicit folder markers (Azure Storage Explorer etc.)
-        meta = getattr(blob, "metadata", {}) or {}
-        if meta.get("hdi_isfolder") == "true":
-          key = (path, filename)
-          if key not in fset:
-            logging.debug(
-              "[StorageModule] indexing folder %s/%s", path or ".", filename
-            )
-            res = await self.db.run(upsert_cache_item_request({
-              "user_guid": guid,
-              "path": path,
-              "filename": filename,
-              "content_type": "path/folder",
-              "public": 0,
-              "created_on": None,
-              "modified_on": None,
-              "url": None,
-              "reported": 0,
-              "moderation_recid": None,
-            }))
-            if res.rowcount == 0:
-              logging.error(
-                "[StorageModule] Failed to upsert folder %s/%s",
-                path or ".",
-                filename,
+              db_res = await self._db_run(upsert_cache_item_request({
+                "user_guid": guid,
+                "path": parent,
+                "filename": folder_name,
+                "content_type": "path/folder",
+                "public": 0,
+                "created_on": None,
+                "modified_on": None,
+                "url": None,
+                "reported": 0,
+                "moderation_recid": None,
+              }), desc=f"upsert folder for {guid}")
+              if getattr(db_res, "rowcount", 0) == 0:
+                logging.error(
+                  "[StorageModule] Failed to upsert folder %s/%s",
+                  parent or ".",
+                  folder_name,
+                )
+              fset.add(key)
+              folders_indexed += 1
+            parent = f"{parent}/{folder_name}" if parent else folder_name
+          # handle explicit folder markers (Azure Storage Explorer etc.)
+          meta = getattr(blob, "metadata", {}) or {}
+          if meta.get("hdi_isfolder") == "true":
+            key = (path, filename)
+            if key not in fset:
+              logging.debug(
+                "[StorageModule] indexing folder %s/%s", path or ".", filename
               )
-            fset.add(key)
-            folders_indexed += 1
-          continue
-        if not filename or filename == ".init":
-          continue
-        ct = None
-        if hasattr(blob, "content_settings") and blob.content_settings:
-          ct = getattr(blob.content_settings, "content_type", None)
-        if not ct:
-          ct = getattr(blob, "content_type", None)
-        created_on = getattr(blob, "creation_time", None) or getattr(blob, "created_on", None)
-        modified_on = getattr(blob, "last_modified", None)
-        url = f"{container.url}/{name}"
-        logging.debug(
-          "[StorageModule] indexing file %s/%s", path or ".", filename
-        )
-        public_val = public_map.get(guid, {}).get((path, filename), 0)
-        res = await self.db.run(upsert_cache_item_request({
-          "user_guid": guid,
-          "path": path,
-          "filename": filename,
-          "content_type": ct or "application/octet-stream",
-          "public": public_val,
-          "created_on": created_on,
-          "modified_on": modified_on,
-          "url": url,
-          "reported": 0,
-          "moderation_recid": None,
-        }))
-        if res.rowcount == 0:
-          logging.error(
-            "[StorageModule] Failed to upsert file %s/%s",
-            path or ".",
-            filename,
+              db_res = await self._db_run(upsert_cache_item_request({
+                "user_guid": guid,
+                "path": path,
+                "filename": filename,
+                "content_type": "path/folder",
+                "public": 0,
+                "created_on": None,
+                "modified_on": None,
+                "url": None,
+                "reported": 0,
+                "moderation_recid": None,
+              }), desc=f"upsert folder marker for {guid}")
+              if getattr(db_res, "rowcount", 0) == 0:
+                logging.error(
+                  "[StorageModule] Failed to upsert folder %s/%s",
+                  path or ".",
+                  filename,
+                )
+              fset.add(key)
+              folders_indexed += 1
+            continue
+          if not filename or filename == ".init":
+            continue
+          ct = None
+          if hasattr(blob, "content_settings") and blob.content_settings:
+            ct = getattr(blob.content_settings, "content_type", None)
+          if not ct:
+            ct = getattr(blob, "content_type", None)
+          created_on = getattr(blob, "creation_time", None) or getattr(blob, "created_on", None)
+          modified_on = getattr(blob, "last_modified", None)
+          url = f"{container.url}/{name}"
+          logging.debug(
+            "[StorageModule] indexing file %s/%s", path or ".", filename
           )
-        files_seen.setdefault(guid, set()).add((path, filename))
-        public_map.setdefault(guid, {})[(path, filename)] = public_val
-        files_indexed += 1
-      if user_guid:
-        existing = public_map.get(user_guid, {})
-        for key in list(existing.keys()):
-          if key not in files_seen.get(user_guid, set()):
-            await self.db.run(delete_cache_item_request(user_guid, key[0], key[1]))
-      else:
-        for guid, items_seen in files_seen.items():
-          existing = public_map.get(guid, {})
-          for key in list(existing.keys()):
-            if key not in items_seen:
-              await self.db.run(delete_cache_item_request(guid, key[0], key[1]))
+          public_val = public_map.get(guid, {}).get((path, filename), 0)
+          db_res = await self._db_run(upsert_cache_item_request({
+            "user_guid": guid,
+            "path": path,
+            "filename": filename,
+            "content_type": ct or "application/octet-stream",
+            "public": public_val,
+            "created_on": created_on,
+            "modified_on": modified_on,
+            "url": url,
+            "reported": 0,
+            "moderation_recid": None,
+          }), desc=f"upsert cache item for {guid}")
+          if getattr(db_res, "rowcount", 0) == 0:
+            logging.error(
+              "[StorageModule] Failed to upsert file %s/%s",
+              path or ".",
+              filename,
+            )
+          files_seen.setdefault(guid, set()).add((path, filename))
+          public_map.setdefault(guid, {})[(path, filename)] = public_val
+          files_indexed += 1
+        await self._apply_backpressure()
+    except asyncio.TimeoutError:
+      logging.error("[StorageModule] Timed out while enumerating Azure blobs%s", suffix)
+      raise
+    except Exception as e:
+      logging.error("[StorageModule] Failed during Azure reindex%s: %s", suffix, e)
+      raise
     finally:
-      logging.debug(
-        "[StorageModule] Reindex found %d files and %d folders%s",
-        files_indexed,
-        folders_indexed,
-        f" for {user_guid}" if user_guid else "",
-      )
-      await container.close()
-      await bsc.close()
-      logging.info(
-        "[StorageModule] Reindex complete%s",
-        f" for {user_guid}" if user_guid else "",
-      )
+      await self._close_resource(container, "Azure container client")
+      await self._close_resource(bsc, "Azure blob service client")
+    if user_guid:
+      existing = public_map.get(user_guid, {})
+      for key in list(existing.keys()):
+        if key not in files_seen.get(user_guid, set()):
+          await self._db_run(
+            delete_cache_item_request(user_guid, key[0], key[1]),
+            desc=f"delete missing cache item for {user_guid}",
+          )
+    else:
+      for guid, items_seen in files_seen.items():
+        existing = public_map.get(guid, {})
+        for key in list(existing.keys()):
+          if key not in items_seen:
+            await self._db_run(
+              delete_cache_item_request(guid, key[0], key[1]),
+              desc=f"delete missing cache item for {guid}",
+            )
+    logging.debug(
+      "[StorageModule] Reindex found %d files and %d folders%s",
+      files_indexed,
+      folders_indexed,
+      suffix,
+    )
+    logging.info("[StorageModule] Reindex complete%s", suffix)
 
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
