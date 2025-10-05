@@ -1,132 +1,101 @@
 import asyncio
 from types import SimpleNamespace
 
-from fastapi import FastAPI
+import discord
+from discord.ext import commands
 
-from server.modules.providers.social.discord_input_provider import DiscordInputProvider
+from server.modules.providers.social.discord_input_provider import (
+  DiscordCommandHandlers,
+  DiscordInputProvider,
+  PersonaCommandRequest,
+  RpcCommandRequest,
+  SummarizeCommandRequest,
+)
 
 
-def test_summarize_command_relies_on_ack():
-  app = FastAPI()
+class DummyDiscord:
+  def __init__(self):
+    intents = discord.Intents.default()
+    intents.message_content = True
+    self.bot = commands.Bot(command_prefix="!", intents=intents)
+    self.app = SimpleNamespace()
+    self.registered = None
 
-  class DummyChatModule:
-    def __init__(self):
-      self.deliveries = []
+  async def on_ready(self):  # pragma: no cover - matches production signature
+    return
 
-    async def deliver_summary(
-      self,
-      *,
-      guild_id,
-      channel_id,
-      user_id,
-      summary_text,
-      ack_message,
-      success,
-      reason=None,
-      messages_collected=None,
-      token_count_estimate=None,
-      cap_hit=None,
-    ):
-      self.deliveries.append(
-        {
-          'guild_id': guild_id,
-          'channel_id': channel_id,
-          'user_id': user_id,
-          'summary_text': summary_text,
-          'ack_message': ack_message,
-          'success': success,
-          'reason': reason,
-        }
+  def register_input_provider(self, provider):
+    self.registered = provider
+
+
+def test_provider_dispatches_command_dtos():
+  discord = DummyDiscord()
+  provider = DiscordInputProvider(SimpleNamespace(), discord)
+  events: dict[str, object] = {}
+
+  async def rpc_handler(request: RpcCommandRequest):
+    events["rpc"] = request
+
+  async def summarize_handler(request: SummarizeCommandRequest):
+    events["summarize"] = request
+
+  async def persona_handler(request: PersonaCommandRequest):
+    events["persona"] = request
+
+  async def run_test():
+    provider.configure(
+      DiscordCommandHandlers(
+        rpc=rpc_handler,
+        summarize=summarize_handler,
+        persona=persona_handler,
       )
-      return {
-        'success': False,
-        'queue_id': 'noop',
-        'summary_success': success,
-        'dm_enqueued': False,
-        'channel_ack_enqueued': bool(ack_message),
-        'reason': reason,
-        'ack_message': ack_message,
-        'messages_collected': messages_collected,
-        'token_count_estimate': token_count_estimate,
-        'cap_hit': cap_hit,
-      }
+    )
 
-  class DummyQueue:
-    def __init__(self):
-      self.calls = []
+    await provider.startup()
 
-    async def add(self, *args, **kwargs):
-      self.calls.append((args, kwargs))
+    ctx = SimpleNamespace(
+      guild=SimpleNamespace(id=42),
+      channel=SimpleNamespace(id=11),
+      author=SimpleNamespace(id=7),
+    )
 
-  class DummyOpenAI:
-    def __init__(self):
-      self.summary_queue = DummyQueue()
+    rpc_cmd = discord.bot.get_command("rpc")
+    summarize_cmd = discord.bot.get_command("summarize")
+    persona_cmd = discord.bot.get_command("persona")
 
-  class DummyDiscord:
-    def __init__(self, app):
-      self.app = app
-      self.sent_user_messages = []
-      self.sent_channel_messages = []
-      self.rate_limits = []
-      self.rpc_calls = []
+    await rpc_cmd.callback(ctx, op="urn:test:1")
+    await summarize_cmd.callback(ctx, hours="24")
+    await persona_cmd.callback(ctx, request="helper hi")
 
-    def bump_rate_limits(self, guild_id, user_id):
-      self.rate_limits.append((guild_id, user_id))
+    assert isinstance(events["rpc"], RpcCommandRequest)
+    assert events["rpc"].operation == "urn:test:1"
+    assert events["rpc"].context.guild_id == 42
 
-    async def send_channel_message(self, channel_id, message):
-      self.sent_channel_messages.append((channel_id, message))
+    assert isinstance(events["summarize"], SummarizeCommandRequest)
+    assert events["summarize"].hours_argument == "24"
+    assert events["summarize"].context.channel_id == 11
 
-    async def send_user_message(self, user_id, message):
-      self.sent_user_messages.append((user_id, message))
+    assert isinstance(events["persona"], PersonaCommandRequest)
+    assert events["persona"].request_text == "helper hi"
+    assert events["persona"].context.user_id == 7
 
-    async def call_rpc(self, op, payload=None, *, metadata=None):
-      self.rpc_calls.append((op, payload, metadata))
-      return DummyResponse(ack_payload)
+    await provider.shutdown()
+    await discord.bot.close()
 
-  social_module = SimpleNamespace()
-  discord = DummyDiscord(app)
-  provider = DiscordInputProvider(social_module, discord)
+  asyncio.run(run_test())
 
-  chat_module = DummyChatModule()
-  app.state.discord_chat = chat_module
-  app.state.openai = DummyOpenAI()
 
-  ack_payload = {
-    'success': True,
-    'queue_id': 'queue-123',
-    'messages_collected': 5,
-    'token_count_estimate': 12,
-    'cap_hit': False,
-    'dm_enqueued': True,
-    'channel_ack_enqueued': True,
-    'reason': None,
-    'ack_message': 'Summary queued for delivery to <@3>.',
-  }
+def test_provider_requires_configuration():
+  discord = DummyDiscord()
+  provider = DiscordInputProvider(SimpleNamespace(), discord)
 
-  class DummyResponse:
-    def __init__(self, payload):
-      self.payload = payload
+  async def run_test():
+    try:
+      await provider.startup()
+    except RuntimeError:
+      await discord.bot.close()
+      return
+    assert False, "Provider should require handlers"
 
-  ctx = SimpleNamespace(
-    guild=SimpleNamespace(id=1),
-    channel=SimpleNamespace(id=2),
-    author=SimpleNamespace(id=3),
-  )
+  asyncio.run(run_test())
 
-  asyncio.run(provider._handle_summarize_command(ctx, '2'))
-
-  assert discord.sent_user_messages == []
-  assert discord.sent_channel_messages == []
-  assert chat_module.deliveries == []
-  assert app.state.openai.summary_queue.calls == []
-  assert ack_payload['queue_id']
-  assert discord.rate_limits == [(1, 3)]
-  assert discord.rpc_calls
-  op, payload, metadata = discord.rpc_calls[0]
-  assert op == 'urn:discord:chat:summarize_channel:1'
-  assert payload['guild_id'] == 1
-  assert payload['channel_id'] == 2
-  assert payload['user_id'] == 3
-  assert metadata['guild_id'] == 1
-  assert metadata['channel_id'] == 2
-  assert metadata['user_id'] == 3
