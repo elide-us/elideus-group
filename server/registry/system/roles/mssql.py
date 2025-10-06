@@ -13,6 +13,7 @@ __all__ = [
   "get_role_members_v1",
   "get_role_non_members_v1",
   "list_roles_v1",
+  "list_v1",
   "remove_role_member_v1",
   "upsert_role_v1",
 ]
@@ -26,6 +27,10 @@ async def list_roles_v1(_: dict[str, Any]) -> DBResponse:
     FOR JSON PATH;
   """
   return await run_json_many(sql)
+
+
+async def list_v1(args: dict[str, Any]) -> DBResponse:
+  return await list_roles_v1(args)
 
 
 async def get_role_members_v1(args: dict[str, Any]) -> DBResponse:
