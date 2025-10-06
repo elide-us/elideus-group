@@ -31,6 +31,13 @@ These items were previously implemented and are on the rebuild roadmap.
 - Deploy the Azure Web App Container Quickstart configuration.
 - Use Deployment Center to configure CI/CD from GitHub Actions post deploy, target build-ready repo.
 
+### Developer Onboarding Checklist
+
+- [ ] Confirm the FastAPI app exposes a single RPC ingress at `/rpc` and that new handlers are wired through the shared dispatcher rather than creating ad-hoc routes.
+- [ ] Validate new RPC contracts by running `pytest tests/test_rpc_contracts.py -q` locally before opening a pull request.
+- [ ] Ensure structured logging is preserved: every RPC handler should emit request/audit logs that include the `request_id` and identity metadata when applicable.
+- [ ] Run `python scripts/run_tests.py --test` to execute the combined Node and Python suites that CI will run.
+
 ### Pull Request Testing
 GitHub Actions run both the Node and Python test suites whenever a pull request targets the `main` branch. The workflow is defined in `.github/workflows/pr-tests.yml`.
 

@@ -22,12 +22,18 @@ flowchart TD
 * **Providers** – External systems such as databases and identity services.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
+## RPC Ingress Contract
+
+* All external calls flow through a single FastAPI ingress mounted at `/rpc`. The router performs no branching logic; every request is handed directly to the RPC dispatcher for validation and dispatch.
+* The dispatcher validates the RPC URN structure before routing. Requests must include the `urn:` prefix, domain, subsystem, function, and version segments. Invalid or unknown domains are rejected with structured `rpc.bad_request` or `rpc.not_found` errors.
+* Registry routes are registered alongside provider bindings. The registry verifies that every `db:` contract has a callable implementation before the provider is marked ready, preventing runtime gaps between modules and SQL providers.
+
 ## Logging and Request Correlation
 
 * Each RPC request receives a server-generated `request_id` during request unpacking.
 * The `request_id` propagates through RPC handlers, modules, providers, and database helpers via contextual metadata.
-* All log statements at those boundaries must include the `request_id` to provide end-to-end traceability.
-* Providers are responsible for translating internal exceptions into structured RPC errors so diagnostic context is logged while the client receives a user-safe message.
+* All log statements at those boundaries must include the `request_id` to provide end-to-end traceability. Security-sensitive events additionally emit audit logs tagged with the RPC operation and identity source.
+* Providers are responsible for translating internal exceptions into structured RPC errors so diagnostic context is logged while the client receives a user-safe message. Registry start-up will fail fast if a provider omits handlers so missing telemetry cannot silently skip logging.
 
 ## Security Model
 

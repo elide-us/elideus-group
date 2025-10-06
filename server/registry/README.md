@@ -140,7 +140,10 @@ async def get_gallery_v1(request: DBRequest) -> DBResponse:
 ```
 
 Each registration call binds the canonical `db:` key
-(`db:content:cache:get_gallery:1`) to metadata about how to execute it.
+(`db:content:cache:get_gallery:1`) to metadata about how to execute it. During
+provider load the registry asserts that every registered key resolves to a
+callable implementation. Startup fails fast if any bindings are missing so
+module contracts cannot drift from provider coverage.
 
 ## 5. Provider maps and query stores
 Providers live under `server/registry/providers`. For every supported database

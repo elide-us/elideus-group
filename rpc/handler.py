@@ -1,3 +1,5 @@
+"""RPC ingress dispatcher with strict URN validation and request logging."""
+
 import logging
 
 from fastapi import HTTPException, Request
