@@ -60,7 +60,7 @@ def delete_role_request(name: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function("list", version=1)
+  router.add_function("list", version=1, implementation="list_roles")
   router.add_function("get_role_members", version=1)
   router.add_function("get_role_non_members", version=1)
   router.add_function("add_role_member", version=1)
