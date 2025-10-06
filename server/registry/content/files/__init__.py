@@ -27,9 +27,4 @@ def set_gallery_request(user_guid: str, name: str, gallery: bool) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "set_gallery",
-    version=1,
-    provider_map="content.files.set_gallery",
-    provider=("server.registry.content.files.mssql", "set_gallery_v1"),
-  )
+  router.add_function("set_gallery", version=1)

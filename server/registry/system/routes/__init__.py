@@ -16,14 +16,6 @@ __all__ = [
   "upsert_route_request",
 ]
 
-_DEF_PROVIDER = "system.routes"
-_PROVIDER_MODULE = "server.registry.system.routes.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "get_routes": "get_routes_v1",
-  "upsert_route": "upsert_route_v1",
-  "delete_route": "delete_route_v1",
-}
-
 
 def get_routes_request() -> DBRequest:
   return DBRequest(op="db:system:routes:get_routes:1", params={})
@@ -51,10 +43,6 @@ def delete_route_request(path: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_DEF_PROVIDER}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("get_routes", version=1)
+  router.add_function("upsert_route", version=1)
+  router.add_function("delete_route", version=1)

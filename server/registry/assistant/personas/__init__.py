@@ -18,14 +18,6 @@ __all__ = [
 ]
 
 _OP_PREFIX = "db:assistant:personas"
-_PROVIDER_MAP = "assistant.personas"
-_PROVIDER_MODULE = "server.registry.assistant.personas.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "delete": "delete_persona_v1",
-  "get_by_name": "get_by_name_v1",
-  "list": "list_personas_v1",
-  "upsert": "upsert_persona_v1",
-}
 
 
 def _op(name: str) -> str:
@@ -71,10 +63,7 @@ def delete_persona_request(*, recid: int | None = None, name: str | None = None)
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_PROVIDER_MAP}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("delete", version=1, implementation="delete_persona")
+  router.add_function("get_by_name", version=1)
+  router.add_function("list", version=1, implementation="list_personas")
+  router.add_function("upsert", version=1, implementation="upsert_persona")

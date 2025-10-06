@@ -15,13 +15,6 @@ __all__ = [
   "register",
 ]
 
-_DEF_PROVIDER = "public.links"
-_PROVIDER_MODULE = "server.registry.public.links.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "get_home_links": "get_home_links_v1",
-  "get_navbar_routes": "get_navbar_routes_v1",
-}
-
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
   return DBRequest(op=op, params=params or {})
@@ -36,10 +29,5 @@ def get_navbar_routes_request(*, role_mask: int) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_DEF_PROVIDER}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("get_home_links", version=1)
+  router.add_function("get_navbar_routes", version=1)

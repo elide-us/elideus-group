@@ -20,18 +20,6 @@ __all__ = [
   "upsert_role_request",
 ]
 
-_DEF_PROVIDER = "system.roles"
-_PROVIDER_MODULE = "server.registry.system.roles.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "list": "list_roles_v1",
-  "get_role_members": "get_role_members_v1",
-  "get_role_non_members": "get_role_non_members_v1",
-  "add_role_member": "add_role_member_v1",
-  "remove_role_member": "remove_role_member_v1",
-  "upsert_role": "upsert_role_v1",
-  "delete_role": "delete_role_v1",
-}
-
 
 def list_roles_request() -> DBRequest:
   return DBRequest(op="db:system:roles:list:1", params={})
@@ -72,10 +60,10 @@ def delete_role_request(name: str) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_DEF_PROVIDER}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("list", version=1)
+  router.add_function("get_role_members", version=1)
+  router.add_function("get_role_non_members", version=1)
+  router.add_function("add_role_member", version=1)
+  router.add_function("remove_role_member", version=1)
+  router.add_function("upsert_role", version=1)
+  router.add_function("delete_role", version=1)

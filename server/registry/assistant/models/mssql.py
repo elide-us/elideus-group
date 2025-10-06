@@ -9,11 +9,11 @@ from server.registry.types import DBResponse
 
 __all__ = [
   "get_by_name_v1",
-  "list_models_v1",
+  "list_v1",
 ]
 
 
-async def list_models_v1(_: dict[str, Any]) -> DBResponse:
+async def list_v1(_: dict[str, Any]) -> DBResponse:
   sql = """
     SELECT
       recid,

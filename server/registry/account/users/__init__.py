@@ -13,9 +13,6 @@ __all__ = [
   "register",
 ]
 
-_DEF_PROVIDER = "account.users"
-_PROVIDER_DESCRIPTOR = ("server.registry.account.users.mssql", "set_credits_v1")
-
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
   return DBRequest(op=f"db:account:users:{name}:1", params=params)
@@ -26,9 +23,4 @@ def set_credits_request(*, guid: str, credits: int) -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function(
-    "set_credits",
-    version=1,
-    provider_map=f"{_DEF_PROVIDER}.set_credits",
-    provider=_PROVIDER_DESCRIPTOR,
-  )
+  router.add_function("set_credits", version=1)
