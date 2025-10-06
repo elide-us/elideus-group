@@ -16,14 +16,6 @@ __all__ = [
   "register",
 ]
 
-_DEF_PROVIDER = "public.vars"
-_PROVIDER_MODULE = "server.registry.public.vars.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "get_version": "get_version_v1",
-  "get_hostname": "get_hostname_v1",
-  "get_repo": "get_repo_v1",
-}
-
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
   return DBRequest(op=op, params=params or {})
@@ -42,10 +34,6 @@ def get_repo_request() -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_DEF_PROVIDER}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("get_version", version=1)
+  router.add_function("get_hostname", version=1)
+  router.add_function("get_repo", version=1)

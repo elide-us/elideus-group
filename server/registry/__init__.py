@@ -256,10 +256,12 @@ class SubdomainRouter:
     name: str,
     *,
     version: int,
-    provider_map: str,
+    provider_map: str | None = None,
     aliases: Iterable[str] | None = None,
     provider: ProviderDescriptor | None = None,
+    implementation: str | None = None,
   ) -> None:
+    provider_map = provider_map or f"{self.domain.name}.{self.name}.{name}"
     route = FunctionRoute(
       domain=self._domain.name,
       subdomain=self._name,
@@ -268,6 +270,11 @@ class SubdomainRouter:
       provider_map=provider_map,
     )
     self._registry.add_route(route)
+    if provider is None:
+      provider = (
+        f"server.registry.{self.domain.name}.{self.name}.mssql",
+        f"{(implementation or name)}_v{version}",
+      )
     self._registry.register_provider_binding(route, provider)
     for alias in aliases or []:
       self._registry.add_alias(alias, route.key)

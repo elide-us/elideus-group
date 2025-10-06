@@ -16,14 +16,6 @@ __all__ = [
   "register",
 ]
 
-_DEF_PROVIDER = "security.oauth"
-_PROVIDER_MODULE = "server.registry.security.oauth.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "relink_discord": "relink_discord_v1",
-  "relink_google": "relink_google_v1",
-  "relink_microsoft": "relink_microsoft_v1",
-}
-
 
 def _relink_request(op: str, params: dict[str, Any]) -> DBRequest:
   return DBRequest(op=op, params=params)
@@ -118,10 +110,6 @@ def relink_microsoft_request(
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_DEF_PROVIDER}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("relink_discord", version=1)
+  router.add_function("relink_google", version=1)
+  router.add_function("relink_microsoft", version=1)

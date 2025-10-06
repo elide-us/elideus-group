@@ -19,15 +19,6 @@ __all__ = [
 ]
 
 _OP_PREFIX = "db:assistant:conversations"
-_PROVIDER_MAP = "assistant.conversations"
-_PROVIDER_MODULE = "server.registry.assistant.conversations.mssql"
-_PROVIDER_ATTRS: dict[str, str] = {
-  "find_recent": "find_recent_v1",
-  "insert": "insert_conversation_v1",
-  "list_by_time": "list_by_time_v1",
-  "list_recent": "list_recent_v1",
-  "update_output": "update_output_v1",
-}
 
 
 def _op(name: str) -> str:
@@ -121,10 +112,8 @@ def list_recent_request() -> DBRequest:
 
 
 def register(router: "SubdomainRouter") -> None:
-  for name, attr in _PROVIDER_ATTRS.items():
-    router.add_function(
-      name,
-      version=1,
-      provider_map=f"{_PROVIDER_MAP}.{name}",
-      provider=(_PROVIDER_MODULE, attr),
-    )
+  router.add_function("find_recent", version=1)
+  router.add_function("insert", version=1, implementation="insert_conversation")
+  router.add_function("list_by_time", version=1)
+  router.add_function("list_recent", version=1)
+  router.add_function("update_output", version=1)

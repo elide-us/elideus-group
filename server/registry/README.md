@@ -112,23 +112,28 @@ def register(registry: RegistryRouter) -> None:
 
 Each subdomain exposes a `register` helper that wires its functions to the
 provider map. The leaf modules (`content/cache/__init__.py`,
-`content/cache/mssql.py`, …) define their `db:` functions by pairing a
-human-readable name with a provider target:
+`content/cache/mssql.py`, …) define their `db:` functions using
+`SubdomainRouter.add_function`. By default the router derives the provider map
+(`"{domain}.{subdomain}.{name}"`) and MSSQL binding
+(`"server.registry.{domain}.{subdomain}.mssql", "{name}_v{version}"`). When a
+provider uses a descriptive name you can supply an `implementation=` hint (for
+example `implementation="insert_conversation"`).
 
 ```python
 # server/registry/content/cache/__init__.py
-from . import mssql, postgres, mysql
+from . import mssql
 
 
 def register(router: SubdomainRouter) -> None:
-  router.add_function("list", version=1, provider_map="content.cache.list")
-  router.add_function("get_gallery", version=1, provider_map="content.cache.get_gallery")
+  router.add_function("list", version=1)
+  router.add_function("get_gallery", version=1)
   ...
 ```
 
-The `provider_map` string resolves to a provider-specific callable exported from
+The derived provider map resolves to a provider-specific callable exported from
 modules like `server/registry/content/cache/mssql.py`. Each implementation file
-encodes the backend-specific queries:
+encodes the backend-specific queries and names its callables following the
+`{operation}_v{version}` convention:
 
 ```python
 # server/registry/content/cache/mssql.py
