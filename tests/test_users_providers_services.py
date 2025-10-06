@@ -15,7 +15,7 @@ from server.modules.oauth_module import OauthModule
 
 import pytest
 from fastapi import HTTPException
-from server.registry.accounts.profile import (
+from server.registry.users.profile import (
   get_profile_request,
   set_profile_image_request,
   update_if_unedited_request,
