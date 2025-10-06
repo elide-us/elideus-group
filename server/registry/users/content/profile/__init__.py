@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from . import mssql as profile_mssql
-
 from server.registry.types import DBRequest
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
 __all__ = [
-  "mssql",
   "get_profile_request",
   "set_display_request",
   "set_optin_request",
@@ -21,8 +18,6 @@ __all__ = [
   "update_if_unedited_request",
   "register",
 ]
-
-mssql = profile_mssql
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
