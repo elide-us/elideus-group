@@ -22,7 +22,7 @@ __all__ = [
   "DBResult",
 ]
 
-DB_PATTERN = re.compile(r"^db:(?:[a-z0-9_]+:){3,}[0-9]+$")
+DB_PATTERN = re.compile(r"^db:[a-z0-9_]+:(?:[a-z0-9_.]+:){2,}[0-9]+$")
 
 
 class DBRequest(BaseModel):

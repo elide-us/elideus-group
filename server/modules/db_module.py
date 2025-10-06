@@ -13,7 +13,7 @@ from server.helpers.context import get_request_id
 from server.helpers.logging import update_logging_level
 from server.registry import RegistryDispatcher
 from server.registry.types import DBRequest, DBResponse
-from server.registry.security.accounts import account_exists_request
+from server.registry.users.security.accounts import account_exists_request
 from server.registry.system.config import get_config_request
 _logger = logging.getLogger(__name__)
 

@@ -29,9 +29,9 @@ class DummyDb:
       op = op.op
     args = args or {}
     self.calls.append((op, args))
-    if op == "db:security:sessions:create_session:1":
+    if op == "db:users:security.sessions:create_session:1":
       return SimpleNamespace(rows=[{"session_guid": "sess", "device_guid": "dev"}])
-    if op == "db:security:sessions:update_device_token:1":
+    if op == "db:users:security.sessions:update_device_token:1":
       return SimpleNamespace(rows=[], rowcount=1)
     return SimpleNamespace(rows=[])
 
@@ -68,7 +68,7 @@ def test_create_session_handles_missing_roles():
   assert token == "sess"
   assert rot == "rot"
   ops = [op for op, _ in db.calls]
-  assert "db:security:sessions:create_session:1" in ops
-  args = [a for op, a in db.calls if op == "db:security:sessions:create_session:1"][0]
+  assert "db:users:security.sessions:create_session:1" in ops
+  args = [a for op, a in db.calls if op == "db:users:security.sessions:create_session:1"][0]
   assert args["provider"] == "microsoft"
 

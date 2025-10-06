@@ -1,6 +1,6 @@
 import asyncio
 
-from server.registry.assistant.personas import mssql as personas_mssql
+from server.registry.system.assistant.personas import mssql as personas_mssql
 from server.registry.types import DBResponse
 
 

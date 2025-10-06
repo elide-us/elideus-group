@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
-from server.registry.security.identities import unlink_last_provider_request
+from server.registry.users.security.identities import unlink_last_provider_request
 
 from .models import AuthProvidersUnlinkLastProvider1
 

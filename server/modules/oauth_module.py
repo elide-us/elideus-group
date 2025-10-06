@@ -12,17 +12,17 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.security.identities import (
+from server.registry.users.security.identities import (
   create_from_provider_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
 )
-from server.registry.security.oauth import (
+from server.registry.users.security.oauth import (
   relink_discord_request,
   relink_google_request,
   relink_microsoft_request,
 )
-from server.registry.security.sessions import (
+from server.registry.users.security.sessions import (
   create_session_request,
   set_rotkey_request,
   update_device_token_request,

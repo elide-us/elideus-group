@@ -18,7 +18,7 @@ from server.registry.users.profile import (
   get_profile_request,
   update_if_unedited_request,
 )
-from server.registry.security.identities import (
+from server.registry.users.security.identities import (
   create_from_provider_request,
   get_by_provider_identifier_request,
   get_user_by_email_request,
@@ -27,7 +27,7 @@ from server.registry.security.identities import (
   unlink_last_provider_request,
   unlink_provider_request,
 )
-from server.registry.security.sessions import revoke_provider_tokens_request
+from server.registry.users.security.sessions import revoke_provider_tokens_request
 from server.registry.system.config import get_config_request
 
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.users.credits import set_credits_request
+from server.registry.finance.credits import set_credits_request
 from server.registry.users.profile import (
   get_profile_request,
   set_display_request,

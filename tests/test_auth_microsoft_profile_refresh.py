@@ -47,17 +47,17 @@ class DummyDb:
       key = op
       params = args
     self.calls.append((key, params))
-    if key == "db:security:identities:get_by_provider_identifier:1":
+    if key == "db:users:security.identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "provider_name": "microsoft" }], 1)
     if key == UPDATE_IF_UNEDITED_OP:
       if self.allow_update and isinstance(params, dict):
         return DBRes([{ "display_name": params.get("display_name"), "email": params.get("email") }], 1)
       return DBRes([], 0)
-    if key == "db:security:sessions:set_rotkey:1":
+    if key == "db:users:security.sessions:set_rotkey:1":
       return DBRes([], 1)
-    if key == "db:security:sessions:create_session:1":
+    if key == "db:users:security.sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if key == "db:security:sessions:update_device_token:1":
+    if key == "db:users:security.sessions:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 

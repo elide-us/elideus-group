@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 from typing import Any
 from uuid import uuid4
 
@@ -6,12 +7,11 @@ import pytest
 
 from server.modules.providers.database.mssql_provider import db_helpers
 from server.modules.providers import DbRunMode
-from server.registry.security.accounts import mssql as security_accounts
+from server.registry.users.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
-from server.registry.support.users import mssql as support_users
-from server.registry.security.identities import mssql as security_identities
-from server.registry.users.credits import mssql as users_credits_backend
-from server.registry.users.credits import set_credits_request
+from server.registry.users.security.identities import mssql as security_identities
+from server.registry.finance.credits import mssql as finance_credits_backend
+from server.registry.finance.credits import set_credits_request
 from server.registry.users.profile import mssql as users_profile_backend
 from server.registry.types import DBResponse
 
@@ -113,7 +113,7 @@ def test_removed_security_aliases_are_not_registered(urn):
   assert provider_map not in PROVIDER_QUERIES
 
 
-def test_mssql_support_users_set_credits_updates_table(monkeypatch):
+def test_mssql_finance_credits_set_credits_updates_table(monkeypatch):
   captured: dict[str, Any] = {}
 
   async def fake_run_exec(sql, params, *, meta=None):
@@ -121,8 +121,8 @@ def test_mssql_support_users_set_credits_updates_table(monkeypatch):
     captured["params"] = params
     return DBResponse()
 
-  monkeypatch.setattr(users_credits_backend, "run_exec", fake_run_exec)
-  asyncio.run(support_users.set_credits_v1({"guid": "gid", "credits": 10}))
+  monkeypatch.setattr(finance_credits_backend, "run_exec", fake_run_exec)
+  asyncio.run(finance_credits_backend.set_credits_v1({"guid": "gid", "credits": 10}))
   assert "update users_credits" in captured["sql"].lower()
   assert captured["params"] == (10, "gid")
 

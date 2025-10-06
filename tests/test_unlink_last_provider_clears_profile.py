@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from server.registry.security.identities import mssql as identities_registry
+from server.registry.users.security.identities import mssql as identities_registry
 
 class FakeCursor:
   def __init__(self, fetches, log):

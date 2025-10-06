@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from server.registry.security.sessions import mssql as security_sessions
+from server.registry.users.security.sessions import mssql as security_sessions
 
 
 def test_create_session_updates_existing(monkeypatch):
