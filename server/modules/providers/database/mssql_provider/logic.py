@@ -1,25 +1,44 @@
 # providers/database/mssql_provider/logic.py
-import aioodbc, logging
+import asyncio
+import logging
+import aioodbc
 from contextlib import asynccontextmanager
-from typing import Callable, Optional
 
 _pool: aioodbc.pool.Pool | None = None
+_pool_config: dict[str, object] | None = None
+_init_lock = asyncio.Lock()
 
-async def init_pool(*, dsn: str | None = None, **cfg):
-    global _pool
-    if not dsn:
-        # allow explicit pieces if you pass them later
-        raise RuntimeError("MSSQL DSN is required")
-    _pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
+
+async def init_pool(*, dsn: str | None = None, minsize: int | None = None, maxsize: int | None = None, **cfg):
+  global _pool, _pool_config
+  if not dsn:
+    raise RuntimeError("MSSQL DSN is required")
+  pool_kwargs: dict[str, object] = {"dsn": dsn, "autocommit": True}
+  if minsize is not None:
+    pool_kwargs["minsize"] = int(minsize)
+  if maxsize is not None:
+    pool_kwargs["maxsize"] = int(maxsize)
+  pool_kwargs.update(cfg)
+  async with _init_lock:
+    if _pool is not None:
+      if _pool_config != pool_kwargs:
+        raise RuntimeError("MSSQL pool already initialized with different configuration")
+      return _pool
+    _pool = await aioodbc.create_pool(**pool_kwargs)
+    _pool_config = dict(pool_kwargs)
     logging.info("MSSQL ODBC Connection Pool Created")
+    return _pool
+
 
 async def close_pool():
-  global _pool
-  if _pool:
-    _pool.close()
-    await _pool.wait_closed()
-    _pool = None
-    logging.info("MSSQL ODBC Connection Pool Closed")
+  global _pool, _pool_config
+  async with _init_lock:
+    if _pool:
+      _pool.close()
+      await _pool.wait_closed()
+      _pool = None
+      _pool_config = None
+      logging.info("MSSQL ODBC Connection Pool Closed")
 
 @asynccontextmanager
 async def transaction():

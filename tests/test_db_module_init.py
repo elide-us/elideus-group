@@ -81,8 +81,8 @@ def test_db_module_forwards_operations_verbatim():
   registry.bind_provider(db._provider)
   db.set_registry(registry)
 
-  result = asyncio.run(db.run(DBRequest(op="db:test:urn-op:1", params={"foo": "bar"})))
-  assert captured["op"] == "db:test:urn-op:1"
+  result = asyncio.run(db.run(DBRequest(op="db:test:urn:op:1", params={"foo": "bar"})))
+  assert captured["op"] == "db:test:urn:op:1"
   assert captured["args"] == {"foo": "bar"}
   assert isinstance(result, DBResult)
   assert result.rows == [{"ok": True}]

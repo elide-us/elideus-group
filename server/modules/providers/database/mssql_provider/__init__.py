@@ -12,20 +12,33 @@ from importlib import import_module
 from server.registry.types import DBRequest, DBResponse
 
 
-def _get_provider_queries():
+def _load_provider_queries(bindings=None):
   module = import_module("server.registry.providers.mssql")
-  return getattr(module, "PROVIDER_QUERIES")
+  if bindings is None:
+    return getattr(module, "PROVIDER_QUERIES")
+  build = getattr(module, "build_provider_queries")
+  return build(bindings)
 
 
 class MssqlProvider(DbProviderBase):
+  def __init__(self, **config: Any):
+    self._provider_bindings = config.pop("provider_bindings", None)
+    self._provider_queries = config.pop("provider_query_map", None)
+    super().__init__(**config)
+
   async def startup(self) -> None:
     await init_pool(**self.config)
+    if self._provider_queries is None:
+      self._provider_queries = _load_provider_queries(self._provider_bindings)
 
   async def shutdown(self) -> None:
     await close_pool()
+    # retain cached bindings for potential warm restarts
 
   def _resolve_provider_callable(self, op: str):
-    provider_queries = _get_provider_queries()
+    provider_queries = self._provider_queries
+    if provider_queries is None:
+      provider_queries = self._provider_queries = _load_provider_queries(self._provider_bindings)
     parts = op.split(":")
     if len(parts) != 5 or parts[0] != "db":
       raise KeyError(f"Unsupported operation key: {op}")

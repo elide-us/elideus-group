@@ -7,7 +7,7 @@ from server.registry.types import DBResponse
 def test_persona_lookup_query_targets_element_name(monkeypatch):
   captured: dict[str, object] = {}
 
-  async def fake_run_json_one(sql, params=(), *, meta=None):
+  async def fake_run_json_one(sql, params=(), *, timeout=None, meta=None):
     captured["sql"] = sql
     captured["params"] = params
     return DBResponse()

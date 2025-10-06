@@ -121,7 +121,7 @@ def test_list_public_files(monkeypatch):
   app = FastAPI()
   provider = MssqlProvider()
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     assert kind in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
     assert "FOR JSON PATH" in sql
     assert params == ()

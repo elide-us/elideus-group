@@ -5,9 +5,10 @@ from uuid import uuid4
 import pytest
 
 from server.modules.providers.database.mssql_provider import db_helpers
-from server.modules.providers import DbRunMode
+from server.modules.providers import DBResult, DbRunMode
 from server.registry.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
+from server.registry.providers import mssql as registry_mssql
 from server.registry.support.users import mssql as support_users
 from server.registry.users.profile import mssql as users_profile
 from server.registry.security.identities import mssql as security_identities
@@ -24,7 +25,7 @@ def _provider_map_for(urn: str) -> str:
 def test_mssql_get_by_provider_identifier_uses_user_view(monkeypatch):
   captured: dict[str, Any] = {}
 
-  async def fake_run_json_one(sql, params=(), *, meta=None):
+  async def fake_run_json_one(sql, params=(), *, timeout=None, meta=None):
     captured["sql"] = sql
     captured["params"] = params
     return DBResponse()
@@ -43,7 +44,7 @@ def test_mssql_get_by_provider_identifier_uses_user_view(monkeypatch):
 def test_mssql_get_profile_uses_profile_view(monkeypatch):
   captured: dict[str, Any] = {}
 
-  async def fake_run_json_one(sql, params=(), *, meta=None):
+  async def fake_run_json_one(sql, params=(), *, timeout=None, meta=None):
     captured["sql"] = sql
     captured["params"] = params
     return DBResponse()
@@ -84,7 +85,7 @@ def test_mssql_accounts_security_profile_routes_through_security_view(
 ):
   captured: dict[str, Any] = {}
 
-  async def fake_run_json_one(sql, params=(), *, meta=None):
+  async def fake_run_json_one(sql, params=(), *, timeout=None, meta=None):
     captured["sql"] = sql
     captured["params"] = params
     return DBResponse()
@@ -114,7 +115,7 @@ def test_removed_security_aliases_are_not_registered(urn):
 def test_mssql_support_users_set_credits_updates_table(monkeypatch):
   captured: dict[str, Any] = {}
 
-  async def fake_run_exec(sql, params, *, meta=None):
+  async def fake_run_exec(sql, params, *, timeout=None, meta=None):
     captured["sql"] = sql
     captured["params"] = params
     return DBResponse()
@@ -131,18 +132,36 @@ def test_fetch_rows_raises_structured_error(monkeypatch):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
-    async def execute(self, q, p):
+    async def execute(self, q, p, timeout=None):
       raise Exception("boom")
     async def fetchone(self):
       return None
 
   class Conn:
+    def __init__(self):
+      self.autocommit = True
     async def __aenter__(self):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
     def cursor(self):
       return Cur()
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
 
   class Pool:
     def acquire(self):
@@ -166,18 +185,24 @@ def test_fetch_json_raises_structured_error(monkeypatch):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
-    async def execute(self, q, p):
+    async def execute(self, q, p, timeout=None):
       raise Exception("boom")
     async def fetchone(self):
       return None
 
   class Conn:
+    def __init__(self):
+      self.autocommit = True
     async def __aenter__(self):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
     def cursor(self):
       return Cur()
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
 
   class Pool:
     def acquire(self):
@@ -203,7 +228,7 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
-    async def execute(self, q, p):
+    async def execute(self, q, p, timeout=None):
       pass
     async def fetchone(self):
       if self._idx >= len(self._rows):
@@ -213,12 +238,18 @@ def test_fetch_json_handles_multiple_rows(monkeypatch):
       return row
 
   class Conn:
+    def __init__(self):
+      self.autocommit = True
     async def __aenter__(self):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
     def cursor(self):
       return Cur()
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
 
   class Pool:
     def acquire(self):
@@ -240,19 +271,25 @@ def test_run_operation_handles_exec(monkeypatch):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
-    async def execute(self, q, p):
+    async def execute(self, q, p, timeout=None):
       pass
     @property
     def rowcount(self):
       return 3
 
   class Conn:
+    def __init__(self):
+      self.autocommit = True
     async def __aenter__(self):
       return self
     async def __aexit__(self, exc_type, exc, tb):
       pass
     def cursor(self):
       return Cur()
+    async def commit(self):
+      pass
+    async def rollback(self):
+      pass
 
   class Pool:
     def acquire(self):
@@ -266,3 +303,29 @@ def test_run_operation_handles_exec(monkeypatch):
   monkeypatch.setattr(db_helpers.logic, "_pool", Pool())
   result = asyncio.run(db_helpers.run_operation(DbRunMode.EXEC, "UPDATE"))
   assert result.rowcount == 3
+def test_run_json_one_includes_execution_meta(monkeypatch):
+  class DummyProvider:
+    async def run_operation(self, kind, sql, params, *, timeout=None):
+      assert kind == "json_one"
+      assert sql == "SELECT 1"
+      assert params == ()
+      assert timeout == 3.5
+      return DBResult(rows=[{"value": 1}], rowcount=1)
+
+  monkeypatch.setattr(registry_mssql, "_get_provider", lambda: DummyProvider())
+
+  response = asyncio.run(
+    registry_mssql.run_json_one("SELECT 1", timeout=3.5, meta={"custom": "meta"})
+  )
+
+  assert response.rowcount == 1
+  assert response.meta is not None
+  assert response.meta["custom"] == "meta"
+  execution = response.meta["execution"]
+  assert execution["run_mode"] == "json_one"
+  assert execution["timeout"] == 3.5
+  assert execution["transaction"] is True
+  assert execution["rowcount"] == 1
+  assert execution["params_count"] == 0
+  assert execution["elapsed_ms"] >= 0
+

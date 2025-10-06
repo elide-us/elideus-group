@@ -7,7 +7,7 @@ from server.registry.types import DBResponse
 def test_storage_cache_upsert_sets_created_on(monkeypatch):
   captured = []
 
-  async def fake_run_exec(sql, params):
+  async def fake_run_exec(sql, params, *, timeout=None, meta=None):
     captured.append(params)
     return DBResponse(rowcount=1)
 

@@ -47,7 +47,22 @@ def _raise_query_error(query: str, params: tuple[Any, ...], error: Exception, *,
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):
   return dict(zip(cols, row))
 
-async def fetch_rows(kind: DbRunMode | str, sql: str, params: Iterable[Any] = (), *, stream: bool = False) -> DBResult | AsyncIterator[dict]:
+
+async def _execute(cur, query: str, params: tuple[Any, ...], timeout: float | None):
+  if timeout is not None:
+    await cur.execute(query, params, timeout=timeout)
+  else:
+    await cur.execute(query, params)
+
+
+async def fetch_rows(
+  kind: DbRunMode | str,
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  stream: bool = False,
+  timeout: float | None = None,
+) -> DBResult | AsyncIterator[dict]:
   assert logic._pool, "MSSQL pool not initialized"
   run_mode_cls = _current_run_mode()
   mode = _coerce_run_mode(kind)
@@ -66,39 +81,43 @@ async def fetch_rows(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()
   if stream:
     async def _stream() -> AsyncIterator[dict]:
       try:
-        async with logic._pool.acquire() as conn:
-          async with conn.cursor() as cur:
-            await cur.execute(query, params)
-            if not await _ensure_result_set(cur):
-              return
-            cols = [c[0] for c in cur.description]
-            while True:
-              row = await cur.fetchone()
-              if not row:
-                break
-              yield _rowdict(cols, row)
+        async with logic.transaction() as cur:
+          await _execute(cur, query, params, timeout)
+          if not await _ensure_result_set(cur):
+            return
+          cols = [c[0] for c in cur.description]
+          while True:
+            row = await cur.fetchone()
+            if not row:
+              break
+            yield _rowdict(cols, row)
       except Exception as e:
         _raise_query_error(query, params, e, log=logging.debug)
     return _stream()
   try:
-    async with logic._pool.acquire() as conn:
-      async with conn.cursor() as cur:
-        await cur.execute(query, params)
-        if not await _ensure_result_set(cur):
+    async with logic.transaction() as cur:
+      await _execute(cur, query, params, timeout)
+      if not await _ensure_result_set(cur):
+        return DBResult()
+      cols = [c[0] for c in cur.description]
+      if one:
+        row = await cur.fetchone()
+        if not row:
           return DBResult()
-        cols = [c[0] for c in cur.description]
-        if one:
-          row = await cur.fetchone()
-          if not row:
-            return DBResult()
-          return DBResult(rows=[_rowdict(cols, row)], rowcount=1)
-        rows_raw = await cur.fetchall()
-        rows = [_rowdict(cols, r) for r in rows_raw]
-        return DBResult(rows=rows, rowcount=len(rows))
+        return DBResult(rows=[_rowdict(cols, row)], rowcount=1)
+      rows_raw = await cur.fetchall()
+      rows = [_rowdict(cols, r) for r in rows_raw]
+      return DBResult(rows=rows, rowcount=len(rows))
   except Exception as e:
     _raise_query_error(query, params, e, log=logging.debug)
 
-async def fetch_json(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()) -> DBResult:
+async def fetch_json(
+  kind: DbRunMode | str,
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
   run_mode_cls = _current_run_mode()
   mode = _coerce_run_mode(kind)
@@ -108,50 +127,59 @@ async def fetch_json(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()
   params = tuple(params)
   many = mode is run_mode_cls.JSON_MANY
   try:
-    async with logic._pool.acquire() as conn:
-      async with conn.cursor() as cur:
-        await cur.execute(query, params)
-        parts: list[str] = []
-        while True:
-          row = await cur.fetchone()
-          if not row or not row[0]:
-            break
-          parts.append(row[0])
-        if not parts:
-          return DBResult()
-        data = json.loads("".join(parts))
-        if data is None:
-          return DBResult()
-        if many:
-          if isinstance(data, list):
-            return DBResult(rows=data, rowcount=len(data))
-          return DBResult(rows=[data], rowcount=1)
+    async with logic.transaction() as cur:
+      await _execute(cur, query, params, timeout)
+      parts: list[str] = []
+      while True:
+        row = await cur.fetchone()
+        if not row or not row[0]:
+          break
+        parts.append(row[0])
+      if not parts:
+        return DBResult()
+      data = json.loads("".join(parts))
+      if data is None:
+        return DBResult()
+      if many:
         if isinstance(data, list):
           return DBResult(rows=data, rowcount=len(data))
         return DBResult(rows=[data], rowcount=1)
+      if isinstance(data, list):
+        return DBResult(rows=data, rowcount=len(data))
+      return DBResult(rows=[data], rowcount=1)
   except Exception as e:
     _raise_query_error(query, params, e, log=logging.error)
 
-async def exec_query(sql: str, params: Iterable[Any] = ()) -> DBResult:
+async def exec_query(
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+) -> DBResult:
   assert logic._pool, "MSSQL pool not initialized"
   query = sql
   params = tuple(params)
   try:
-    async with logic._pool.acquire() as conn:
-      async with conn.cursor() as cur:
-        await cur.execute(query, params)
-        return DBResult(rowcount=cur.rowcount or 0)
+    async with logic.transaction() as cur:
+      await _execute(cur, query, params, timeout)
+      return DBResult(rowcount=cur.rowcount or 0)
   except Exception as e:
     _raise_query_error(query, params, e, log=logging.error)
 
 
-async def run_operation(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()) -> DBResult:
+async def run_operation(
+  kind: DbRunMode | str,
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+) -> DBResult:
   run_mode_cls = _current_run_mode()
   mode = _coerce_run_mode(kind)
   if mode in (run_mode_cls.ROW_ONE, run_mode_cls.ROW_MANY):
-    return await fetch_rows(mode, sql, params)
+    return await fetch_rows(mode, sql, params, timeout=timeout)
   if mode in (run_mode_cls.JSON_ONE, run_mode_cls.JSON_MANY):
-    return await fetch_json(mode, sql, params)
+    return await fetch_json(mode, sql, params, timeout=timeout)
   if mode is run_mode_cls.EXEC:
-    return await exec_query(sql, params)
+    return await exec_query(sql, params, timeout=timeout)
   raise ValueError(f"Unknown operation kind: {mode}")

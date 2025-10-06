@@ -24,7 +24,7 @@ def test_run_json_one(monkeypatch):
     assert params == {}
     return registry_mssql.run_json_one("select 1")
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -53,7 +53,7 @@ def test_run_row_one(monkeypatch):
     assert params == {}
     return registry_mssql._run_operation("row_one", "select 1")
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -79,7 +79,7 @@ def test_run_row_many(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -107,7 +107,7 @@ def test_run_json_many(monkeypatch):
     assert params == {}
     return registry_mssql.run_json_many("select")
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -136,7 +136,7 @@ def test_run_exec(monkeypatch):
     assert params == {}
     return registry_mssql.run_exec("update", (1,))
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -162,7 +162,7 @@ def test_storage_files_set_gallery(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -188,7 +188,7 @@ def test_storage_cache_set_public(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -216,7 +216,7 @@ def test_storage_public_lists_share_query(monkeypatch):
   provider = MssqlProvider()
   seen: list[tuple[object, str, tuple]] = []
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     seen.append((kind, sql, params))
     assert kind in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)
     assert params == ()

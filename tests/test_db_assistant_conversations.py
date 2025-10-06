@@ -13,7 +13,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -51,7 +51,7 @@ def test_assistant_conversations_insert(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -81,7 +81,7 @@ def test_assistant_conversations_find_recent(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -104,7 +104,7 @@ def test_assistant_conversations_update_output(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params
@@ -125,7 +125,7 @@ def test_assistant_conversations_list_recent(monkeypatch):
 
   captured: dict[str, object] = {}
 
-  async def fake_run_operation(kind, sql, params):
+  async def fake_run_operation(kind, sql, params, *, timeout=None):
     captured["kind"] = kind
     captured["sql"] = sql
     captured["params"] = params

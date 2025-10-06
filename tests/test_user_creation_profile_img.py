@@ -30,7 +30,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
     lookups.append((provider, cursor is not None))
     return 1
 
-  async def fake_run_json_one(sql, params=(), *, meta=None):
+  async def fake_run_json_one(sql, params=(), *, timeout=None, meta=None):
     q = sql.strip().lower()
     if q.startswith("select recid from auth_providers"):
       return DBResponse(rows=[{"recid": 1}], rowcount=1)
@@ -38,7 +38,7 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
       return DBResponse(rows=[], rowcount=0)
     return DBResponse(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
 
-  async def fake_run_exec(sql, params=(), *, meta=None):
+  async def fake_run_exec(sql, params=(), *, timeout=None, meta=None):
     executed.append(sql.lower())
     return DBResponse(rows=[], rowcount=1)
 

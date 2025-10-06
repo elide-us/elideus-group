@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import inspect
 from collections.abc import Iterable
+from time import perf_counter
 from typing import Any
 
 from server.registry import ProviderBinding, RegistryRouter
@@ -24,22 +25,63 @@ def _get_provider():
   return importlib.import_module("server.modules.providers.database.mssql_provider")
 
 
-async def _run_operation(kind: str, sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
+async def _run_operation(
+  kind: str,
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+  meta: dict[str, Any] | None = None,
+) -> DBResponse:
   provider = _get_provider()
-  result = await provider.run_operation(kind, sql, tuple(params))
-  return DBResponse.from_result(result, meta=meta)
+  bound_params = tuple(params)
+  start = perf_counter()
+  result = await provider.run_operation(kind, sql, bound_params, timeout=timeout)
+  elapsed_ms = (perf_counter() - start) * 1000
+  execution_meta: dict[str, Any] = {
+    "execution": {
+      "run_mode": kind,
+      "rowcount": result.rowcount,
+      "transaction": True,
+      "elapsed_ms": round(elapsed_ms, 3),
+    },
+  }
+  if timeout is not None:
+    execution_meta["execution"]["timeout"] = timeout
+  execution_meta["execution"]["params_count"] = len(bound_params)
+  if meta:
+    execution_meta.update(meta)
+  return DBResponse.from_result(result, meta=execution_meta)
 
 
-async def run_json_one(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
-  return await _run_operation("json_one", sql, params, meta=meta)
+async def run_json_one(
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+  meta: dict[str, Any] | None = None,
+) -> DBResponse:
+  return await _run_operation("json_one", sql, params, timeout=timeout, meta=meta)
 
 
-async def run_json_many(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
-  return await _run_operation("json_many", sql, params, meta=meta)
+async def run_json_many(
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+  meta: dict[str, Any] | None = None,
+) -> DBResponse:
+  return await _run_operation("json_many", sql, params, timeout=timeout, meta=meta)
 
 
-async def run_exec(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
-  return await _run_operation("exec", sql, params, meta=meta)
+async def run_exec(
+  sql: str,
+  params: Iterable[Any] = (),
+  *,
+  timeout: float | None = None,
+  meta: dict[str, Any] | None = None,
+) -> DBResponse:
+  return await _run_operation("exec", sql, params, timeout=timeout, meta=meta)
 
 
 async def _coerce_response(spec: Any) -> DBResponse:
