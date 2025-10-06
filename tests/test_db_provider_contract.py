@@ -224,8 +224,8 @@ def test_storage_public_lists_share_query(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
-  asyncio.run(provider.run("db:users:content.public:list_public:1", {}))
-  asyncio.run(provider.run("db:users:content.public:get_public_files:1", {}))
+  asyncio.run(provider.run("db:users:content_public:list_public:1", {}))
+  asyncio.run(provider.run("db:users:content_public:get_public_files:1", {}))
 
   assert len(seen) == 2
   assert seen[0][1] == seen[1][1]
@@ -236,7 +236,7 @@ def test_unlink_provider_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000002"
 
   async def fake_callable(request):
-    assert request.op == "db:users:security.identities:unlink_provider:1"
+    assert request.op == "db:users:security_identities:unlink_provider:1"
     assert request.params == {
       "guid": guid,
       "provider": "google",
@@ -246,11 +246,11 @@ def test_unlink_provider_dict_result(monkeypatch):
 
   _set_provider_callable(
     monkeypatch,
-    "users.security.identities.unlink_provider",
+    "users.security_identities.unlink_provider",
     fake_callable,
   )
 
-  res = asyncio.run(provider.run("db:users:security.identities:unlink_provider:1", {
+  res = asyncio.run(provider.run("db:users:security_identities:unlink_provider:1", {
     "guid": guid,
     "provider": "google",
     "new_provider_recid": 123,
@@ -266,7 +266,7 @@ def test_create_session_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000003"
 
   async def fake_callable(request):
-    assert request.op == "db:users:security.sessions:create_session:1"
+    assert request.op == "db:users:security_sessions:create_session:1"
     assert request.params == {
       "access_token": "token",
       "expires": "2024-01-01T00:00:00Z",
@@ -280,11 +280,11 @@ def test_create_session_dict_result(monkeypatch):
 
   _set_provider_callable(
     monkeypatch,
-    "users.security.sessions.create_session",
+    "users.security_sessions.create_session",
     fake_callable,
   )
 
-  res = asyncio.run(provider.run("db:users:security.sessions:create_session:1", {
+  res = asyncio.run(provider.run("db:users:security_sessions:create_session:1", {
     "access_token": "token",
     "expires": "2024-01-01T00:00:00Z",
     "fingerprint": "fingerprint",

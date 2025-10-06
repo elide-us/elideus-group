@@ -22,15 +22,15 @@ def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
 
 
 def list_public_request() -> DBRequest:
-  return _request("db:users:content.public:list_public:1")
+  return _request("db:users:content_public:list_public:1")
 
 
 def list_reported_request() -> DBRequest:
-  return _request("db:users:content.public:list_reported:1")
+  return _request("db:users:content_public:list_reported:1")
 
 
 def get_public_files_request() -> DBRequest:
-  return _request("db:users:content.public:get_public_files:1")
+  return _request("db:users:content_public:get_public_files:1")
 
 
 def register(router: "SubdomainRouter") -> None:

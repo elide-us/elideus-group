@@ -22,15 +22,15 @@ def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
 
 
 def get_version_request() -> DBRequest:
-  return _request("db:system:public.vars:get_version:1")
+  return _request("db:system:public_vars:get_version:1")
 
 
 def get_hostname_request() -> DBRequest:
-  return _request("db:system:public.vars:get_hostname:1")
+  return _request("db:system:public_vars:get_hostname:1")
 
 
 def get_repo_request() -> DBRequest:
-  return _request("db:system:public.vars:get_repo:1")
+  return _request("db:system:public_vars:get_repo:1")
 
 
 def register(router: "SubdomainRouter") -> None:

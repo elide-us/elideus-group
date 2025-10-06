@@ -21,11 +21,11 @@ def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
 
 
 def get_home_links_request() -> DBRequest:
-  return _request("db:system:public.links:get_home_links:1")
+  return _request("db:system:public_links:get_home_links:1")
 
 
 def get_navbar_routes_request(*, role_mask: int) -> DBRequest:
-  return _request("db:system:public.links:get_navbar_routes:1", {"role_mask": role_mask})
+  return _request("db:system:public_links:get_navbar_routes:1", {"role_mask": role_mask})
 
 
 def register(router: "SubdomainRouter") -> None:

@@ -53,7 +53,7 @@ def relink_discord_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security.oauth:relink_discord:1",
+    "db:users:security_oauth:relink_discord:1",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,
@@ -75,7 +75,7 @@ def relink_google_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security.oauth:relink_google:1",
+    "db:users:security_oauth:relink_google:1",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,
@@ -97,7 +97,7 @@ def relink_microsoft_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security.oauth:relink_microsoft:1",
+    "db:users:security_oauth:relink_microsoft:1",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,

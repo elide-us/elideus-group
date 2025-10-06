@@ -80,8 +80,8 @@ server/registry/
 
 * **System domain** centralises assistant orchestration, runtime configuration,
   and global public metadata. Assistant conversations/models/personas and
-  navigation helpers now live under the `db:system:*` namespace with dotted
-  subdomains such as `assistant.conversations` or `public.links`.
+  navigation helpers now live under the `db:system:*` namespace with canonical
+  subdomain identifiers such as `assistant_conversations` or `public_links`.
 * **Users domain** handles end-user data. Content storage/profile helpers are
   exposed via `db:users:content.*` while security/authentication flows remain
   under `db:users:security.*`. Public profile lookups now live at
@@ -91,21 +91,21 @@ server/registry/
 
 Representative URNs:
 
-| Registry key | Target module | Notes |
+| Registry key | Provider map key | Notes |
 | --- | --- | --- |
-| `db:system:assistant.conversations:insert:1` | `system.assistant.conversations` | Persists assistant conversation transcripts. |
-| `db:system:assistant.models:list:1` | `system.assistant.models` | Lists configured LLM backends. |
-| `db:system:assistant.personas:get_by_name:1` | `system.assistant.personas` | Retrieves configured persona metadata. |
-| `db:users:content.cache:list:1` | `users.content.cache` | Fetches cached storage items for a user. |
-| `db:users:content.public:get_public_files:1` | `users.content.public` | Returns public gallery entries. |
-| `db:users:content.files:set_gallery:1` | `users.content.files` | Toggles gallery status for a file. |
-| `db:system:public.links:get_navbar_routes:1` | `system.public.links` | Provides navigation metadata for the UI shell. |
-| `db:users:public:get_published_files:1` | `users.public` | Exposes public profile assets. |
-| `db:users:content.profile:get_profile:1` | `users.content.profile` | Retrieves a user's profile and linked providers. |
-| `db:system:public.vars:get_version:1` | `system.public.vars` | Reports service version/host metadata. |
-| `db:users:security.sessions:create_session:1` | `users.security.sessions` | Issues a new session + device token. |
-| `db:users:security.accounts:get_security_profile:1` | `users.security.accounts` | Primary security/profile view. |
-| `db:finance:credits:set:1` | `finance.credits` | Writes billing credit balances. |
+| `db:system:assistant_conversations:insert:1` | `system.assistant_conversations.insert` | Persists assistant conversation transcripts. |
+| `db:system:assistant_models:list:1` | `system.assistant_models.list` | Lists configured LLM backends. |
+| `db:system:assistant_personas:get_by_name:1` | `system.assistant_personas.get_by_name` | Retrieves configured persona metadata. |
+| `db:users:content_cache:list:1` | `users.content_cache.list` | Fetches cached storage items for a user. |
+| `db:users:content_public:get_public_files:1` | `users.content_public.get_public_files` | Returns public gallery entries. |
+| `db:users:content_files:set_gallery:1` | `users.content_files.set_gallery` | Toggles gallery status for a file. |
+| `db:system:public_links:get_navbar_routes:1` | `system.public_links.get_navbar_routes` | Provides navigation metadata for the UI shell. |
+| `db:users:public:get_published_files:1` | `users.public.get_published_files` | Exposes public profile assets. |
+| `db:users:content_profile:get_profile:1` | `users.content_profile.get_profile` | Retrieves a user's profile and linked providers. |
+| `db:system:public_vars:get_version:1` | `system.public_vars.get_version` | Reports service version/host metadata. |
+| `db:users:security_sessions:create_session:1` | `users.security_sessions.create_session` | Issues a new session + device token. |
+| `db:users:security_accounts:get_security_profile:1` | `users.security_accounts.get_security_profile` | Primary security/profile view. |
+| `db:finance:credits:set:1` | `finance.credits.set` | Writes billing credit balances. |
 
 Legacy `db:assistant:*`, `db:content:*`, `db:public:*`, and `db:security:*`
 namespaces have been folded into the consolidated layout above. Modules now call
@@ -129,8 +129,8 @@ def register(registry: RegistryRouter) -> None:
 ```
 
 Each subdomain exposes a `register` helper that wires its functions to the
-provider map. Aggregators such as `users/content/__init__.py` translate dotted
-subdomain names into the correct `SubdomainRouter`:
+provider map. Aggregators such as `users/content/__init__.py` build nested
+routers to compose multi-segment identifiers:
 
 ```python
 # server/registry/users/content/__init__.py
@@ -138,17 +138,18 @@ from . import cache, files, profile, public
 
 
 def register(domain: DomainRouter) -> None:
-  cache.register(domain.subdomain("content.cache"))
-  files.register(domain.subdomain("content.files"))
-  public.register(domain.subdomain("content.public"))
-  profile.register(domain.subdomain("content.profile"))
+  content_router = domain.subdomain("content")
+  cache.register(content_router.subdomain("cache"))
+  files.register(content_router.subdomain("files"))
+  public.register(content_router.subdomain("public"))
+  profile.register(content_router.subdomain("profile"))
 ```
 
 Leaf modules (`users/content/cache/__init__.py`,
 `users/content/cache/mssql.py`, …) define their `db:` functions using
 `SubdomainRouter.add_function`. By default the router derives the provider map
-(`"{domain}.{subdomain}.{name}"`) and MSSQL binding
-(`"server.registry.{domain}.{subdomain}.mssql", "{name}_v{version}"`). When a
+(`"{domain}.{identifier}.{name}"`) and MSSQL binding
+(`"server.registry.{domain}.{module_path}.mssql", "{name}_v{version}"`). When a
 provider uses a descriptive name you can supply an `implementation=` hint (for
 example `implementation="insert_conversation"`).
 
@@ -178,7 +179,7 @@ async def get_gallery_v1(request: DBRequest) -> DBResponse:
 ```
 
 Each registration call binds the canonical `db:` key
-(`db:users:content.cache:get_gallery:1`) to metadata about how to execute it. During
+(`db:users:content_cache:get_gallery:1`) to metadata about how to execute it. During
 provider load the registry asserts that every registered key resolves to a
 callable implementation. Startup fails fast if any bindings are missing so
 module contracts cannot drift from provider coverage.
@@ -196,7 +197,7 @@ server/registry/providers/
 ```
 
 Each provider module exports a `PROVIDER_QUERIES` dictionary keyed by the same
-`users.content.cache.list` identifiers referenced during registration. The
+`users.content_cache.list` identifiers referenced during registration. The
 values are callables that receive `(request: DBRequest)` and return a
 `DBResponse` (or awaitable `DBResponse` for async helpers). SQL strings and
 stored procedure calls are defined here, keeping provider-specific details out

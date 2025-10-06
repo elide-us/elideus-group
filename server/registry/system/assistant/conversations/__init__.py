@@ -18,7 +18,7 @@ __all__ = [
   "update_output_request",
 ]
 
-_OP_PREFIX = "db:system:assistant.conversations"
+_OP_PREFIX = "db:system:assistant_conversations"
 
 
 def _op(name: str) -> str:

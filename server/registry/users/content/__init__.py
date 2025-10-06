@@ -19,7 +19,8 @@ __all__ = [
 
 
 def register(domain: "DomainRouter") -> None:
-  cache.register(domain.subdomain("content.cache"))
-  files.register(domain.subdomain("content.files"))
-  public.register(domain.subdomain("content.public"))
-  profile.register(domain.subdomain("content.profile"))
+  content_router = domain.subdomain("content")
+  cache.register(content_router.subdomain("cache"))
+  files.register(content_router.subdomain("files"))
+  public.register(content_router.subdomain("public"))
+  profile.register(content_router.subdomain("profile"))

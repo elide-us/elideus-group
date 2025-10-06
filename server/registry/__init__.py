@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import pkgutil
+import re
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 
 from server.modules.providers import DBResult, DbProviderBase, get_dbresult_cls
@@ -25,6 +26,27 @@ __all__ = [
 
 
 Executor = Callable[[DBRequest], Awaitable[DBResponse]]
+
+_SEGMENT_PATTERN = re.compile(r"^[a-z0-9_]+$")
+
+
+def _normalize_segments(*segments: str) -> tuple[str, ...]:
+  parts: list[str] = []
+  for segment in segments:
+    if not segment:
+      raise ValueError("Subdomain segments cannot be empty")
+    for value in segment.split('.'):
+      value = value.strip()
+      if not value:
+        continue
+      if not _SEGMENT_PATTERN.fullmatch(value):
+        raise ValueError(
+          f"Invalid subdomain segment '{value}'. Only lowercase letters, numbers, and underscores are allowed."
+        )
+      parts.append(value)
+  if not parts:
+    raise ValueError("Subdomain path must include at least one segment")
+  return tuple(parts)
 @dataclass(slots=True)
 class FunctionRoute:
   domain: str
@@ -223,25 +245,36 @@ class DomainRouter:
   def __init__(self, registry: RegistryRouter, name: str):
     self._registry = registry
     self._name = name
-    self._subdomains: dict[str, SubdomainRouter] = {}
+    self._subdomains: dict[tuple[str, ...], SubdomainRouter] = {}
 
   @property
   def name(self) -> str:
     return self._name
 
-  def subdomain(self, name: str) -> "SubdomainRouter":
-    if name not in self._subdomains:
-      self._subdomains[name] = SubdomainRouter(self._registry, self, name)
-    return self._subdomains[name]
+  def _get_subdomain(self, path: tuple[str, ...]) -> "SubdomainRouter":
+    if path not in self._subdomains:
+      self._subdomains[path] = SubdomainRouter(self._registry, self, path)
+    return self._subdomains[path]
+
+  def subdomain(self, *segments: str) -> "SubdomainRouter":
+    path = _normalize_segments(*segments)
+    return self._get_subdomain(path)
 
 
 class SubdomainRouter:
   """Registers concrete registry functions for a subdomain."""
 
-  def __init__(self, registry: RegistryRouter, domain: DomainRouter, name: str):
+  def __init__(
+    self,
+    registry: RegistryRouter,
+    domain: DomainRouter,
+    path: tuple[str, ...],
+  ):
     self._registry = registry
     self._domain = domain
-    self._name = name
+    self._path = path
+    self._identifier = "_".join(path)
+    self._module_path = ".".join(path)
 
   @property
   def domain(self) -> DomainRouter:
@@ -249,7 +282,19 @@ class SubdomainRouter:
 
   @property
   def name(self) -> str:
-    return self._name
+    return self._identifier
+
+  @property
+  def identifier(self) -> str:
+    return self._identifier
+
+  @property
+  def module_path(self) -> str:
+    return self._module_path
+
+  def subdomain(self, *segments: str) -> "SubdomainRouter":
+    path = self._path + _normalize_segments(*segments)
+    return self._domain._get_subdomain(path)
 
   def add_function(
     self,
@@ -261,10 +306,10 @@ class SubdomainRouter:
     provider: ProviderDescriptor | None = None,
     implementation: str | None = None,
   ) -> None:
-    provider_map = provider_map or f"{self.domain.name}.{self.name}.{name}"
+    provider_map = provider_map or f"{self.domain.name}.{self.identifier}.{name}"
     route = FunctionRoute(
       domain=self._domain.name,
-      subdomain=self._name,
+      subdomain=self._identifier,
       name=name,
       version=version,
       provider_map=provider_map,
@@ -272,7 +317,7 @@ class SubdomainRouter:
     self._registry.add_route(route)
     if provider is None:
       provider = (
-        f"server.registry.{self.domain.name}.{self.name}.mssql",
+        f"server.registry.{self.domain.name}.{self.module_path}.mssql",
         f"{(implementation or name)}_v{version}",
       )
     self._registry.register_provider_binding(route, provider)
