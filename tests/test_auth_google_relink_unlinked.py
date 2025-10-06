@@ -42,20 +42,20 @@ class DummyDb:
       op = op.op
     args = args or {}
     self.calls.append((op, args))
-    if op == "db:users:security.identities:get_by_provider_identifier:1":
+    if op == "db:users:security_identities:get_by_provider_identifier:1":
       self._get_by_count += 1
       if self._get_by_count == 1:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "db:users:security.identities:get_any_by_provider_identifier:1":
+    if op == "db:users:security_identities:get_any_by_provider_identifier:1":
       return DBRes([{"guid": "user-guid"}], 1)
-    if op == "db:users:security.oauth:relink_google:1":
+    if op == "db:users:security_oauth:relink_google:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "db:users:security.sessions:set_rotkey:1":
+    if op == "db:users:security_sessions:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:users:security.sessions:create_session:1":
+    if op == "db:users:security_sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:users:security.sessions:update_device_token:1":
+    if op == "db:users:security_sessions:update_device_token:1":
       return DBRes([], 1)
     if op == "db:system:config:get_config:1":
       return DBRes([{ "value": "http://localhost:8000/userpage" }], 1)
@@ -148,6 +148,6 @@ def test_relinks_unlinked_account(monkeypatch):
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(auth_google_oauth_login_v1(req))
   calls = req.app.state.db.calls
-  assert any(op == "db:users:security.oauth:relink_google:1" for op, _ in calls)
-  assert not any(op == "db:users:security.identities:create_from_provider:1" for op, _ in calls)
+  assert any(op == "db:users:security_oauth:relink_google:1" for op, _ in calls)
+  assert not any(op == "db:users:security_identities:create_from_provider:1" for op, _ in calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

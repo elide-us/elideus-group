@@ -17,5 +17,6 @@ __all__ = [
 
 
 def register(domain: "DomainRouter") -> None:
-  links.register(domain.subdomain("public.links"))
-  vars.register(domain.subdomain("public.vars"))
+  public_router = domain.subdomain("public")
+  links.register(public_router.subdomain("links"))
+  vars.register(public_router.subdomain("vars"))

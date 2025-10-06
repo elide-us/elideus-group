@@ -21,7 +21,7 @@ __all__ = [
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=f"db:users:content.profile:{name}:1", params=params)
+  return DBRequest(op=f"db:users:content_profile:{name}:1", params=params)
 
 
 def get_profile_request(*, guid: str) -> DBRequest:

@@ -17,7 +17,7 @@ __all__ = [
 
 def set_gallery_request(user_guid: str, name: str, gallery: bool) -> DBRequest:
   return DBRequest(
-    op="db:users:content.files:set_gallery:1",
+    op="db:users:content_files:set_gallery:1",
     params={
       "user_guid": user_guid,
       "name": name,

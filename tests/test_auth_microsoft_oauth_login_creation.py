@@ -31,15 +31,15 @@ class DummyDb:
       op = op.op
     args = args or {}
     self.calls.append((op, args))
-    if op == "db:users:security.identities:get_by_provider_identifier:1":
+    if op == "db:users:security_identities:get_by_provider_identifier:1":
       if len([c for c in self.calls if c[0] == op]) == 1:
         return DBRes([], 0)
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0 }], 1)
-    if op == "db:users:security.identities:create_from_provider:1":
+    if op == "db:users:security_identities:create_from_provider:1":
       return DBRes([], 1)
-    if op == "db:users:security.sessions:set_rotkey:1":
+    if op == "db:users:security_sessions:set_rotkey:1":
       return DBRes([], 1)
-    if op == "db:users:security.accounts:get_security_profile:1":
+    if op == "db:users:security_accounts:get_security_profile:1":
       return DBRes([
         {
           "guid": args.get("guid"),
@@ -48,9 +48,9 @@ class DummyDb:
           "provider_name": args.get("provider") if "provider" in args else "microsoft",
         }
       ], 1)
-    if op == "db:users:security.sessions:create_session:1":
+    if op == "db:users:security_sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:users:security.sessions:update_device_token:1":
+    if op == "db:users:security_sessions:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -123,10 +123,10 @@ def test_fetch_user_after_create(monkeypatch):
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  calls = [op for op, _ in req.app.state.db.calls if op == "db:users:security.identities:get_by_provider_identifier:1"]
+  calls = [op for op, _ in req.app.state.db.calls if op == "db:users:security_identities:get_by_provider_identifier:1"]
   assert len(calls) == 2
   assert any(
-    op == "db:users:security.sessions:create_session:1" and args.get("provider") == "microsoft"
+    op == "db:users:security_sessions:create_session:1" and args.get("provider") == "microsoft"
     for op, args in req.app.state.db.calls
   )
 

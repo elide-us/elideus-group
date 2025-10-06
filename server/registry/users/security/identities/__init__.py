@@ -36,7 +36,7 @@ def create_from_provider_request(
   provider_profile_image: str | None = None,
 ) -> DBRequest:
   return _request(
-    "db:users:security.identities:create_from_provider:1",
+    "db:users:security_identities:create_from_provider:1",
     {
       "provider": provider,
       "provider_identifier": provider_identifier,
@@ -53,7 +53,7 @@ def get_by_provider_identifier_request(
   provider_identifier: str,
 ) -> DBRequest:
   return _request(
-    "db:users:security.identities:get_by_provider_identifier:1",
+    "db:users:security_identities:get_by_provider_identifier:1",
     {
       "provider": provider,
       "provider_identifier": provider_identifier,
@@ -67,7 +67,7 @@ def get_any_by_provider_identifier_request(
   provider_identifier: str,
 ) -> DBRequest:
   return _request(
-    "db:users:security.identities:get_any_by_provider_identifier:1",
+    "db:users:security_identities:get_any_by_provider_identifier:1",
     {
       "provider": provider,
       "provider_identifier": provider_identifier,
@@ -77,7 +77,7 @@ def get_any_by_provider_identifier_request(
 
 def get_user_by_email_request(*, email: str) -> DBRequest:
   return _request(
-    "db:users:security.identities:get_user_by_email:1",
+    "db:users:security_identities:get_user_by_email:1",
     {"email": email},
   )
 
@@ -89,7 +89,7 @@ def link_provider_request(
   provider_identifier: str,
 ) -> DBRequest:
   return _request(
-    "db:users:security.identities:link_provider:1",
+    "db:users:security_identities:link_provider:1",
     {
       "guid": guid,
       "provider": provider,
@@ -100,7 +100,7 @@ def link_provider_request(
 
 def set_provider_request(*, guid: str, provider: str) -> DBRequest:
   return _request(
-    "db:users:security.identities:set_provider:1",
+    "db:users:security_identities:set_provider:1",
     {
       "guid": guid,
       "provider": provider,
@@ -110,7 +110,7 @@ def set_provider_request(*, guid: str, provider: str) -> DBRequest:
 
 def soft_delete_account_request(*, guid: str) -> DBRequest:
   return _request(
-    "db:users:security.identities:soft_delete_account:1",
+    "db:users:security_identities:soft_delete_account:1",
     {"guid": guid},
   )
 
@@ -127,12 +127,12 @@ def unlink_provider_request(
   }
   if new_provider_recid is not None:
     params["new_provider_recid"] = new_provider_recid
-  return _request("db:users:security.identities:unlink_provider:1", params)
+  return _request("db:users:security_identities:unlink_provider:1", params)
 
 
 def unlink_last_provider_request(*, guid: str, provider: str) -> DBRequest:
   return _request(
-    "db:users:security.identities:unlink_last_provider:1",
+    "db:users:security_identities:unlink_last_provider:1",
     {
       "guid": guid,
       "provider": provider,

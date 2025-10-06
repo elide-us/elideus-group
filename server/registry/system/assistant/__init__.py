@@ -18,6 +18,7 @@ __all__ = [
 
 
 def register(domain: "DomainRouter") -> None:
-  conversations.register(domain.subdomain("assistant.conversations"))
-  models.register(domain.subdomain("assistant.models"))
-  personas.register(domain.subdomain("assistant.personas"))
+  assistant_router = domain.subdomain("assistant")
+  conversations.register(assistant_router.subdomain("conversations"))
+  models.register(assistant_router.subdomain("models"))
+  personas.register(assistant_router.subdomain("personas"))

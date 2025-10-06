@@ -22,7 +22,7 @@ __all__ = [
   "DBResult",
 ]
 
-DB_PATTERN = re.compile(r"^db:[a-z0-9_]+:(?:[a-z0-9_.]+:){2,}[0-9]+$")
+DB_PATTERN = re.compile(r"^db:[a-z0-9_]+:[a-z0-9_]+:[a-z0-9_]+:[0-9]+$")
 
 
 class DBRequest(BaseModel):
@@ -56,7 +56,7 @@ class DBRequest(BaseModel):
   @model_validator(mode="after")
   def _validate_op(self):
     parts = self.op.split(":")
-    if len(parts) < 5:
+    if len(parts) != 5:
       raise ValueError("op must include domain, subdomain, name, and version segments")
     version_segment = parts[-1]
     try:

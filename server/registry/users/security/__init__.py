@@ -19,7 +19,8 @@ __all__ = [
 
 
 def register(domain: "DomainRouter") -> None:
-  accounts.register(domain.subdomain("security.accounts"))
-  identities.register(domain.subdomain("security.identities"))
-  oauth.register(domain.subdomain("security.oauth"))
-  sessions.register(domain.subdomain("security.sessions"))
+  security_router = domain.subdomain("security")
+  accounts.register(security_router.subdomain("accounts"))
+  identities.register(security_router.subdomain("identities"))
+  oauth.register(security_router.subdomain("oauth"))
+  sessions.register(security_router.subdomain("sessions"))
