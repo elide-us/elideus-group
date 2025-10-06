@@ -4,7 +4,7 @@ import re
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import Any, Optional, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -76,6 +76,10 @@ class RPCRequest(BaseModel):
   op: str = Field(pattern=URN_PATTERN.pattern)
   payload: JSONValue | None = None
   version: int
+  request_id: str = Field(
+    default_factory=lambda: str(uuid4()),
+    description="Unique identifier generated for each RPC request",
+  )
 
   timestamp: Optional[datetime] = Field(
     default_factory=lambda: datetime.now(timezone.utc),

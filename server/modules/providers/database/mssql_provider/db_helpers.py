@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, AsyncIterator, Callable
 from . import logic
 from ... import DBResult, DbRunMode
+from server.helpers.context import get_request_id
 
 
 def _current_run_mode():
@@ -30,6 +31,7 @@ class QueryErrorDetail:
   query: str
   params: tuple[Any, ...]
   message: str
+  request_id: str | None = None
 
 
 class DBQueryError(RuntimeError):
@@ -40,8 +42,10 @@ class DBQueryError(RuntimeError):
 
 
 def _raise_query_error(query: str, params: tuple[Any, ...], error: Exception, *, log: Callable[[str], Any]):
-  log(f"Query failed:\n{query}\nArgs: {params}\nError: {error}")
-  detail = QueryErrorDetail(query=query, params=params, message=str(error))
+  request_id = get_request_id()
+  prefix = f"[MSSQL {request_id}] " if request_id else "[MSSQL] "
+  log(f"{prefix}Query failed:\n{query}\nArgs: {params}\nError: {error}")
+  detail = QueryErrorDetail(query=query, params=params, message=str(error), request_id=request_id)
   raise DBQueryError(detail, original=error) from error
 
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):

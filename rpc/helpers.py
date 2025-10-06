@@ -2,10 +2,19 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException as FastAPIHTTPException
+from fastapi import Request
 
 from server.models import AuthContext
 from server.models import RPCRequest
+from server.errors import (
+  RPCServiceError,
+  bad_request,
+  forbidden,
+  internal_error,
+  service_unavailable,
+  unauthorized,
+)
 
 if TYPE_CHECKING:
   from server.modules import AuthService
@@ -18,7 +27,7 @@ def mask_to_bit(mask: int) -> int:
 
 def bit_to_mask(bit: int) -> int:
   if bit < 0 or bit >= 63:
-    raise HTTPException(status_code=400, detail='Invalid bit index')
+    raise bad_request('Invalid bit index', diagnostic=f'Bit index {bit} out of range')
   return 1 << bit
 
 def _get_token_from_request(request: Request) -> str | None:
@@ -54,13 +63,13 @@ def _get_mtls_subject(request: Request) -> str | None:
 
 def resolve_required_mask(auth: 'AuthService', role_name: str) -> int:
   if not role_name:
-    raise HTTPException(status_code=500, detail='Role name must be provided')
+    raise internal_error('Role name must be provided', code='rpc.role.missing')
   try:
     return auth.require_role_mask(role_name)
   except KeyError as exc:
     message = f'Required role is undefined: {role_name}'
     _logger.error('[RPC] %s', message)
-    raise HTTPException(status_code=500, detail=message) from exc
+    raise internal_error('Required role is undefined', code='rpc.role.undefined', diagnostic=message) from exc
 
 
 async def _validate_rpc_identity(
@@ -77,25 +86,35 @@ async def _validate_rpc_identity(
   if not auth:
     if domain in ('public', 'auth'):
       return auth_ctx
-    raise HTTPException(status_code=500, detail='Authentication module is unavailable')
+    raise service_unavailable(
+      'Authentication module is unavailable',
+      code='rpc.auth.unavailable',
+      diagnostic='Authentication module is missing from app state',
+    )
 
   identity_source = None
   discord_id: str | None = None
 
   if domain in ('discord', 'webhook') and not (token or mtls_subject):
-    raise HTTPException(status_code=401, detail='Signed token or MTLS assertion required')
+    raise unauthorized(
+      'Signed token or MTLS assertion required',
+      code='rpc.auth.signature_required',
+      diagnostic='Discord/webhook request missing token or MTLS assertion',
+    )
 
   if token:
     try:
       data: dict = await auth.decode_session_token(token)
-    except HTTPException:
+    except RPCServiceError:
       raise
+    except FastAPIHTTPException as exc:
+      raise internal_error('Authentication failure', diagnostic=str(exc)) from exc
     except Exception as exc:
       _logger.exception('[RPC] Failed to decode session token')
-      raise HTTPException(status_code=401, detail='Invalid authorization token') from exc
+      raise unauthorized('Invalid authorization token', diagnostic=str(exc)) from exc
     user_guid = data.get('sub')
     if not user_guid:
-      raise HTTPException(status_code=401, detail='Invalid authorization token payload')
+      raise unauthorized('Invalid authorization token payload', diagnostic='Missing sub claim')
     roles, mask = await auth.get_user_roles(user_guid)
     auth_ctx.user_guid = user_guid
     auth_ctx.provider = data.get('provider')
@@ -122,18 +141,18 @@ async def _validate_rpc_identity(
   if domain == 'discord':
     discord_id = _get_discord_id_from_request(request)
     if not discord_id:
-      raise HTTPException(status_code=401, detail='Discord identity assertion missing')
+      raise unauthorized('Discord identity assertion missing', diagnostic='No Discord ID in request')
     guid, roles, mask = await auth.get_discord_user_security(discord_id)
     if not guid:
-      raise HTTPException(status_code=403, detail='Forbidden')
+      raise forbidden('Forbidden', diagnostic=f'No Discord user for {discord_id}')
     try:
       registered_mask = auth.require_role_mask('ROLE_REGISTERED')
     except KeyError as exc:
       message = 'Required role is undefined: ROLE_REGISTERED'
       _logger.error('[RPC] %s', message)
-      raise HTTPException(status_code=500, detail=message) from exc
+      raise internal_error('Required role is undefined', code='rpc.role.undefined', diagnostic=message) from exc
     if not (mask & registered_mask):
-      raise HTTPException(status_code=403, detail='Forbidden')
+      raise forbidden('Forbidden', diagnostic=f'Discord user {guid} missing ROLE_REGISTERED')
     auth_ctx.user_guid = guid
     auth_ctx.roles = roles
     auth_ctx.role_mask = mask
@@ -143,7 +162,10 @@ async def _validate_rpc_identity(
     identity_source = 'discord'
     _logger.debug('[RPC] Resolved Discord roles for %s: %s (mask=%#018x)', guid, roles, mask)
   elif domain not in ('public', 'auth') and not identity_source:
-    raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
+    raise unauthorized(
+      'Missing or invalid authorization header',
+      diagnostic='Protected domain without token or MTLS assertion',
+    )
 
   if identity_source:
     audit_payload = {

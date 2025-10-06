@@ -2,6 +2,7 @@
 from typing import Any, Dict
 from collections.abc import Mapping
 import inspect
+import logging
 
 from ... import DbProviderBase, DBResult
 from .logic import init_pool, close_pool
@@ -10,6 +11,11 @@ from .db_helpers import run_operation
 from importlib import import_module
 
 from server.registry.types import DBRequest, DBResponse
+from server.helpers.context import get_request_id
+from server.errors import RPCServiceError, internal_error
+
+
+_logger = logging.getLogger(__name__)
 
 
 def _get_provider_queries():
@@ -52,13 +58,29 @@ class MssqlProvider(DbProviderBase):
 
   async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
     handler = self._resolve_provider_callable(op)
-    request = DBRequest(op=op, params=args)
-    response = handler(request)
-    if inspect.isawaitable(response):
-      response = await response
+    request_id = get_request_id()
+    metadata = {'request_id': request_id} if request_id else None
+    request = DBRequest(op=op, params=args, metadata=metadata)
+    if request_id:
+      _logger.debug('[MSSQL %s] Dispatching provider handler for %s', request_id, op)
+    try:
+      response = handler(request)
+      if inspect.isawaitable(response):
+        response = await response
+    except RPCServiceError:
+      raise
+    except Exception as exc:
+      _logger.error('[MSSQL %s] Handler failure for %s: %s', request_id, op, exc)
+      raise internal_error(
+        'Database provider execution failed',
+        code='rpc.db.provider_failure',
+        diagnostic=str(exc),
+      ) from exc
     if not isinstance(response, DBResponse):
       raise TypeError(
         f"Handler '{op}' returned unsupported result type: {type(response)!r}."
         " Expected DBResponse."
       )
+    if request_id:
+      _logger.debug('[MSSQL %s] Provider handler completed for %s', request_id, op)
     return response.to_result(result_cls=DBResult)

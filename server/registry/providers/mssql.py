@@ -7,8 +7,11 @@ import inspect
 from collections.abc import Iterable
 from typing import Any
 
+import logging
+
 from server.registry import ProviderBinding, RegistryRouter
 from server.registry.types import DBRequest, DBResponse
+from server.helpers.context import get_request_id
 
 from . import ProviderCallable, ProviderDescriptor, ProviderQueryMap, RawProvider
 
@@ -24,10 +27,21 @@ def _get_provider():
   return importlib.import_module("server.modules.providers.database.mssql_provider")
 
 
+_logger = logging.getLogger(__name__)
+
+
 async def _run_operation(kind: str, sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:
   provider = _get_provider()
+  request_id = get_request_id()
+  payload_meta = dict(meta or {})
+  if request_id and payload_meta.get('request_id') != request_id:
+    payload_meta['request_id'] = request_id
+  if request_id:
+    _logger.debug('[MSSQL %s] Executing query %s', request_id, sql.split()[0])
   result = await provider.run_operation(kind, sql, tuple(params))
-  return DBResponse.from_result(result, meta=meta)
+  if request_id:
+    _logger.debug('[MSSQL %s] Query completed %s', request_id, sql.split()[0])
+  return DBResponse.from_result(result, meta=payload_meta or None)
 
 
 async def run_json_one(sql: str, params: Iterable[Any] = (), *, meta: dict[str, Any] | None = None) -> DBResponse:

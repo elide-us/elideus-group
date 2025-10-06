@@ -22,6 +22,13 @@ flowchart TD
 * **Providers** – External systems such as databases and identity services.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
+## Logging and Request Correlation
+
+* Each RPC request receives a server-generated `request_id` during request unpacking.
+* The `request_id` propagates through RPC handlers, modules, providers, and database helpers via contextual metadata.
+* All log statements at those boundaries must include the `request_id` to provide end-to-end traceability.
+* Providers are responsible for translating internal exceptions into structured RPC errors so diagnostic context is logged while the client receives a user-safe message.
+
 ## Security Model
 
 ### Role Bit Assignments
