@@ -9,11 +9,15 @@ import logging
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DBResult, DbProviderBase, get_dbresult_cls
+from server.helpers.context import get_request_id
+from server.helpers.logging import update_logging_level
 from server.registry import RegistryDispatcher
 from server.registry.types import DBRequest, DBResponse
-from server.helpers.logging import update_logging_level
 from server.registry.security.accounts import account_exists_request
 from server.registry.system.config import get_config_request
+_logger = logging.getLogger(__name__)
+
+
 class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -61,7 +65,18 @@ class DbModule(BaseModule):
       request = op
     else:
       request = DBRequest(op=op, params=args or {})
+    request_id = get_request_id()
+    metadata = dict(request.metadata or {})
+    if request_id and metadata.get('request_id') != request_id:
+      metadata['request_id'] = request_id
+      request = request.model_copy(update={'metadata': metadata})
+    elif request.metadata is None and request_id:
+      request = request.model_copy(update={'metadata': {'request_id': request_id}})
+    if request_id:
+      _logger.debug('[DB %s] Executing %s', request_id, request.op)
     response = await self._registry.execute(request)
+    if request_id:
+      _logger.debug('[DB %s] Completed %s', request_id, request.op)
     DBResultCls = get_dbresult_cls()
     if not isinstance(response, DBResponse):
       if isinstance(response, DBResultCls):

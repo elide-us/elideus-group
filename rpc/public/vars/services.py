@@ -1,5 +1,6 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 from rpc.helpers import resolve_required_mask, unbox_request
+from server.errors import forbidden, internal_error
 from server.models import RPCResponse
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -54,11 +55,11 @@ async def public_vars_get_ffmpeg_version_v1(request: Request):
   if vars_mod.auth:
     required_mask = resolve_required_mask(vars_mod.auth, "ROLE_SERVICE_ADMIN")
   if not (auth_ctx.role_mask & required_mask):
-    raise HTTPException(status_code=403, detail="Forbidden")
+    raise forbidden("Forbidden", diagnostic="ROLE_SERVICE_ADMIN required")
   try:
     version_line = await vars_mod.get_ffmpeg_version()
   except Exception as e:
-    raise HTTPException(status_code=500, detail=str(e))
+    raise internal_error("Failed to read ffmpeg version", diagnostic=str(e))
   payload = PublicVarsFfmpegVersion1(ffmpeg_version=version_line)
   return RPCResponse(
     op=rpc_request.op,
@@ -73,11 +74,11 @@ async def public_vars_get_odbc_version_v1(request: Request):
   if vars_mod.auth:
     required_mask = resolve_required_mask(vars_mod.auth, "ROLE_SERVICE_ADMIN")
   if not (auth_ctx.role_mask & required_mask):
-    raise HTTPException(status_code=403, detail="Forbidden")
+    raise forbidden("Forbidden", diagnostic="ROLE_SERVICE_ADMIN required")
   try:
     version_line = await vars_mod.get_odbc_version()
   except Exception as e:
-    raise HTTPException(status_code=500, detail=str(e))
+    raise internal_error("Failed to read ODBC version", diagnostic=str(e))
   payload = PublicVarsOdbcVersion1(odbc_version=version_line)
   return RPCResponse(
     op=rpc_request.op,

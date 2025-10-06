@@ -20,6 +20,7 @@ models_mod = types.ModuleType('server.models')
 class RPCRequest:
   def __init__(self, **data):
     self.__dict__.update(data)
+    self.request_id = getattr(self, 'request_id', 'test-request-id')
 
 class RPCResponse:
   def __init__(self, **data):
@@ -43,6 +44,7 @@ sys.modules.pop('server', None)
 sys.modules['server'] = server_pkg
 
 from rpc.helpers import unbox_request
+from server.errors import RPCServiceError, as_http_exception
 
 class DummyAuth:
   role_registered = 1
@@ -62,7 +64,10 @@ app.state.auth = DummyAuth()
 
 @app.post('/rpc')
 async def parse_rpc(request: Request):
-  rpc_request, auth_ctx, parts = await unbox_request(request)
+  try:
+    rpc_request, auth_ctx, parts = await unbox_request(request)
+  except RPCServiceError as exc:
+    raise as_http_exception(exc)
   return {'user_role': auth_ctx.role_mask, 'parts': parts}
 
 client = TestClient(app)
