@@ -26,7 +26,7 @@ mssql = profile_mssql
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=f"db:users:profile:{name}:1", params=params)
+  return DBRequest(op=f"db:content:profile:{name}:1", params=params)
 
 
 def get_profile_request(*, guid: str) -> DBRequest:

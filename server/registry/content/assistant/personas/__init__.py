@@ -17,7 +17,7 @@ __all__ = [
   "upsert_persona_request",
 ]
 
-_OP_PREFIX = "db:system:assistant.personas"
+_OP_PREFIX = "db:content:assistant.personas"
 
 
 def _op(name: str) -> str:

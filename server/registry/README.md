@@ -46,6 +46,19 @@ level is organised around the `system`, `users`, and `finance` domains:
 
 ```
 server/registry/
+  content/
+    assistant/
+      conversations/
+      models/
+      personas/
+    profile/
+    public/
+      links/
+      users/
+    storage/
+      cache/
+      files/
+      public/
   finance/
     credits/
       __init__.py
@@ -63,13 +76,6 @@ server/registry/
     roles/
     routes/
   users/
-    content/
-      cache/
-      files/
-      public/
-    profile/
-    public/
-      users/
     security/
       accounts/
       identities/
@@ -77,15 +83,16 @@ server/registry/
       sessions/
 ```
 
-* **System domain** centralises global metadata such as assistant
-  conversations/models/personas, runtime configuration, public navigation data,
-  and role/route registries. Subdomains use dotted names (`assistant.conversations`,
-  `public.links`, …) so the generated URNs follow the
+* **Content domain** centralises generation and content delivery flows. All
+  assistant conversations/models/personas, storage helpers, public navigation
+  data, and profile/public gallery lookups live under the
+  `db:content:*` namespace with dotted subdomains such as
+  `assistant.conversations`, `storage.cache`, and `public.links`.
+* **System domain** retains global runtime configuration, role, and route
+  registries. Subdomains like `config` or `routes` continue to follow the
   `db:system:{subdomain}:{operation}:{version}` pattern.
-* **Users domain** contains user-scoped behaviour. Content storage helpers,
-  public profile lookups, and security/authentication flows now live under the
-  `db:users:*` namespace with dotted subdomains like
-  `content.cache` or `security.sessions`.
+* **Users domain** now focuses solely on security/authentication flows via the
+  `db:users:security.*` namespaces.
 * **Finance domain** captures billing-related operations. Today it exposes the
   credits writer under `db:finance:credits:set:1`.
 
@@ -93,37 +100,40 @@ Representative URNs:
 
 | Registry key | Target module | Notes |
 | --- | --- | --- |
-| `db:system:assistant.conversations:insert:1` | `system.assistant.conversations` | Persists assistant conversation transcripts. |
-| `db:system:assistant.models:list:1` | `system.assistant.models` | Lists configured LLM backends. |
-| `db:system:public.links:get_navbar_routes:1` | `system.public.links` | Provides navigation metadata for the UI shell. |
+| `db:content:assistant.conversations:insert:1` | `content.assistant.conversations` | Persists assistant conversation transcripts. |
+| `db:content:assistant.models:list:1` | `content.assistant.models` | Lists configured LLM backends. |
+| `db:content:assistant.personas:get_by_name:1` | `content.assistant.personas` | Retrieves configured persona metadata. |
+| `db:content:storage.cache:list:1` | `content.storage.cache` | Fetches cached storage items for a user. |
+| `db:content:storage.public:get_public_files:1` | `content.storage.public` | Returns public gallery entries. |
+| `db:content:storage.files:set_gallery:1` | `content.storage.files` | Toggles gallery status for a file. |
+| `db:content:public.links:get_navbar_routes:1` | `content.public.links` | Provides navigation metadata for the UI shell. |
+| `db:content:public.users:get_published_files:1` | `content.public.users` | Exposes public profile assets. |
+| `db:content:profile:get_profile:1` | `content.profile` | Retrieves a user's profile and linked providers. |
 | `db:system:public.vars:get_version:1` | `system.public.vars` | Reports service version/host metadata. |
-| `db:users:content.cache:list:1` | `users.content.cache` | Fetches cached storage items for a user. |
-| `db:users:content.public:get_public_files:1` | `users.content.public` | Returns public gallery entries. |
-| `db:users:content.files:set_gallery:1` | `users.content.files` | Toggles gallery status for a file. |
-| `db:users:public.users:get_published_files:1` | `users.public.users` | Exposes public profile assets. |
-| `db:users:security.accounts:get_security_profile:1` | `users.security.accounts` | Primary security/profile view. |
 | `db:users:security.sessions:create_session:1` | `users.security.sessions` | Issues a new session + device token. |
+| `db:users:security.accounts:get_security_profile:1` | `users.security.accounts` | Primary security/profile view. |
 | `db:finance:credits:set:1` | `finance.credits` | Writes billing credit balances. |
 
 Legacy `db:assistant:*`, `db:content:*`, `db:public:*`, and `db:security:*`
 namespaces have been folded into the consolidated layout above. Modules now call
-the `db:system:*`, `db:users:*`, or `db:finance:*` URNs directly via the registry.
+the `db:content:*`, `db:system:*`, `db:users:*`, or `db:finance:*` URNs directly
+via the registry.
 
 ## 4. Registry module contract
 Each domain package will provide a `register(registry: RegistryRouter)` function
 that registers its submodules. The implementation shape:
 
 ```python
-# server/registry/users/__init__.py
-from . import content, profile, public, security
+# server/registry/content/__init__.py
+from . import assistant, profile, public, storage
 
 
 def register(registry: RegistryRouter) -> None:
-  domain = registry.domain("users")
-  content.register(domain)
+  domain = registry.domain("content")
+  assistant.register(domain)
   profile.register(domain.subdomain("profile"))
   public.register(domain)
-  security.register(domain)
+  storage.register(domain)
 ```
 
 Each subdomain exposes a `register` helper that wires its functions to the
@@ -131,14 +141,14 @@ provider map. Aggregators such as `users/content/__init__.py` translate dotted
 subdomain names into the correct `SubdomainRouter`:
 
 ```python
-# server/registry/users/content/__init__.py
+# server/registry/content/storage/__init__.py
 from . import cache, files, public
 
 
 def register(domain: DomainRouter) -> None:
-  cache.register(domain.subdomain("content.cache"))
-  files.register(domain.subdomain("content.files"))
-  public.register(domain.subdomain("content.public"))
+  cache.register(domain.subdomain("storage.cache"))
+  files.register(domain.subdomain("storage.files"))
+  public.register(domain.subdomain("storage.public"))
 ```
 
 Leaf modules (`users/content/cache/__init__.py`,
@@ -150,7 +160,7 @@ provider uses a descriptive name you can supply an `implementation=` hint (for
 example `implementation="insert_conversation"`).
 
 ```python
-# server/registry/users/content/cache/__init__.py
+# server/registry/content/storage/cache/__init__.py
 from . import mssql
 
 

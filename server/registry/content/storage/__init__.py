@@ -1,4 +1,4 @@
-"""Content registry bindings for the users domain."""
+"""Storage registry bindings for the content domain."""
 
 from __future__ import annotations
 
@@ -18,6 +18,6 @@ __all__ = [
 
 
 def register(domain: "DomainRouter") -> None:
-  cache.register(domain.subdomain("content.cache"))
-  files.register(domain.subdomain("content.files"))
-  public.register(domain.subdomain("content.public"))
+  cache.register(domain.subdomain("storage.cache"))
+  files.register(domain.subdomain("storage.files"))
+  public.register(domain.subdomain("storage.public"))

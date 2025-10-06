@@ -35,13 +35,13 @@ def _normalize_cache_item_payload(item: Dict[str, Any]) -> Dict[str, Any]:
 
 def list_cache_request(user_guid: str):
   from server.registry.types import DBRequest
-  return DBRequest(op="db:users:content.cache:list:1", params={"user_guid": user_guid})
+  return DBRequest(op="db:content:storage.cache:list:1", params={"user_guid": user_guid})
 
 
 def replace_user_cache_request(user_guid: str, items: Iterable[Dict[str, Any]]):
   from server.registry.types import DBRequest
   normalized = [_normalize_cache_item_payload(item) for item in items]
-  return DBRequest(op="db:users:content.cache:replace_user:1", params={
+  return DBRequest(op="db:content:storage.cache:replace_user:1", params={
     "user_guid": user_guid,
     "items": normalized,
   })
@@ -50,12 +50,12 @@ def replace_user_cache_request(user_guid: str, items: Iterable[Dict[str, Any]]):
 def upsert_cache_item_request(item: Dict[str, Any]):
   from server.registry.types import DBRequest
   normalized = _normalize_cache_item_payload(item)
-  return DBRequest(op="db:users:content.cache:upsert:1", params=normalized)
+  return DBRequest(op="db:content:storage.cache:upsert:1", params=normalized)
 
 
 def delete_cache_item_request(user_guid: str, path: str, filename: str):
   from server.registry.types import DBRequest
-  return DBRequest(op="db:users:content.cache:delete:1", params={
+  return DBRequest(op="db:content:storage.cache:delete:1", params={
     "user_guid": user_guid,
     "path": path,
     "filename": filename,
@@ -64,7 +64,7 @@ def delete_cache_item_request(user_guid: str, path: str, filename: str):
 
 def delete_cache_folder_request(user_guid: str, path: str):
   from server.registry.types import DBRequest
-  return DBRequest(op="db:users:content.cache:delete_folder:1", params={
+  return DBRequest(op="db:content:storage.cache:delete_folder:1", params={
     "user_guid": user_guid,
     "path": path,
   })
@@ -89,7 +89,7 @@ def set_public_request(
     params["path"] = path
   if filename is not None:
     params["filename"] = filename
-  return DBRequest(op="db:users:content.cache:set_public:1", params=params)
+  return DBRequest(op="db:content:storage.cache:set_public:1", params=params)
 
 
 def set_reported_request(
@@ -100,7 +100,7 @@ def set_reported_request(
   reported: bool = True,
 ):
   from server.registry.types import DBRequest
-  return DBRequest(op="db:users:content.cache:set_reported:1", params={
+  return DBRequest(op="db:content:storage.cache:set_reported:1", params={
     "user_guid": user_guid,
     "path": path,
     "filename": filename,
@@ -110,7 +110,7 @@ def set_reported_request(
 
 def count_rows_request():
   from server.registry.types import DBRequest
-  return DBRequest(op="db:users:content.cache:count_rows:1", params={})
+  return DBRequest(op="db:content:storage.cache:count_rows:1", params={})
 
 
 def register(router: "SubdomainRouter") -> None:

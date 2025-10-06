@@ -12,7 +12,7 @@ from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.users.security.identities import mssql as security_identities
 from server.registry.finance.credits import mssql as finance_credits_backend
 from server.registry.finance.credits import set_credits_request
-from server.registry.users.profile import mssql as users_profile_backend
+from server.registry.content.profile import mssql as users_profile_backend
 from server.registry.types import DBResponse
 
 
