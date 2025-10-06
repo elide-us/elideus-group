@@ -130,6 +130,7 @@ def get_provider_queries(
   if bindings is not None:
     return build_provider_queries(bindings)
   if _PROVIDER_QUERIES is None:
+    importlib.import_module("server.registry.content")
     importlib.import_module("server.registry.users")
     importlib.import_module("server.registry.finance")
     importlib.import_module("server.registry.system")

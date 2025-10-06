@@ -6,8 +6,8 @@ from server.modules.providers import DBResult, DbRunMode
 from server.modules.providers.database.mssql_provider import MssqlProvider
 from server.registry.providers import mssql as registry_mssql
 from server.registry.types import DBResponse
-from server.registry.users.content.files import set_gallery_request
-from server.registry.users.content.cache import set_public_request
+from server.registry.content.storage.files import set_gallery_request
+from server.registry.content.storage.cache import set_public_request
 
 
 def _set_provider_callable(monkeypatch, provider_map: str, handler):
@@ -87,7 +87,7 @@ def test_run_row_many(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
-  res = asyncio.run(provider.run("db:users:public.users:get_published_files:1", {"guid": guid}))
+  res = asyncio.run(provider.run("db:content:public.users:get_published_files:1", {"guid": guid}))
 
   assert isinstance(res, DBResult)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
@@ -224,8 +224,8 @@ def test_storage_public_lists_share_query(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
-  asyncio.run(provider.run("db:users:content.public:list_public:1", {}))
-  asyncio.run(provider.run("db:users:content.public:get_public_files:1", {}))
+  asyncio.run(provider.run("db:content:storage.public:list_public:1", {}))
+  asyncio.run(provider.run("db:content:storage.public:get_public_files:1", {}))
 
   assert len(seen) == 2
   assert seen[0][1] == seen[1][1]

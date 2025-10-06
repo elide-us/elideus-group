@@ -21,11 +21,11 @@ def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
 
 
 def get_profile_request(*, guid: str) -> DBRequest:
-  return _request("db:users:public.users:get_profile:1", {"guid": guid})
+  return _request("db:content:public.users:get_profile:1", {"guid": guid})
 
 
 def get_published_files_request(*, guid: str) -> DBRequest:
-  return _request("db:users:public.users:get_published_files:1", {"guid": guid})
+  return _request("db:content:public.users:get_published_files:1", {"guid": guid})
 
 
 def register(router: "SubdomainRouter") -> None:

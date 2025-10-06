@@ -1,4 +1,4 @@
-"""Assistant registry bindings for the system domain."""
+"""Assistant registry bindings for the content domain."""
 
 from __future__ import annotations
 
