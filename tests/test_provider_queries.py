@@ -10,6 +10,8 @@ from server.registry.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.support.users import mssql as support_users
 from server.registry.security.identities import mssql as security_identities
+from server.registry.users.credits import mssql as users_credits_backend
+from server.registry.users.credits import set_credits_request
 from server.registry.users.profile import mssql as users_profile_backend
 from server.registry.types import DBResponse
 
@@ -119,10 +121,21 @@ def test_mssql_support_users_set_credits_updates_table(monkeypatch):
     captured["params"] = params
     return DBResponse()
 
-  monkeypatch.setattr(support_users, "run_exec", fake_run_exec)
+  monkeypatch.setattr(users_credits_backend, "run_exec", fake_run_exec)
   asyncio.run(support_users.set_credits_v1({"guid": "gid", "credits": 10}))
   assert "update users_credits" in captured["sql"].lower()
   assert captured["params"] == (10, "gid")
+
+
+def test_users_credits_route_registered():
+  request = set_credits_request(guid="gid", credits=10)
+  provider_map = _provider_map_for(request.op)
+  assert provider_map in PROVIDER_QUERIES
+
+
+def test_account_users_route_removed():
+  provider_map = _provider_map_for("db:account:users:set_credits:1")
+  assert provider_map not in PROVIDER_QUERIES
 
 
 def test_fetch_rows_raises_structured_error(monkeypatch):

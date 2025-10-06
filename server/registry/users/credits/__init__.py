@@ -1,26 +1,33 @@
-"""Account user registry helpers."""
+"""User credits registry helpers."""
 
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
+from . import mssql as credits_mssql
+
 from server.registry.types import DBRequest
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
 __all__ = [
+  "mssql",
   "set_credits_request",
   "register",
 ]
 
+mssql = credits_mssql
+
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=f"db:account:users:{name}:1", params=params)
+  return DBRequest(op=f"db:users:credits:{name}:1", params=params)
 
 
 def set_credits_request(*, guid: str, credits: int) -> DBRequest:
-  return _request("set_credits", {"guid": guid, "credits": credits})
+  params = {"guid": guid, "credits": credits}
+  return _request("set", params)
 
 
 def register(router: "SubdomainRouter") -> None:
-  router.add_function("set_credits", version=1)
+  router.add_function("set", version=1, implementation="set_credits")
