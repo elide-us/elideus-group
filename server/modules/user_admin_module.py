@@ -3,7 +3,7 @@ from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
 from server.registry.account.users import set_credits_request
-from server.registry.accounts.profile import (
+from server.registry.users.profile import (
   get_profile_request,
   set_display_request,
 )

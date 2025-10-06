@@ -11,7 +11,6 @@ from server.modules.providers.database.mssql_provider import MssqlProvider
 from server.modules.providers.database.mssql_provider.db_helpers import DBQueryError, QueryErrorDetail
 from server.registry import RegistryDispatcher, RegistryRouter
 from server.registry.types import DBRequest, DBResponse
-from server.registry.users.profile import mssql as users_profile_mssql
 
 
 def _install_stub_provider(monkeypatch, name: str, queries: dict[str, Any]) -> str:
@@ -248,35 +247,3 @@ def test_provider_startup_checks_missing_callable(monkeypatch):
     dispatcher.bind_provider(provider, provider_name=provider_name)
 
   assert "db:demo:ops:missing:1" in str(exc.value)
-
-
-def test_accounts_profile_routes_resolve_wrappers(monkeypatch):
-  router = RegistryRouter()
-  router.register_domains()
-
-  route = router.resolve("db:accounts:profile:get_profile:1")
-  assert route is not None
-  assert route.provider_map == "accounts.profile.get_profile"
-
-  binding = router.provider_bindings[route.key]
-  assert binding.descriptor == (
-    "server.registry.accounts.profile.mssql",
-    "get_profile_v1",
-  )
-
-  captured: dict[str, Any] = {}
-
-  async def fake_get_profile(args: dict[str, Any]) -> DBResponse:
-    captured["args"] = args
-    return DBResponse(rows=[{"ok": True}], rowcount=1)
-
-  monkeypatch.setattr(users_profile_mssql, "get_profile_v1", fake_get_profile)
-
-  router.load_provider("mssql")
-  executor = router.get_executor(route)
-
-  request = DBRequest(op=route.key, params={"guid": "gid"})
-  response = asyncio.run(executor(request))
-
-  assert response.rows == [{"ok": True}]
-  assert captured["args"] == {"guid": "gid"}

@@ -8,7 +8,7 @@ from server.registry.types import DBRequest
 
 import pytest
 from fastapi import HTTPException
-from server.registry.accounts.profile import set_profile_image_request
+from server.registry.users.profile import set_profile_image_request
 
 # stub rpc package
 pkg = types.ModuleType("rpc")

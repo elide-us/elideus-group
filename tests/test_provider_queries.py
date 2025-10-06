@@ -9,7 +9,6 @@ from server.modules.providers import DbRunMode
 from server.registry.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.support.users import mssql as support_users
-from server.registry.accounts.profile import mssql as users_profile
 from server.registry.security.identities import mssql as security_identities
 from server.registry.users.profile import mssql as users_profile_backend
 from server.registry.types import DBResponse
@@ -50,7 +49,7 @@ def test_mssql_get_profile_uses_profile_view(monkeypatch):
     return DBResponse()
 
   monkeypatch.setattr(users_profile_backend, "run_json_one", fake_run_json_one)
-  asyncio.run(users_profile.get_profile_v1({"guid": "gid"}))
+  asyncio.run(users_profile_backend.get_profile_v1({"guid": "gid"}))
   sql = captured["sql"].lower()
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
