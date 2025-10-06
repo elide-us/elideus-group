@@ -13,6 +13,7 @@ class DummyEnv(BaseModule):
       "DISCORD_SECRET": "secret",
       "DISCORD_RPC_BASE_URL": "https://api.example.com",
       "DISCORD_RPC_TOKEN": "token",
+      "DISCORD_RPC_SIGNING_SECRET": "signing",
     }
 
   async def startup(self):

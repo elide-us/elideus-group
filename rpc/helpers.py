@@ -1,6 +1,6 @@
 from __future__ import annotations
-import logging
-from typing import TYPE_CHECKING
+import hmac, logging, time
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException as FastAPIHTTPException
 from fastapi import Request
@@ -15,6 +15,7 @@ from server.errors import (
   service_unavailable,
   unauthorized,
 )
+from server.helpers.discord_signing import compute_signature
 
 if TYPE_CHECKING:
   from server.modules import AuthService
@@ -40,6 +41,10 @@ def _get_token_from_request(request: Request) -> str | None:
 _logger = logging.getLogger(__name__)
 _audit_logger = logging.getLogger('security.audit')
 
+_DISCORD_SIGNATURE_HEADER = 'x-discord-signature'
+_DISCORD_SIGNATURE_TIMESTAMP_HEADER = 'x-discord-signature-timestamp'
+_DISCORD_SIGNATURE_TOLERANCE_SECONDS = 300
+
 
 def _get_discord_id_from_request(request: Request) -> str | None:
   ctx = getattr(request.state, 'discord_ctx', None)
@@ -61,7 +66,128 @@ def _get_mtls_subject(request: Request) -> str | None:
   return None
 
 
-def resolve_required_mask(auth: 'AuthService', role_name: str) -> int:
+def _signature_body_from_request(rpc_request: RPCRequest) -> dict[str, Any]:
+  body = {'op': rpc_request.op, 'version': rpc_request.version}
+  if rpc_request.payload is not None:
+    body['payload'] = rpc_request.payload
+  return body
+
+
+def _audit_discord_signature_failure(
+  reason: str,
+  request: Request,
+  rpc_request: RPCRequest,
+  *,
+  code: str,
+) -> None:
+  extra = {
+    'event': 'rpc.discord.signature.failure',
+    'reason': reason,
+    'code': code,
+    'op': getattr(rpc_request, 'op', None),
+  }
+  discord_id = request.headers.get('x-discord-id')
+  guild_id = request.headers.get('x-discord-guild-id')
+  channel_id = request.headers.get('x-discord-channel-id')
+  if discord_id:
+    extra['discord_id'] = str(discord_id)
+  if guild_id:
+    extra['guild_id'] = str(guild_id)
+  if channel_id:
+    extra['channel_id'] = str(channel_id)
+  _audit_logger.error('rpc.discord.signature.failure', extra=extra)
+
+
+def _get_discord_signing_secret(request: Request) -> str:
+  env = getattr(request.app.state, 'env', None)
+  if not env:
+    raise service_unavailable(
+      'Discord signature validation unavailable',
+      code='rpc.discord.signature_env_missing',
+      diagnostic='Environment module is missing from app state',
+    )
+  try:
+    secret = env.get('DISCORD_RPC_SIGNING_SECRET')
+  except Exception as exc:  # pragma: no cover - defensive guard
+    raise service_unavailable(
+      'Discord signature validation unavailable',
+      code='rpc.discord.signature_secret_missing',
+      diagnostic='Discord signing secret is not configured',
+    ) from exc
+  if not secret or str(secret).startswith('MISSING_'):
+    raise service_unavailable(
+      'Discord signature validation unavailable',
+      code='rpc.discord.signature_secret_missing',
+      diagnostic='Discord signing secret is not configured',
+    )
+  return str(secret)
+
+
+def _require_discord_signature(request: Request, rpc_request: RPCRequest) -> None:
+  signature = request.headers.get(_DISCORD_SIGNATURE_HEADER)
+  timestamp = request.headers.get(_DISCORD_SIGNATURE_TIMESTAMP_HEADER)
+  if not signature or not timestamp:
+    _audit_discord_signature_failure('missing', request, rpc_request, code='rpc.auth.signature_missing')
+    raise unauthorized(
+      'Discord signature missing',
+      code='rpc.auth.signature_missing',
+      diagnostic='Discord request missing signature headers',
+    )
+  try:
+    timestamp_int = int(str(timestamp))
+  except ValueError as exc:
+    _audit_discord_signature_failure(
+      'invalid_timestamp',
+      request,
+      rpc_request,
+      code='rpc.auth.signature_invalid_timestamp',
+    )
+    raise unauthorized(
+      'Discord signature invalid',
+      code='rpc.auth.signature_invalid_timestamp',
+      diagnostic='Discord signature timestamp is invalid',
+    ) from exc
+  now = int(time.time())
+  if abs(now - timestamp_int) > _DISCORD_SIGNATURE_TOLERANCE_SECONDS:
+    _audit_discord_signature_failure(
+      'expired',
+      request,
+      rpc_request,
+      code='rpc.auth.signature_expired',
+    )
+    raise unauthorized(
+      'Discord signature expired',
+      code='rpc.auth.signature_expired',
+      diagnostic='Discord signature timestamp outside tolerance window',
+    )
+  try:
+    secret = _get_discord_signing_secret(request)
+  except RPCServiceError as exc:
+    _audit_discord_signature_failure('secret_unavailable', request, rpc_request, code=exc.detail.code)
+    raise
+  expected = compute_signature(
+    secret,
+    body=_signature_body_from_request(rpc_request),
+    timestamp=str(timestamp_int),
+    user_id=request.headers.get('x-discord-id'),
+    guild_id=request.headers.get('x-discord-guild-id'),
+    channel_id=request.headers.get('x-discord-channel-id'),
+  )
+  if not hmac.compare_digest(signature, expected):
+    _audit_discord_signature_failure(
+      'mismatch',
+      request,
+      rpc_request,
+      code='rpc.auth.signature_invalid',
+    )
+    raise unauthorized(
+      'Discord signature invalid',
+      code='rpc.auth.signature_invalid',
+      diagnostic='Discord signature verification failed',
+    )
+
+
+def resolve_required_mask(auth: 'AuthService', role_name: str, *, context: str | None = None) -> int:
   if not role_name:
     raise internal_error('Role name must be provided', code='rpc.role.missing')
   try:
@@ -69,7 +195,13 @@ def resolve_required_mask(auth: 'AuthService', role_name: str) -> int:
   except KeyError as exc:
     message = f'Required role is undefined: {role_name}'
     _logger.error('[RPC] %s', message)
-    raise internal_error('Required role is undefined', code='rpc.role.undefined', diagnostic=message) from exc
+    audit_payload = {
+      'event': 'rpc.role.undefined',
+      'role': role_name,
+      'context': context or 'rpc.resolve_required_mask',
+    }
+    _audit_logger.error('rpc.role.undefined', extra=audit_payload)
+    raise forbidden('Forbidden', code='rpc.role.undefined', diagnostic=message) from exc
 
 
 async def _validate_rpc_identity(
@@ -139,18 +271,14 @@ async def _validate_rpc_identity(
     _logger.debug('[RPC] Resolved MTLS roles for %s: %s (mask=%#018x)', mtls_subject, roles, mask)
 
   if domain == 'discord':
+    _require_discord_signature(request, rpc_request)
     discord_id = _get_discord_id_from_request(request)
     if not discord_id:
       raise unauthorized('Discord identity assertion missing', diagnostic='No Discord ID in request')
     guid, roles, mask = await auth.get_discord_user_security(discord_id)
     if not guid:
       raise forbidden('Forbidden', diagnostic=f'No Discord user for {discord_id}')
-    try:
-      registered_mask = auth.require_role_mask('ROLE_REGISTERED')
-    except KeyError as exc:
-      message = 'Required role is undefined: ROLE_REGISTERED'
-      _logger.error('[RPC] %s', message)
-      raise internal_error('Required role is undefined', code='rpc.role.undefined', diagnostic=message) from exc
+    registered_mask = resolve_required_mask(auth, 'ROLE_REGISTERED', context='discord.identity')
     if not (mask & registered_mask):
       raise forbidden('Forbidden', diagnostic=f'Discord user {guid} missing ROLE_REGISTERED')
     auth_ctx.user_guid = guid

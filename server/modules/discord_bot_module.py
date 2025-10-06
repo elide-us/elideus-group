@@ -1,6 +1,6 @@
 """Discord bot coordination module."""
 
-import json, logging, discord, asyncio, os
+import json, logging, discord, asyncio, os, time
 from typing import IO, TYPE_CHECKING, Any
 from fastapi import FastAPI
 from discord.ext import commands
@@ -21,6 +21,7 @@ from .env_module import EnvModule
 from .db_module import DbModule
 from server.models import RPCResponse
 from server.registry.system.config import get_config_request
+from server.helpers.discord_signing import compute_signature
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers
@@ -55,6 +56,7 @@ class DiscordBotModule(BaseModule):
     self.input_provider: "DiscordInputProvider" | None = None
     self.rpc_base_url: str | None = None
     self.rpc_token: str | None = None
+    self.rpc_signing_secret: str | None = None
     if not getattr(self.app.state, "discord_bot", None):
       setattr(self.app.state, "discord_bot", self)
 
@@ -77,6 +79,9 @@ class DiscordBotModule(BaseModule):
       self.secret = self.env.get("DISCORD_SECRET")
       self.rpc_base_url = (self.env.get("DISCORD_RPC_BASE_URL") or "").rstrip('/')
       self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
+      self.rpc_signing_secret = self.env.get("DISCORD_RPC_SIGNING_SECRET")
+      if not self.rpc_signing_secret or self.rpc_signing_secret.startswith("MISSING_"):
+        raise RuntimeError("Discord RPC signing secret is not configured")
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
@@ -222,6 +227,19 @@ class DiscordBotModule(BaseModule):
     body = {"op": op, "version": version}
     if payload is not None:
       body["payload"] = payload
+    if not self.rpc_signing_secret:
+      raise RuntimeError("Discord RPC signing secret is not configured")
+    timestamp = str(int(time.time()))
+    headers["X-Discord-Signature-Timestamp"] = timestamp
+    signature = compute_signature(
+      self.rpc_signing_secret,
+      body=body,
+      timestamp=timestamp,
+      user_id=headers.get("X-Discord-Id"),
+      guild_id=headers.get("X-Discord-Guild-Id"),
+      channel_id=headers.get("X-Discord-Channel-Id"),
+    )
+    headers["X-Discord-Signature"] = signature
     async with aiohttp.ClientSession() as session:
       async with session.post(url, json=body, headers=headers) as response:
         text = await response.text()
