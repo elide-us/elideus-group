@@ -9,7 +9,7 @@ from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
-from server.registry.content.profile import (
+from server.registry.users.content.profile import (
   set_profile_image_request,
   update_if_unedited_request,
 )

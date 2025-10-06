@@ -14,7 +14,7 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 from server.modules.oauth_module import OauthModule
-from server.registry.content.profile import (
+from server.registry.users.content.profile import (
   get_profile_request,
   update_if_unedited_request,
 )

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.content.public.links import (
+from server.registry.system.public.links import (
   get_home_links_request,
   get_navbar_routes_request,
 )

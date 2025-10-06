@@ -1,6 +1,6 @@
 import asyncio
 
-from server.registry.content.storage.cache import mssql as content_cache
+from server.registry.users.content.cache import mssql as content_cache
 from server.registry.types import DBResponse
 
 

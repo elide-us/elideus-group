@@ -15,7 +15,7 @@ __all__ = [
   "register",
 ]
 
-_OP_PREFIX = "db:content:assistant.models"
+_OP_PREFIX = "db:system:assistant.models"
 
 
 def _op(name: str) -> str:

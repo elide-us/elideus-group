@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from server.registry.types import DBRequest
 
 from server.modules.oauth_module import OauthModule
-from server.registry.content.profile import set_profile_image_request
+from server.registry.users.content.profile import set_profile_image_request
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):

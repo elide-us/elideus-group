@@ -28,7 +28,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
   monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
   res = asyncio.run(provider.run(
-    'db:content:assistant.conversations:list_by_time:1',
+    'db:system:assistant.conversations:list_by_time:1',
     {'personas_recid': personas_recid, 'start': start, 'end': end},
   ))
   assert isinstance(res, DBResult)
@@ -62,7 +62,7 @@ def test_assistant_conversations_insert(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
-  res = asyncio.run(provider.run('db:content:assistant.conversations:insert:1', args))
+  res = asyncio.run(provider.run('db:system:assistant.conversations:insert:1', args))
   assert res.rows == [{'recid': 9}]
   assert captured["kind"] in (DbRunMode.JSON_ONE, DbRunMode.JSON_ONE.value)
 
@@ -93,7 +93,7 @@ def test_assistant_conversations_find_recent(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
-  res = asyncio.run(provider.run('db:content:assistant.conversations:find_recent:1', args))
+  res = asyncio.run(provider.run('db:system:assistant.conversations:find_recent:1', args))
   assert res.rows == [{'recid': 5}]
   assert captured["kind"] in (DbRunMode.JSON_ONE, DbRunMode.JSON_ONE.value)
 
@@ -115,7 +115,7 @@ def test_assistant_conversations_update_output(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
-  res = asyncio.run(provider.run('db:content:assistant.conversations:update_output:1', args))
+  res = asyncio.run(provider.run('db:system:assistant.conversations:update_output:1', args))
   assert res.rowcount == 1
   assert captured["kind"] in (DbRunMode.EXEC, DbRunMode.EXEC.value)
 
@@ -139,7 +139,7 @@ def test_assistant_conversations_list_recent(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, 'run_operation', fake_run_operation)
 
-  res = asyncio.run(provider.run('db:content:assistant.conversations:list_recent:1', {}))
+  res = asyncio.run(provider.run('db:system:assistant.conversations:list_recent:1', {}))
   assert isinstance(res, DBResult)
   assert res.rows == [{"recid": 2}]
   assert captured["kind"] in (DbRunMode.JSON_MANY, DbRunMode.JSON_MANY.value)

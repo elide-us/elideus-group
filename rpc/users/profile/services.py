@@ -3,7 +3,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
-from server.registry.content.profile import (
+from server.registry.users.content.profile import (
   get_profile_request,
   set_display_request,
   set_optin_request,
