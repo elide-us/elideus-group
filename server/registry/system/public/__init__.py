@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import links as _links, vars as _vars
+from . import links, vars
 
 if TYPE_CHECKING:
   from server.registry import DomainRouter
@@ -14,9 +14,6 @@ __all__ = [
   "register",
   "vars",
 ]
-
-links = _links
-vars = _vars
 
 
 def register(domain: "DomainRouter") -> None:
