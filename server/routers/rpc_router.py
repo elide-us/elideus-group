@@ -1,3 +1,5 @@
+"""Single RPC ingress router that forwards to the contract dispatcher."""
+
 from fastapi import APIRouter, Request
 from rpc.handler import handle_rpc_request
 from server.models import RPCResponse

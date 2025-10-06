@@ -38,5 +38,8 @@ jobs:
     - name: Generate RPC bindings
       run: python scripts/generate_rpc_bindings.py
 
+    - name: Run RPC contract tests
+      run: pytest tests/test_rpc_contracts.py -q
+
     - name: Run tests
       run: python scripts/run_tests.py --test

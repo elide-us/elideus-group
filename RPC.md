@@ -5,6 +5,8 @@ This document describes each RPC operation in the project and groups them by dom
 ## Naming Scheme
 
 Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`.
+The dispatcher validates this shape before reaching module code and rejects
+unknown domains to guarantee that only registered namespaces execute.
 
 ## Security Alignment
 
