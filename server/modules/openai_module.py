@@ -8,13 +8,13 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.generation.conversations import (
+from server.registry.system.assistant.conversations import (
   find_recent_request,
   insert_conversation_request,
   update_output_request,
 )
-from server.registry.generation.models import list_models_request
-from server.registry.generation.personas import (
+from server.registry.system.assistant.models import list_models_request
+from server.registry.system.assistant.personas import (
   delete_persona_request,
   get_persona_by_name_request,
   list_personas_request,

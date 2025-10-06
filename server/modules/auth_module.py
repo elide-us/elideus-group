@@ -15,7 +15,7 @@ from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
-from server.registry.security.accounts import get_security_profile_request
+from server.registry.users.security.accounts import get_security_profile_request
 from server.registry.system.roles import (
   delete_role_request,
   list_roles_request,

@@ -41,78 +41,108 @@ The DbModule will be responsible for:
 3. Converting the resulting `DBResponse` back into module-friendly data.
 
 ## 3. Domain layout and storage mapping
-`server/registry` mirrors the `db:` namespace. The high-level packages we will
-ship immediately are:
+`server/registry` mirrors the `db:` namespace. After the consolidation the top
+level is organised around the `system`, `users`, and `finance` domains:
 
 ```
 server/registry/
-  accounts/
-  content/
-    cache/
-      __init__.py
-      mssql.py
-      postgres.py
-      mysql.py
-    files/
-      __init__.py
-      mssql.py
-      postgres.py
-      mysql.py
-    public/
-      __init__.py
-      mssql.py
-      postgres.py
-      mysql.py
   finance/
-  public/
+    credits/
+      __init__.py
+      mssql.py
+  providers/
   system/
+    assistant/
+      conversations/
+      models/
+      personas/
+    config/
+    public/
+      links/
+      vars/
+    roles/
+    routes/
+  users/
+    content/
+      cache/
+      files/
+      public/
+    profile/
+    public/
+      users/
+    security/
+      accounts/
+      identities/
+      oauth/
+      sessions/
 ```
 
-Storage-centric entries belong to the `content` domain because storage is one of
-several content subsystems (others will include media processing, metadata,
-content moderation, etc.). Mapping the existing URNs:
+* **System domain** centralises global metadata such as assistant
+  conversations/models/personas, runtime configuration, public navigation data,
+  and role/route registries. Subdomains use dotted names (`assistant.conversations`,
+  `public.links`, …) so the generated URNs follow the
+  `db:system:{subdomain}:{operation}:{version}` pattern.
+* **Users domain** contains user-scoped behaviour. Content storage helpers,
+  public profile lookups, and security/authentication flows now live under the
+  `db:users:*` namespace with dotted subdomains like
+  `content.cache` or `security.sessions`.
+* **Finance domain** captures billing-related operations. Today it exposes the
+  credits writer under `db:finance:credits:set:1`.
+
+Representative URNs:
 
 | Registry key | Target module | Notes |
 | --- | --- | --- |
-| `db:content:cache:list:1` | `content.cache` | User cache listing. |
-| `db:content:cache:replace_user:1` | `content.cache` | Bulk refresh handler. |
-| `db:content:cache:upsert:1` | `content.cache` | Upsert logic keeps helper `_get_storage_type_recid` locally. |
-| `db:content:cache:delete:1` | `content.cache` | Delete single entry. |
-| `db:content:cache:delete_folder:1` | `content.cache` | Delete folder subtree. |
-| `db:content:cache:set_public:1` | `content.cache` | Toggle public flag. |
-| `db:content:cache:set_reported:1` | `content.cache` | Toggle reported flag. |
-| `db:content:cache:list_public:1` | `content.public` | Shared public listing helper. |
-| `db:content:cache:list_reported:1` | `content.public` | Moderation list. |
-| `db:content:cache:count_rows:1` | `content.cache` | Metrics helper. |
-| `db:content:files:set_gallery:1` | `content.files` | Gallery state toggle. |
-| `db:content:public:get_public_files:1` | `content.public` | Public gallery uses the same underlying SQL. |
+| `db:system:assistant.conversations:insert:1` | `system.assistant.conversations` | Persists assistant conversation transcripts. |
+| `db:system:assistant.models:list:1` | `system.assistant.models` | Lists configured LLM backends. |
+| `db:system:public.links:get_navbar_routes:1` | `system.public.links` | Provides navigation metadata for the UI shell. |
+| `db:system:public.vars:get_version:1` | `system.public.vars` | Reports service version/host metadata. |
+| `db:users:content.cache:list:1` | `users.content.cache` | Fetches cached storage items for a user. |
+| `db:users:content.public:get_public_files:1` | `users.content.public` | Returns public gallery entries. |
+| `db:users:content.files:set_gallery:1` | `users.content.files` | Toggles gallery status for a file. |
+| `db:users:public.users:get_published_files:1` | `users.public.users` | Exposes public profile assets. |
+| `db:users:security.accounts:get_security_profile:1` | `users.security.accounts` | Primary security/profile view. |
+| `db:users:security.sessions:create_session:1` | `users.security.sessions` | Issues a new session + device token. |
+| `db:finance:credits:set:1` | `finance.credits` | Writes billing credit balances. |
 
-The legacy `db:storage:*` keys have been retired; modules now call the
-`db:content:*` namespace exclusively through the registry.
-
-`content.public` exposes the shared public listing helpers that power
-both the content module and the external public gallery without duplicating SQL
-across domains.
+Legacy `db:assistant:*`, `db:content:*`, `db:public:*`, and `db:security:*`
+namespaces have been folded into the consolidated layout above. Modules now call
+the `db:system:*`, `db:users:*`, or `db:finance:*` URNs directly via the registry.
 
 ## 4. Registry module contract
 Each domain package will provide a `register(registry: RegistryRouter)` function
 that registers its submodules. The implementation shape:
 
 ```python
-# server/registry/content/__init__.py
-from . import cache, files, public
+# server/registry/users/__init__.py
+from . import content, profile, public, security
 
 
 def register(registry: RegistryRouter) -> None:
-  domain = registry.domain("content")
-  cache.register(domain.subdomain("cache"))
-  files.register(domain.subdomain("files"))
-  public.register(domain.subdomain("public"))
+  domain = registry.domain("users")
+  content.register(domain)
+  profile.register(domain.subdomain("profile"))
+  public.register(domain)
+  security.register(domain)
 ```
 
 Each subdomain exposes a `register` helper that wires its functions to the
-provider map. The leaf modules (`content/cache/__init__.py`,
-`content/cache/mssql.py`, …) define their `db:` functions using
+provider map. Aggregators such as `users/content/__init__.py` translate dotted
+subdomain names into the correct `SubdomainRouter`:
+
+```python
+# server/registry/users/content/__init__.py
+from . import cache, files, public
+
+
+def register(domain: DomainRouter) -> None:
+  cache.register(domain.subdomain("content.cache"))
+  files.register(domain.subdomain("content.files"))
+  public.register(domain.subdomain("content.public"))
+```
+
+Leaf modules (`users/content/cache/__init__.py`,
+`users/content/cache/mssql.py`, …) define their `db:` functions using
 `SubdomainRouter.add_function`. By default the router derives the provider map
 (`"{domain}.{subdomain}.{name}"`) and MSSQL binding
 (`"server.registry.{domain}.{subdomain}.mssql", "{name}_v{version}"`). When a
@@ -120,7 +150,7 @@ provider uses a descriptive name you can supply an `implementation=` hint (for
 example `implementation="insert_conversation"`).
 
 ```python
-# server/registry/content/cache/__init__.py
+# server/registry/users/content/cache/__init__.py
 from . import mssql
 
 
@@ -131,12 +161,12 @@ def register(router: SubdomainRouter) -> None:
 ```
 
 The derived provider map resolves to a provider-specific callable exported from
-modules like `server/registry/content/cache/mssql.py`. Each implementation file
+modules like `server/registry/users/content/cache/mssql.py`. Each implementation file
 encodes the backend-specific queries and names its callables following the
 `{operation}_v{version}` convention:
 
 ```python
-# server/registry/content/cache/mssql.py
+# server/registry/users/content/cache/mssql.py
 from server.registry.types import DBRequest, DBResponse
 
 
@@ -145,7 +175,7 @@ async def get_gallery_v1(request: DBRequest) -> DBResponse:
 ```
 
 Each registration call binds the canonical `db:` key
-(`db:content:cache:get_gallery:1`) to metadata about how to execute it. During
+(`db:users:content.cache:get_gallery:1`) to metadata about how to execute it. During
 provider load the registry asserts that every registered key resolves to a
 callable implementation. Startup fails fast if any bindings are missing so
 module contracts cannot drift from provider coverage.
@@ -163,7 +193,7 @@ server/registry/providers/
 ```
 
 Each provider module exports a `PROVIDER_QUERIES` dictionary keyed by the same
-`content.cache.list` identifiers referenced during registration. The
+`users.content.cache.list` identifiers referenced during registration. The
 values are callables that receive `(request: DBRequest)` and return a
 `DBResponse` (or awaitable `DBResponse` for async helpers). SQL strings and
 stored procedure calls are defined here, keeping provider-specific details out
@@ -198,8 +228,8 @@ only needs to hand over a `DBRequest`, and the registry will:
    `DBResponse` and passed back up the stack.
 
 ## 7. Next steps
-* Create the scaffolding described above and migrate the storage functions into
-  the `content.cache`, `content.files`, and `content.public` namespaces.
+* Continue migrating legacy helpers into the consolidated namespaces such as
+  `users.content.cache`, `users.content.files`, and `users.content.public`.
 * Extract the existing MSSQL SQL from
   `server/modules/providers/database/mssql_provider/registry.py` into
   `server/registry/providers/mssql.py` under the new keys.

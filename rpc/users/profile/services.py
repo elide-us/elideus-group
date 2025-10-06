@@ -9,7 +9,7 @@ from server.registry.users.profile import (
   set_optin_request,
   set_profile_image_request,
 )
-from server.registry.security.accounts import get_security_profile_request
+from server.registry.users.security.accounts import get_security_profile_request
 from .models import (
   UsersProfileProfile1,
   UsersProfileSetDisplay1,

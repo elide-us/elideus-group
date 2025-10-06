@@ -4,15 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import credits, profile
+from . import content, profile, public, security
 
 if TYPE_CHECKING:
   from server.registry import RegistryRouter
 
 __all__ = [
-  "credits",
+  "content",
   "profile",
+  "public",
   "register",
+  "security",
 ]
 
 
@@ -20,5 +22,7 @@ def register(router: "RegistryRouter") -> None:
   """Register users domain routes."""
 
   domain = router.domain("users")
-  credits.register(domain.subdomain("credits"))
+  content.register(domain)
   profile.register(domain.subdomain("profile"))
+  public.register(domain)
+  security.register(domain)

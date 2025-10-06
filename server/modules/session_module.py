@@ -9,8 +9,8 @@ from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
 from server.registry.users.profile import set_profile_image_request
-from server.registry.security.accounts import get_security_profile_request
-from server.registry.security.sessions import (
+from server.registry.users.security.accounts import get_security_profile_request
+from server.registry.users.security.sessions import (
   create_session_request,
   revoke_device_token_request,
   set_rotkey_request,

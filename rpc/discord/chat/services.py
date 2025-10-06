@@ -8,7 +8,7 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.openai_module import OpenaiModule
-from server.registry.generation.conversations import (
+from server.registry.system.assistant.conversations import (
   insert_conversation_request,
   list_by_time_request,
   update_output_request,

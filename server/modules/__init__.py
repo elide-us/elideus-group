@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+import importlib
+import os
+import sys
 from abc import ABC, abstractmethod
 from types import SimpleNamespace
 from typing import Dict, Optional, Protocol, runtime_checkable
 
 from fastapi import FastAPI
 
+# Clear any stub module that might shadow the real RPC package during testing.
+_rpc_module = sys.modules.get('rpc')
+if _rpc_module is not None and not hasattr(_rpc_module, '__path__'):
+  sys.modules.pop('rpc', None)
+
 from server.helpers.strings import camel_case
-import asyncio, os, importlib
 from server.registry import RegistryDispatcher
 
 MODULES_FOLDER = os.path.dirname(__file__)
@@ -15,6 +23,10 @@ MODULES_FOLDER = os.path.dirname(__file__)
 
 class ModuleServices(SimpleNamespace):
   """Container for RPC-facing service facades."""
+
+  def __init__(self, **kwargs):
+    _ensure_rpc_package()
+    super().__init__(**kwargs)
 
   def require(self, name: str):
     service = getattr(self, name, None)
@@ -108,3 +120,12 @@ class ModuleManager:
     setattr(self.app.state, name, new_instance)
     await new_instance.startup()
     self.instances[name] = new_instance
+
+
+def _ensure_rpc_package() -> None:
+  module = sys.modules.get('rpc')
+  if module is None or not hasattr(module, '__path__'):
+    importlib.import_module('rpc')
+
+
+_ensure_rpc_package()

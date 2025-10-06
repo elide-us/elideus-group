@@ -119,4 +119,27 @@ def build_provider_queries(
   return {key: value.copy() for key, value in queries.items()}
 
 
-PROVIDER_QUERIES: ProviderQueryMap = build_provider_queries()
+_PROVIDER_QUERIES: ProviderQueryMap | None = None
+PROVIDER_QUERIES: ProviderQueryMap = {}
+
+
+def get_provider_queries(
+  bindings: Iterable[ProviderBinding] | None = None,
+) -> ProviderQueryMap:
+  global _PROVIDER_QUERIES
+  if bindings is not None:
+    return build_provider_queries(bindings)
+  if _PROVIDER_QUERIES is None:
+    importlib.import_module("server.registry.users")
+    importlib.import_module("server.registry.finance")
+    importlib.import_module("server.registry.system")
+    base = build_provider_queries()
+    if not any(key.startswith("users.") for key in base):
+      base = build_provider_queries()
+    if PROVIDER_QUERIES:
+      # Allow test overrides to win when populating the cache for the first time.
+      base.update(PROVIDER_QUERIES)
+    _PROVIDER_QUERIES = base
+    PROVIDER_QUERIES.clear()
+    PROVIDER_QUERIES.update(_PROVIDER_QUERIES)
+  return PROVIDER_QUERIES

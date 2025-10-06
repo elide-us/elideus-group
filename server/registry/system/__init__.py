@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import config, roles, routes
+from . import assistant, config, public, roles, routes
 
 if TYPE_CHECKING:
   from server.registry import RegistryRouter
 
 __all__ = [
+  "assistant",
   "config",
+  "public",
   "register",
   "roles",
   "routes",
@@ -19,6 +21,8 @@ __all__ = [
 
 def register(router: "RegistryRouter") -> None:
   domain = router.domain("system")
+  assistant.register(domain)
   config.register(domain.subdomain("config"))
+  public.register(domain)
   roles.register(domain.subdomain("roles"))
   routes.register(domain.subdomain("routes"))

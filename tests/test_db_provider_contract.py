@@ -6,8 +6,8 @@ from server.modules.providers import DBResult, DbRunMode
 from server.modules.providers.database.mssql_provider import MssqlProvider
 from server.registry.providers import mssql as registry_mssql
 from server.registry.types import DBResponse
-from server.registry.content.files import set_gallery_request
-from server.registry.content.cache import set_public_request
+from server.registry.users.content.files import set_gallery_request
+from server.registry.users.content.cache import set_public_request
 
 
 def _set_provider_callable(monkeypatch, provider_map: str, handler):
@@ -87,7 +87,7 @@ def test_run_row_many(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
-  res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
+  res = asyncio.run(provider.run("db:users:public.users:get_published_files:1", {"guid": guid}))
 
   assert isinstance(res, DBResult)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
@@ -224,8 +224,8 @@ def test_storage_public_lists_share_query(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "run_operation", fake_run_operation)
 
-  asyncio.run(provider.run("db:content:public:list_public:1", {}))
-  asyncio.run(provider.run("db:content:public:get_public_files:1", {}))
+  asyncio.run(provider.run("db:users:content.public:list_public:1", {}))
+  asyncio.run(provider.run("db:users:content.public:get_public_files:1", {}))
 
   assert len(seen) == 2
   assert seen[0][1] == seen[1][1]
@@ -236,7 +236,7 @@ def test_unlink_provider_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000002"
 
   async def fake_callable(request):
-    assert request.op == "db:security:identities:unlink_provider:1"
+    assert request.op == "db:users:security.identities:unlink_provider:1"
     assert request.params == {
       "guid": guid,
       "provider": "google",
@@ -246,11 +246,11 @@ def test_unlink_provider_dict_result(monkeypatch):
 
   _set_provider_callable(
     monkeypatch,
-    "security.identities.unlink_provider",
+    "users.security.identities.unlink_provider",
     fake_callable,
   )
 
-  res = asyncio.run(provider.run("db:security:identities:unlink_provider:1", {
+  res = asyncio.run(provider.run("db:users:security.identities:unlink_provider:1", {
     "guid": guid,
     "provider": "google",
     "new_provider_recid": 123,
@@ -266,7 +266,7 @@ def test_create_session_dict_result(monkeypatch):
   guid = "00000000-0000-0000-0000-000000000003"
 
   async def fake_callable(request):
-    assert request.op == "db:security:sessions:create_session:1"
+    assert request.op == "db:users:security.sessions:create_session:1"
     assert request.params == {
       "access_token": "token",
       "expires": "2024-01-01T00:00:00Z",
@@ -280,11 +280,11 @@ def test_create_session_dict_result(monkeypatch):
 
   _set_provider_callable(
     monkeypatch,
-    "security.sessions.create_session",
+    "users.security.sessions.create_session",
     fake_callable,
   )
 
-  res = asyncio.run(provider.run("db:security:sessions:create_session:1", {
+  res = asyncio.run(provider.run("db:users:security.sessions:create_session:1", {
     "access_token": "token",
     "expires": "2024-01-01T00:00:00Z",
     "fingerprint": "fingerprint",

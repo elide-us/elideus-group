@@ -20,6 +20,9 @@ _logger = logging.getLogger(__name__)
 
 def _get_provider_queries():
   module = import_module("server.registry.providers.mssql")
+  getter = getattr(module, "get_provider_queries", None)
+  if callable(getter):
+    return getter()
   return getattr(module, "PROVIDER_QUERIES")
 
 

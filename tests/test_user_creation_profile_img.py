@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from server.registry.security.identities import mssql as identities_registry
+from server.registry.users.security.identities import mssql as identities_registry
 from server.registry.types import DBResponse
 
 

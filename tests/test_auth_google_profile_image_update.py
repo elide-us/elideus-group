@@ -55,13 +55,13 @@ class DummyDb:
       key = op
       params = args
     self.calls.append((key, params))
-    if key == "db:security:identities:get_by_provider_identifier:1":
+    if key == "db:users:security.identities:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "profile_image": "old" }], 1)
-    if key == "db:security:sessions:set_rotkey:1" or key == PROFILE_IMAGE_OP:
+    if key == "db:users:security.sessions:set_rotkey:1" or key == PROFILE_IMAGE_OP:
       return DBRes([], 1)
-    if key == "db:security:sessions:create_session:1":
+    if key == "db:users:security.sessions:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if key == "db:security:sessions:update_device_token:1":
+    if key == "db:users:security.sessions:update_device_token:1":
       return DBRes([], 1)
     if key == "db:system:config:get_config:1":
       config_key = params.get("key") if isinstance(params, dict) else None
