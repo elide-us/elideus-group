@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.content.public.users import (
+from server.registry.users.public import (
   get_profile_request,
   get_published_files_request,
 )

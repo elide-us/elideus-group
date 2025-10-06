@@ -9,7 +9,7 @@ from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult, DbRunMode
 from server.registry.types import DBRequest
-from server.registry.content.storage.files import set_gallery_request
+from server.registry.users.content.files import set_gallery_request
 
 
 def _extract_request(request, args=None):
@@ -41,19 +41,19 @@ class RegistryDispatchMixin:
       value = self._config_result(params.get("key"))
       rows = [] if value is None else [{"value": value}]
       return DBResult(rows=rows, rowcount=len(rows))
-    if op == "db:content:storage.cache:list:1" and hasattr(self, "list_storage_cache"):
+    if op == "db:users:content.cache:list:1" and hasattr(self, "list_storage_cache"):
       res = await self.list_storage_cache(params.get("user_guid"))
       return _ensure_result(res)
-    if op == "db:content:storage.cache:replace_user:1" and hasattr(self, "replace_storage_cache"):
+    if op == "db:users:content.cache:replace_user:1" and hasattr(self, "replace_storage_cache"):
       res = await self.replace_storage_cache(params.get("user_guid"), params.get("items", []))
       return _ensure_result(res)
-    if op == "db:content:storage.cache:upsert:1" and hasattr(self, "upsert_storage_cache"):
+    if op == "db:users:content.cache:upsert:1" and hasattr(self, "upsert_storage_cache"):
       res = await self.upsert_storage_cache(params)
       return _ensure_result(res)
-    if op == "db:content:storage.cache:delete:1" and hasattr(self, "delete_storage_cache"):
+    if op == "db:users:content.cache:delete:1" and hasattr(self, "delete_storage_cache"):
       await self.delete_storage_cache(params.get("user_guid"), params.get("path", ""), params.get("filename", ""))
       return DBResult()
-    if op == "db:content:storage.cache:delete_folder:1" and hasattr(self, "delete_storage_cache_folder"):
+    if op == "db:users:content.cache:delete_folder:1" and hasattr(self, "delete_storage_cache_folder"):
       await self.delete_storage_cache_folder(params.get("user_guid"), params.get("path", ""))
       return DBResult()
     return DBResult()
@@ -895,7 +895,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
   class DummyDb:
     async def run(self, request, args=None):
       op, params = _extract_request(request, args)
-      if op == "db:content:storage.cache:count_rows:1":
+      if op == "db:users:content.cache:count_rows:1":
         return DBResult(rows=[{"count": 10}], rowcount=1)
       if op == "db:system:config:get_config:1" and params.get("key") == "AzureBlobContainerName":
         return DBResult(rows=[{"value": "container"}], rowcount=1)
@@ -1093,7 +1093,7 @@ def test_get_storage_stats_counts_user_folders(monkeypatch):
   class DummyDb:
     async def run(self, request, args=None):
       op, params = _extract_request(request, args)
-      if op == "db:content:storage.cache:count_rows:1":
+      if op == "db:users:content.cache:count_rows:1":
         return DBResult(rows=[{"count": 0}], rowcount=1)
       if op == "db:system:config:get_config:1" and params.get("key") == "AzureBlobContainerName":
         return DBResult(rows=[{"value": "container"}], rowcount=1)

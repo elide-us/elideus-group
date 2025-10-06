@@ -11,7 +11,7 @@ from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.content.storage.cache import (
+from server.registry.users.content.cache import (
   count_rows_request,
   delete_cache_folder_request,
   delete_cache_item_request,
@@ -19,8 +19,8 @@ from server.registry.content.storage.cache import (
   set_reported_request,
   upsert_cache_item_request,
 )
-from server.registry.content.storage.files import set_gallery_request
-from server.registry.content.storage.public import (
+from server.registry.users.content.files import set_gallery_request
+from server.registry.users.content.public import (
   list_public_request,
   list_reported_request,
 )

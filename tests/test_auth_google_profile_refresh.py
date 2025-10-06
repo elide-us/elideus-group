@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from server.registry.types import DBRequest
 
 from server.modules.oauth_module import OauthModule
-from server.registry.content.profile import update_if_unedited_request
+from server.registry.users.content.profile import update_if_unedited_request
 
 class DummyAuth:
   def __init__(self, profile):
