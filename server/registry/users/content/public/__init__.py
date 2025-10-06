@@ -36,4 +36,4 @@ def get_public_files_request() -> DBRequest:
 def register(router: "SubdomainRouter") -> None:
   router.add_function("list_public", version=1)
   router.add_function("list_reported", version=1)
-  router.add_function("get_public_files", version=1)
+  router.add_function("get_public_files", version=1, implementation="list_public")
