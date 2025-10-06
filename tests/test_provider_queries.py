@@ -10,9 +10,9 @@ from server.modules.providers import DbRunMode
 from server.registry.users.security.accounts import mssql as security_accounts
 from server.registry.providers.mssql import PROVIDER_QUERIES
 from server.registry.users.security.identities import mssql as security_identities
-from server.registry.finance.credits import mssql as finance_credits_backend
+import server.registry.finance.credits.mssql as finance_credits_backend
 from server.registry.finance.credits import set_credits_request
-from server.registry.users.content.profile import mssql as users_profile_backend
+import server.registry.users.content.profile.mssql as users_profile_backend
 from server.registry.types import DBResponse
 
 
