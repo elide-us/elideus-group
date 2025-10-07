@@ -1,22 +1,21 @@
-from fastapi import Request
+from __future__ import annotations
+
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
+
+from typing import TYPE_CHECKING
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
-from server.modules.auth_module import AuthModule
-from server.registry.system.routes import (
-  delete_route_request,
-  get_routes_request,
-  upsert_route_request,
-)
 from .models import (
   ServiceRoutesRouteItem1,
   ServiceRoutesList1,
   ServiceRoutesDeleteRoute1,
 )
+
+if TYPE_CHECKING:
+  from server.modules.service_routes_module import ServiceRoutesModule
 
 
 async def service_routes_get_routes_v1(request: Request):
@@ -26,22 +25,9 @@ async def service_routes_get_routes_v1(request: Request):
     auth_ctx.user_guid,
     auth_ctx.roles,
   )
-  db: DbModule = request.app.state.db
-  auth: AuthModule = request.app.state.auth
-  db_request = get_routes_request()
-  res = await db.run(db_request)
-  routes = []
-  for row in res.rows:
-    mask = int(row.get("element_roles", 0))
-    roles = auth.mask_to_names(mask)
-    item = ServiceRoutesRouteItem1(
-      path=row.get("element_path", ""),
-      name=row.get("element_name", ""),
-      icon=row.get("element_icon"),
-      sequence=int(row.get("element_sequence", 0)),
-      required_roles=roles,
-    )
-    routes.append(item)
+  routes_mod: ServiceRoutesModule = request.app.state.service_routes
+  route_dicts = await routes_mod.list_routes()
+  routes = [ServiceRoutesRouteItem1(**route) for route in route_dicts]
   payload = ServiceRoutesList1(routes=routes)
   logging.debug(
     "[service_routes_get_routes_v1] returning %d routes",
@@ -63,20 +49,18 @@ async def service_routes_upsert_route_v1(request: Request):
     rpc_request.payload,
   )
   payload = ServiceRoutesRouteItem1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  auth: AuthModule = request.app.state.auth
+  routes_mod: ServiceRoutesModule = request.app.state.service_routes
   try:
-    mask = auth.names_to_mask(payload.required_roles)
+    route_dict = await routes_mod.upsert_route(
+      path=payload.path,
+      name=payload.name,
+      icon=payload.icon,
+      sequence=payload.sequence,
+      required_roles=payload.required_roles,
+    )
   except KeyError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  db_request = upsert_route_request(
-    path=payload.path,
-    name=payload.name,
-    icon=payload.icon,
-    sequence=payload.sequence,
-    roles=mask,
-  )
-  await db.run(db_request)
+  payload = ServiceRoutesRouteItem1(**route_dict)
   logging.debug(
     "[service_routes_upsert_route_v1] upserted route %s",
     payload.path,
@@ -97,9 +81,9 @@ async def service_routes_delete_route_v1(request: Request):
     rpc_request.payload,
   )
   payload = ServiceRoutesDeleteRoute1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  db_request = delete_route_request(payload.path)
-  await db.run(db_request)
+  routes_mod: ServiceRoutesModule = request.app.state.service_routes
+  result = await routes_mod.delete_route(payload.path)
+  payload = ServiceRoutesDeleteRoute1(**result)
   logging.debug(
     "[service_routes_delete_route_v1] deleted route %s",
     payload.path,
