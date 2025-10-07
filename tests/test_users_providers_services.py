@@ -1,482 +1,223 @@
 import asyncio
-import importlib.util
-import pathlib
-import sys
-import types
 from types import SimpleNamespace
-import uuid
-from datetime import datetime, timezone, timedelta
-from server.modules.providers.auth.google_provider import GoogleAuthProvider
-from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
-from fastapi import FastAPI
-from server.registry.types import DBRequest
-
-from server.modules.oauth_module import OauthModule
 
 import pytest
 from fastapi import HTTPException
-from server.registry.users.content.profile import (
-  get_profile_request,
-  set_profile_image_request,
-  update_if_unedited_request,
-)
 
-PROFILE_GET_REQUEST = get_profile_request(guid="")
-PROFILE_IMAGE_REQUEST = set_profile_image_request(guid="", provider="", image_b64=None)
-UPDATE_IF_UNEDITED_REQUEST = update_if_unedited_request(
-  guid="",
-  email=None,
-  display_name=None,
-)
+from server.models import RPCRequest, RPCResponse
+
+from rpc.users.providers import services as user_services
+from rpc.auth.providers import services as auth_services
 
 
-def _normalize_db_call(op, args=None):
-  if hasattr(op, "op") and hasattr(op, "params"):
-    return op.op, op.params
-  return op, args
-
-# stub rpc package
-pkg = types.ModuleType("rpc")
-pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "rpc")]
-sys.modules.setdefault("rpc", pkg)
-
-spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
-models = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(models)
-RPCRequest = models.RPCRequest
-RPCResponse = models.RPCResponse
-sys.modules["server.models"] = models
-
-# stub server packages
-server_pkg = types.ModuleType("server")
-modules_pkg = types.ModuleType("server.modules")
-db_module_pkg = types.ModuleType("server.modules.db_module")
-class DbModule: ...
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-server_pkg.modules = modules_pkg
-models_pkg = types.ModuleType("server.models")
-class AuthContext:
-  def __init__(self, **data):
-    self.role_mask = 0
-    self.__dict__.update(data)
-models_pkg.AuthContext = AuthContext
-server_pkg.models = models_pkg
-
-sys.modules.setdefault("server", server_pkg)
-sys.modules.setdefault("server.modules", modules_pkg)
-sys.modules.setdefault("server.modules.db_module", db_module_pkg)
-sys.modules.setdefault("server.models", models_pkg)
-
-# load real helpers then override for service import
-real_helpers_spec = importlib.util.spec_from_file_location("rpc.helpers", "rpc/helpers.py")
-real_helpers = importlib.util.module_from_spec(real_helpers_spec)
-real_helpers_spec.loader.exec_module(real_helpers)
-
-helpers_stub = types.ModuleType("rpc.helpers")
-async def _stub(request):
-  raise NotImplementedError
-helpers_stub.unbox_request = _stub
-sys.modules["rpc.helpers"] = helpers_stub
-
-# import services with stubbed helpers
-svc_spec = importlib.util.spec_from_file_location("rpc.users.providers.services", "rpc/users/providers/services.py")
-svc_mod = importlib.util.module_from_spec(svc_spec)
-svc_spec.loader.exec_module(svc_mod)
-
-# restore real helpers
-sys.modules["rpc.helpers"] = real_helpers
-
-users_providers_set_provider_v1 = svc_mod.users_providers_set_provider_v1
-users_providers_link_provider_v1 = svc_mod.users_providers_link_provider_v1
-users_providers_unlink_provider_v1 = svc_mod.users_providers_unlink_provider_v1
-
-class DBRes:
-  def __init__(self, rows=None, rowcount=0):
-    self.rows = rows or []
-    self.rowcount = rowcount
-
-class DummyDb:
+class DummyModule:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args=None):
-    if isinstance(op, DBRequest):
-      args = op.params
-      op = op.op
-    args = args or {}
-    key, params = _normalize_db_call(op, args)
-    self.calls.append((key, params))
-    return DBRes()
+    self.get_result = None
+    self.create_result = None
 
-class DummyState:
-  def __init__(self, db, auth=None, env=None):
-    self.db = db
-    if auth is not None:
-      self.auth = auth
-    if env is not None:
-      self.env = env
-    self.oauth = OauthModule(FastAPI())
-    if hasattr(self, 'auth'):
-      self.oauth.auth = self.auth
-    self.oauth.db = self.db
+  async def set_provider(self, guid, provider, *, code=None, id_token=None, access_token=None):
+    self.calls.append(("set", {
+      "guid": guid,
+      "provider": provider,
+      "code": code,
+      "id_token": id_token,
+      "access_token": access_token,
+    }))
 
-class DummyApp:
-  def __init__(self, state):
-    self.state = state
+  async def link_provider(self, guid, provider, *, code=None, id_token=None, access_token=None):
+    self.calls.append(("link", {
+      "guid": guid,
+      "provider": provider,
+      "code": code,
+      "id_token": id_token,
+      "access_token": access_token,
+    }))
+
+  async def unlink_provider(self, guid, provider, *, new_default=None):
+    self.calls.append(("unlink", {
+      "guid": guid,
+      "provider": provider,
+      "new_default": new_default,
+    }))
+
+  async def get_by_provider_identifier(self, provider, provider_identifier):
+    self.calls.append(("get", {
+      "provider": provider,
+      "provider_identifier": provider_identifier,
+    }))
+    return self.get_result
+
+  async def create_from_provider(
+    self,
+    provider,
+    provider_identifier,
+    provider_email,
+    provider_displayname,
+    provider_profile_image,
+  ):
+    self.calls.append(("create", {
+      "provider": provider,
+      "provider_identifier": provider_identifier,
+      "provider_email": provider_email,
+      "provider_displayname": provider_displayname,
+      "provider_profile_image": provider_profile_image,
+    }))
+    return self.create_result
+
+  async def unlink_last_provider(self, guid, provider):
+    self.calls.append(("unlink_last", {
+      "guid": guid,
+      "provider": provider,
+    }))
+
 
 class DummyRequest:
-  def __init__(self, state):
-    self.app = DummyApp(state)
+  def __init__(self, module):
+    self.app = SimpleNamespace(state=SimpleNamespace(user_providers=module))
     self.headers = {}
 
 
-def test_set_provider_calls_db():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:users:providers:set_provider:1",
-      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
-      version=1,
-    )
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-  db = DummyDb()
-  class DummyAuth:
-    def __init__(self):
-      self.providers = {"microsoft": SimpleNamespace(audience="client")}
-    async def handle_auth_login(self, provider, id_token, access_token):
-      return "pid", {"email": "e", "username": "n"}, {}
-  req = DummyRequest(DummyState(db, auth=DummyAuth()))
-  resp = asyncio.run(users_providers_set_provider_v1(req))
-  assert ("db:users:security_identities:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
-  expected_update = update_if_unedited_request(
-    guid="u1",
-    email="e",
-    display_name="n",
+def make_rpc_request(op, payload=None, version=1):
+  return RPCRequest(op=op, payload=payload or {}, version=version)
+
+
+def stub_unbox(module, rpc_request, auth_ctx=None):
+  async def fake_unbox(request):
+    return rpc_request, auth_ctx or SimpleNamespace(user_guid="user-1"), None
+  return fake_unbox
+
+
+def restore(module, attr, value):
+  setattr(module, attr, value)
+
+
+def test_set_provider_delegates_to_module():
+  module = DummyModule()
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:set_provider:1",
+    {"provider": "microsoft", "id_token": "id", "access_token": "acc"},
   )
-  assert (expected_update.op, expected_update.params) in db.calls
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request)
+  try:
+    resp = asyncio.run(user_services.users_providers_set_provider_v1(req))
+  finally:
+    restore(user_services, "unbox_request", original)
   assert isinstance(resp, RPCResponse)
+  assert resp.op == rpc_request.op
+  assert resp.version == 1
   assert resp.payload["provider"] == "microsoft"
+  assert module.calls[0][0] == "set"
+  assert module.calls[0][1]["guid"] == "user-1"
 
 
-def test_set_provider_missing_provider_raises():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:set_provider:1", payload={}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-  db = DummyDb()
-  req = DummyRequest(DummyState(db))
-  with pytest.raises(HTTPException) as exc:
-    asyncio.run(users_providers_set_provider_v1(req))
-  assert exc.value.status_code == 400
-
-
-def test_set_provider_defaults_blank_profile():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:users:providers:set_provider:1",
-      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
-      version=1,
-    )
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-  db = DummyDb()
-  class DummyAuth:
-    def __init__(self):
-      self.providers = {"microsoft": SimpleNamespace(audience="client")}
-    async def handle_auth_login(self, provider, id_token, access_token):
-      return "pid", {"email": "", "username": ""}, {}
-  req = DummyRequest(DummyState(db, auth=DummyAuth()))
-  asyncio.run(users_providers_set_provider_v1(req))
-  expected_update = update_if_unedited_request(
-    guid="u1",
-    email="",
-    display_name="User",
+def test_link_provider_requires_code_for_google():
+  module = DummyModule()
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:link_provider:1",
+    {"provider": "google"},
   )
-  assert (expected_update.op, expected_update.params) in db.calls
-
-
-def test_link_provider_google_normalizes_identifier():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:users:providers:link_provider:1",
-      payload={"provider": "google", "code": "authcode"},
-      version=1,
-    )
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  async def fake_exchange(code, client_id, client_secret, redirect_uri, provider):
-    assert provider == "google"
-    return "id", "acc"
-
-  class DummyAuth:
-    def __init__(self):
-      provider = GoogleAuthProvider(api_id="client-id", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
-
-      async def fake_fetch_jwks():
-        provider._jwks = {"keys": []}
-        provider._jwks_fetched_at = datetime.now(timezone.utc)
-
-      provider.fetch_jwks = fake_fetch_jwks
-      asyncio.run(provider.startup())
-      self.providers = {"google": provider}
-
-    async def handle_auth_login(self, provider, id_token, access_token):
-      return "google-id", {}, {}
-
-  class DummyDb:
-    def __init__(self):
-      self.calls = []
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      if key == "db:system:config:get_config:1":
-        config_key = params.get("key") if isinstance(params, dict) else None
-        if config_key == "Hostname":
-          return DBRes(rows=[{"value": "redirect"}])
-      return DBRes()
-
-    async def get_google_api_secret(self):
-      return "secret"
-
-  class DummyEnv:
-    async def on_ready(self):
-      return None
-    def get(self, k):
-      assert k == "GOOGLE_AUTH_SECRET"
-      return "secret"
-
-  db = DummyDb()
-  auth = DummyAuth()
-  env = DummyEnv()
-  req = DummyRequest(DummyState(db, auth, env))
-  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
-  asyncio.run(users_providers_link_provider_v1(req))
-  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
-  assert ("db:users:security_identities:link_provider:1", {"guid": "u1", "provider": "google", "provider_identifier": expected}) in db.calls
-  asyncio.run(auth.providers["google"].shutdown())
-
-
-def test_link_provider_discord_normalizes_identifier():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:users:providers:link_provider:1",
-      payload={"provider": "discord", "code": "authcode"},
-      version=1,
-    )
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  async def fake_exchange(code, client_id, client_secret, redirect_uri, provider):
-    assert provider == "discord"
-    return None, "acc"
-
-  class DummyAuth:
-    def __init__(self):
-      class Provider:
-        audience = "client-id"
-        requires_id_token = False
-      self.providers = {"discord": Provider()}
-
-    async def handle_auth_login(self, provider, id_token, access_token):
-      return "discord-id", {}, {}
-
-  class DummyDb:
-    def __init__(self):
-      self.calls = []
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      self.calls.append((op, args))
-      if op == "db:system:config:get_config:1":
-        key = args["key"]
-        if key == "Hostname":
-          return DBRes(rows=[{"value": "redirect"}])
-      return DBRes()
-
-  class DummyEnv:
-    async def on_ready(self):
-      return None
-    def get(self, k):
-      assert k == "DISCORD_AUTH_SECRET"
-      return "secret"
-
-  db = DummyDb()
-  auth = DummyAuth()
-  env = DummyEnv()
-  req = DummyRequest(DummyState(db, auth, env))
-  req.app.state.oauth.exchange_code_for_tokens = fake_exchange
-  asyncio.run(users_providers_link_provider_v1(req))
-  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "discord-id"))
-  assert (
-    "db:users:security_identities:link_provider:1",
-    {"guid": "u1", "provider": "discord", "provider_identifier": expected},
-  ) in db.calls
-
-
-def test_link_provider_microsoft_normalizes_identifier():
-  async def fake_get(request):
-    rpc = RPCRequest(
-      op="urn:users:providers:link_provider:1",
-      payload={"provider": "microsoft", "id_token": "id", "access_token": "acc"},
-      version=1,
-    )
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  class DummyAuth:
-    def __init__(self):
-      provider = MicrosoftAuthProvider(api_id="client-id", jwks_uri="uri", jwks_expiry=timedelta(minutes=1))
-
-      async def fake_fetch_jwks():
-        provider._jwks = {"keys": []}
-        provider._jwks_fetched_at = datetime.now(timezone.utc)
-
-      provider.fetch_jwks = fake_fetch_jwks
-      asyncio.run(provider.startup())
-      self.providers = {"microsoft": provider}
-
-    async def handle_auth_login(self, provider, id_token, access_token):
-      return "ms-id", {}, {}
-
-  class DummyDb:
-    def __init__(self):
-      self.calls = []
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      return DBRes()
-
-  db = DummyDb()
-  auth = DummyAuth()
-  req = DummyRequest(DummyState(db, auth))
-  asyncio.run(users_providers_link_provider_v1(req))
-  expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "ms-id"))
-  assert ("db:users:security_identities:link_provider:1", {"guid": "u1", "provider": "microsoft", "provider_identifier": expected}) in db.calls
-  asyncio.run(auth.providers["microsoft"].shutdown())
-
-
-def test_unlink_non_default_provider_retains_tokens():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  class LocalDb(DummyDb):
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      if key == PROFILE_GET_REQUEST.op:
-        return DBRes(rows=[{"default_provider": "microsoft"}])
-      if key == "db:users:security_identities:unlink_provider:1":
-        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
-      return DBRes()
-
-  db = LocalDb()
-  req = DummyRequest(DummyState(db))
-  asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("db:users:security_sessions:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) not in db.calls
-  assert not any(op == "db:users:security_sessions:revoke_all_device_tokens:1" for op, _ in db.calls)
-  assert not any(op == "db:users:security_identities:soft_delete_account:1" for op, _ in db.calls)
-
-
-
-def test_unlink_default_provider_without_new_default_raises():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  class LocalDb(DummyDb):
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      if key == PROFILE_GET_REQUEST.op:
-        return DBRes(rows=[{"default_provider": "google"}])
-      if key == "db:users:security_identities:unlink_provider:1":
-        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
-      return DBRes()
-
-  db = LocalDb()
-  req = DummyRequest(DummyState(db))
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request)
   with pytest.raises(HTTPException):
-    asyncio.run(users_providers_unlink_provider_v1(req))
-  assert not any(op == "db:users:security_identities:set_provider:1" for op, _ in db.calls)
-  assert not any(op == "db:users:security_sessions:revoke_provider_tokens:1" for op, _ in db.calls)
+    asyncio.run(user_services.users_providers_link_provider_v1(req))
+  restore(user_services, "unbox_request", original)
+  assert not module.calls
 
 
-def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google", "new_default": "microsoft"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
-
-  class LocalDb(DummyDb):
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      if key == PROFILE_GET_REQUEST.op:
-        return DBRes(rows=[{"default_provider": "google"}])
-      if key == "db:users:security_identities:unlink_provider:1":
-        return DBRes(rows=[{"providers_remaining": 1}], rowcount=1)
-      return DBRes()
-
-  db = LocalDb()
-  req = DummyRequest(DummyState(db))
-  asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("db:users:security_identities:set_provider:1", {"guid": "u1", "provider": "microsoft"}) in db.calls
-  assert ("db:users:security_sessions:revoke_provider_tokens:1", {"guid": "u1", "provider": "google"}) in db.calls
-  assert not any(op == "db:users:security_sessions:revoke_all_device_tokens:1" for op, _ in db.calls)
-  assert not any(op == "db:users:security_identities:soft_delete_account:1" for op, _ in db.calls)
+def test_link_provider_delegates_to_module():
+  module = DummyModule()
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:link_provider:1",
+    {"provider": "discord", "code": "auth"},
+  )
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request)
+  try:
+    resp = asyncio.run(user_services.users_providers_link_provider_v1(req))
+  finally:
+    restore(user_services, "unbox_request", original)
+  assert resp.payload == {"provider": "discord"}
+  assert module.calls[0][0] == "link"
+  assert module.calls[0][1]["guid"] == "user-1"
 
 
-def test_unlink_last_provider_soft_deletes_and_revokes():
-  async def fake_get(request):
-    rpc = RPCRequest(op="urn:users:providers:unlink_provider:1", payload={"provider": "google"}, version=1)
-    return rpc, SimpleNamespace(user_guid="u1"), None
-  svc_mod.unbox_request = fake_get
+def test_unlink_provider_delegates_to_module():
+  module = DummyModule()
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:unlink_provider:1",
+    {"provider": "google", "new_default": "microsoft"},
+  )
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request)
+  try:
+    resp = asyncio.run(user_services.users_providers_unlink_provider_v1(req))
+  finally:
+    restore(user_services, "unbox_request", original)
+  assert resp.payload == {"provider": "google"}
+  assert module.calls[0] == ("unlink", {"guid": "user-1", "provider": "google", "new_default": "microsoft"})
 
-  class LocalDb(DummyDb):
-    async def run(self, op, args=None):
-      if isinstance(op, DBRequest):
-        args = op.params
-        op = op.op
-      args = args or {}
-      key, params = _normalize_db_call(op, args)
-      self.calls.append((key, params))
-      if key == PROFILE_GET_REQUEST.op:
-        return DBRes(rows=[{"default_provider": "google"}])
-      if key == "db:users:security_identities:unlink_provider:1":
-        return DBRes(rows=[{"providers_remaining": 0}], rowcount=1)
-      if key == "db:users:security_identities:unlink_last_provider:1":
-        return DBRes([], 1)
-      return DBRes()
 
-  db = LocalDb()
-  req = DummyRequest(DummyState(db))
-  asyncio.run(users_providers_unlink_provider_v1(req))
-  assert ("db:users:security_identities:unlink_last_provider:1", {"guid": "u1", "provider": "google"}) in db.calls
-  assert not any(op == "db:users:security_sessions:revoke_provider_tokens:1" for op, _ in db.calls)
+def test_get_by_provider_identifier_returns_module_value():
+  module = DummyModule()
+  module.get_result = {"guid": "user-1"}
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:get_by_provider_identifier:1",
+    {"provider": "google", "provider_identifier": "pid"},
+  )
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request, auth_ctx=None)
+  try:
+    resp = asyncio.run(user_services.users_providers_get_by_provider_identifier_v1(req))
+  finally:
+    restore(user_services, "unbox_request", original)
+  assert resp.payload == {"guid": "user-1"}
+  assert module.calls[0][0] == "get"
+
+
+def test_create_from_provider_returns_module_value():
+  module = DummyModule()
+  module.create_result = {"guid": "user-1"}
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:users:providers:create_from_provider:1",
+    {
+      "provider": "google",
+      "provider_identifier": "pid",
+      "provider_email": "user@example.com",
+      "provider_displayname": "User",
+      "provider_profile_image": None,
+    },
+  )
+  original = user_services.unbox_request
+  user_services.unbox_request = stub_unbox(user_services, rpc_request, auth_ctx=None)
+  try:
+    resp = asyncio.run(user_services.users_providers_create_from_provider_v1(req))
+  finally:
+    restore(user_services, "unbox_request", original)
+  assert resp.payload == {"guid": "user-1"}
+  assert module.calls[0][0] == "create"
+
+
+def test_auth_unlink_last_provider_delegates_to_module():
+  module = DummyModule()
+  req = DummyRequest(module)
+  rpc_request = make_rpc_request(
+    "urn:auth:providers:unlink_last_provider:1",
+    {"guid": "u1", "provider": "google"},
+  )
+  original = auth_services.unbox_request
+  auth_services.unbox_request = stub_unbox(auth_services, rpc_request, auth_ctx=None)
+  try:
+    resp = asyncio.run(auth_services.auth_providers_unlink_last_provider_v1(req))
+  finally:
+    restore(auth_services, "unbox_request", original)
+  assert resp.payload == {"ok": True}
+  assert module.calls[0] == ("unlink_last", {"guid": "u1", "provider": "google"})
 
