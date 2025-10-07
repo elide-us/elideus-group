@@ -1,9 +1,11 @@
-import types, sys, pathlib
+import pathlib
+import sys
+import types
 from types import SimpleNamespace
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
-from server.registry.types import DBRequest
 
 # Stub rpc packages
 pkg = types.ModuleType('rpc')
@@ -18,55 +20,9 @@ rpc_service_routes_pkg = types.ModuleType('rpc.service.routes')
 rpc_service_routes_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/service/routes')]
 sys.modules.setdefault('rpc.service.routes', rpc_service_routes_pkg)
 
-# Stub server modules
+# Stub server models
 server_pkg = types.ModuleType('server')
-modules_pkg = types.ModuleType('server.modules')
-db_module_pkg = types.ModuleType('server.modules.db_module')
-auth_module_pkg = types.ModuleType('server.modules.auth_module')
 models_pkg = types.ModuleType('server.models')
-
-
-class DbModule:
-  pass
-
-
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-
-
-class RoleCache:
-  def __init__(self):
-    self.roles = {'ROLE_SERVICE_ADMIN': 1}
-
-  def mask_to_names(self, mask):
-    return [name for name, bit in self.roles.items() if mask & bit]
-
-  def names_to_mask(self, names):
-    mask = 0
-    missing = [n for n in names if n not in self.roles]
-    if missing:
-      raise KeyError(f"Undefined roles: {', '.join(missing)}")
-    for n in names:
-      mask |= self.roles[n]
-    return mask
-
-class AuthModule:
-  def __init__(self):
-    self.role_cache = RoleCache()
-
-  @property
-  def roles(self):
-    return self.role_cache.roles
-
-  def mask_to_names(self, mask):
-    return self.role_cache.mask_to_names(mask)
-
-  def names_to_mask(self, names):
-    return self.role_cache.names_to_mask(names)
-
-
-auth_module_pkg.AuthModule = AuthModule
-modules_pkg.auth_module = auth_module_pkg
 
 
 class RPCResponse:
@@ -75,15 +31,15 @@ class RPCResponse:
     self.__dict__.update(data)
 
 
+def ensure_json_serializable(value, *, field_name):
+  return value
+
+
 models_pkg.RPCResponse = RPCResponse
-models_pkg.ensure_json_serializable = lambda value, *, field_name: value
-server_pkg.modules = modules_pkg
+models_pkg.ensure_json_serializable = ensure_json_serializable
 server_pkg.models = models_pkg
 
 sys.modules.setdefault('server', server_pkg)
-sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.db_module', db_module_pkg)
-sys.modules.setdefault('server.modules.auth_module', auth_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 import importlib.util
@@ -101,48 +57,55 @@ service_routes_upsert_route_v1 = svc.service_routes_upsert_route_v1
 service_routes_delete_route_v1 = svc.service_routes_delete_route_v1
 
 
+def _make_auth_context():
+  return SimpleNamespace(user_guid='u1', roles=['ROLE_SERVICE_ADMIN'])
+
+
 async def fake_unbox(request: Request):
   body = await request.json()
   op = body.get('op')
   payload = body.get('payload')
   rpc_req = SimpleNamespace(op=op, payload=payload, version=1)
-  auth_ctx = SimpleNamespace(user_guid='u1', roles=['ROLE_SERVICE_ADMIN'])
-  return rpc_req, auth_ctx, None
+  return rpc_req, _make_auth_context(), None
 
 
 svc.unbox_request = fake_unbox
 
 
-class DummyDb:
+class DummyServiceRoutesModule:
   def __init__(self):
-    self.calls = []
+    self.list_calls = 0
+    self.upsert_calls: list[dict[str, object]] = []
+    self.delete_calls: list[str] = []
 
-  async def run(self, op, args=None):
-    if isinstance(op, DBRequest):
-      args = op.params
-      op = op.op
-    args = args or {}
-    self.calls.append((op, args))
-    if op == 'db:system:routes:get_routes:1':
-      rows = [{
-        'element_path': '/a',
-        'element_name': 'A',
-        'element_icon': 'home',
-        'element_sequence': 1,
-        'element_roles': 1,
-      }]
-      return SimpleNamespace(rows=rows, rowcount=1)
-    if op in ('db:system:routes:upsert_route:1', 'db:system:routes:delete_route:1'):
-      return SimpleNamespace(rows=[], rowcount=1)
-    raise AssertionError(f'unexpected op {op}')
+  async def list_routes(self):
+    self.list_calls += 1
+    return [
+      {
+        'path': '/a',
+        'name': 'A',
+        'icon': 'home',
+        'sequence': 1,
+        'required_roles': ['ROLE_SERVICE_ADMIN'],
+      }
+    ]
+
+  async def upsert_route(self, **route):
+    self.upsert_calls.append(route)
+    return route
+
+  async def delete_route(self, path: str):
+    self.delete_calls.append(path)
+    return {'path': path}
 
 
-db = DummyDb()
-auth = AuthModule()
+class FailingServiceRoutesModule(DummyServiceRoutesModule):
+  async def upsert_route(self, **route):
+    raise KeyError('Undefined roles: ROLE_UNKNOWN')
+
 
 app = FastAPI()
-app.state.db = db
-app.state.auth = auth
+app.state.service_routes = DummyServiceRoutesModule()
 
 
 @app.post('/rpc')
@@ -158,10 +121,13 @@ async def rpc_endpoint(request: Request):
   raise AssertionError('unexpected op')
 
 
-client = TestClient(app)
+def _make_client():
+  return TestClient(app)
 
 
 def test_get_routes_service():
+  client = _make_client()
+  app.state.service_routes = DummyServiceRoutesModule()
   resp = client.post('/rpc', json={'op': 'urn:service:routes:get_routes:1', 'version': 1})
   assert resp.status_code == 200
   data = resp.json()
@@ -174,10 +140,13 @@ def test_get_routes_service():
       'required_roles': ['ROLE_SERVICE_ADMIN'],
     }]
   }
-  assert ('db:system:routes:get_routes:1', {}) in db.calls
+  assert app.state.service_routes.list_calls == 1
 
 
 def test_upsert_and_delete_route_service():
+  client = _make_client()
+  module = DummyServiceRoutesModule()
+  app.state.service_routes = module
   upsert_payload = {
     'path': '/a',
     'name': 'A',
@@ -187,13 +156,23 @@ def test_upsert_and_delete_route_service():
   }
   resp = client.post('/rpc', json={'op': 'urn:service:routes:upsert_route:1', 'payload': upsert_payload, 'version': 1})
   assert resp.status_code == 200
+  assert module.upsert_calls == [upsert_payload]
   resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}, 'version': 1})
   assert resp.status_code == 200
-  assert ('db:system:routes:upsert_route:1', {
+  assert module.delete_calls == ['/a']
+
+
+def test_upsert_route_invalid_role_returns_400():
+  client = _make_client()
+  app.state.service_routes = FailingServiceRoutesModule()
+  upsert_payload = {
     'path': '/a',
     'name': 'A',
     'icon': 'home',
     'sequence': 1,
-    'roles': 1,
-  }) in db.calls
-  assert ('db:system:routes:delete_route:1', {'path': '/a'}) in db.calls
+    'required_roles': ['ROLE_UNKNOWN'],
+  }
+  resp = client.post('/rpc', json={'op': 'urn:service:routes:upsert_route:1', 'payload': upsert_payload, 'version': 1})
+  assert resp.status_code == 400
+  data = resp.json()
+  assert data['detail'] == "'Undefined roles: ROLE_UNKNOWN'"
