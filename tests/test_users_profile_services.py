@@ -4,11 +4,12 @@ import pathlib
 import sys
 import types
 from types import SimpleNamespace
-from server.registry.types import DBRequest
-
 import pytest
 from fastapi import HTTPException
-from server.registry.users.content.profile import set_profile_image_request
+from rpc.users.profile.models import (
+  UsersProfileProfile1,
+  UsersProfileRoles1,
+)
 
 # stub rpc package
 pkg = types.ModuleType("rpc")
@@ -25,10 +26,10 @@ sys.modules["server.models"] = models
 # stub server packages for loading real helpers
 server_pkg = types.ModuleType("server")
 modules_pkg = types.ModuleType("server.modules")
-db_module_pkg = types.ModuleType("server.modules.db_module")
-class DbModule: ...
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
+user_profile_pkg = types.ModuleType("server.modules.user_profile_module")
+class UserProfileModule: ...
+user_profile_pkg.UserProfileModule = UserProfileModule
+modules_pkg.user_profile_module = user_profile_pkg
 server_pkg.modules = modules_pkg
 models_pkg = types.ModuleType("server.models")
 class AuthContext:
@@ -40,7 +41,7 @@ server_pkg.models = models_pkg
 
 sys.modules.setdefault("server", server_pkg)
 sys.modules.setdefault("server.modules", modules_pkg)
-sys.modules.setdefault("server.modules.db_module", db_module_pkg)
+sys.modules.setdefault("server.modules.user_profile_module", user_profile_pkg)
 sys.modules.setdefault("server.models", models_pkg)
 
 # load real helpers then override for service import
@@ -65,47 +66,40 @@ sys.modules["rpc.helpers"] = real_helpers
 users_profile_get_roles_v1 = svc_mod.users_profile_get_roles_v1
 users_profile_set_profile_image_v1 = svc_mod.users_profile_set_profile_image_v1
 
-class DBRes:
-  def __init__(self, rows=None, rowcount=0):
-    self.rows = rows or []
-    self.rowcount = rowcount
 
-PROFILE_IMAGE_REQUEST = set_profile_image_request(guid="", provider="", image_b64=None)
-
-
-class DummyDb:
+class DummyProfileModule:
   def __init__(self, roles=0):
     self.calls = []
     self.roles = roles
-  async def run(self, op, args=None):
-    if isinstance(op, DBRequest):
-      args = op.params
-      op = op.op
-    args = args or {}
-    if hasattr(op, "op") and hasattr(op, "params"):
-      key = op.op
-      params = op.params
-    else:
-      key = op
-      params = args
-    self.calls.append((key, params))
-    if key == "db:users:security_accounts:get_security_profile:1":
-      return DBRes([
-        {
-          "guid": params.get("guid"),
-          "user_guid": params.get("guid"),
-          "user_roles": self.roles,
-          "provider_name": "microsoft",
-          "provider_display": "Microsoft",
-        }
-      ], 1)
-    if key == PROFILE_IMAGE_REQUEST.op:
-      return DBRes([], 1)
-    return DBRes()
+  async def get_roles(self, guid):
+    self.calls.append(("get_roles", guid))
+    return UsersProfileRoles1(roles=self.roles)
+
+  async def set_profile_image(self, guid, image_b64, provider):
+    self.calls.append(("set_profile_image", guid, image_b64, provider))
+
+  async def get_profile(self, guid):
+    self.calls.append(("get_profile", guid))
+    return UsersProfileProfile1(
+      guid=guid,
+      display_name="User",
+      email="user@example.com",
+      display_email=True,
+      credits=0,
+      profile_image=None,
+      default_provider="microsoft",
+      auth_providers=[],
+    )
+
+  async def set_display(self, guid, display_name):
+    self.calls.append(("set_display", guid, display_name))
+
+  async def set_optin(self, guid, display_email):
+    self.calls.append(("set_optin", guid, display_email))
 
 class DummyState:
-  def __init__(self, db):
-    self.db = db
+  def __init__(self, user_profile):
+    self.user_profile = user_profile
 
 class DummyApp:
   def __init__(self, state):
@@ -121,23 +115,22 @@ def test_get_roles_service_returns_mask():
     rpc = RPCRequest(op="urn:users:profile:get_roles:1", payload=None, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_get
-  db = DummyDb(roles=5)
-  req = DummyRequest(DummyState(db))
+  module = DummyProfileModule(roles=5)
+  req = DummyRequest(DummyState(module))
   resp = asyncio.run(users_profile_get_roles_v1(req))
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
-  assert ("db:users:security_accounts:get_security_profile:1", {"guid": "u1"}) in db.calls
+  assert ("get_roles", "u1") in module.calls
 
 def test_set_profile_image_calls_db():
   async def fake_img(request):
     rpc = RPCRequest(op="urn:users:profile:set_profile_image:1", payload={"image_b64": "abc", "provider": "microsoft"}, version=1)
     return rpc, SimpleNamespace(user_guid="u1"), None
   svc_mod.unbox_request = fake_img
-  db = DummyDb()
-  req = DummyRequest(DummyState(db))
+  module = DummyProfileModule()
+  req = DummyRequest(DummyState(module))
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
-  expected_request = set_profile_image_request(guid="u1", image_b64="abc", provider="microsoft")
-  assert (expected_request.op, expected_request.params) in db.calls
+  assert ("set_profile_image", "u1", "abc", "microsoft") in module.calls
   assert resp.payload["image_b64"] == "abc"
 
 
@@ -146,8 +139,8 @@ def test_missing_user_guid_raises():
     rpc = RPCRequest(op="urn:users:profile:get_roles:1", payload=None, version=1)
     return rpc, SimpleNamespace(user_guid=None), None
   svc_mod.unbox_request = fake_get
-  db = DummyDb()
-  req = DummyRequest(DummyState(db))
+  module = DummyProfileModule()
+  req = DummyRequest(DummyState(module))
   with pytest.raises(HTTPException) as exc:
     asyncio.run(users_profile_get_roles_v1(req))
   assert exc.value.status_code == 400
