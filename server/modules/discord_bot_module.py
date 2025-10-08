@@ -81,7 +81,10 @@ class DiscordBotModule(BaseModule):
       self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
       self.rpc_signing_secret = self.env.get("DISCORD_RPC_SIGNING_SECRET")
       if not self.rpc_signing_secret or self.rpc_signing_secret.startswith("MISSING_"):
-        raise RuntimeError("Discord RPC signing secret is not configured")
+        logging.warning(
+          "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
+        )
+        self.rpc_signing_secret = None
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
