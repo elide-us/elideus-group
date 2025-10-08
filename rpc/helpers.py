@@ -16,6 +16,7 @@ from server.errors import (
   unauthorized,
 )
 from server.helpers.discord_signing import compute_signature
+from server.registry.system.config import get_config_request
 
 if TYPE_CHECKING:
   from server.modules import AuthService
@@ -98,32 +99,38 @@ def _audit_discord_signature_failure(
   _audit_logger.error('rpc.discord.signature.failure', extra=extra)
 
 
-def _get_discord_signing_secret(request: Request) -> str:
-  env = getattr(request.app.state, 'env', None)
-  if not env:
-    raise service_unavailable(
-      'Discord signature validation unavailable',
-      code='rpc.discord.signature_env_missing',
-      diagnostic='Environment module is missing from app state',
-    )
-  try:
-    secret = env.get('DISCORD_RPC_SIGNING_SECRET')
-  except Exception as exc:  # pragma: no cover - defensive guard
-    raise service_unavailable(
-      'Discord signature validation unavailable',
-      code='rpc.discord.signature_secret_missing',
-      diagnostic='Discord signing secret is not configured',
-    ) from exc
+async def _get_discord_signing_secret(request: Request) -> str:
+  cached = getattr(request.app.state, 'discord_rpc_signing_secret', None)
+  if cached:
+    return str(cached)
+  discord_bot = getattr(request.app.state, 'discord_bot', None)
+  secret = getattr(discord_bot, 'rpc_signing_secret', None) if discord_bot else None
+  if not secret:
+    db = getattr(request.app.state, 'db', None)
+    if not db:
+      raise service_unavailable(
+        'Discord signature validation unavailable',
+        code='rpc.discord.signature_env_missing',
+        diagnostic='Database module is missing from app state',
+      )
+    await db.on_ready()
+    request_cfg = get_config_request('DiscordRpcSigningSecret')
+    result = await db.run(request_cfg)
+    if result.rows:
+      row = result.rows[0]
+      secret = row.get('value') if isinstance(row, dict) else getattr(row, 'value', None)
   if not secret or str(secret).startswith('MISSING_'):
     raise service_unavailable(
       'Discord signature validation unavailable',
       code='rpc.discord.signature_secret_missing',
       diagnostic='Discord signing secret is not configured',
     )
-  return str(secret)
+  secret_str = str(secret)
+  setattr(request.app.state, 'discord_rpc_signing_secret', secret_str)
+  return secret_str
 
 
-def _require_discord_signature(request: Request, rpc_request: RPCRequest) -> None:
+async def _require_discord_signature(request: Request, rpc_request: RPCRequest) -> None:
   signature = request.headers.get(_DISCORD_SIGNATURE_HEADER)
   timestamp = request.headers.get(_DISCORD_SIGNATURE_TIMESTAMP_HEADER)
   if not signature or not timestamp:
@@ -161,7 +168,7 @@ def _require_discord_signature(request: Request, rpc_request: RPCRequest) -> Non
       diagnostic='Discord signature timestamp outside tolerance window',
     )
   try:
-    secret = _get_discord_signing_secret(request)
+    secret = await _get_discord_signing_secret(request)
   except RPCServiceError as exc:
     _audit_discord_signature_failure('secret_unavailable', request, rpc_request, code=exc.detail.code)
     raise
@@ -271,7 +278,7 @@ async def _validate_rpc_identity(
     _logger.debug('[RPC] Resolved MTLS roles for %s: %s (mask=%#018x)', mtls_subject, roles, mask)
 
   if domain == 'discord':
-    _require_discord_signature(request, rpc_request)
+    await _require_discord_signature(request, rpc_request)
     discord_id = _get_discord_id_from_request(request)
     if not discord_id:
       raise unauthorized('Discord identity assertion missing', diagnostic='No Discord ID in request')

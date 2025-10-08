@@ -77,11 +77,7 @@ class DiscordBotModule(BaseModule):
       self.owns_bot = True
       setattr(self.app.state, "discord_bot", self)
       self.secret = self.env.get("DISCORD_SECRET")
-      self.rpc_base_url = (self.env.get("DISCORD_RPC_BASE_URL") or "").rstrip('/')
-      self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
-      self.rpc_signing_secret = self.env.get("DISCORD_RPC_SIGNING_SECRET")
-      if not self.rpc_signing_secret or self.rpc_signing_secret.startswith("MISSING_"):
-        raise RuntimeError("Discord RPC signing secret is not configured")
+      await self._load_rpc_config()
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
@@ -115,6 +111,48 @@ class DiscordBotModule(BaseModule):
     logging.info("Discord bot module loaded")
     self.mark_ready()
 
+  async def _load_rpc_config(self) -> None:
+    if not self.db:
+      raise RuntimeError("Database module is not available")
+    config_keys = {
+      "DiscordRpcBaseUrl": "rpc_base_url",
+      "DiscordRpcToken": "rpc_token",
+      "DiscordRpcSigningSecret": "rpc_signing_secret",
+    }
+    requests = [get_config_request(key) for key in config_keys]
+    results = await asyncio.gather(*(self.db.run(request) for request in requests))
+    values: dict[str, str | None] = {}
+    for (key, attr), result in zip(config_keys.items(), results):
+      raw_value = None
+      if result.rows:
+        row = result.rows[0]
+        raw_value = row.get("value") if isinstance(row, dict) else getattr(row, "value", None)
+      values[attr] = str(raw_value).strip() if raw_value else None
+      logging.debug(
+        "[DiscordBotModule] loaded config %s=%s",
+        key,
+        "***" if values[attr] else "<missing>",
+      )
+    base_url = values.get("rpc_base_url")
+    if not base_url:
+      raise RuntimeError("Missing config value for key: DiscordRpcBaseUrl")
+    self.rpc_base_url = base_url.rstrip('/')
+    token = values.get("rpc_token")
+    if not token:
+      raise RuntimeError("Missing config value for key: DiscordRpcToken")
+    self.rpc_token = token
+    secret = values.get("rpc_signing_secret")
+    if not secret:
+      logging.warning(
+        "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
+      )
+      self.rpc_signing_secret = None
+      if hasattr(self.app.state, "discord_rpc_signing_secret"):
+        delattr(self.app.state, "discord_rpc_signing_secret")
+      return
+    self.rpc_signing_secret = secret
+    setattr(self.app.state, "discord_rpc_signing_secret", secret)
+
   async def shutdown(self):
     if self.bot:
       await self.bot.close()
@@ -130,6 +168,8 @@ class DiscordBotModule(BaseModule):
     self.owns_bot = False
     if getattr(self.app.state, "discord_bot", None) is self:
       self.app.state.discord_bot = None
+    if hasattr(self.app.state, "discord_rpc_signing_secret"):
+      delattr(self.app.state, "discord_rpc_signing_secret")
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
