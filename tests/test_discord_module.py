@@ -46,8 +46,16 @@ class DummyDb(BaseModule):
       def __init__(self, rows):
         self.rows = rows
         self.rowcount = len(rows)
-    if op == "db:system:config:get_config:1" and args.get("key") == "DiscordSyschan":
-      return Res([{ "value": "123" }])
+    if op == "db:system:config:get_config:1":
+      key = args.get("key")
+      if key == "DiscordSyschan":
+        return Res([{ "value": "123" }])
+      if key == "DiscordRpcBaseUrl":
+        return Res([{ "value": "https://api.example.com" }])
+      if key == "DiscordRpcToken":
+        return Res([{ "value": "token" }])
+      if key == "DiscordRpcSigningSecret":
+        return Res([{ "value": "signing" }])
     return Res([])
 
 

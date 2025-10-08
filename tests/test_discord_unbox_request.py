@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from server.helpers.discord_signing import compute_signature
 from server.errors import RPCServiceError, as_http_exception
+from server.registry.types import DBRequest
 
 # Stub rpc package
 pkg = types.ModuleType('rpc')
@@ -63,18 +64,32 @@ modules_pkg.auth_module = auth_module_pkg
 sys.modules['server.modules.auth_module'] = auth_module_pkg
 
 
-class EnvStub:
+class ConfigDb:
   def __init__(self, secret: str = SIGNING_SECRET):
-    self._values = {"DISCORD_RPC_SIGNING_SECRET": secret}
+    self.secret = secret
 
-  def get(self, key: str):
-    return self._values[key]
+  async def on_ready(self):
+    return None
+
+  async def run(self, request):
+    if isinstance(request, DBRequest):
+      key = request.params.get("key")
+      op = request.op
+    else:
+      key = request.get("key") if isinstance(request, dict) else None
+      op = request
+    class Result:
+      def __init__(self, rows):
+        self.rows = rows
+    if op == "db:system:config:get_config:1" and key == "DiscordRpcSigningSecret":
+      return Result([{ "value": self.secret }])
+    return Result([])
 
 
-def _create_app(auth_module: AuthModule, env: EnvStub | None = None) -> FastAPI:
+def _create_app(auth_module: AuthModule, *, secret: str = SIGNING_SECRET) -> FastAPI:
   app = FastAPI()
   app.state.auth = auth_module
-  app.state.env = env or EnvStub()
+  app.state.db = ConfigDb(secret)
 
   @app.exception_handler(RPCServiceError)
   async def _handle_rpc_error(request: Request, exc: RPCServiceError):
