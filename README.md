@@ -90,7 +90,5 @@ Discord bot commands now invoke the public RPC surface over HTTP instead of disp
 | `DiscordRpcToken` | Bearer token that authorizes the bot to call Discord RPC domains. Rotate this credential using the same procedure as other service tokens. |
 | `DiscordRpcSigningSecret` | Shared secret used to sign Discord RPC requests and verify inbound Discord webhook calls. |
 
-If any of these keys are absent the Discord bot still starts, but outbound RPC calls and signature generation are disabled until the configuration is completed.
-
 Restart the Discord worker after updating these settings so that the updated credentials are reloaded. If any required value is missing the bot will refuse to dispatch commands and log a configuration error. Once configured, the bot sends Discord context metadata (`X-Discord-Id`, `X-Discord-Guild-Id`, and `X-Discord-Channel-Id`) on every RPC request so downstream handlers continue to authorize correctly.
 

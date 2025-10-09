@@ -60,36 +60,6 @@ class DummyDb(BaseModule):
     return Res([])
 
 
-class DummyDbMissingRpc(BaseModule):
-  def __init__(self, app: FastAPI):
-    super().__init__(app)
-    self.logging_level = logging.INFO
-
-  async def startup(self):
-    self.mark_ready()
-
-  async def shutdown(self):
-    pass
-
-  async def run(self, op, args=None):
-    if isinstance(op, DBRequest):
-      args = op.params
-      op = op.op
-    args = args or {}
-
-    class Res:
-      def __init__(self, rows):
-        self.rows = rows
-        self.rowcount = len(rows)
-
-    if op == "db:system:config:get_config:1":
-      key = args.get("key")
-      if key == "DiscordSyschan":
-        return Res([{ "value": "123" }])
-      return Res([])
-    return Res([])
-
-
 class DummyBot:
   def __init__(self):
     try:

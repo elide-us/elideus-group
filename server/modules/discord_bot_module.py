@@ -78,6 +78,14 @@ class DiscordBotModule(BaseModule):
       setattr(self.app.state, "discord_bot", self)
       self.secret = self.env.get("DISCORD_SECRET")
       await self._load_rpc_config()
+      # self.rpc_base_url = (self.env.get("DISCORD_RPC_BASE_URL") or "").rstrip('/')
+      # self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
+      # self.rpc_signing_secret = self.env.get("DISCORD_RPC_SIGNING_SECRET")
+      # if not self.rpc_signing_secret or self.rpc_signing_secret.startswith("MISSING_"):
+        # logging.warning(
+          # "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
+        # )
+        # self.rpc_signing_secret = None
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
@@ -133,35 +141,25 @@ class DiscordBotModule(BaseModule):
         key,
         "***" if values[attr] else "<missing>",
       )
-    missing: list[str] = []
     base_url = values.get("rpc_base_url")
-    if base_url:
-      self.rpc_base_url = base_url.rstrip('/')
-    else:
-      missing.append("DiscordRpcBaseUrl")
-      self.rpc_base_url = None
+    if not base_url:
+      raise RuntimeError("Missing config value for key: DiscordRpcBaseUrl")
+    self.rpc_base_url = base_url.rstrip('/')
     token = values.get("rpc_token")
-    if token:
-      self.rpc_token = token
-    else:
-      missing.append("DiscordRpcToken")
-      self.rpc_token = None
+    if not token:
+      raise RuntimeError("Missing config value for key: DiscordRpcToken")
+    self.rpc_token = token
     secret = values.get("rpc_signing_secret")
-    if secret:
-      self.rpc_signing_secret = secret
-      setattr(self.app.state, "discord_rpc_signing_secret", secret)
-    else:
+    if not secret:
       logging.warning(
         "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
       )
       self.rpc_signing_secret = None
       if hasattr(self.app.state, "discord_rpc_signing_secret"):
         delattr(self.app.state, "discord_rpc_signing_secret")
-    if missing:
-      logging.warning(
-        "[DiscordBotModule] RPC base URL/token missing; RPC calls will be disabled (%s)",
-        ", ".join(missing),
-      )
+      return
+    self.rpc_signing_secret = secret
+    setattr(self.app.state, "discord_rpc_signing_secret", secret)
 
   async def shutdown(self):
     if self.bot:
