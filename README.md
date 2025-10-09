@@ -80,15 +80,9 @@ The OpenAI module records conversation details whenever `!summarize` is executed
 - Outbound Discord messages are buffered through an internal asyncio queue that respects the module's chunking and rate-limiting rules. Use `queue_channel_message` and `queue_user_message` helpers to enqueue work.
 - Successful deliveries update per-channel, per-user, and aggregate throughput metrics. Call `get_throughput_snapshot()` to inspect counters and timestamps for monitoring or diagnostics.
 
-### Discord Bot RPC Configuration
+### Discord Bot RPC Dispatch
 
-Discord bot commands now invoke the public RPC surface over HTTP instead of dispatching operations in-process. Bot operators must provide credentials so the adapter can reach the FastAPI service. Store these entries in the system configuration table (`system.config` domain):
+Discord bot commands now execute RPC handlers entirely in-process. The `DiscordBotModule.call_rpc` helper resolves the target handler from the shared dispatcher (`rpc.HANDLERS`) and fabricates a lightweight request object that mirrors the FastAPI ingress. Instead of HTTP credentials, the module loads Discord identity details through the shared auth provider (`DiscordAuthModule` or `app.state.auth`). The resulting `AuthContext` and Discord metadata are attached to the synthetic request state so downstream handlers observe the same security guarantees they expect from HTTP traffic.
 
-| Key | Description |
-| --- | ----------- |
-| `DiscordRpcBaseUrl` | Root URL of the API (for example `https://api.example.com`). The adapter appends `/rpc` automatically when issuing requests. |
-| `DiscordRpcToken` | Bearer token that authorizes the bot to call Discord RPC domains. Rotate this credential using the same procedure as other service tokens. |
-| `DiscordRpcSigningSecret` | Optional secret for validating inbound Discord webhook calls. |
-
-Restart the Discord worker after updating these settings so that the updated credentials are reloaded. The bot now records Discord context metadata on the RPC request state, ensuring downstream handlers can authorize calls without relying on HTTP headers. Legacy `X-Discord-*` headers remain available only for guarded webhook integrations.
+Because identity is derived from Discord lookups, no additional RPC configuration entries (such as `DiscordRpcBaseUrl`, `DiscordRpcToken`, or `DiscordRpcSigningSecret`) are required. Ensure the Discord security tables remain in sync so the lookup performed by `get_discord_user_security` can resolve every bot user before dispatching commands.
 
