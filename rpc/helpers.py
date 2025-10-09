@@ -1,6 +1,6 @@
 from __future__ import annotations
-import hmac, logging, time
-from typing import TYPE_CHECKING, Any
+import logging
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException as FastAPIHTTPException
 from fastapi import Request
@@ -15,9 +15,6 @@ from server.errors import (
   service_unavailable,
   unauthorized,
 )
-from server.helpers.discord_signing import compute_signature
-from server.registry.system.config import get_config_request
-
 if TYPE_CHECKING:
   from server.modules import AuthService
 
@@ -42,18 +39,42 @@ def _get_token_from_request(request: Request) -> str | None:
 _logger = logging.getLogger(__name__)
 _audit_logger = logging.getLogger('security.audit')
 
-_DISCORD_SIGNATURE_HEADER = 'x-discord-signature'
-_DISCORD_SIGNATURE_TIMESTAMP_HEADER = 'x-discord-signature-timestamp'
-_DISCORD_SIGNATURE_TOLERANCE_SECONDS = 300
-
-
-def _get_discord_id_from_request(request: Request) -> str | None:
+def _get_discord_metadata(request: Request) -> dict[str, str] | None:
+  metadata = getattr(request.state, 'discord_metadata', None)
+  if metadata:
+    user_id = metadata.get('user_id') or metadata.get('id')
+    if user_id:
+      result: dict[str, str] = {'user_id': str(user_id)}
+      guild_id = metadata.get('guild_id')
+      channel_id = metadata.get('channel_id')
+      if guild_id is not None:
+        result['guild_id'] = str(guild_id)
+      if channel_id is not None:
+        result['channel_id'] = str(channel_id)
+      return result
   ctx = getattr(request.state, 'discord_ctx', None)
   if ctx and getattr(ctx, 'author', None):
-    return str(getattr(ctx.author, 'id', ''))
+    author = ctx.author
+    result = {'user_id': str(getattr(author, 'id', ''))}
+    guild_id = getattr(ctx, 'guild_id', None)
+    channel_id = getattr(ctx, 'channel_id', None)
+    if guild_id is not None:
+      result['guild_id'] = str(guild_id)
+    if channel_id is not None:
+      result['channel_id'] = str(channel_id)
+    return result
   header_id = request.headers.get('x-discord-id') or request.headers.get('x-discord-user-id')
   if header_id:
-    return str(header_id)
+    # Future webhook integrations may still rely on headers. Guard their usage so
+    # internal callers must prefer structured metadata on request.state.
+    result = {'user_id': str(header_id)}
+    guild_id = request.headers.get('x-discord-guild-id')
+    channel_id = request.headers.get('x-discord-channel-id')
+    if guild_id is not None:
+      result['guild_id'] = str(guild_id)
+    if channel_id is not None:
+      result['channel_id'] = str(channel_id)
+    return result
   return None
 
 
@@ -65,133 +86,6 @@ def _get_mtls_subject(request: Request) -> str | None:
   if header_subject:
     return str(header_subject)
   return None
-
-
-def _signature_body_from_request(rpc_request: RPCRequest) -> dict[str, Any]:
-  body = {'op': rpc_request.op, 'version': rpc_request.version}
-  if rpc_request.payload is not None:
-    body['payload'] = rpc_request.payload
-  return body
-
-
-def _audit_discord_signature_failure(
-  reason: str,
-  request: Request,
-  rpc_request: RPCRequest,
-  *,
-  code: str,
-) -> None:
-  extra = {
-    'event': 'rpc.discord.signature.failure',
-    'reason': reason,
-    'code': code,
-    'op': getattr(rpc_request, 'op', None),
-  }
-  discord_id = request.headers.get('x-discord-id')
-  guild_id = request.headers.get('x-discord-guild-id')
-  channel_id = request.headers.get('x-discord-channel-id')
-  if discord_id:
-    extra['discord_id'] = str(discord_id)
-  if guild_id:
-    extra['guild_id'] = str(guild_id)
-  if channel_id:
-    extra['channel_id'] = str(channel_id)
-  _audit_logger.error('rpc.discord.signature.failure', extra=extra)
-
-
-async def _get_discord_signing_secret(request: Request) -> str:
-  cached = getattr(request.app.state, 'discord_rpc_signing_secret', None)
-  if cached:
-    return str(cached)
-  discord_bot = getattr(request.app.state, 'discord_bot', None)
-  secret = getattr(discord_bot, 'rpc_signing_secret', None) if discord_bot else None
-  if not secret:
-    db = getattr(request.app.state, 'db', None)
-    if not db:
-      raise service_unavailable(
-        'Discord signature validation unavailable',
-        code='rpc.discord.signature_env_missing',
-        diagnostic='Database module is missing from app state',
-      )
-    await db.on_ready()
-    request_cfg = get_config_request('DiscordRpcSigningSecret')
-    result = await db.run(request_cfg)
-    if result.rows:
-      row = result.rows[0]
-      secret = row.get('value') if isinstance(row, dict) else getattr(row, 'value', None)
-  if not secret or str(secret).startswith('MISSING_'):
-    raise service_unavailable(
-      'Discord signature validation unavailable',
-      code='rpc.discord.signature_secret_missing',
-      diagnostic='Discord signing secret is not configured',
-    )
-  secret_str = str(secret)
-  setattr(request.app.state, 'discord_rpc_signing_secret', secret_str)
-  return secret_str
-
-
-async def _require_discord_signature(request: Request, rpc_request: RPCRequest) -> None:
-  signature = request.headers.get(_DISCORD_SIGNATURE_HEADER)
-  timestamp = request.headers.get(_DISCORD_SIGNATURE_TIMESTAMP_HEADER)
-  if not signature or not timestamp:
-    _audit_discord_signature_failure('missing', request, rpc_request, code='rpc.auth.signature_missing')
-    raise unauthorized(
-      'Discord signature missing',
-      code='rpc.auth.signature_missing',
-      diagnostic='Discord request missing signature headers',
-    )
-  try:
-    timestamp_int = int(str(timestamp))
-  except ValueError as exc:
-    _audit_discord_signature_failure(
-      'invalid_timestamp',
-      request,
-      rpc_request,
-      code='rpc.auth.signature_invalid_timestamp',
-    )
-    raise unauthorized(
-      'Discord signature invalid',
-      code='rpc.auth.signature_invalid_timestamp',
-      diagnostic='Discord signature timestamp is invalid',
-    ) from exc
-  now = int(time.time())
-  if abs(now - timestamp_int) > _DISCORD_SIGNATURE_TOLERANCE_SECONDS:
-    _audit_discord_signature_failure(
-      'expired',
-      request,
-      rpc_request,
-      code='rpc.auth.signature_expired',
-    )
-    raise unauthorized(
-      'Discord signature expired',
-      code='rpc.auth.signature_expired',
-      diagnostic='Discord signature timestamp outside tolerance window',
-    )
-  try:
-    secret = await _get_discord_signing_secret(request)
-  except RPCServiceError as exc:
-    _audit_discord_signature_failure('secret_unavailable', request, rpc_request, code=exc.detail.code)
-    raise
-  expected = compute_signature(
-    secret,
-    body=_signature_body_from_request(rpc_request),
-    timestamp=str(timestamp_int),
-    user_id=request.headers.get('x-discord-id'),
-    guild_id=request.headers.get('x-discord-guild-id'),
-    channel_id=request.headers.get('x-discord-channel-id'),
-  )
-  if not hmac.compare_digest(signature, expected):
-    _audit_discord_signature_failure(
-      'mismatch',
-      request,
-      rpc_request,
-      code='rpc.auth.signature_invalid',
-    )
-    raise unauthorized(
-      'Discord signature invalid',
-      code='rpc.auth.signature_invalid',
-      diagnostic='Discord signature verification failed',
-    )
 
 
 def resolve_required_mask(auth: 'AuthService', role_name: str, *, context: str | None = None) -> int:
@@ -233,12 +127,13 @@ async def _validate_rpc_identity(
 
   identity_source = None
   discord_id: str | None = None
+  discord_metadata = _get_discord_metadata(request)
 
-  if domain in ('discord', 'webhook') and not (token or mtls_subject):
+  if domain == 'webhook' and not (token or mtls_subject):
     raise unauthorized(
       'Signed token or MTLS assertion required',
       code='rpc.auth.signature_required',
-      diagnostic='Discord/webhook request missing token or MTLS assertion',
+      diagnostic='Webhook request missing token or MTLS assertion',
     )
 
   if token:
@@ -277,11 +172,15 @@ async def _validate_rpc_identity(
     identity_source = 'mtls'
     _logger.debug('[RPC] Resolved MTLS roles for %s: %s (mask=%#018x)', mtls_subject, roles, mask)
 
-  if domain == 'discord':
-    await _require_discord_signature(request, rpc_request)
-    discord_id = _get_discord_id_from_request(request)
+  if domain == 'discord' and not identity_source:
+    if not discord_metadata:
+      raise unauthorized(
+        'Discord identity assertion missing',
+        diagnostic='Discord request missing metadata',
+      )
+    discord_id = discord_metadata.get('user_id')
     if not discord_id:
-      raise unauthorized('Discord identity assertion missing', diagnostic='No Discord ID in request')
+      raise unauthorized('Discord identity assertion missing', diagnostic='Discord metadata missing user id')
     guid, roles, mask = await auth.get_discord_user_security(discord_id)
     if not guid:
       raise forbidden('Forbidden', diagnostic=f'No Discord user for {discord_id}')
@@ -314,6 +213,13 @@ async def _validate_rpc_identity(
     }
     if discord_id:
       audit_payload['discord_id'] = discord_id
+    if discord_metadata:
+      guild_id = discord_metadata.get('guild_id')
+      channel_id = discord_metadata.get('channel_id')
+      if guild_id:
+        audit_payload['discord_guild_id'] = guild_id
+      if channel_id:
+        audit_payload['discord_channel_id'] = channel_id
     if token:
       audit_payload['token_present'] = True
     if mtls_subject:

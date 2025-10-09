@@ -88,7 +88,7 @@ Discord bot commands now invoke the public RPC surface over HTTP instead of disp
 | --- | ----------- |
 | `DiscordRpcBaseUrl` | Root URL of the API (for example `https://api.example.com`). The adapter appends `/rpc` automatically when issuing requests. |
 | `DiscordRpcToken` | Bearer token that authorizes the bot to call Discord RPC domains. Rotate this credential using the same procedure as other service tokens. |
-| `DiscordRpcSigningSecret` | Shared secret used to sign Discord RPC requests and verify inbound Discord webhook calls. |
+| `DiscordRpcSigningSecret` | Optional secret for validating inbound Discord webhook calls. |
 
-Restart the Discord worker after updating these settings so that the updated credentials are reloaded. If any required value is missing the bot will refuse to dispatch commands and log a configuration error. Once configured, the bot sends Discord context metadata (`X-Discord-Id`, `X-Discord-Guild-Id`, and `X-Discord-Channel-Id`) on every RPC request so downstream handlers continue to authorize correctly.
+Restart the Discord worker after updating these settings so that the updated credentials are reloaded. The bot now records Discord context metadata on the RPC request state, ensuring downstream handlers can authorize calls without relying on HTTP headers. Legacy `X-Discord-*` headers remain available only for guarded webhook integrations.
 
