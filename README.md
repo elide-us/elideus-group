@@ -49,6 +49,7 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
+- `run_dbsync.py` applies pending upgrade SQL in the `scripts` directory, records the most recent script in `system_config`, and flags the build to export a refreshed schema dump.
 - `generate_rpc_bindings.py` generates RPC TypeScript models and client accessors.
 - `scriptlib.py` handles common RPC namespace generation functions and version helpers.
 - `msdblib.py` handles most of the mssql querying operations.

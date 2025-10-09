@@ -149,3 +149,30 @@ The RPC layer decrypts the bearer token to extract the user's GUID, builds an
 `RPCRequest`, validates roles, credits, and entitlements, and then dispatches the
 operation if authorized.
 
+## Session Persistence Design Updates (v0.7.2 proposal)
+
+### Rotation key usage
+
+* `account_users.element_rotkey` remains a per-user, semi-long-lived salt that never leaves the database layer in raw form.
+* Access, refresh, and device tokens are derived or hashed using the rotation key plus per-device entropy so the key acts solely as a salt and compromise of a single bearer token does not reveal the salt material.
+* Server code MUST NOT treat the rotation key as a refresh token nor transmit it to clients. Any legacy code doing so must be migrated to the new per-device storage described below.
+
+### Per-device refresh token storage
+
+* Introduce a `sessions_refresh_tokens` table keyed by `sessions_devices.element_guid` to persist the hashed refresh token that corresponds to each active device.
+* Columns include the hashed token, `issued_at`, `expires_at`, `revoked_at`, and standard audit timestamps. The hash process should combine the bearer token with the user’s rotation key to ensure unusable raw values even if the table is exposed.
+* Security views such as `vw_user_session_security` and `vw_account_user_security` join through `sessions_devices` to this new table rather than surfacing the rotation key directly.
+* Session creation, refresh, and revocation paths write and read through the registry helpers so each device rotates independently without mutating other device rows.
+
+### Session activity history
+
+* A `session_activity_log` table captures every issuance, refresh, and revocation with `activity_guid`, `session_guid`, `device_guid`, `activity_type`, correlated `request_id` or `activity_id`, IP address, user agent, optional metadata JSON, and timestamp columns.
+* Registry helpers append an activity record whenever a session mutation occurs. Modules pass contextual data (request ID, Discord payload, etc.) so operators can audit device behavior and trace anomalies.
+* Provide a read-optimized view that joins sessions, devices, users, and activity rows for operational dashboards.
+
+### Request and Discord metadata auditing
+
+* Persist request metadata in a `system_request_audit` table keyed by `request_id` with optional `activity_id`, RPC operation, identity source, session/device GUIDs, Discord identifiers, outcome status, error codes, and metadata JSON.
+* Core RPC services and Discord adapters insert rows into this table so workflow automation and security reviews share a single source of truth.
+* Index the audit table by request, activity, and Discord identifiers to support cross-system correlation, and expose a reporting view to join with session history for deep forensic investigations.
+
