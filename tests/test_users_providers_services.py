@@ -1,13 +1,32 @@
 import asyncio
+import importlib
+import importlib.util
+import pathlib
+import sys
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
-from server.models import RPCRequest, RPCResponse
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-from rpc.users.providers import services as user_services
-from rpc.auth.providers import services as auth_services
+
+def _load_models():
+  spec = importlib.util.spec_from_file_location('server.models', ROOT / 'server/models.py')
+  mod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(mod)
+  sys.modules['server.models'] = mod
+  return mod
+
+
+models = _load_models()
+RPCRequest = models.RPCRequest
+RPCResponse = models.RPCResponse
+
+user_services = importlib.import_module('rpc.users.providers.services')
+user_services = importlib.reload(user_services)
+auth_services = importlib.import_module('rpc.auth.providers.services')
+auth_services = importlib.reload(auth_services)
 
 
 class DummyModule:
