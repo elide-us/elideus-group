@@ -82,11 +82,15 @@ The OpenAI module records conversation details whenever `!summarize` is executed
 
 ### Discord Bot RPC Configuration
 
-Discord bot commands now invoke the public RPC surface over HTTP instead of dispatching operations in-process. Bot operators must provide credentials so the adapter can reach the FastAPI service:
+Discord bot commands now invoke the public RPC surface over HTTP instead of dispatching operations in-process. Bot operators must provide credentials so the adapter can reach the FastAPI service. Store these entries in the system configuration table (`system.config` domain):
 
-1. Set `DISCORD_RPC_BASE_URL` to the root URL of the API (for example `https://api.example.com`). The adapter appends `/rpc` automatically when issuing requests.
-2. Set `DISCORD_RPC_TOKEN` to a bearer token that authorizes the bot to call Discord RPC domains. Rotate this credential using the same procedure as other service tokens.
-3. Restart the Discord worker after updating the environment so that the new settings are loaded by the `EnvModule`.
+| Key | Description |
+| --- | ----------- |
+| `DiscordRpcBaseUrl` | Root URL of the API (for example `https://api.example.com`). The adapter appends `/rpc` automatically when issuing requests. |
+| `DiscordRpcToken` | Bearer token that authorizes the bot to call Discord RPC domains. Rotate this credential using the same procedure as other service tokens. |
+| `DiscordRpcSigningSecret` | Shared secret used to sign Discord RPC requests and verify inbound Discord webhook calls. |
 
-If these values are missing the bot will refuse to dispatch commands and log a configuration error. Once configured, the bot sends Discord context metadata (`X-Discord-Id`, `X-Discord-Guild-Id`, and `X-Discord-Channel-Id`) on every RPC request so downstream handlers continue to authorize correctly.
+If any of these keys are absent the Discord bot still starts, but outbound RPC calls and signature generation are disabled until the configuration is completed.
+
+Restart the Discord worker after updating these settings so that the updated credentials are reloaded. If any required value is missing the bot will refuse to dispatch commands and log a configuration error. Once configured, the bot sends Discord context metadata (`X-Discord-Id`, `X-Discord-Guild-Id`, and `X-Discord-Channel-Id`) on every RPC request so downstream handlers continue to authorize correctly.
 
