@@ -227,7 +227,16 @@ class DiscordBotModule(BaseModule):
     channel_id = metadata.get("channel_id")
     if channel_id is not None:
       headers["x-discord-channel-id"] = str(channel_id)
-    state = SimpleNamespace(rpc_request=rpc_request, auth_ctx=auth_ctx)
+    discord_state = {"user_id": str(user_id)}
+    if guild_id is not None:
+      discord_state["guild_id"] = str(guild_id)
+    if channel_id is not None:
+      discord_state["channel_id"] = str(channel_id)
+    state = SimpleNamespace(
+      rpc_request=rpc_request,
+      auth_ctx=auth_ctx,
+      discord_metadata=discord_state,
+    )
     request = SimpleNamespace(
       app=self.app,
       state=state,

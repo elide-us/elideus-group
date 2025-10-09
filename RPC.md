@@ -241,7 +241,7 @@ Discord domain calls require Discord-specific roles depending on the subdomain:
 - `chat` and `command` operations require `ROLE_DISCORD_BOT`.
 - `personas` operations require `ROLE_DISCORD_ADMIN`.
 
-Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
+Discord RPC callers should attach structured metadata describing the Discord user (and optional guild/channel) to the FastAPI request state. Internal integrations (such as the Discord bot) populate `request.state.discord_metadata` automatically. Incoming webhook flows may continue to use the legacy `x-discord-*` headers as a guarded fallback when metadata is unavailable.
 
 Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 
