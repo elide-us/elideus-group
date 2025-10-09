@@ -1,4 +1,5 @@
 import asyncio, logging
+import pytest
 from fastapi import FastAPI
 from server.registry.types import DBRequest
 
@@ -144,4 +145,42 @@ def test_discord_module_startup_single_owner(monkeypatch, caplog):
 
   asyncio.run(module1.shutdown())
   asyncio.run(module2.shutdown())
+
+
+def test_discord_module_startup_without_rpc_config(monkeypatch, caplog):
+  app = FastAPI()
+  app.state.env = DummyEnv(app)
+  app.state.db = DummyDbMissingRpc(app)
+  asyncio.run(app.state.env.startup())
+  asyncio.run(app.state.db.startup())
+
+  def fake_init(self, prefix: str):
+    return DummyBot()
+
+  def fake_try_lock(self, handle):
+    return True
+
+  def fake_release(self):
+    self._lock_handle = None
+
+  monkeypatch.setattr(DiscordBotModule, "_init_discord_bot", fake_init)
+  monkeypatch.setattr(DiscordBotModule, "_try_lock_file", fake_try_lock)
+  monkeypatch.setattr(DiscordBotModule, "_release_bot_lock", fake_release)
+
+  module = DiscordBotModule(app)
+
+  with caplog.at_level(logging.WARNING):
+    asyncio.run(module.startup())
+
+  assert module.rpc_base_url is None
+  assert module.rpc_token is None
+  assert module.rpc_signing_secret is None
+  warning_messages = [record.message for record in caplog.records]
+  assert any("RPC base URL/token missing" in msg for msg in warning_messages)
+  assert any("RPC signing secret missing" in msg for msg in warning_messages)
+
+  with pytest.raises(RuntimeError):
+    asyncio.run(module.call_rpc("urn:test:ops:trigger:1"))
+
+  asyncio.run(module.shutdown())
 
