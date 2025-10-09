@@ -1,10 +1,11 @@
 """Discord bot coordination module."""
 
-import json, logging, discord, asyncio, os, time
+import logging, discord, asyncio, os
+from types import SimpleNamespace
 from typing import IO, TYPE_CHECKING, Any
 from fastapi import FastAPI
 from discord.ext import commands
-import aiohttp
+from starlette.datastructures import MutableHeaders
 
 try:  # pragma: no cover - platform dependent import
   import fcntl
@@ -19,9 +20,9 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-from server.models import RPCResponse
+from server.models import AuthContext, RPCRequest, RPCResponse
 from server.registry.system.config import get_config_request
-from server.helpers.discord_signing import compute_signature
+from server.helpers.context import request_id_context
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers
@@ -54,9 +55,6 @@ class DiscordBotModule(BaseModule):
     self.output_module: "DiscordOutputModule" | None = None
     self.social_input_module: "SocialInputModule" | None = None
     self.input_provider: "DiscordInputProvider" | None = None
-    self.rpc_base_url: str | None = None
-    self.rpc_token: str | None = None
-    self.rpc_signing_secret: str | None = None
     if not getattr(self.app.state, "discord_bot", None):
       setattr(self.app.state, "discord_bot", self)
 
@@ -77,15 +75,6 @@ class DiscordBotModule(BaseModule):
       self.owns_bot = True
       setattr(self.app.state, "discord_bot", self)
       self.secret = self.env.get("DISCORD_SECRET")
-      await self._load_rpc_config()
-      # self.rpc_base_url = (self.env.get("DISCORD_RPC_BASE_URL") or "").rstrip('/')
-      # self.rpc_token = self.env.get("DISCORD_RPC_TOKEN")
-      # self.rpc_signing_secret = self.env.get("DISCORD_RPC_SIGNING_SECRET")
-      # if not self.rpc_signing_secret or self.rpc_signing_secret.startswith("MISSING_"):
-        # logging.warning(
-          # "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
-        # )
-        # self.rpc_signing_secret = None
       self.bot = self._init_discord_bot('!')
       self.bot.app = self.app
       register_discord_event_handlers(self)
@@ -119,48 +108,6 @@ class DiscordBotModule(BaseModule):
     logging.info("Discord bot module loaded")
     self.mark_ready()
 
-  async def _load_rpc_config(self) -> None:
-    if not self.db:
-      raise RuntimeError("Database module is not available")
-    config_keys = {
-      "DiscordRpcBaseUrl": "rpc_base_url",
-      "DiscordRpcToken": "rpc_token",
-      "DiscordRpcSigningSecret": "rpc_signing_secret",
-    }
-    requests = [get_config_request(key) for key in config_keys]
-    results = await asyncio.gather(*(self.db.run(request) for request in requests))
-    values: dict[str, str | None] = {}
-    for (key, attr), result in zip(config_keys.items(), results):
-      raw_value = None
-      if result.rows:
-        row = result.rows[0]
-        raw_value = row.get("value") if isinstance(row, dict) else getattr(row, "value", None)
-      values[attr] = str(raw_value).strip() if raw_value else None
-      logging.debug(
-        "[DiscordBotModule] loaded config %s=%s",
-        key,
-        "***" if values[attr] else "<missing>",
-      )
-    base_url = values.get("rpc_base_url")
-    if not base_url:
-      raise RuntimeError("Missing config value for key: DiscordRpcBaseUrl")
-    self.rpc_base_url = base_url.rstrip('/')
-    token = values.get("rpc_token")
-    if not token:
-      raise RuntimeError("Missing config value for key: DiscordRpcToken")
-    self.rpc_token = token
-    secret = values.get("rpc_signing_secret")
-    if not secret:
-      logging.warning(
-        "[DiscordBotModule] RPC signing secret missing; RPC calls will be disabled"
-      )
-      self.rpc_signing_secret = None
-      if hasattr(self.app.state, "discord_rpc_signing_secret"):
-        delattr(self.app.state, "discord_rpc_signing_secret")
-      return
-    self.rpc_signing_secret = secret
-    setattr(self.app.state, "discord_rpc_signing_secret", secret)
-
   async def shutdown(self):
     if self.bot:
       await self.bot.close()
@@ -176,8 +123,6 @@ class DiscordBotModule(BaseModule):
     self.owns_bot = False
     if getattr(self.app.state, "discord_bot", None) is self:
       self.app.state.discord_bot = None
-    if hasattr(self.app.state, "discord_rpc_signing_secret"):
-      delattr(self.app.state, "discord_rpc_signing_secret")
 
   def _init_discord_bot(self, prefix: str) -> commands.Bot:
     intents = discord.Intents.default()
@@ -251,60 +196,58 @@ class DiscordBotModule(BaseModule):
     *,
     metadata: dict | None = None,
   ) -> RPCResponse:
-    if not self.rpc_base_url or not self.rpc_token:
-      raise RuntimeError("Discord RPC endpoint is not configured")
-    url = f"{self.rpc_base_url}/rpc"
-    headers = {
-      "Authorization": f"Bearer {self.rpc_token}",
-      "Content-Type": "application/json",
-    }
     metadata = metadata or {}
-    user_id = metadata.get("user_id")
-    if user_id:
-      headers["X-Discord-Id"] = str(user_id)
-    guild_id = metadata.get("guild_id")
-    if guild_id:
-      headers["X-Discord-Guild-Id"] = str(guild_id)
-    channel_id = metadata.get("channel_id")
-    if channel_id:
-      headers["X-Discord-Channel-Id"] = str(channel_id)
     try:
-      version = int(op.split(":")[-1])
+      version = int(op.rsplit(":", 1)[1])
     except (ValueError, IndexError) as exc:
       raise ValueError(f"Invalid RPC operation key: {op}") from exc
-    body = {"op": op, "version": version}
-    if payload is not None:
-      body["payload"] = payload
-    if not self.rpc_signing_secret:
-      raise RuntimeError("Discord RPC signing secret is not configured")
-    timestamp = str(int(time.time()))
-    headers["X-Discord-Signature-Timestamp"] = timestamp
-    signature = compute_signature(
-      self.rpc_signing_secret,
-      body=body,
-      timestamp=timestamp,
-      user_id=headers.get("X-Discord-Id"),
-      guild_id=headers.get("X-Discord-Guild-Id"),
-      channel_id=headers.get("X-Discord-Channel-Id"),
+    rpc_request = RPCRequest(op=op, payload=payload, version=version)
+    auth_module = self.discord_auth or getattr(self.app.state, "auth", None)
+    if not auth_module:
+      raise RuntimeError("Discord authentication module is not available")
+    user_id = metadata.get("user_id")
+    if user_id is None:
+      raise RuntimeError("Discord user metadata is required for RPC calls")
+    guid, roles, role_mask = await auth_module.get_discord_user_security(str(user_id))
+    if not guid:
+      raise RuntimeError(f"No security profile for Discord user {user_id}")
+    auth_ctx = AuthContext(
+      user_guid=guid,
+      roles=list(roles or []),
+      role_mask=int(role_mask or 0),
     )
-    headers["X-Discord-Signature"] = signature
-    async with aiohttp.ClientSession() as session:
-      async with session.post(url, json=body, headers=headers) as response:
-        text = await response.text()
-        if response.status >= 400:
-          logging.error(
-            "[DiscordBotModule] RPC call failed",
-            extra={"op": op, "status": response.status, "response": text},
-          )
-          raise RuntimeError(f"RPC call failed with status {response.status}: {text}")
-    try:
-      data = json.loads(text)
-    except json.JSONDecodeError as exc:
-      logging.error(
-        "[DiscordBotModule] Invalid RPC response", extra={"op": op, "response": text}
-      )
-      raise RuntimeError("Invalid RPC response payload") from exc
-    return RPCResponse(**data)
+    rpc_request.user_guid = auth_ctx.user_guid
+    rpc_request.roles = auth_ctx.roles
+    rpc_request.role_mask = auth_ctx.role_mask
+    headers = MutableHeaders()
+    headers["x-discord-id"] = str(user_id)
+    guild_id = metadata.get("guild_id")
+    if guild_id is not None:
+      headers["x-discord-guild-id"] = str(guild_id)
+    channel_id = metadata.get("channel_id")
+    if channel_id is not None:
+      headers["x-discord-channel-id"] = str(channel_id)
+    state = SimpleNamespace(rpc_request=rpc_request, auth_ctx=auth_ctx)
+    request = SimpleNamespace(
+      app=self.app,
+      state=state,
+      headers=headers,
+      method="POST",
+      query_params={},
+      path_params={},
+    )
+    from rpc import HANDLERS
+
+    parts = rpc_request.op.split(":")
+    if not parts or parts[0] != "urn":
+      raise ValueError(f"Invalid RPC operation key: {op}")
+    domain = parts[1] if len(parts) > 1 else ""
+    remainder = parts[2:]
+    handler = HANDLERS.get(domain)
+    if not handler:
+      raise RuntimeError(f"Unknown RPC domain '{domain}'")
+    with request_id_context(rpc_request.request_id):
+      return await handler(remainder, request)
 
   def _get_output_module(self) -> "DiscordOutputModule | None":
     if self.output_module:
