@@ -3,6 +3,8 @@ import sys
 
 MAX_DISCORD_MESSAGE_LEN = 1900
 
+_logger = logging.getLogger(__name__)
+
 def split_message(msg: str, limit: int = MAX_DISCORD_MESSAGE_LEN) -> list[str]:
   return [msg[i:i + limit] for i in range(0, len(msg), limit)]
 
@@ -30,10 +32,18 @@ class DiscordHandler(logging.Handler):
 
     try:
       chan = self.discord.bot.get_channel(self.discord.syschan)
-      if chan:
-        self.discord.bot.loop.create_task(self._send(msg))
     except Exception:
-      pass
+      _logger.warning("Discord logging channel lookup failed", exc_info=True)
+      return
+
+    if not chan:
+      _logger.debug("Discord logging channel %s unavailable", getattr(self.discord, 'syschan', 'unknown'))
+      return
+
+    try:
+      self.discord.bot.loop.create_task(self._send(msg))
+    except Exception:
+      _logger.warning("Discord logging queue dispatch failed", exc_info=True)
 
   async def _send(self, msg: str):
     async with self.async_lock:
@@ -49,14 +59,19 @@ class DiscordHandler(logging.Handler):
       for part in split_message(msg):
         try:
           await chan.send(part)
-        except Exception as e:
-          if getattr(e, 'status', None) == 429:
+        except Exception as exc:
+          if getattr(exc, 'status', None) == 429:
+            _logger.warning("Discord logging rate limited; retrying", exc_info=True)
             await asyncio.sleep(self.delay)
             try:
               await chan.send('Discord logging rate limited, resuming.')
               await chan.send(part)
-            except Exception:
-              pass
+            except Exception as retry_exc:
+              _logger.warning("Discord logging retry failed", exc_info=retry_exc)
+              return
+          else:
+            _logger.warning("Discord logging send failed", exc_info=exc)
+            return
         self.last_sent = time.monotonic()
 
 def configure_discord_logging(discord_module):
