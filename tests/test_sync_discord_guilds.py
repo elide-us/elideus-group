@@ -80,6 +80,7 @@ def test_synchronize_guilds_upserts_each_guild():
   assert first.params["member_count"] == 5
   assert first.params["owner_id"] == "42"
   assert first.params["region"] == "us"
+  assert "recid" not in first.params
 
 
 def test_synchronize_guilds_skips_duplicate_ids():
