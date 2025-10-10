@@ -51,6 +51,19 @@ def _raise_query_error(query: str, params: tuple[Any, ...], error: Exception, *,
 def _rowdict(cols: Iterable[str], row: Iterable[Any]):
   return dict(zip(cols, row))
 
+async def _ensure_result_set(cur) -> bool:
+  if not hasattr(cur, "description"):
+    return True
+  if getattr(cur, "description", None) is not None:
+    return True
+  nextset = getattr(cur, "nextset", None)
+  if not nextset:
+    return False
+  while await nextset():
+    if getattr(cur, "description", None) is not None:
+      return True
+  return False
+
 async def fetch_rows(kind: DbRunMode | str, sql: str, params: Iterable[Any] = (), *, stream: bool = False) -> DBResult | AsyncIterator[dict]:
   assert logic._pool, "MSSQL pool not initialized"
   run_mode_cls = _current_run_mode()
@@ -60,13 +73,6 @@ async def fetch_rows(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()
   query = sql
   params = tuple(params)
   one = mode is run_mode_cls.ROW_ONE
-  async def _ensure_result_set(cur) -> bool:
-    if cur.description is not None:
-      return True
-    while await cur.nextset():
-      if cur.description is not None:
-        return True
-    return False
   if stream:
     async def _stream() -> AsyncIterator[dict]:
       try:
@@ -115,6 +121,8 @@ async def fetch_json(kind: DbRunMode | str, sql: str, params: Iterable[Any] = ()
     async with logic._pool.acquire() as conn:
       async with conn.cursor() as cur:
         await cur.execute(query, params)
+        if not await _ensure_result_set(cur):
+          return DBResult()
         parts: list[str] = []
         while True:
           row = await cur.fetchone()
