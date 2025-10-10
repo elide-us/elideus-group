@@ -15,6 +15,8 @@ __all__ = [
 
 
 async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
+  args = dict(args)
+  args.pop("recid", None)
   guild_id = str(args["guild_id"])
   name = args["name"]
   joined_on = args.get("joined_on")
