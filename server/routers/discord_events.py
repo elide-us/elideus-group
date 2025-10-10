@@ -48,8 +48,16 @@ def _register_on_ready_handler(bot_module: "DiscordBotModule", bot: commands.Bot
 def _register_on_guild_join_handler(bot_module: "DiscordBotModule", bot: commands.Bot) -> None:
   @bot.event
   async def on_guild_join(guild):
+    message = f"Joined guild {guild.name} ({guild.id})"
+    if await bot_module._try_send_channel(bot_module.syschan, message):
+      logging.info(message)
+      return
     channel = bot.get_channel(bot_module.syschan)
     if channel:
-      logging.info(f"Joined guild {guild.name} ({guild.id})")
+      try:
+        await channel.send(message)
+        logging.info(message)
+      except Exception:
+        logging.exception("[DiscordBotModule] failed to send guild join message", extra={"guild_id": guild.id})
     else:
       logging.warning(f"[DiscordProvider] System channel not found when joining {guild.name}.")
