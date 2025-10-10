@@ -26,6 +26,18 @@ async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
   left_on = args.get("left_on")
   notes = args.get("notes")
   sql = """
+    DECLARE @upserted TABLE (
+      recid BIGINT,
+      element_guild_id NVARCHAR(64),
+      element_name NVARCHAR(512),
+      element_joined_on DATETIME2(7),
+      element_member_count INT,
+      element_owner_id NVARCHAR(64),
+      element_region NVARCHAR(256),
+      element_left_on DATETIME2(7),
+      element_notes NVARCHAR(MAX)
+    );
+
     MERGE discord_guilds AS target
     USING (
       SELECT
@@ -78,6 +90,19 @@ async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
       inserted.element_region,
       inserted.element_left_on,
       inserted.element_notes
+    INTO @upserted;
+
+    SELECT
+      recid,
+      element_guild_id,
+      element_name,
+      element_joined_on,
+      element_member_count,
+      element_owner_id,
+      element_region,
+      element_left_on,
+      element_notes
+    FROM @upserted
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   params = (
