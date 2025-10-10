@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 
 import discord
 from fastapi import FastAPI
+
+from scriptlib import REPO_ROOT
+
+if REPO_ROOT not in sys.path:
+  sys.path.insert(0, REPO_ROOT)
 
 from server.helpers.logging import configure_root_logging
 from server.modules.db_module import DbModule
