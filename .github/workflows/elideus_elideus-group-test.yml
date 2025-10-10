@@ -14,7 +14,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     
     env:
-      AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+      AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING_DEV }}
 
     steps:
     - uses: actions/checkout@v2
