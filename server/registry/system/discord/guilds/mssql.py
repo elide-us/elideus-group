@@ -40,30 +40,31 @@ async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
       element_notes NVARCHAR(MAX)
     );
 
-    MERGE discord_guilds AS target
-    USING (
-      SELECT
-        ? AS element_guild_id,
-        ? AS element_name,
-        ? AS element_joined_on,
-        ? AS element_member_count,
-        ? AS element_owner_id,
-        ? AS element_region,
-        ? AS element_left_on,
-        ? AS element_notes
-    ) AS source
-    ON target.element_guild_id = source.element_guild_id
-    WHEN MATCHED THEN
-      UPDATE SET
-        element_name = source.element_name,
-        element_member_count = source.element_member_count,
-        element_owner_id = source.element_owner_id,
-        element_region = source.element_region,
-        element_left_on = source.element_left_on,
-        element_notes = source.element_notes,
-        element_joined_on = COALESCE(source.element_joined_on, target.element_joined_on)
-    WHEN NOT MATCHED THEN
-      INSERT (
+    UPDATE discord_guilds
+      SET
+        element_name = ?,
+        element_member_count = ?,
+        element_owner_id = ?,
+        element_region = ?,
+        element_left_on = ?,
+        element_notes = ?,
+        element_joined_on = COALESCE(?, element_joined_on)
+      OUTPUT
+        inserted.recid,
+        inserted.element_guild_id,
+        inserted.element_name,
+        inserted.element_joined_on,
+        inserted.element_member_count,
+        inserted.element_owner_id,
+        inserted.element_region,
+        inserted.element_left_on,
+        inserted.element_notes
+      INTO @upserted
+      WHERE element_guild_id = ?;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+      INSERT INTO discord_guilds (
         element_guild_id,
         element_name,
         element_joined_on,
@@ -72,27 +73,29 @@ async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
         element_region,
         element_left_on,
         element_notes
-      ) VALUES (
-        source.element_guild_id,
-        source.element_name,
-        COALESCE(source.element_joined_on, SYSUTCDATETIME()),
-        source.element_member_count,
-        source.element_owner_id,
-        source.element_region,
-        source.element_left_on,
-        source.element_notes
       )
-    OUTPUT
-      inserted.recid,
-      inserted.element_guild_id,
-      inserted.element_name,
-      inserted.element_joined_on,
-      inserted.element_member_count,
-      inserted.element_owner_id,
-      inserted.element_region,
-      inserted.element_left_on,
-      inserted.element_notes
-    INTO @upserted;
+      OUTPUT
+        inserted.recid,
+        inserted.element_guild_id,
+        inserted.element_name,
+        inserted.element_joined_on,
+        inserted.element_member_count,
+        inserted.element_owner_id,
+        inserted.element_region,
+        inserted.element_left_on,
+        inserted.element_notes
+      INTO @upserted
+      VALUES (
+        ?,
+        ?,
+        COALESCE(?, SYSUTCDATETIME()),
+        ?,
+        ?,
+        ?,
+        ?,
+        ?
+      );
+    END;
 
     SELECT
       recid,
@@ -108,6 +111,14 @@ async def upsert_guild_v1(args: dict[str, Any]) -> DBResponse:
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   params = (
+    name,
+    member_count,
+    owner_id,
+    region,
+    left_on,
+    notes,
+    joined_on,
+    guild_id,
     guild_id,
     name,
     joined_on,
