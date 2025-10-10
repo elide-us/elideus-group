@@ -159,14 +159,6 @@ These calls expose system administration functionality. All System domain calls 
 | `urn:system:config:upsert_config:1` | Create or update a configuration entry. |
 | `urn:system:config:delete_config:1` | Delete a configuration entry.           |
 
-### `roles`
-
-| Operation                          | Description                          |
-| ---------------------------------- | ------------------------------------ |
-| `urn:system:roles:get_roles:1`   | List system roles.                   |
-| `urn:system:roles:upsert_role:1` | Create or update a system role.      |
-| `urn:system:roles:delete_role:1` | Delete a system role.                |
-
 ### `storage`
 
 | Operation                           | Description                                        |
@@ -175,8 +167,10 @@ These calls expose system administration functionality. All System domain calls 
 
 ## Service Domain
 
-All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
-operations require `ROLE_ACCOUNT_ADMIN`. `urn:service:roles:get_roles:1`
+All Service domain calls require `ROLE_SERVICE_ADMIN`. These endpoints cover
+service-level configuration tasks, including maintaining the canonical role
+definitions. Account-level role assignment remains under the `account.role.*`
+namespace, which requires `ROLE_ACCOUNT_ADMIN`. `urn:service:roles:get_roles:1`
 may also be called by users with `ROLE_SYSTEM_ADMIN`.
 
 ### `general`

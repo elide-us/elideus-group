@@ -22,6 +22,12 @@ flowchart TD
 * **Providers** – External systems such as databases and identity services.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
+### Enforcement Mechanics
+
+* **Ingress discipline** – `main.py` wires a single FastAPI router at `/rpc`. The handler in `rpc/handler.py` validates URN syntax and rejects any request with an unexpected domain before reaching business logic.
+* **Two-phase module initialization** – `ModuleManager` imports every `_module.py`, constructs the associated `BaseModule` subclass, and exposes its RPC-safe facade through `app.state.services`. Modules block on `on_ready()` before dependent modules can use them, guaranteeing fail-safe startup.
+* **Provider verification** – The registry loads provider bindings and invokes `verify_provider_coverage()` so database/auth providers cannot mark themselves ready without concrete implementations for each declared contract.
+
 ## RPC Ingress Contract
 
 * All external calls flow through a single FastAPI ingress mounted at `/rpc`. The router performs no branching logic; every request is handed directly to the RPC dispatcher for validation and dispatch.
@@ -34,32 +40,42 @@ flowchart TD
 * The `request_id` propagates through RPC handlers, modules, providers, and database helpers via contextual metadata.
 * All log statements at those boundaries must include the `request_id` to provide end-to-end traceability. Security-sensitive events additionally emit audit logs tagged with the RPC operation and identity source.
 * Providers are responsible for translating internal exceptions into structured RPC errors so diagnostic context is logged while the client receives a user-safe message. Registry start-up will fail fast if a provider omits handlers so missing telemetry cannot silently skip logging.
+* Root logging is configured by `server.helpers.logging.configure_root_logging`. The helper suppresses Discord SDK noise, forwards warnings/errors to stdout, and optionally mirrors logs into Discord via a hardened handler that reports transmission failures instead of silently dropping them.
 
 ## Security Model
 
 ### Role Bit Assignments
 
 This project uses a signed 64‑bit integer to represent security roles and user feature
-flags. Bit 63 is unused to avoid the sign bit. High bits define system roles and the
-low bits are used for user level flags.
+flags. Bit 63 is unused to avoid the sign bit. High bits define privileged
+administrative access, while the low bits hold end-user feature flags. The current
+database configuration exposes the following roles and masks:
 
-| Bit | Hex Value             | Role Name                 | Notes |
-|----:|----------------------:|---------------------------|------|
-| 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | The configuration of the service, such as API keys |
-| 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | Access to system configuration features |
-| 60  | `0x1000000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Manage security role definitions and user assignments |
-| 59  | `0x0800000000000000`  | `ROLE_DISCORD_ADMIN`      | Manage Discord personas and integrations |
-| 58  | `0x0400000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools |
-| 57  | `0x0200000000000000`  | `ROLE_SUPPORT`            | Access to support utilities |
-| 56  | `0x0100000000000000`  | *(reserved)*              | |
-| ... | ...                   |                           | |
-| 6   | `0x0000000000000040`  | `ROLE_DISCORD_BOT`        | Allows the user to interact with the system via Discord |
-| 5   | `0x0000000000000020`  | `ROLE_LUMAAI_VIDEO`       | Allows the user to generate videos with LumaLabs AI |
-| 4   | `0x0000000000000010`  | `ROLE_OPENAI_TEXT`        | Allows the user to generate text with OpenAI |
-| 3   | `0x0000000000000008`  | `ROLE_OPENAI_TTS`         | Allows the user to generate TTS with OpenAI |
-| 2   | `0x0000000000000004`  | `ROLE_OPENAI_IMAGE`       | Allows the user to generate images with OpenAI |
-| 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain |
-| 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Grants access to profile and provider management |
+| Hex Value             | Role Name                 | Display Name         | Responsibilities |
+|----------------------:|---------------------------|----------------------|------------------|
+| `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | Service Admin        | Maintains security role definitions and full service configuration, including provider credentials and infrastructure wiring. |
+| `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | System Admin         | Operates the platform runtime and system level features. |
+| `0x1000000000000000`  | `ROLE_FINANCE_ADMIN`      | Finance Admin        | Configures finance modules; every action is logged and flagged for audit review. |
+| `0x0800000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Account Admin        | Manages user accounts and role assignments; does not alter security role definitions. |
+| `0x0400000000000000`  | `ROLE_DISCORD_ADMIN`      | Discord Admin        | Administers Discord personas and integration bindings. |
+| `0x0002000000000000`  | `ROLE_MODERATOR`          | Moderator            | Uses moderation tooling to enforce community policy. |
+| `0x0001000000000000`  | `ROLE_SUPPORT`            | Support              | Accesses support tooling for customer assistance. |
+| `0x0000000000000020`  | `ROLE_FINANCE_APPR`       | Accounting Manager   | Approves journal entries and postings to enforce GAAP-compliant separation of duties. |
+| `0x0000000000000010`  | `ROLE_FINANCE_ACCT`       | Accountant           | Captures transactions, sales, purchasing, and inventory movements. |
+| `0x0000000000000008`  | `ROLE_DISCORD_BOT`        | Discord Bot          | Machine identity used by the Discord bridge. |
+| `0x0000000000000004`  | `ROLE_LUMAAI_API`         | LumaAI Generation    | Enables access to LumaAI powered generation workflows. |
+| `0x0000000000000002`  | `ROLE_OPENAI_API`         | OpenAI Generation    | Enables access to OpenAI powered generation workflows. |
+| `0x0000000000000001`  | `ROLE_STORAGE`            | Storage Enabled      | Grants access to the storage domain for asset management. |
+| `0x0000000000000001`  | `ROLE_REGISTERED`         | Registered User      | Baseline entitlement assigned to every authenticated account. |
+
+Finance roles (`ROLE_FINANCE_ACCT`, `ROLE_FINANCE_APPR`, and `ROLE_FINANCE_ADMIN`) are
+structured to provide a minimal separation-of-duties model that aligns with GAAP. The
+accountant role can capture and edit financial activity, the approver/manager role
+authorizes postings, and the finance administrator configures ledgers, tax rules, and
+reporting integration. Administrative actions are audited to ensure the finance
+surface remains fail-safe and tamper evident. Service administrators curate the
+canonical role definitions while account administrators focus on assigning those
+approved roles to individual users.
 
 ### Authentication Domains
 
@@ -175,4 +191,10 @@ operation if authorized.
 * Persist request metadata in a `system_request_audit` table keyed by `request_id` with optional `activity_id`, RPC operation, identity source, session/device GUIDs, Discord identifiers, outcome status, error codes, and metadata JSON.
 * Core RPC services and Discord adapters insert rows into this table so workflow automation and security reviews share a single source of truth.
 * Index the audit table by request, activity, and Discord identifiers to support cross-system correlation, and expose a reporting view to join with session history for deep forensic investigations.
+
+## Exception Handling Standards
+
+* Raise `server.errors.RPCServiceError` (or one of the helper factories such as `bad_request` or `forbidden`) for all expected failure cases so RPC clients receive typed, localized responses.
+* Never suppress `Exception` instances. Catch-and-log flows must emit warning or error logs with the correlated `request_id` and re-raise unless a fallback is explicitly documented. Helper utilities (for example Discord log mirroring) should propagate context and mark degraded modes clearly in telemetry.
+* Use FastAPI exception handlers only to transform framework-level errors into structured RPC responses. Avoid wrapping imports or module initialization with blanket `try/except` blocks—let start-up fail fast and surface the diagnostic message in logs.
 
