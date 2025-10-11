@@ -197,14 +197,14 @@ async def _fetch_json(cur):
 
 
 async def _fetch_dicts(cur):
-  description = cur.description
+  description = getattr(cur, 'description', None)
   rows = await cur.fetchall()
   if not rows:
     logger.debug('_fetch_dicts returned 0 rows')
     return []
   if description is None:
     try:
-      description = cur.description
+      description = getattr(cur, 'description', None)
     except Exception as exc:
       logger.debug('Failed to read cursor description after fetch: %s', exc)
       description = None
