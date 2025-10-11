@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import os
 import re
 import types
@@ -13,12 +14,16 @@ import dotenv
 from pydantic import BaseModel
 
 
+logger = logging.getLogger(__name__)
+
+
 dotenv.load_dotenv()
 
 
 def select_environment(environment: str) -> None:
   """Configure environment variables for the requested execution environment."""
   env = environment.lower()
+  logger.debug('Selecting environment %s', env)
   if env not in {'prod', 'test'}:
     raise ValueError("environment must be 'prod' or 'test'")
   suffix = '' if env == 'prod' else '_DEV'
@@ -31,6 +36,7 @@ def select_environment(environment: str) -> None:
     if not value:
       raise RuntimeError(f"Environment variable {source} not set for {env} environment")
     os.environ[target] = value
+    logger.debug('Set override %s from %s', target, source)
 
 # Root of the repository relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -67,51 +73,68 @@ def camel_case(name: str) -> str:
 
 
 def load_module(path: str) -> types.ModuleType:
+  logger.debug('Loading module from path %s', path)
   module_name = os.path.splitext(os.path.basename(path))[0] + '_tmp'
   spec = importlib.util.spec_from_file_location(module_name, path)
   if not spec or not spec.loader:
     raise ImportError(f'Could not load spec for module at {path}')
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)
+  logger.debug('Module %s loaded successfully', module_name)
   return module
 
 
 def py_to_ts(py_type: Any) -> str:
   origin = get_origin(py_type)
   args = get_args(py_type)
+  logger.debug('py_to_ts resolving type=%r origin=%r args=%r', py_type, origin, args)
 
   # Handle generics: List[X] or Tuple[X, ...]
   if origin in (list, tuple):
     inner_type = py_to_ts(args[0]) if args else 'any'
-    return f'{inner_type}[]'
+    result = f'{inner_type}[]'
+    logger.debug('py_to_ts mapped list/tuple %r to %s', py_type, result)
+    return result
 
   # Handle Optional[X] (i.e. Union[X, None])
   if origin is Union:
     non_none = [arg for arg in args if arg is not type(None)]
     if len(non_none) == 1:
-      return f'{py_to_ts(non_none[0])} | null'
-    return ' | '.join(py_to_ts(arg) for arg in args)
+      result = f'{py_to_ts(non_none[0])} | null'
+      logger.debug('py_to_ts mapped optional %r to %s', py_type, result)
+      return result
+    result = ' | '.join(py_to_ts(arg) for arg in args)
+    logger.debug('py_to_ts mapped union %r to %s', py_type, result)
+    return result
 
   # Known primitives
   if py_type in PY_TO_TS:
-    return PY_TO_TS[py_type]
+    result = PY_TO_TS[py_type]
+    logger.debug('py_to_ts used primitive map for %r -> %s', py_type, result)
+    return result
 
   # Pydantic models → use interface name
   if isinstance(py_type, type) and issubclass(py_type, BaseModel):
-    return py_type.__name__
+    result = py_type.__name__
+    logger.debug('py_to_ts resolved BaseModel %r -> %s', py_type, result)
+    return result
 
   # Fallback
+  logger.debug('py_to_ts falling back to any for %r', py_type)
   return 'any'
 
 
 def model_to_ts(model: type[BaseModel]) -> str:
+  logger.debug('Generating TypeScript interface for model %s', model.__name__)
   lines = [f'export interface {model.__name__} {{']
   fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
   for name, field in fields.items():
     annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
     ts_type = py_to_ts(annotation)
+    logger.debug('Field %s annotated with %r mapped to %s', name, annotation, ts_type)
     lines.append(f'  {name}: {ts_type};')
   lines.append('}')
+  logger.debug('Completed interface for %s with %d fields', model.__name__, len(fields))
   return '\n'.join(lines)
 
 
@@ -119,6 +142,7 @@ def parse_version(ver: str) -> tuple[int, int, int, int]:
   """Convert a version string like 'v1.2.3.4' into its numeric parts."""
   ver = ver.lstrip('v')
   major, minor, patch, build = [int(p) for p in ver.split('.')]
+  logger.debug('Parsed version %s -> (%d, %d, %d, %d)', ver, major, minor, patch, build)
   return major, minor, patch, build
 
 
@@ -155,7 +179,9 @@ def bump_version(version: str, part: str) -> str:
       bu += 1
     case _:
       raise ValueError(f'Unknown part: {part}')
-  return f'v{ma}.{mi}.{pa}.{bu}'
+  new_version = f'v{ma}.{mi}.{pa}.{bu}'
+  logger.debug('Bumped version %s part %s -> %s', version, part, new_version)
+  return new_version
 
 
 async def _fetch_json(cur):
@@ -165,20 +191,26 @@ async def _fetch_json(cur):
     if not row:
       break
     parts.append(row[0])
-  return json.loads(''.join(parts)) if parts else []
+  result = json.loads(''.join(parts)) if parts else []
+  logger.debug('_fetch_json assembled %d chunks into %d records', len(parts), len(result))
+  return result
 
 
 async def _fetch_dicts(cur):
   rows = await cur.fetchall()
   if not rows:
+    logger.debug('_fetch_dicts returned 0 rows')
     return []
   cols = [d[0] for d in cur.description]
-  return [dict(zip(cols, row)) for row in rows]
+  result = [dict(zip(cols, row)) for row in rows]
+  logger.debug('_fetch_dicts returning %d rows with columns %s', len(result), cols)
+  return result
 
 
 def _decode_optional(value):
   if value is None:
     return None
+  logger.debug('_decode_optional processing value of type %s', type(value).__name__)
   if isinstance(value, memoryview):
     value = value.tobytes()
   if isinstance(value, (bytes, bytearray)):
@@ -211,7 +243,9 @@ async def list_tables(conn):
       "SELECT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name "
       "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
     )
-    return await _fetch_json(cur)
+    result = await _fetch_json(cur)
+  logger.debug('list_tables discovered %d tables', len(result))
+  return result
 
 
 async def list_views(conn):
@@ -226,9 +260,10 @@ async def list_views(conn):
            FOR JSON PATH"""
     )
     rows = await _fetch_dicts(cur)
-    for row in rows:
-      row['view_definition'] = _decode_optional(row['view_definition'])
-    return rows
+  for row in rows:
+    row['view_definition'] = _decode_optional(row['view_definition'])
+  logger.debug('list_views retrieved %d views', len(rows))
+  return rows
 
 
 async def list_view_dependencies(conn):
@@ -243,7 +278,9 @@ async def list_view_dependencies(conn):
             AND SCHEMA_NAME(r.schema_id)='dbo'
            FOR JSON PATH"""
     )
-    return await _fetch_json(cur)
+    result = await _fetch_json(cur)
+  logger.debug('list_view_dependencies found %d dependency records', len(result))
+  return result
 
 
 async def list_columns(conn, schema: str, table: str):
@@ -276,9 +313,20 @@ async def list_columns(conn, schema: str, table: str):
           ORDER BY c.column_id""",
       (_qualify(schema, table),),
     )
-    rows = await _fetch_dicts(cur)
+  rows = await _fetch_dicts(cur)
   columns: list[dict] = []
   for row in rows:
+    logger.debug(
+      'Column %s.%s.%s type=%s max_length=%s precision=%s scale=%s nullable=%s',
+      schema,
+      table,
+      row['column_name'],
+      row['data_type'],
+      row['max_length'],
+      row['precision'],
+      row['scale'],
+      row['is_nullable'],
+    )
     columns.append(
       {
         'name': row['column_name'],
@@ -297,6 +345,7 @@ async def list_columns(conn, schema: str, table: str):
         'collation': row['collation_name'],
       }
     )
+  logger.debug('list_columns returning %d columns for %s.%s', len(columns), schema, table)
   return columns
 
 
@@ -312,7 +361,9 @@ async def list_primary_key(conn, schema: str, table: str):
       (_qualify(schema, table),),
     )
     rows = await _fetch_dicts(cur)
-  return [row['column_name'] for row in rows]
+  result = [row['column_name'] for row in rows]
+  logger.debug('list_primary_key for %s.%s -> %s', schema, table, result)
+  return result
 
 
 async def list_foreign_keys(conn, schema: str, table: str):
@@ -344,7 +395,9 @@ async def list_foreign_keys(conn, schema: str, table: str):
     )
     entry['columns'].append(row['column_name'])
     entry['ref_columns'].append(row['ref_column'])
-  return list(grouped.values())
+  result = list(grouped.values())
+  logger.debug('list_foreign_keys for %s.%s -> %d constraints', schema, table, len(result))
+  return result
 
 
 async def list_indexes(conn, schema: str, table: str):
@@ -392,7 +445,9 @@ async def list_indexes(conn, schema: str, table: str):
         'is_included': bool(row['is_included']),
       }
     )
-  return list(indexes.values())
+  result = list(indexes.values())
+  logger.debug('list_indexes for %s.%s -> %d indexes', schema, table, len(result))
+  return result
 
 
 async def list_constraints(conn, schema: str, table: str):
@@ -436,6 +491,7 @@ async def list_constraints(conn, schema: str, table: str):
     columns = entry['columns']
     entry['columns'] = ', '.join(columns) if columns else None
     results.append(entry)
+  logger.debug('list_constraints for %s.%s -> %d constraints', schema, table, len(results))
   return results
 
 
@@ -461,17 +517,19 @@ async def list_check_constraints(conn, schema: str, table: str):
         'is_disabled': bool(row['is_disabled']),
       }
     )
+  logger.debug('list_check_constraints for %s.%s -> %d constraints', schema, table, len(result))
   return result
 
 
 async def _table_schema(conn, schema_name: str, table: str):
+  logger.debug('Building schema snapshot for table %s.%s', schema_name, table)
   columns = await list_columns(conn, schema_name, table)
   primary_key = await list_primary_key(conn, schema_name, table)
   foreign_keys = await list_foreign_keys(conn, schema_name, table)
   indexes = await list_indexes(conn, schema_name, table)
   constraints = await list_constraints(conn, schema_name, table)
   check_constraints = await list_check_constraints(conn, schema_name, table)
-  return {
+  schema = {
     'schema': schema_name,
     'name': _qualify(schema_name, table),
     'table': table,
@@ -482,10 +540,20 @@ async def _table_schema(conn, schema_name: str, table: str):
     'constraints': constraints,
     'check_constraints': check_constraints,
   }
+  logger.debug(
+    'Completed schema snapshot for %s.%s: %d columns, %d FKs, %d indexes',
+    schema_name,
+    table,
+    len(columns),
+    len(foreign_keys),
+    len(indexes),
+  )
+  return schema
 
 
 async def get_schema(conn):
   tables = await list_tables(conn)
+  logger.debug('get_schema processing %d tables', len(tables))
   schemas: dict[str, dict] = {}
   deps: dict[str, set[str]] = {}
   for t in tables:
@@ -499,6 +567,7 @@ async def get_schema(conn):
       for fk in info['foreign_keys']
       if fk.get('ref_schema') and fk.get('ref_table')
     }
+    logger.debug('Recorded dependencies for %s: %s', key, deps[key])
   ordered: list[str] = []
   visited: set[str] = set()
 
@@ -513,12 +582,15 @@ async def get_schema(conn):
 
   for table_name in deps.keys():
     visit(table_name)
+  logger.debug('Table dependency order: %s', ordered)
 
   view_defs = await list_views(conn)
   view_map = {v['view_name']: v['view_definition'] for v in view_defs}
+  logger.debug('get_schema processing %d views', len(view_map))
   view_deps: dict[str, set[str]] = {}
   for dep in await list_view_dependencies(conn):
     view_deps.setdefault(dep['view_name'], set()).add(dep['ref_name'])
+  logger.debug('View dependencies: %s', view_deps)
   vordered: list[str] = []
   vvisited: set[str] = set()
 
@@ -533,11 +605,18 @@ async def get_schema(conn):
 
   for view_name in view_map.keys():
     visit_view(view_name)
+  logger.debug('View dependency order: %s', vordered)
 
-  return {
+  schema_snapshot = {
     'tables': [schemas[n] for n in ordered],
     'views': [{'name': n, 'definition': view_map[n]} for n in vordered],
   }
+  logger.debug(
+    'Schema snapshot prepared with %d tables and %d views',
+    len(schema_snapshot['tables']),
+    len(schema_snapshot['views']),
+  )
+  return schema_snapshot
 
 
 def _format_column(column: dict) -> str:
@@ -624,6 +703,11 @@ def _build_create_sql(table: dict) -> str:
 
 async def dump_schema(conn, prefix: str = 'schema') -> str:
   schema = await get_schema(conn)
+  logger.debug(
+    'dump_schema received %d tables and %d views',
+    len(schema.get('tables', [])),
+    len(schema.get('views', [])),
+  )
   ts = datetime.now(timezone.utc).strftime('%Y%m%d')
   prefix_path = Path(prefix)
   base_name = prefix_path.name
@@ -636,8 +720,10 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
   target_dir.mkdir(parents=True, exist_ok=True)
   filename = f'{base_name}_{ts}.sql'
   out_path = target_dir / filename
+  logger.debug('Writing schema dump to %s', out_path)
   lines: list[str] = []
   for table in schema['tables']:
+    logger.debug('Serializing table %s', table['name'])
     lines.append(_build_create_sql(table) + ';')
     for idx in table.get('indexes', []):
       columns: list[str] = []
@@ -660,6 +746,7 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
       if idx.get('filter_definition'):
         statement += f" WHERE {idx['filter_definition']}"
       lines.append(statement + ';')
+      logger.debug('Added index statement: %s', statement)
   for view in schema.get('views', []):
     raw_def = re.sub(r'--.*?(\r?\n|$)', ' ', view['definition'] or '')
     definition = ' '.join(raw_def.split())
@@ -670,6 +757,7 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
     if not definition.endswith(';'):
       definition += ';'
     lines.append(definition)
+    logger.debug('Added view definition for %s', view['name'])
   with open(out_path, 'w', encoding='utf-8') as fh:
     fh.write('\n'.join(lines))
   try:
@@ -678,37 +766,48 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
   except ValueError:
     result = str(out_path)
   print(f'Schema dumped to {result}')
+  logger.debug('Schema dump complete: %s', result)
   return result
 
 
 async def dump_data(conn, prefix: str = 'dump_data') -> str:
   schema = await get_schema(conn)
+  logger.debug('dump_data processing %d tables', len(schema.get('tables', [])))
   data: dict[str, list[dict]] = {}
   for table in schema['tables']:
     async with conn.cursor() as cur:
       await cur.execute(f"SELECT * FROM {table['name']} FOR JSON PATH")
-      data[table['name']] = await _fetch_json(cur)
+      rows = await _fetch_json(cur)
+      data[table['name']] = rows
+      logger.debug('dump_data captured %d rows for %s', len(rows), table['name'])
   ts = datetime.now(timezone.utc).strftime('%Y%m%d_BACKUP')
   filename = f'{prefix}_{ts}.json'
   with open(filename, 'w', encoding='utf-8') as fh:
     json.dump({'schema': schema, 'data': data}, fh, indent=2, default=str)
   print(f'Data dumped to {filename}')
+  logger.debug('Data dump complete: %s', filename)
   return filename
 
 
 async def apply_schema(conn, path: str):
+  logger.debug('Applying schema from %s', path)
   with open(path, 'r', encoding='utf-8') as fh:
     sql = fh.read()
   async with conn.cursor() as cur:
+    executed = 0
     for statement in sql.split(';'):
       stmt = statement.strip()
       if not stmt:
         continue
+      logger.debug('Executing schema statement %d: %s', executed + 1, stmt[:120])
       await cur.execute(stmt)
+      executed += 1
+  logger.debug('Applied %d statements from %s', executed, path)
   print('Schema applied.')
 
 
 async def connect(dbname: str | None = None):
+  logger.debug('connect requested for database override %s', dbname)
   try:
     import aioodbc  # type: ignore
   except Exception as exc:
@@ -729,6 +828,8 @@ async def connect(dbname: str | None = None):
     if not replaced:
       parts.append(f'DATABASE={dbname}')
     dsn = ';'.join(parts)
+  logger.debug('Establishing aioodbc connection (override applied=%s)', bool(dbname))
   conn = await aioodbc.connect(dsn=dsn, autocommit=True)
   print(f'Connected to database {dbname or dsn}')
+  logger.debug('Connection established successfully')
   return conn
