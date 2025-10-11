@@ -228,15 +228,88 @@ async def _fetch_dicts(cur):
   return result
 
 
-def _decode_optional(value):
-  if value is None:
+_TEXT_CHUNK_SIZE = 4000
+
+
+async def _read_large_text(conn, query: str, params: tuple[Any, ...]) -> str:
+  """Read large NVARCHAR values in fixed-size chunks to avoid MAX fetch errors."""
+  offset = 1
+  parts: list[str] = []
+  async with conn.cursor() as cur:
+    while True:
+      await cur.execute(query, (offset, *params))
+      row = await cur.fetchone()
+      if not row:
+        logger.debug('_read_large_text query returned no rows at offset %d', offset)
+        break
+      chunk = row[0]
+      if chunk is None:
+        logger.debug('_read_large_text received NULL chunk at offset %d', offset)
+        break
+      chunk = str(chunk)
+      if not chunk and offset == 1:
+        logger.debug('_read_large_text found empty definition at initial offset')
+        return ''
+      parts.append(chunk)
+      logger.debug('_read_large_text appended chunk of length %d at offset %d', len(chunk), offset)
+      if len(chunk) < _TEXT_CHUNK_SIZE:
+        break
+      offset += _TEXT_CHUNK_SIZE
+  combined = ''.join(parts)
+  logger.debug('_read_large_text combined %d chunks into length %d', len(parts), len(combined))
+  return combined
+
+
+async def _get_sql_module_definition(conn, object_id: int) -> str | None:
+  if not object_id:
     return None
-  logger.debug('_decode_optional processing value of type %s', type(value).__name__)
-  if isinstance(value, memoryview):
-    value = value.tobytes()
-  if isinstance(value, (bytes, bytearray)):
-    return value.decode('utf-16le')
-  return value
+  query = (
+    f"SELECT SUBSTRING(m.definition, ?, {_TEXT_CHUNK_SIZE})"
+    " FROM sys.sql_modules m WHERE m.object_id = ?"
+  )
+  definition = await _read_large_text(conn, query, (object_id,))
+  return definition or None
+
+
+async def _get_default_definition(conn, object_id: int) -> str | None:
+  if not object_id:
+    return None
+  query = (
+    f"SELECT SUBSTRING(dc.definition, ?, {_TEXT_CHUNK_SIZE})"
+    " FROM sys.default_constraints dc WHERE dc.object_id = ?"
+  )
+  definition = await _read_large_text(conn, query, (object_id,))
+  return definition or None
+
+
+async def _get_computed_definition(conn, schema: str, table: str, column_id: int) -> str | None:
+  query = (
+    f"SELECT SUBSTRING(cc.definition, ?, {_TEXT_CHUNK_SIZE})"
+    " FROM sys.computed_columns cc"
+    " WHERE cc.object_id = OBJECT_ID(?) AND cc.column_id = ?"
+  )
+  definition = await _read_large_text(conn, query, (_qualify(schema, table), column_id))
+  return definition or None
+
+
+async def _get_check_definition(conn, object_id: int) -> str | None:
+  if not object_id:
+    return None
+  query = (
+    f"SELECT SUBSTRING(cc.definition, ?, {_TEXT_CHUNK_SIZE})"
+    " FROM sys.check_constraints cc WHERE cc.object_id = ?"
+  )
+  definition = await _read_large_text(conn, query, (object_id,))
+  return definition or None
+
+
+async def _get_index_filter_definition(conn, schema: str, table: str, index_id: int) -> str | None:
+  query = (
+    f"SELECT SUBSTRING(i.filter_definition, ?, {_TEXT_CHUNK_SIZE})"
+    " FROM sys.indexes i WHERE i.object_id = OBJECT_ID(?) AND i.index_id = ?"
+  )
+  definition = await _read_large_text(conn, query, (_qualify(schema, table), index_id))
+  return definition or None
 
 
 def _quote(name: str) -> str:
@@ -261,66 +334,77 @@ def _map_constraint_type(code: str | None) -> str | None:
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      "SELECT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name "
-      "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
+      """SELECT TABLE_SCHEMA AS table_schema,
+                TABLE_NAME AS table_name
+           FROM INFORMATION_SCHEMA.TABLES
+          WHERE TABLE_TYPE='BASE TABLE'
+          ORDER BY TABLE_SCHEMA, TABLE_NAME"""
     )
-    result = await _fetch_json(cur)
-  logger.debug('list_tables discovered %d tables', len(result))
-  return result
+    rows = await _fetch_dicts(cur)
+  logger.debug('list_tables discovered %d tables', len(rows))
+  return rows
 
 
 async def list_views(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(SCHEMA_NAME(v.schema_id) AS NVARCHAR(4000)) AS view_schema,
-                CAST(v.name AS NVARCHAR(4000)) AS view_name,
-                CAST(m.definition AS NVARCHAR(4000)) AS view_definition
+      """SELECT v.object_id AS object_id,
+                SCHEMA_NAME(v.schema_id) AS view_schema,
+                v.name AS view_name
            FROM sys.views v
-           JOIN sys.sql_modules m ON v.object_id = m.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
-           FOR JSON PATH"""
+          ORDER BY SCHEMA_NAME(v.schema_id), v.name"""
     )
     rows = await _fetch_dicts(cur)
+  result: list[dict] = []
   for row in rows:
-    row['view_definition'] = _decode_optional(row['view_definition'])
-  logger.debug('list_views retrieved %d views', len(rows))
-  return rows
+    definition = await _get_sql_module_definition(conn, row['object_id'])
+    result.append(
+      {
+        'view_schema': row['view_schema'],
+        'view_name': row['view_name'],
+        'view_definition': definition,
+      }
+    )
+  logger.debug('list_views retrieved %d views', len(result))
+  return result
 
 
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(OBJECT_NAME(d.referencing_id) AS NVARCHAR(4000)) AS view_name,
-                CAST(OBJECT_NAME(d.referenced_id) AS NVARCHAR(4000)) AS ref_name
+      """SELECT OBJECT_NAME(d.referencing_id) AS view_name,
+                OBJECT_NAME(d.referenced_id) AS ref_name
            FROM sys.sql_expression_dependencies d
            JOIN sys.views v ON d.referencing_id = v.object_id
            JOIN sys.views r ON d.referenced_id = r.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
             AND SCHEMA_NAME(r.schema_id)='dbo'
-           FOR JSON PATH"""
+          ORDER BY OBJECT_NAME(d.referencing_id), OBJECT_NAME(d.referenced_id)"""
     )
-    result = await _fetch_json(cur)
-  logger.debug('list_view_dependencies found %d dependency records', len(result))
-  return result
+    rows = await _fetch_dicts(cur)
+  logger.debug('list_view_dependencies found %d dependency records', len(rows))
+  return rows
 
 
 async def list_columns(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(c.name AS NVARCHAR(4000)) AS column_name,
-                CAST(t.name AS NVARCHAR(4000)) AS data_type,
+      """SELECT c.name AS column_name,
+                c.column_id,
+                t.name AS data_type,
                 c.max_length,
                 c.precision,
                 c.scale,
                 c.is_nullable,
-                CAST(dc.definition AS NVARCHAR(4000)) AS default_definition,
+                c.default_object_id,
                 ic.seed_value,
                 ic.increment_value,
                 c.is_identity,
                 c.is_rowguidcol,
-                CAST(cc.definition AS NVARCHAR(4000)) AS computed_definition,
+                cc.column_id AS computed_column_id,
                 cc.is_persisted,
-                CAST(c.collation_name AS NVARCHAR(4000)) AS collation_name
+                c.collation_name AS collation_name
            FROM sys.columns c
            JOIN sys.types t
              ON c.user_type_id = t.user_type_id
@@ -335,6 +419,22 @@ async def list_columns(conn, schema: str, table: str):
       (_qualify(schema, table),),
     )
     rows = await _fetch_dicts(cur)
+  default_ids = {
+    row['default_object_id']
+    for row in rows
+    if row.get('default_object_id')
+  }
+  defaults: dict[int, str | None] = {}
+  for object_id in default_ids:
+    defaults[object_id] = await _get_default_definition(conn, object_id)
+  computed_defs: dict[int, str | None] = {}
+  computed_columns = [
+    row['column_id']
+    for row in rows
+    if row.get('computed_column_id')
+  ]
+  for column_id in computed_columns:
+    computed_defs[column_id] = await _get_computed_definition(conn, schema, table, column_id)
   columns: list[dict] = []
   for row in rows:
     logger.debug(
@@ -356,12 +456,12 @@ async def list_columns(conn, schema: str, table: str):
         'precision': row['precision'],
         'scale': row['scale'],
         'nullable': bool(row['is_nullable']),
-        'default': _decode_optional(row['default_definition']),
+        'default': defaults.get(row.get('default_object_id')),
         'identity': bool(row['is_identity']),
         'identity_seed': row['seed_value'],
         'identity_increment': row['increment_value'],
         'rowguidcol': bool(row['is_rowguidcol']),
-        'computed': _decode_optional(row['computed_definition']),
+        'computed': computed_defs.get(row['column_id']),
         'computed_persisted': bool(row['is_persisted']),
         'collation': row['collation_name'],
       }
@@ -373,7 +473,7 @@ async def list_columns(conn, schema: str, table: str):
 async def list_primary_key(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(c.name AS NVARCHAR(4000)) AS column_name
+      """SELECT c.name AS column_name
            FROM sys.index_columns ic
            JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
            JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
@@ -390,11 +490,11 @@ async def list_primary_key(conn, schema: str, table: str):
 async def list_foreign_keys(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(fk.name AS NVARCHAR(4000)) AS constraint_name,
-                CAST(COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS NVARCHAR(4000)) AS column_name,
-                CAST(OBJECT_SCHEMA_NAME(fkc.referenced_object_id) AS NVARCHAR(4000)) AS ref_schema,
-                CAST(OBJECT_NAME(fkc.referenced_object_id) AS NVARCHAR(4000)) AS ref_table,
-                CAST(COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS NVARCHAR(4000)) AS ref_column
+      """SELECT fk.name AS constraint_name,
+                COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name,
+                OBJECT_SCHEMA_NAME(fkc.referenced_object_id) AS ref_schema,
+                OBJECT_NAME(fkc.referenced_object_id) AS ref_table,
+                COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS ref_column
            FROM sys.foreign_key_columns fkc
            JOIN sys.foreign_keys fk ON fkc.constraint_object_id = fk.object_id
           WHERE fkc.parent_object_id = OBJECT_ID(?)
@@ -424,14 +524,14 @@ async def list_foreign_keys(conn, schema: str, table: str):
 async def list_indexes(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(i.name AS NVARCHAR(4000)) AS index_name,
+      """SELECT i.name AS index_name,
+                i.index_id,
                 i.is_unique AS is_unique,
-                CAST(i.filter_definition AS NVARCHAR(4000)) AS filter_definition,
                 ic.is_descending_key AS is_descending,
                 ic.is_included_column AS is_included,
                 ic.key_ordinal AS key_ordinal,
                 ic.index_column_id AS index_column_id,
-                CAST(c.name AS NVARCHAR(4000)) AS column_name
+                c.name AS column_name
            FROM sys.indexes i
            JOIN sys.index_columns ic
              ON i.object_id = ic.object_id AND i.index_id = ic.index_id
@@ -455,7 +555,8 @@ async def list_indexes(conn, schema: str, table: str):
       {
         'index_name': row['index_name'],
         'is_unique': bool(row['is_unique']),
-        'filter_definition': _decode_optional(row['filter_definition']),
+        'index_id': row['index_id'],
+        'filter_definition': None,
         'columns': [],
       },
     )
@@ -466,6 +567,12 @@ async def list_indexes(conn, schema: str, table: str):
         'is_included': bool(row['is_included']),
       }
     )
+  for index in indexes.values():
+    index_id = index.pop('index_id', None)
+    if index_id is None:
+      continue
+    definition = await _get_index_filter_definition(conn, schema, table, index_id)
+    index['filter_definition'] = definition
   result = list(indexes.values())
   logger.debug('list_indexes for %s.%s -> %d indexes', schema, table, len(result))
   return result
@@ -474,10 +581,10 @@ async def list_indexes(conn, schema: str, table: str):
 async def list_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(kc.name AS NVARCHAR(4000)) AS constraint_name,
-                CAST(kc.type AS NVARCHAR(4000)) AS constraint_type,
+      """SELECT kc.name AS constraint_name,
+                kc.type AS constraint_type,
                 ic.key_ordinal,
-                CAST(c.name AS NVARCHAR(4000)) AS column_name
+                c.name AS column_name
            FROM sys.key_constraints kc
            JOIN sys.tables t ON kc.parent_object_id = t.object_id
            JOIN sys.schemas s ON t.schema_id = s.schema_id
@@ -519,8 +626,8 @@ async def list_constraints(conn, schema: str, table: str):
 async def list_check_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(cc.CONSTRAINT_NAME AS NVARCHAR(4000)) AS constraint_name,
-                CAST(cc.definition AS NVARCHAR(4000)) AS definition,
+      """SELECT cc.CONSTRAINT_NAME AS constraint_name,
+                cc.object_id AS object_id,
                 cc.is_not_trusted,
                 cc.is_disabled
            FROM sys.check_constraints cc
@@ -530,10 +637,11 @@ async def list_check_constraints(conn, schema: str, table: str):
     rows = await _fetch_dicts(cur)
   result: list[dict] = []
   for row in rows:
+    definition = await _get_check_definition(conn, row['object_id'])
     result.append(
       {
         'constraint_name': row['constraint_name'],
-        'definition': _decode_optional(row['definition']),
+        'definition': definition,
         'is_not_trusted': bool(row['is_not_trusted']),
         'is_disabled': bool(row['is_disabled']),
       }
