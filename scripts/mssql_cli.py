@@ -1,8 +1,9 @@
 from __future__ import annotations
+import argparse
 import asyncio
 import subprocess
 
-from scriptlib import apply_schema, bump_version, connect, dump_data, dump_schema
+from scriptlib import apply_schema, bump_version, connect, dump_data, dump_schema, select_environment
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
@@ -129,12 +130,32 @@ async def interactive_console(conn):
         except Exception as e2:
           print(f'Error: {e2}')
 
-async def main():
+def parse_args():
+  parser = argparse.ArgumentParser(description='Interactive MSSQL CLI tool')
+  parser.add_argument(
+    '-e',
+    '--env',
+    choices=['prod', 'test'],
+    default='test',
+    help='Select environment configuration (default: test)',
+  )
+  return parser.parse_args()
+
+
+async def run_cli():
   conn = await connect()
   try:
     await interactive_console(conn)
   finally:
     await conn.close()
 
+
+def main():
+  args = parse_args()
+  select_environment(args.env)
+  print(f"Using {args.env} environment configuration")
+  asyncio.run(run_cli())
+
+
 if __name__ == '__main__':
-  asyncio.run(main())
+  main()
