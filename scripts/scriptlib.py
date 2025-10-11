@@ -261,24 +261,27 @@ def _map_constraint_type(code: str | None) -> str | None:
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      "SELECT TABLE_SCHEMA AS table_schema, TABLE_NAME AS table_name "
-      "FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
+      """SELECT TABLE_SCHEMA AS table_schema,
+                TABLE_NAME AS table_name
+           FROM INFORMATION_SCHEMA.TABLES
+          WHERE TABLE_TYPE='BASE TABLE'
+          ORDER BY TABLE_SCHEMA, TABLE_NAME"""
     )
-    result = await _fetch_json(cur)
-  logger.debug('list_tables discovered %d tables', len(result))
-  return result
+    rows = await _fetch_dicts(cur)
+  logger.debug('list_tables discovered %d tables', len(rows))
+  return rows
 
 
 async def list_views(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(SCHEMA_NAME(v.schema_id) AS NVARCHAR(4000)) AS view_schema,
-                CAST(v.name AS NVARCHAR(4000)) AS view_name,
-                CAST(m.definition AS NVARCHAR(4000)) AS view_definition
+      """SELECT SCHEMA_NAME(v.schema_id) AS view_schema,
+                v.name AS view_name,
+                m.definition AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
-           FOR JSON PATH"""
+          ORDER BY SCHEMA_NAME(v.schema_id), v.name"""
     )
     rows = await _fetch_dicts(cur)
   for row in rows:
@@ -290,37 +293,37 @@ async def list_views(conn):
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(OBJECT_NAME(d.referencing_id) AS NVARCHAR(4000)) AS view_name,
-                CAST(OBJECT_NAME(d.referenced_id) AS NVARCHAR(4000)) AS ref_name
+      """SELECT OBJECT_NAME(d.referencing_id) AS view_name,
+                OBJECT_NAME(d.referenced_id) AS ref_name
            FROM sys.sql_expression_dependencies d
            JOIN sys.views v ON d.referencing_id = v.object_id
            JOIN sys.views r ON d.referenced_id = r.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
             AND SCHEMA_NAME(r.schema_id)='dbo'
-           FOR JSON PATH"""
+          ORDER BY OBJECT_NAME(d.referencing_id), OBJECT_NAME(d.referenced_id)"""
     )
-    result = await _fetch_json(cur)
-  logger.debug('list_view_dependencies found %d dependency records', len(result))
-  return result
+    rows = await _fetch_dicts(cur)
+  logger.debug('list_view_dependencies found %d dependency records', len(rows))
+  return rows
 
 
 async def list_columns(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(c.name AS NVARCHAR(4000)) AS column_name,
-                CAST(t.name AS NVARCHAR(4000)) AS data_type,
+      """SELECT c.name AS column_name,
+                t.name AS data_type,
                 c.max_length,
                 c.precision,
                 c.scale,
                 c.is_nullable,
-                CAST(dc.definition AS NVARCHAR(4000)) AS default_definition,
+                dc.definition AS default_definition,
                 ic.seed_value,
                 ic.increment_value,
                 c.is_identity,
                 c.is_rowguidcol,
-                CAST(cc.definition AS NVARCHAR(4000)) AS computed_definition,
+                cc.definition AS computed_definition,
                 cc.is_persisted,
-                CAST(c.collation_name AS NVARCHAR(4000)) AS collation_name
+                c.collation_name AS collation_name
            FROM sys.columns c
            JOIN sys.types t
              ON c.user_type_id = t.user_type_id
@@ -373,7 +376,7 @@ async def list_columns(conn, schema: str, table: str):
 async def list_primary_key(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(c.name AS NVARCHAR(4000)) AS column_name
+      """SELECT c.name AS column_name
            FROM sys.index_columns ic
            JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
            JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
@@ -390,11 +393,11 @@ async def list_primary_key(conn, schema: str, table: str):
 async def list_foreign_keys(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(fk.name AS NVARCHAR(4000)) AS constraint_name,
-                CAST(COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS NVARCHAR(4000)) AS column_name,
-                CAST(OBJECT_SCHEMA_NAME(fkc.referenced_object_id) AS NVARCHAR(4000)) AS ref_schema,
-                CAST(OBJECT_NAME(fkc.referenced_object_id) AS NVARCHAR(4000)) AS ref_table,
-                CAST(COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS NVARCHAR(4000)) AS ref_column
+      """SELECT fk.name AS constraint_name,
+                COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name,
+                OBJECT_SCHEMA_NAME(fkc.referenced_object_id) AS ref_schema,
+                OBJECT_NAME(fkc.referenced_object_id) AS ref_table,
+                COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS ref_column
            FROM sys.foreign_key_columns fkc
            JOIN sys.foreign_keys fk ON fkc.constraint_object_id = fk.object_id
           WHERE fkc.parent_object_id = OBJECT_ID(?)
@@ -424,14 +427,14 @@ async def list_foreign_keys(conn, schema: str, table: str):
 async def list_indexes(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(i.name AS NVARCHAR(4000)) AS index_name,
+      """SELECT i.name AS index_name,
                 i.is_unique AS is_unique,
-                CAST(i.filter_definition AS NVARCHAR(4000)) AS filter_definition,
+                i.filter_definition AS filter_definition,
                 ic.is_descending_key AS is_descending,
                 ic.is_included_column AS is_included,
                 ic.key_ordinal AS key_ordinal,
                 ic.index_column_id AS index_column_id,
-                CAST(c.name AS NVARCHAR(4000)) AS column_name
+                c.name AS column_name
            FROM sys.indexes i
            JOIN sys.index_columns ic
              ON i.object_id = ic.object_id AND i.index_id = ic.index_id
@@ -474,10 +477,10 @@ async def list_indexes(conn, schema: str, table: str):
 async def list_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(kc.name AS NVARCHAR(4000)) AS constraint_name,
-                CAST(kc.type AS NVARCHAR(4000)) AS constraint_type,
+      """SELECT kc.name AS constraint_name,
+                kc.type AS constraint_type,
                 ic.key_ordinal,
-                CAST(c.name AS NVARCHAR(4000)) AS column_name
+                c.name AS column_name
            FROM sys.key_constraints kc
            JOIN sys.tables t ON kc.parent_object_id = t.object_id
            JOIN sys.schemas s ON t.schema_id = s.schema_id
@@ -519,8 +522,8 @@ async def list_constraints(conn, schema: str, table: str):
 async def list_check_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CAST(cc.CONSTRAINT_NAME AS NVARCHAR(4000)) AS constraint_name,
-                CAST(cc.definition AS NVARCHAR(4000)) AS definition,
+      """SELECT cc.CONSTRAINT_NAME AS constraint_name,
+                cc.definition AS definition,
                 cc.is_not_trusted,
                 cc.is_disabled
            FROM sys.check_constraints cc
