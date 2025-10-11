@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, subprocess
+import asyncio, subprocess, pyodbc
 from scriptlib import connect, dump_schema, apply_schema, dump_data, bump_version
 
 
@@ -13,6 +13,14 @@ def _commit_and_tag(version: str, schema_file: str) -> None:
   ).strip()
   subprocess.check_call(f'git push origin {current_branch}', shell=True)
   subprocess.check_call('git push origin --tags', shell=True)
+
+
+def _wide_to_str(value):
+  if value is None:
+    return None
+  if isinstance(value, (bytes, bytearray, memoryview)):
+    return bytes(value).decode('utf-16-le', errors='ignore').rstrip('\x00')
+  return value
 
 
 async def _update_config(conn, key: str, value: str):
@@ -107,6 +115,8 @@ async def interactive_console(conn):
           print(f'Error: {e2}')
 
 async def main():
+  # register converter right before connecting
+  pyodbc.add_output_converter(-16, _wide_to_str)
   conn = await connect()
   try:
     await interactive_console(conn)
