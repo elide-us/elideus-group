@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = REPO_ROOT / "frontend"
@@ -184,8 +184,43 @@ def inspect_groups(
     )
 
 
+def _resolve_windows_python_launcher() -> Optional[str]:
+  result = run_command(["py", "-0p"])
+  if result.returncode != 0:
+    return None
+  best: Optional[Tuple[Tuple[int, ...], str]] = None
+  for raw_line in result.stdout.splitlines():
+    line = raw_line.strip()
+    if not line.startswith("-"):
+      continue
+    parts = line.split()
+    if len(parts) < 2:
+      continue
+    tag = parts[0].lstrip("-")
+    version_label = tag.split("-")[0]
+    try:
+      version = tuple(int(piece) for piece in version_label.split("."))
+    except ValueError:
+      continue
+    candidate_path = " ".join(parts[1:]).rstrip("*").strip()
+    path = Path(candidate_path)
+    if not path.exists():
+      continue
+    if best is None or version > best[0]:
+      best = (version, str(path))
+  if best is None:
+    return None
+  return best[1]
+
+
 def determine_python_default() -> str:
+  executable = Path(sys.executable)
+  if executable.exists():
+    return str(executable)
   if os.name == "nt":
+    resolved = _resolve_windows_python_launcher()
+    if resolved:
+      return resolved
     return "py"
   return sys.executable
 
