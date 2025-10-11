@@ -46,7 +46,7 @@ We are building this site primarily using [Codex](https://chatgpt.com/codex). Th
 
 ### CLI Utilities
 Several helper scripts in the `scripts` directory manage the project database and data entities:
-- `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
+- `mssql_cli.py` provides similar features for Azure SQL. Pass `--env prod` to target production or rely on the default `--env test`, which reads the `AZURE_SQL_CONNECTION_STRING_DEV` and `DISCORD_SECRET_DEV` environment variables and maps them to their production counterparts for the session.
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
 - `run_dbsync.py` applies pending upgrade SQL in the `scripts` directory, records the most recent script in `system_config`, and flags the build to export a refreshed schema dump.
