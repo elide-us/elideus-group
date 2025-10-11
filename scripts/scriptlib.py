@@ -15,6 +15,23 @@ from pydantic import BaseModel
 
 dotenv.load_dotenv()
 
+
+def select_environment(environment: str) -> None:
+  """Configure environment variables for the requested execution environment."""
+  env = environment.lower()
+  if env not in {'prod', 'test'}:
+    raise ValueError("environment must be 'prod' or 'test'")
+  suffix = '' if env == 'prod' else '_DEV'
+  overrides = {
+    'AZURE_SQL_CONNECTION_STRING': f'AZURE_SQL_CONNECTION_STRING{suffix}',
+    'DISCORD_SECRET': f'DISCORD_SECRET{suffix}',
+  }
+  for target, source in overrides.items():
+    value = os.getenv(source)
+    if not value:
+      raise RuntimeError(f"Environment variable {source} not set for {env} environment")
+    os.environ[target] = value
+
 # Root of the repository relative to this file
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
