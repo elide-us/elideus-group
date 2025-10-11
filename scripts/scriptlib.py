@@ -197,11 +197,27 @@ async def _fetch_json(cur):
 
 
 async def _fetch_dicts(cur):
+  description = cur.description
   rows = await cur.fetchall()
   if not rows:
     logger.debug('_fetch_dicts returned 0 rows')
     return []
-  cols = [d[0] for d in cur.description]
+  if description is None:
+    try:
+      description = cur.description
+    except Exception as exc:
+      logger.debug('Failed to read cursor description after fetch: %s', exc)
+      description = None
+  if not description:
+    result = [
+      {f'column_{idx}': value for idx, value in enumerate(row)} for row in rows
+    ]
+    logger.debug(
+      '_fetch_dicts could not determine column names; using positional keys for %d rows',
+      len(result),
+    )
+    return result
+  cols = [d[0] for d in description]
   result = [dict(zip(cols, row)) for row in rows]
   logger.debug('_fetch_dicts returning %d rows with columns %s', len(result), cols)
   return result
