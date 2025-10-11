@@ -1,18 +1,21 @@
 from __future__ import annotations
-import asyncio, subprocess
-from scriptlib import connect, dump_schema, apply_schema, dump_data, bump_version
+import asyncio
+import subprocess
+
+from scriptlib import apply_schema, bump_version, connect, dump_data, dump_schema
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
-  subprocess.check_call(f'git add {schema_file}', shell=True)
-  subprocess.check_call(f'git commit -m "Exported DB schema for {version}"', shell=True)
-  subprocess.check_call(f'git tag {version}', shell=True)
+  subprocess.check_call(['git', 'add', schema_file])
+  subprocess.check_call(['git', 'commit', '-m', f'Exported DB schema for {version}'])
+  subprocess.check_call(['git', 'tag', version])
 
   current_branch = subprocess.check_output(
-    "git rev-parse --abbrev-ref HEAD", shell=True, text=True
+    ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+    text=True,
   ).strip()
-  subprocess.check_call(f'git push origin {current_branch}', shell=True)
-  subprocess.check_call('git push origin --tags', shell=True)
+  subprocess.check_call(['git', 'push', 'origin', current_branch])
+  subprocess.check_call(['git', 'push', 'origin', '--tags'])
 
 
 async def _update_config(conn, key: str, value: str):
@@ -44,7 +47,15 @@ Available commands:
 async def interactive_console(conn):
   print("Type 'help' for commands. Type 'exit' to quit.")
   while True:
-    raw = input('SQL> ').strip()
+    try:
+      raw = input('SQL> ')
+    except EOFError:
+      print()
+      break
+    except KeyboardInterrupt:
+      print()
+      continue
+    raw = raw.strip()
     if not raw:
       continue
     cmd = raw.split()
