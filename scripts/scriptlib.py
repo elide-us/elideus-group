@@ -145,6 +145,28 @@ async def _fetch_json(cur):
     parts.append(row[0])
   return json.loads(''.join(parts)) if parts else []
 
+async def _fetch_dicts(cur):
+  rows = await cur.fetchall()
+  if not rows:
+    return []
+  cols = [d[0] for d in cur.description]
+  return [dict(zip(cols, row)) for row in rows]
+
+def _decode_optional(value):
+  if value is None:
+    return None
+  if isinstance(value, memoryview):
+    value = value.tobytes()
+  if isinstance(value, (bytes, bytearray)):
+    return value.decode('utf-16le')
+  return value
+
+def _quote(name: str) -> str:
+  return '[' + name.replace(']', ']]') + ']'
+
+def _qualify(schema: str, name: str) -> str:
+  return f"{_quote(schema)}.{_quote(name)}"
+
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
@@ -155,13 +177,18 @@ async def list_tables(conn):
 async def list_views(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT v.name AS view_name, m.definition AS view_definition
+      """SELECT SCHEMA_NAME(v.schema_id) AS view_schema,
+                v.name AS view_name,
+                CONVERT(VARBINARY(MAX), m.definition) AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
            FOR JSON PATH"""
     )
-    return await _fetch_json(cur)
+    rows = await _fetch_dicts(cur)
+    for row in rows:
+      row['view_definition'] = _decode_optional(row['view_definition'])
+    return rows
 
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
@@ -180,11 +207,69 @@ async def list_view_dependencies(conn):
 async def list_columns(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT COLUMN_NAME AS column_name, DATA_TYPE AS data_type,
-                CHARACTER_MAXIMUM_LENGTH AS max_length
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
-      (table,),
+      """SELECT c.name AS column_name,
+                t.name AS data_type,
+                c.max_length,
+                c.precision,
+                c.scale,
+                c.is_nullable,
+                CONVERT(VARBINARY(MAX), dc.definition) AS default_definition,
+                ic.seed_value,
+                ic.increment_value,
+                c.is_identity,
+                c.is_rowguidcol,
+                CONVERT(VARBINARY(MAX), cc.definition) AS computed_definition,
+                cc.is_persisted,
+                c.collation_name
+           FROM sys.columns c
+           JOIN sys.types t
+             ON c.user_type_id = t.user_type_id
+          LEFT JOIN sys.default_constraints dc
+             ON c.default_object_id = dc.object_id
+          LEFT JOIN sys.identity_columns ic
+             ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+          LEFT JOIN sys.computed_columns cc
+             ON c.object_id = cc.object_id AND c.column_id = cc.column_id
+          WHERE c.object_id = OBJECT_ID(?)
+          ORDER BY c.column_id""",
+      (f"{schema}.{table}",),
+    )
+    rows = await _fetch_dicts(cur)
+    for row in rows:
+      row['default_definition'] = _decode_optional(row['default_definition'])
+      row['computed_definition'] = _decode_optional(row['computed_definition'])
+    return rows
+
+def _group_key_columns(rows: list[dict]) -> list[str]:
+  ordered: list[str] = []
+  for row in sorted(rows, key=lambda r: r['key_ordinal'] or 0):
+    col = _quote(row['column_name'])
+    if row.get('is_descending_key'):
+      col += ' DESC'
+    ordered.append(col)
+  return ordered
+
+async def _table_schema(conn, schema: str, table: str):
+  raw_columns = await list_columns(conn, schema, table)
+  columns: list[dict] = []
+  for col in raw_columns:
+    columns.append(
+      {
+        'name': col['column_name'],
+        'data_type': col['data_type'],
+        'max_length': col['max_length'],
+        'precision': col['precision'],
+        'scale': col['scale'],
+        'nullable': bool(col['is_nullable']),
+        'default': col['default_definition'],
+        'identity': bool(col['is_identity']),
+        'identity_seed': col['seed_value'],
+        'identity_increment': col['increment_value'],
+        'rowguidcol': bool(col['is_rowguidcol']),
+        'computed': col['computed_definition'],
+        'computed_persisted': bool(col['is_persisted']),
+        'collation': col['collation_name'],
+      }
     )
     return await _fetch_json(cur)
 
@@ -268,40 +353,70 @@ async def list_check_constraints(conn, table):
 async def _table_schema(conn, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT COLUMN_NAME AS name,
-                DATA_TYPE AS type,
-                CHARACTER_MAXIMUM_LENGTH AS length,
-                IS_NULLABLE AS nullable,
-                COLUMN_DEFAULT AS [default]
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME=? ORDER BY ORDINAL_POSITION FOR JSON PATH, INCLUDE_NULL_VALUES""",
-      (table,),
+      """SELECT cc.name AS constraint_name,
+                CONVERT(VARBINARY(MAX), cc.definition) AS definition,
+                cc.is_not_trusted,
+                cc.is_disabled
+           FROM sys.check_constraints cc
+          WHERE cc.parent_object_id = OBJECT_ID(?)""",
+      (f"{schema}.{table}",),
     )
-    cols = await _fetch_json(cur)
+    raw_checks = await _fetch_dicts(cur)
+
+  check_constraints = [
+    {
+      'name': row['constraint_name'],
+      'definition': _decode_optional(row['definition']),
+      'is_not_trusted': bool(row['is_not_trusted']),
+      'is_disabled': bool(row['is_disabled']),
+    }
+    for row in raw_checks
+  ]
+
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT k.COLUMN_NAME AS column_name
-         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t
-         JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-           ON t.CONSTRAINT_NAME = k.CONSTRAINT_NAME
-         WHERE t.TABLE_NAME=? AND t.CONSTRAINT_TYPE='PRIMARY KEY' FOR JSON PATH""",
-      (table,),
+      """SELECT i.name AS index_name,
+                i.is_unique,
+                i.type_desc,
+                i.has_filter,
+                CONVERT(VARBINARY(MAX), i.filter_definition) AS filter_definition,
+                ic.is_included_column,
+                ic.key_ordinal,
+                ic.index_column_id,
+                ic.is_descending_key,
+                c.name AS column_name
+           FROM sys.indexes i
+           JOIN sys.index_columns ic
+             ON i.object_id = ic.object_id
+            AND i.index_id = ic.index_id
+           JOIN sys.columns c
+             ON ic.object_id = c.object_id
+            AND ic.column_id = c.column_id
+          WHERE i.object_id = OBJECT_ID(?)
+            AND i.is_primary_key = 0
+            AND i.is_unique_constraint = 0
+            AND i.[type] <> 0
+            AND i.is_hypothetical = 0
+            AND i.name IS NOT NULL
+          ORDER BY i.name,
+                   CASE WHEN ic.is_included_column = 0 THEN ic.key_ordinal ELSE ic.index_column_id END""",
+      (f"{schema}.{table}",),
     )
-    pk = await _fetch_json(cur)
-  async with conn.cursor() as cur:
-    await cur.execute(
-      """SELECT k.COLUMN_NAME AS column_name,
-                c.TABLE_NAME AS ref_table,
-                c.COLUMN_NAME AS ref_column
-         FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS r
-         JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-           ON r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
-          AND r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
-         JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE c
-           ON r.UNIQUE_CONSTRAINT_NAME = c.CONSTRAINT_NAME
-          AND r.UNIQUE_CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA
-         WHERE k.TABLE_NAME=? FOR JSON PATH""",
-      (table,),
+    index_rows = await _fetch_dicts(cur)
+
+  index_map: dict[str, dict] = {}
+  for row in index_rows:
+    entry = index_map.setdefault(
+      row['index_name'],
+      {
+        'name': row['index_name'],
+        'is_unique': bool(row['is_unique']),
+        'type_desc': row['type_desc'],
+        'has_filter': bool(row['has_filter']),
+        'filter_definition': _decode_optional(row['filter_definition']),
+        'key_columns': [],
+        'included_columns': [],
+      },
     )
     fks = await _fetch_json(cur)
   indexes = await list_indexes(conn, table)
