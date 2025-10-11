@@ -64,5 +64,15 @@
 			"last 1 firefox version",
 			"last 1 safari version"
 		]
-	}
+	},
+	"packageRules": [
+    {
+    	"matchUpdateTypes": ["patch"],
+    	"automerge": true
+    },
+    {
+    	"matchUpdateTypes": ["minor"],
+    	"automerge": false
+    }
+  ]
 }
