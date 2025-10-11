@@ -411,16 +411,16 @@ async def list_check_constraints(conn, schema: str, table: str):
   return result
 
 
-async def _table_schema(conn, schema: str, table: str):
-  columns = await list_columns(conn, schema, table)
-  primary_key = await list_primary_key(conn, schema, table)
-  foreign_keys = await list_foreign_keys(conn, schema, table)
-  indexes = await list_indexes(conn, schema, table)
-  constraints = await list_constraints(conn, schema, table)
-  check_constraints = await list_check_constraints(conn, schema, table)
+async def _table_schema(conn, schema_name: str, table: str):
+  columns = await list_columns(conn, schema_name, table)
+  primary_key = await list_primary_key(conn, schema_name, table)
+  foreign_keys = await list_foreign_keys(conn, schema_name, table)
+  indexes = await list_indexes(conn, schema_name, table)
+  constraints = await list_constraints(conn, schema_name, table)
+  check_constraints = await list_check_constraints(conn, schema_name, table)
   return {
-    'schema': schema,
-    'name': _qualify(schema, table),
+    'schema': schema_name,
+    'name': _qualify(schema_name, table),
     'table': table,
     'columns': columns,
     'primary_key': primary_key,
