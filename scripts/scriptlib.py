@@ -152,6 +152,15 @@ async def _fetch_dicts(cur):
   cols = [d[0] for d in cur.description]
   return [dict(zip(cols, row)) for row in rows]
 
+def _decode_optional(value):
+  if value is None:
+    return None
+  if isinstance(value, memoryview):
+    value = value.tobytes()
+  if isinstance(value, (bytes, bytearray)):
+    return value.decode('utf-16le')
+  return value
+
 def _quote(name: str) -> str:
   return '[' + name.replace(']', ']]') + ']'
 
@@ -175,12 +184,15 @@ async def list_views(conn):
     await cur.execute(
       """SELECT SCHEMA_NAME(v.schema_id) AS view_schema,
                 v.name AS view_name,
-                m.definition AS view_definition
+                CONVERT(VARBINARY(MAX), m.definition) AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
           WHERE v.is_ms_shipped = 0"""
     )
-    return await _fetch_dicts(cur)
+    rows = await _fetch_dicts(cur)
+    for row in rows:
+      row['view_definition'] = _decode_optional(row['view_definition'])
+    return rows
 
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
@@ -208,12 +220,12 @@ async def list_columns(conn, schema: str, table: str):
                 c.precision,
                 c.scale,
                 c.is_nullable,
-                dc.definition AS default_definition,
+                CONVERT(VARBINARY(MAX), dc.definition) AS default_definition,
                 ic.seed_value,
                 ic.increment_value,
                 c.is_identity,
                 c.is_rowguidcol,
-                cc.definition AS computed_definition,
+                CONVERT(VARBINARY(MAX), cc.definition) AS computed_definition,
                 cc.is_persisted,
                 c.collation_name
            FROM sys.columns c
@@ -229,7 +241,11 @@ async def list_columns(conn, schema: str, table: str):
           ORDER BY c.column_id""",
       (f"{schema}.{table}",),
     )
-    return await _fetch_dicts(cur)
+    rows = await _fetch_dicts(cur)
+    for row in rows:
+      row['default_definition'] = _decode_optional(row['default_definition'])
+      row['computed_definition'] = _decode_optional(row['computed_definition'])
+    return rows
 
 def _group_key_columns(rows: list[dict]) -> list[str]:
   ordered: list[str] = []
@@ -391,7 +407,7 @@ async def _table_schema(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT cc.name AS constraint_name,
-                cc.definition,
+                CONVERT(VARBINARY(MAX), cc.definition) AS definition,
                 cc.is_not_trusted,
                 cc.is_disabled
            FROM sys.check_constraints cc
@@ -403,7 +419,7 @@ async def _table_schema(conn, schema: str, table: str):
   check_constraints = [
     {
       'name': row['constraint_name'],
-      'definition': row['definition'],
+      'definition': _decode_optional(row['definition']),
       'is_not_trusted': bool(row['is_not_trusted']),
       'is_disabled': bool(row['is_disabled']),
     }
@@ -416,7 +432,7 @@ async def _table_schema(conn, schema: str, table: str):
                 i.is_unique,
                 i.type_desc,
                 i.has_filter,
-                i.filter_definition,
+                CONVERT(VARBINARY(MAX), i.filter_definition) AS filter_definition,
                 ic.is_included_column,
                 ic.key_ordinal,
                 ic.index_column_id,
@@ -450,7 +466,7 @@ async def _table_schema(conn, schema: str, table: str):
         'is_unique': bool(row['is_unique']),
         'type_desc': row['type_desc'],
         'has_filter': bool(row['has_filter']),
-        'filter_definition': row['filter_definition'],
+        'filter_definition': _decode_optional(row['filter_definition']),
         'key_columns': [],
         'included_columns': [],
       },
