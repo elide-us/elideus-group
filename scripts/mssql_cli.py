@@ -12,21 +12,25 @@ logger = logging.getLogger(__name__)
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
-  logger.debug('Staging schema file %s for version %s', schema_file, version)
-  subprocess.check_call(['git', 'add', schema_file])
-  logger.debug('Creating commit for version %s', version)
-  subprocess.check_call(['git', 'commit', '-m', f'Exported DB schema for {version}'])
-  logger.debug('Tagging commit with %s', version)
-  subprocess.check_call(['git', 'tag', version])
+  try:
+    logger.debug('Staging schema file %s for version %s', schema_file, version)
+    subprocess.check_call(['git', 'add', schema_file])
+    logger.debug('Creating commit for version %s', version)
+    subprocess.check_call(['git', 'commit', '-m', f'Exported DB schema for {version}'])
+    logger.debug('Tagging commit with %s', version)
+    subprocess.check_call(['git', 'tag', version])
 
-  current_branch = subprocess.check_output(
-    ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-    text=True,
-  ).strip()
-  logger.debug('Pushing branch %s to origin', current_branch)
-  subprocess.check_call(['git', 'push', 'origin', current_branch])
-  logger.debug('Pushing tags to origin')
-  subprocess.check_call(['git', 'push', 'origin', '--tags'])
+    current_branch = subprocess.check_output(
+      ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+      text=True,
+    ).strip()
+    logger.debug('Pushing branch %s to origin', current_branch)
+    subprocess.check_call(['git', 'push', 'origin', current_branch])
+    logger.debug('Pushing tags to origin')
+    subprocess.check_call(['git', 'push', 'origin', '--tags'])
+  except subprocess.CalledProcessError:
+    logger.exception('Git operation failed during commit/tag for %s', version)
+    raise
 
 
 async def _update_config(conn, key: str, value: str):
@@ -36,12 +40,14 @@ async def _update_config(conn, key: str, value: str):
       "UPDATE system_config SET element_value=? WHERE element_key=?",
       (value, key),
     )
+    logger.debug('UPDATE affected %s rows for key %s', cur.rowcount, key)
     if cur.rowcount == 0:
       logger.debug('system_config key %s missing; inserting new value %s', key, value)
       await cur.execute(
         "INSERT INTO system_config(element_key, element_value) VALUES(?, ?)",
         (key, value),
       )
+      logger.debug('INSERT completed for key %s', key)
 
 HELP_TEXT = """\
 Available commands:
@@ -121,22 +127,29 @@ async def interactive_console(conn):
             print('Version entry not found in system_config table')
             continue
           cur_ver = row[0]
+          logger.debug('Current Version value fetched from DB: %s', cur_ver)
+          logger.debug('Starting version update workflow using part %s', part)
           new_ver = bump_version(cur_ver, part)
           logger.debug('Computed new version %s from %s using part %s', new_ver, cur_ver, part)
           await _update_config(conn, 'Version', new_ver)
           config_updated = True
+          logger.debug('Version updated in system_config from %s to %s', cur_ver, new_ver)
           print(f'Updated Version: {cur_ver} -> {new_ver}')
           logger.debug('Dumping schema for version %s', new_ver)
           schema_file = await dump_schema(conn, new_ver)
+          logger.debug('Schema dump for %s written to %s', new_ver, schema_file)
           _commit_and_tag(new_ver, schema_file)
         except Exception as exc:
+          logger.exception('Version update workflow failed: %s', exc)
           print(f'Error updating version: {exc}')
           if config_updated and cur_ver is not None:
             try:
               logger.debug('Attempting to roll back Version to %s', cur_ver)
               await _update_config(conn, 'Version', cur_ver)
+              logger.debug('Rollback to Version %s completed successfully', cur_ver)
               print(f'Reverted Version to {cur_ver}')
             except Exception as rollback_exc:
+              logger.exception('Failed to roll back Version update: %s', rollback_exc)
               print(f'Failed to roll back Version update: {rollback_exc}')
       case _:
         try:
