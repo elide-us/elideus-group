@@ -192,15 +192,31 @@ async def list_indexes(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT i.name AS index_name,
-                STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) AS columns
+                i.is_unique AS is_unique,
+                i.filter_definition AS filter_definition,
+                (
+                  SELECT c.name AS column_name,
+                         ic.is_descending_key AS is_descending,
+                         ic.is_included_column AS is_included,
+                         ic.key_ordinal AS ordinal
+                    FROM sys.index_columns ic
+                    JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+                   WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id
+                   ORDER BY ic.is_included_column, ic.key_ordinal
+                   FOR JSON PATH
+                ) AS columns
          FROM sys.indexes i
-         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-         JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-         WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 0
-         GROUP BY i.name FOR JSON PATH""",
+        WHERE i.object_id = OBJECT_ID(?)
+          AND i.is_primary_key = 0
+          AND i.is_hypothetical = 0
+        FOR JSON PATH""",
       (table,),
     )
-    return await _fetch_json(cur)
+    indexes = await _fetch_json(cur)
+  for idx in indexes:
+    cols = json.loads(idx.get('columns') or '[]')
+    idx['columns'] = cols
+  return indexes
 
 async def list_keys(conn, table):
   async with conn.cursor() as cur:
@@ -219,10 +235,32 @@ async def list_keys(conn, table):
 async def list_constraints(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT CONSTRAINT_NAME AS constraint_name,
-                CONSTRAINT_TYPE AS constraint_type
-         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-         WHERE TABLE_NAME=? FOR JSON PATH""",
+      """SELECT tc.CONSTRAINT_NAME AS constraint_name,
+                tc.CONSTRAINT_TYPE AS constraint_type,
+                STRING_AGG(k.COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY k.ORDINAL_POSITION) AS columns
+         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+         LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+           ON tc.CONSTRAINT_NAME = k.CONSTRAINT_NAME
+          AND tc.TABLE_SCHEMA = k.TABLE_SCHEMA
+          AND tc.TABLE_NAME = k.TABLE_NAME
+        WHERE tc.TABLE_NAME=?
+        GROUP BY tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE
+        FOR JSON PATH""",
+      (table,),
+    )
+    return await _fetch_json(cur)
+
+async def list_check_constraints(conn, table):
+  async with conn.cursor() as cur:
+    await cur.execute(
+      """SELECT cc.CONSTRAINT_NAME AS constraint_name,
+                cc.CHECK_CLAUSE AS definition
+         FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
+         JOIN INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE ctu
+           ON cc.CONSTRAINT_NAME = ctu.CONSTRAINT_NAME
+          AND cc.CONSTRAINT_SCHEMA = ctu.TABLE_SCHEMA
+        WHERE ctu.TABLE_NAME=?
+        FOR JSON PATH""",
       (table,),
     )
     return await _fetch_json(cur)
@@ -269,6 +307,7 @@ async def _table_schema(conn, table: str):
   indexes = await list_indexes(conn, table)
   keys = await list_keys(conn, table)
   constraints = await list_constraints(conn, table)
+  checks = await list_check_constraints(conn, table)
   return {
     'name': table,
     'columns': [
@@ -293,6 +332,7 @@ async def _table_schema(conn, table: str):
     'indexes': indexes,
     'keys': keys,
     'constraints': constraints,
+    'check_constraints': checks,
   }
 
 async def get_schema(conn):
@@ -363,17 +403,66 @@ def _build_create_sql(table: dict) -> str:
     parts.append(
       f"FOREIGN KEY ({fk['column']}) REFERENCES {fk['ref_table']}({fk['ref_column']})"
     )
+  for constraint in table.get('constraints', []):
+    ctype = constraint.get('constraint_type', '').upper()
+    name = constraint.get('constraint_name')
+    cols = constraint.get('columns')
+    if ctype == 'UNIQUE' and cols:
+      clause = f"CONSTRAINT {name} UNIQUE ({cols})" if name else f"UNIQUE ({cols})"
+      parts.append(clause)
+  for chk in table.get('check_constraints', []):
+    definition = chk.get('definition')
+    if not definition:
+      continue
+    name = chk.get('constraint_name')
+    trimmed = definition.strip()
+    if trimmed.startswith('(') and trimmed.endswith(')'):
+      check_body = trimmed
+    else:
+      check_body = f"({definition})"
+    clause = f"CONSTRAINT {name} CHECK {check_body}" if name else f"CHECK {check_body}"
+    parts.append(clause)
   return f"CREATE TABLE {table['name']} ({', '.join(parts)})"
 
 async def dump_schema(conn, prefix: str = 'schema') -> str:
   schema = await get_schema(conn)
   ts = datetime.now(timezone.utc).strftime('%Y%m%d')
-  filename = f"{prefix}_{ts}.sql"
+  prefix_path = Path(prefix)
+  base_name = prefix_path.name
+  target_dir: Path
+  if prefix_path.is_absolute():
+    target_dir = prefix_path.parent
+  elif prefix_path.parent != Path('.'):
+    target_dir = (ROOT / prefix_path.parent).resolve()
+  else:
+    target_dir = Path(__file__).resolve().parent
+  target_dir.mkdir(parents=True, exist_ok=True)
+  filename = f"{base_name}_{ts}.sql"
+  out_path = target_dir / filename
   lines: list[str] = []
   for table in schema['tables']:
     lines.append(_build_create_sql(table) + ';')
     for idx in table.get('indexes', []):
-      lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
+      columns: list[str] = []
+      included: list[str] = []
+      for col in idx.get('columns', []):
+        col_name = col['column_name']
+        if col.get('is_included'):
+          included.append(col_name)
+          continue
+        direction = ' DESC' if col.get('is_descending') else ''
+        columns.append(f"{col_name}{direction}")
+      if not columns:
+        continue
+      statement = 'CREATE '
+      if idx.get('is_unique'):
+        statement += 'UNIQUE '
+      statement += f"INDEX {idx['index_name']} ON {table['name']} ({', '.join(columns)})"
+      if included:
+        statement += f" INCLUDE ({', '.join(included)})"
+      if idx.get('filter_definition'):
+        statement += f" WHERE {idx['filter_definition']}"
+      lines.append(statement + ';')
   for view in schema.get('views', []):
     raw_def = re.sub(r'--.*?(\r?\n|$)', ' ', view['definition'])
     definition = ' '.join(raw_def.split())
@@ -382,10 +471,15 @@ async def dump_schema(conn, prefix: str = 'schema') -> str:
     if not definition.endswith(';'):
       definition += ';'
     lines.append(definition)
-  with open(filename, 'w') as f:
+  with open(out_path, 'w') as f:
     f.write('\n'.join(lines))
-  print(f'Schema dumped to {filename}')
-  return filename
+  try:
+    rel_path = out_path.relative_to(ROOT)
+    result = rel_path.as_posix()
+  except ValueError:
+    result = str(out_path)
+  print(f'Schema dumped to {result}')
+  return result
 
 async def dump_data(conn, prefix: str = 'dump_data') -> str:
   schema = await get_schema(conn)
