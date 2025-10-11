@@ -1,8 +1,11 @@
 from __future__ import annotations
-import argparse, asyncio, os
+import argparse
+import asyncio
+import os
 from pathlib import Path
-from typing import Iterable
-from scriptlib import connect, apply_schema, dump_schema
+from typing import Iterable, NamedTuple
+
+from scriptlib import apply_schema, connect, dump_schema, parse_version
 
 SCHEMA_FLAG_KEY = 'PendingSchemaDump'
 SCHEMA_VERSION_KEY = 'PendingSchemaVersion'
@@ -34,8 +37,37 @@ def _parse_args() -> argparse.Namespace:
   return parser.parse_args()
 
 
-def _find_candidate_scripts(paths: Iterable[Path]) -> list[Path]:
-  return sorted([p for p in paths if p.suffix == '.sql' and p.name.startswith('to_')])
+class ScriptEntry(NamedTuple):
+  path: Path
+  version: str
+  sort_key: tuple[int, int, int, int]
+
+
+def _extract_version(name: str) -> str | None:
+  stem = Path(name).stem
+  if stem.startswith('to_'):
+    candidate = stem[3:]
+    return candidate or None
+  if stem.startswith('v'):
+    return stem.split('_', 1)[0]
+  return None
+
+
+def _find_candidate_scripts(paths: Iterable[Path]) -> list[ScriptEntry]:
+  entries: list[ScriptEntry] = []
+  for path in paths:
+    if path.suffix.lower() != '.sql':
+      continue
+    version = _extract_version(path.name)
+    if not version:
+      continue
+    try:
+      sort_key = parse_version(version)
+    except ValueError:
+      continue
+    entries.append(ScriptEntry(path=path, version=version, sort_key=sort_key))
+  entries.sort(key=lambda entry: (entry.sort_key, entry.path.name))
+  return entries
 
 
 async def _fetch_config(conn, key: str) -> str | None:
@@ -55,19 +87,17 @@ async def _upsert_config(conn, key: str, value: str) -> None:
       )
 
 
-def _filter_pending(all_scripts: list[Path], last_applied: str | None) -> list[Path]:
+def _filter_pending(all_scripts: list[ScriptEntry], last_applied: str | None) -> list[ScriptEntry]:
   if not last_applied:
     return all_scripts
-  return [path for path in all_scripts if path.name > last_applied]
-
-
-def _infer_version(name: str) -> str | None:
-  base = name.split('.', 1)[0]
-  if base.startswith('to_'):
-    candidate = base[3:]
-    if candidate:
-      return candidate
-  return None
+  last_version = _extract_version(last_applied)
+  if not last_version:
+    return all_scripts
+  try:
+    last_key = parse_version(last_version)
+  except ValueError:
+    return all_scripts
+  return [entry for entry in all_scripts if entry.sort_key > last_key]
 
 
 async def main() -> int:
@@ -90,20 +120,20 @@ async def main() -> int:
       return 0
 
     print('Pending schema scripts:')
-    for script in pending:
-      print(f'  - {script.name}')
+    for entry in pending:
+      print(f'  - {entry.path.name}')
 
     if args.dry_run:
       return 0
 
-    for script in pending:
-      print(f'Applying {script.name}...')
-      await apply_schema(conn, str(script))
-      await _upsert_config(conn, LAST_SCRIPT_KEY, script.name)
+    for entry in pending:
+      print(f'Applying {entry.path.name}...')
+      await apply_schema(conn, str(entry.path))
+      await _upsert_config(conn, LAST_SCRIPT_KEY, entry.path.name)
 
     await _upsert_config(conn, SCHEMA_FLAG_KEY, '1')
 
-    recorded_version = args.target_version or _infer_version(pending[-1].name)
+    recorded_version = args.target_version or pending[-1].version
     if recorded_version:
       await _upsert_config(conn, SCHEMA_VERSION_KEY, recorded_version)
 

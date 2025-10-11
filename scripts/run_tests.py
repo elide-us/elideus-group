@@ -1,24 +1,14 @@
 from __future__ import annotations
-import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
+import argparse
+import asyncio
+import importlib.util
+import os
+import subprocess
+import sys
+
+import aioodbc
 from pathlib import Path
-from scriptlib import parse_version, next_build
-
-def _unpack_version(ver: str) -> tuple[int, int, int, int]:
-  ver = ver.lstrip('v')
-  major, minor, patch, build = [int(p) for p in ver.split('.')]
-  return major, minor, patch, build
-
-def _next_build(current_version: str, last_version: str) -> int:
-  """Return the next build number for the given versions.
-
-  The build number is reset only when the major or minor version changes.
-  Patch version bumps continue the build count within the same minor version.
-  """
-  current_major, current_minor, _, current_build = _unpack_version(current_version)
-  last_major, last_minor, _, _ = _unpack_version(last_version)
-  if (current_major, current_minor) != (last_major, last_minor):
-    return 0
-  return current_build + 1
+from scriptlib import next_build, parse_version
 
 def _parse_args() -> argparse.Namespace:
   parser = argparse.ArgumentParser()
@@ -65,15 +55,17 @@ async def update_build_version() -> None:
         build = next_build(current_version, last_version)
 
         new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
-        print(f'Updating build version: {current_version} -> {new_version}')
-
-        await cur.execute(
-          "UPDATE system_config SET element_value=? WHERE element_key='Version'",
-          (new_version,),
-        )
-        if cur.rowcount == 0:
-          print('Failed to update config record Version')
-          return
+        if new_version != current_version:
+          print(f'Updating build version: {current_version} -> {new_version}')
+          await cur.execute(
+            "UPDATE system_config SET element_value=? WHERE element_key='Version'",
+            (new_version,),
+          )
+          if cur.rowcount == 0:
+            print('Failed to update config record Version')
+            return
+        else:
+          print('Build version unchanged; syncing LastVersion only.')
 
         await cur.execute(
           "UPDATE system_config SET element_value=? WHERE element_key='LastVersion'",
@@ -82,8 +74,6 @@ async def update_build_version() -> None:
         if cur.rowcount == 0:
           print('Failed to update config record LastVersion')
           return
-        # await _update_config_database(conn, 'Version', new_version)
-        # await _update_config_database(conn, 'LastVersion', current_version)
   finally:
     if pool:
       pool.close()
