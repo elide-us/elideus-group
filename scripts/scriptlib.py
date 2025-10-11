@@ -170,14 +170,9 @@ def _qualify(schema: str, name: str) -> str:
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT TABLE_SCHEMA AS table_schema,
-                TABLE_NAME AS table_name
-           FROM INFORMATION_SCHEMA.TABLES
-          WHERE TABLE_TYPE='BASE TABLE'
-            AND TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'sys')
-          ORDER BY TABLE_SCHEMA, TABLE_NAME"""
+      "SELECT TABLE_NAME AS table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' FOR JSON PATH"
     )
-    return await _fetch_dicts(cur)
+    return await _fetch_json(cur)
 
 async def list_views(conn):
   async with conn.cursor() as cur:
@@ -187,7 +182,8 @@ async def list_views(conn):
                 CONVERT(VARBINARY(MAX), m.definition) AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
-          WHERE v.is_ms_shipped = 0"""
+          WHERE SCHEMA_NAME(v.schema_id)='dbo'
+           FOR JSON PATH"""
     )
     rows = await _fetch_dicts(cur)
     for row in rows:
@@ -197,21 +193,18 @@ async def list_views(conn):
 async def list_view_dependencies(conn):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT SCHEMA_NAME(v.schema_id) AS referencing_schema,
-                v.name AS referencing_name,
-                SCHEMA_NAME(r.schema_id) AS referenced_schema,
-                r.name AS referenced_name
+      """SELECT OBJECT_NAME(d.referencing_id) AS view_name,
+                OBJECT_NAME(d.referenced_id) AS ref_name
            FROM sys.sql_expression_dependencies d
            JOIN sys.views v ON d.referencing_id = v.object_id
            JOIN sys.views r ON d.referenced_id = r.object_id
-          WHERE d.referencing_class_desc='VIEW'
-            AND d.referenced_class_desc='VIEW'
-            AND v.is_ms_shipped = 0
-            AND r.is_ms_shipped = 0"""
+          WHERE SCHEMA_NAME(v.schema_id)='dbo'
+            AND SCHEMA_NAME(r.schema_id)='dbo'
+           FOR JSON PATH"""
     )
-    return await _fetch_dicts(cur)
+    return await _fetch_json(cur)
 
-async def list_columns(conn, schema: str, table: str):
+async def list_columns(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT c.name AS column_name,
@@ -278,132 +271,48 @@ async def _table_schema(conn, schema: str, table: str):
         'collation': col['collation_name'],
       }
     )
+    return await _fetch_json(cur)
 
+async def list_indexes(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT kc.name AS constraint_name,
-                i.type_desc,
-                ic.key_ordinal,
-                c.name AS column_name,
-                ic.is_descending_key
-           FROM sys.key_constraints kc
-           JOIN sys.indexes i
-             ON kc.parent_object_id = i.object_id
-            AND kc.unique_index_id = i.index_id
-           JOIN sys.index_columns ic
-             ON kc.parent_object_id = ic.object_id
-            AND kc.unique_index_id = ic.index_id
-           JOIN sys.columns c
-             ON ic.object_id = c.object_id
-            AND ic.column_id = c.column_id
-          WHERE kc.parent_object_id = OBJECT_ID(?)
-            AND kc.type = 'PK'""",
-      (f"{schema}.{table}",),
+      """SELECT i.name AS index_name,
+                STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) AS columns
+         FROM sys.indexes i
+         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+         JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+         WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 0
+         GROUP BY i.name FOR JSON PATH""",
+      (table,),
     )
-    pk_rows = await _fetch_dicts(cur)
+    return await _fetch_json(cur)
 
-  pk = None
-  if pk_rows:
-    pk = {
-      'name': pk_rows[0]['constraint_name'],
-      'type_desc': pk_rows[0]['type_desc'],
-      'columns': _group_key_columns(pk_rows),
-    }
-
+async def list_keys(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT kc.name AS constraint_name,
-                i.type_desc,
-                ic.key_ordinal,
-                c.name AS column_name,
-                ic.is_descending_key
-           FROM sys.key_constraints kc
-           JOIN sys.indexes i
-             ON kc.parent_object_id = i.object_id
-            AND kc.unique_index_id = i.index_id
-           JOIN sys.index_columns ic
-             ON kc.parent_object_id = ic.object_id
-            AND kc.unique_index_id = ic.index_id
-           JOIN sys.columns c
-             ON ic.object_id = c.object_id
-            AND ic.column_id = c.column_id
-          WHERE kc.parent_object_id = OBJECT_ID(?)
-            AND kc.type = 'UQ'""",
-      (f"{schema}.{table}",),
+      """SELECT k.CONSTRAINT_NAME AS constraint_name,
+                k.COLUMN_NAME AS column_name,
+                tc.CONSTRAINT_TYPE AS constraint_type
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+         JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+           ON k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+         WHERE k.TABLE_NAME=? FOR JSON PATH""",
+      (table,),
     )
-    uq_rows = await _fetch_dicts(cur)
+    return await _fetch_json(cur)
 
-  unique_map: dict[str, dict] = {}
-  for row in uq_rows:
-    entry = unique_map.setdefault(
-      row['constraint_name'],
-      {
-        'name': row['constraint_name'],
-        'type_desc': row['type_desc'],
-        'columns': [],
-      },
-    )
-    entry['columns'].append(
-      (
-        row['key_ordinal'] or 0,
-        _quote(row['column_name']) + (' DESC' if row.get('is_descending_key') else ''),
-      )
-    )
-  unique_constraints = []
-  for entry in sorted(unique_map.values(), key=lambda e: e['name']):
-    entry['columns'] = [col for _, col in sorted(entry['columns'])]
-    unique_constraints.append(entry)
-
+async def list_constraints(conn, table):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT fk.name AS constraint_name,
-                COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name,
-                fkc.constraint_column_id,
-                SCHEMA_NAME(ro.schema_id) AS ref_schema,
-                ro.name AS ref_table,
-                COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS ref_column_name,
-                fk.delete_referential_action_desc,
-                fk.update_referential_action_desc,
-                fk.is_not_for_replication,
-                fk.is_not_trusted,
-                fk.is_disabled
-           FROM sys.foreign_keys fk
-           JOIN sys.foreign_key_columns fkc
-             ON fk.object_id = fkc.constraint_object_id
-           JOIN sys.objects ro
-             ON fk.referenced_object_id = ro.object_id
-          WHERE fk.parent_object_id = OBJECT_ID(?)
-          ORDER BY fk.name, fkc.constraint_column_id""",
-      (f"{schema}.{table}",),
+      """SELECT CONSTRAINT_NAME AS constraint_name,
+                CONSTRAINT_TYPE AS constraint_type
+         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+         WHERE TABLE_NAME=? FOR JSON PATH""",
+      (table,),
     )
-    fk_rows = await _fetch_dicts(cur)
+    return await _fetch_json(cur)
 
-  fk_map: dict[str, dict] = {}
-  for row in fk_rows:
-    entry = fk_map.setdefault(
-      row['constraint_name'],
-      {
-        'name': row['constraint_name'],
-        'columns': [],
-        'ref_columns': [],
-        'ref_schema': row['ref_schema'],
-        'ref_table': row['ref_table'],
-        'on_delete': row['delete_referential_action_desc'],
-        'on_update': row['update_referential_action_desc'],
-        'not_for_replication': bool(row['is_not_for_replication']),
-        'is_not_trusted': bool(row['is_not_trusted']),
-        'is_disabled': bool(row['is_disabled']),
-      },
-    )
-    entry['columns'].append((row['constraint_column_id'], _quote(row['column_name'])))
-    entry['ref_columns'].append((row['constraint_column_id'], _quote(row['ref_column_name'])))
-
-  foreign_keys = []
-  for entry in sorted(fk_map.values(), key=lambda e: e['name']):
-    entry['columns'] = [col for _, col in sorted(entry['columns'])]
-    entry['ref_columns'] = [col for _, col in sorted(entry['ref_columns'])]
-    foreign_keys.append(entry)
-
+async def _table_schema(conn, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT cc.name AS constraint_name,
@@ -471,28 +380,34 @@ async def _table_schema(conn, schema: str, table: str):
         'included_columns': [],
       },
     )
-    target = entry['included_columns'] if row['is_included_column'] else entry['key_columns']
-    col = _quote(row['column_name'])
-    if row['is_descending_key'] and not row['is_included_column']:
-      col += ' DESC'
-    order = row['index_column_id'] if row['is_included_column'] else row['key_ordinal']
-    target.append((order or 0, col))
-
-  indexes = []
-  for entry in sorted(index_map.values(), key=lambda e: e['name']):
-    entry['key_columns'] = [col for _, col in sorted(entry['key_columns'])]
-    entry['included_columns'] = [col for _, col in sorted(entry['included_columns'])]
-    indexes.append(entry)
-
+    fks = await _fetch_json(cur)
+  indexes = await list_indexes(conn, table)
+  keys = await list_keys(conn, table)
+  constraints = await list_constraints(conn, table)
   return {
-    'schema': schema,
     'name': table,
-    'columns': columns,
-    'primary_key': pk,
-    'unique_constraints': unique_constraints,
-    'foreign_keys': foreign_keys,
-    'check_constraints': check_constraints,
+    'columns': [
+      {
+        'name': c['name'],
+        'type': c['type'],
+        'length': c['length'],
+        'nullable': c['nullable'] == 'YES',
+        'default': c['default'],
+      }
+      for c in cols
+    ],
+    'primary_key': [r['column_name'] for r in pk],
+    'foreign_keys': [
+      {
+        'column': fk['column_name'],
+        'ref_table': fk['ref_table'],
+        'ref_column': fk['ref_column'],
+      }
+      for fk in fks
+    ],
     'indexes': indexes,
+    'keys': keys,
+    'constraints': constraints,
   }
 
 async def get_schema(conn):
@@ -500,255 +415,90 @@ async def get_schema(conn):
   schemas: dict[str, dict] = {}
   deps: dict[str, set[str]] = {}
   for t in tables:
-    schema = t['table_schema']
     name = t['table_name']
-    key = f"{schema}.{name}"
-    info = await _table_schema(conn, schema, name)
-    schemas[key] = info
-    deps[key] = {
-      f"{fk['ref_schema']}.{fk['ref_table']}" for fk in info['foreign_keys']
-    }
+    info = await _table_schema(conn, name)
+    schemas[name] = info
+    deps[name] = {fk['ref_table'] for fk in info['foreign_keys']}
   ordered: list[str] = []
   visited: set[str] = set()
-
   def visit(n: str):
     if n in visited:
       return
     visited.add(n)
-    for dep in deps.get(n, set()):
-      if dep in deps:
-        visit(dep)
+    for d in deps.get(n, set()):
+      if d in deps:
+        visit(d)
     ordered.append(n)
-
   for t in deps.keys():
     visit(t)
 
   view_defs = await list_views(conn)
-  view_map = {
-    f"{v['view_schema']}.{v['view_name']}": v for v in view_defs
-  }
+  view_map = {v['view_name']: v['view_definition'] for v in view_defs}
   view_deps: dict[str, set[str]] = {}
   for d in await list_view_dependencies(conn):
-    src = f"{d['referencing_schema']}.{d['referencing_name']}"
-    dst = f"{d['referenced_schema']}.{d['referenced_name']}"
-    view_deps.setdefault(src, set()).add(dst)
+    view_deps.setdefault(d['view_name'], set()).add(d['ref_name'])
   vordered: list[str] = []
   vvisited: set[str] = set()
-
   def vvisit(n: str):
     if n in vvisited:
       return
     vvisited.add(n)
-    for dep in view_deps.get(n, set()):
-      if dep in view_deps:
-        vvisit(dep)
+    for d in view_deps.get(n, set()):
+      if d in view_deps:
+        vvisit(d)
     vordered.append(n)
-
-  for key in view_map.keys():
-    vvisit(key)
+  for v in view_map.keys():
+    vvisit(v)
 
   return {
     'tables': [schemas[n] for n in ordered],
-    'views': [
-      {
-        'schema': view_map[n]['view_schema'],
-        'name': view_map[n]['view_name'],
-        'definition': view_map[n]['view_definition'],
-      }
-      for n in vordered
-      if n in view_map
-    ],
+    'views': [{'name': n, 'definition': view_map[n]} for n in vordered],
   }
 
-def _format_data_type(col: dict) -> str:
-  dtype = col['data_type']
-  if not dtype:
-    return ''
-  upper = dtype.upper()
-  type_name = upper if dtype.islower() else dtype
-  length = col['max_length']
-  precision = col['precision']
-  scale = col['scale']
-
-  if upper in {'CHAR', 'VARCHAR', 'BINARY', 'VARBINARY'}:
-    if length == -1:
-      return f"{type_name}(MAX)"
-    if length is not None:
-      return f"{type_name}({length})"
-    return type_name
-
-  if upper in {'NCHAR', 'NVARCHAR'}:
-    if length == -1:
-      return f"{type_name}(MAX)"
-    if length is not None:
-      chars = length // 2 if length else 0
-      return f"{type_name}({chars})"
-    return type_name
-
-  if upper in {'DECIMAL', 'NUMERIC'} and precision is not None and scale is not None:
-    return f"{type_name}({precision},{scale})"
-
-  if upper in {'TIME', 'DATETIME2', 'DATETIMEOFFSET'} and scale is not None:
-    return f"{type_name}({scale})"
-
-  if upper == 'FLOAT' and precision not in {None, 53}:
-    return f"{type_name}({precision})"
-
-  return type_name
-
-def _format_column(col: dict) -> str:
-  name = _quote(col['name'])
-  if col['computed']:
-    line = f"{name} AS {col['computed']}"
-    if col['computed_persisted']:
-      line += ' PERSISTED'
-    return line
-
-  parts = [name, _format_data_type(col)]
-  if col['collation']:
-    parts.append(f"COLLATE {col['collation']}")
-  if col['identity']:
-    seed = col['identity_seed'] if col['identity_seed'] is not None else 1
-    inc = col['identity_increment'] if col['identity_increment'] is not None else 1
-    parts.append(f"IDENTITY({seed}, {inc})")
-  if col['rowguidcol']:
-    parts.append('ROWGUIDCOL')
-  parts.append('NULL' if col['nullable'] else 'NOT NULL')
-  if col['default']:
-    parts.append(f"DEFAULT {col['default']}")
-  return ' '.join(parts)
-
 def _build_create_sql(table: dict) -> str:
-  table_name = _qualify(table['schema'], table['name'])
-  column_lines = [_format_column(col) for col in table['columns']]
-  constraints: list[str] = []
-  pk = table.get('primary_key')
-  if pk:
-    type_desc = pk['type_desc'].replace('_', ' ') if pk['type_desc'] else ''
-    clause = f"CONSTRAINT {_quote(pk['name'])} PRIMARY KEY"
-    if type_desc:
-      clause += f" {type_desc}"
-    clause += f" ({', '.join(pk['columns'])})"
-    constraints.append(clause)
-  body = ',\n  '.join(column_lines + constraints)
-  return f"CREATE TABLE {table_name} (\n  {body}\n);"
-
-def _build_unique_constraint_sql(table: dict, constraint: dict) -> str:
-  table_name = _qualify(table['schema'], table['name'])
-  type_desc = constraint['type_desc'].replace('_', ' ') if constraint['type_desc'] else ''
-  clause = f"ALTER TABLE {table_name} ADD CONSTRAINT {_quote(constraint['name'])} UNIQUE"
-  if type_desc:
-    clause += f" {type_desc}"
-  clause += f" ({', '.join(constraint['columns'])});"
-  return clause
-
-def _build_check_constraint_sql(table: dict, constraint: dict) -> list[str]:
-  table_name = _qualify(table['schema'], table['name'])
-  name = _quote(constraint['name'])
-  prefix = 'WITH NOCHECK ' if constraint['is_not_trusted'] else ''
-  statements = [
-    f"ALTER TABLE {table_name} {prefix}ADD CONSTRAINT {name} CHECK {constraint['definition']};"
-  ]
-  if constraint['is_disabled']:
-    statements.append(f"ALTER TABLE {table_name} NOCHECK CONSTRAINT {name};")
-  return statements
-
-def _build_index_sql(table: dict, index: dict) -> str:
-  table_name = _qualify(table['schema'], table['name'])
-  parts = ['CREATE']
-  if index['is_unique']:
-    parts.append('UNIQUE')
-  type_desc = index['type_desc'].replace('_', ' ') if index['type_desc'] else ''
-  if type_desc:
-    parts.append(type_desc)
-  parts.append('INDEX')
-  parts.append(_quote(index['name']))
-  parts.append('ON')
-  parts.append(table_name)
-  if index['key_columns']:
-    parts.append(f"({', '.join(index['key_columns'])})")
-  if index['included_columns']:
-    parts.append(f"INCLUDE ({', '.join(index['included_columns'])})")
-  if index['has_filter'] and index['filter_definition']:
-    parts.append(f"WHERE {index['filter_definition']}")
-  return ' '.join(parts) + ';'
-
-def _build_foreign_key_sql(table: dict, fk: dict) -> list[str]:
-  table_name = _qualify(table['schema'], table['name'])
-  ref_table = _qualify(fk['ref_schema'], fk['ref_table'])
-  name = _quote(fk['name'])
-  prefix = 'WITH NOCHECK' if fk['is_not_trusted'] or fk['is_disabled'] else 'WITH CHECK'
-  statement = (
-    f"ALTER TABLE {table_name} {prefix} ADD CONSTRAINT {name} FOREIGN KEY "
-    f"({', '.join(fk['columns'])}) REFERENCES {ref_table} ({', '.join(fk['ref_columns'])})"
-  )
-  if fk['not_for_replication']:
-    statement += ' NOT FOR REPLICATION'
-  if fk['on_delete'] and fk['on_delete'] != 'NO_ACTION':
-    statement += f" ON DELETE {fk['on_delete'].replace('_', ' ')}"
-  if fk['on_update'] and fk['on_update'] != 'NO_ACTION':
-    statement += f" ON UPDATE {fk['on_update'].replace('_', ' ')}"
-  statements = [statement + ';']
-  if fk['is_disabled']:
-    statements.append(f"ALTER TABLE {table_name} NOCHECK CONSTRAINT {name};")
-  return statements
-
-def _normalize_view_definition(view: dict) -> str:
-  raw_def = re.sub(r'--.*?(\r?\n|$)', ' ', view['definition'])
-  definition = ' '.join(raw_def.split())
-  target_name = f"{_qualify(view['schema'], view['name'])}"
-  if not definition.lower().startswith('create'):
-    definition = f"CREATE VIEW {target_name} AS {definition}"
-  if not definition.upper().startswith('CREATE VIEW'):
-    definition = f"CREATE VIEW {target_name} AS {definition}"  # fallback
-  if not definition.endswith(';'):
-    definition += ';'
-  return definition
+  parts: list[str] = []
+  for col in table['columns']:
+    ctype = col['type']
+    if col.get('length') is not None and ctype.lower() in {
+      'varchar', 'nvarchar', 'char', 'nchar', 'varbinary'
+    }:
+      if col['length'] == -1:
+        ctype += '(MAX)'
+      else:
+        ctype += f"({col['length']})"
+    line = f"{col['name']} {ctype}"
+    if col['default'] is not None:
+      line += f" DEFAULT {col['default']}"
+    if not col['nullable']:
+      line += ' NOT NULL'
+    parts.append(line)
+  if table['primary_key']:
+    parts.append('PRIMARY KEY (' + ', '.join(table['primary_key']) + ')')
+  for fk in table['foreign_keys']:
+    parts.append(
+      f"FOREIGN KEY ({fk['column']}) REFERENCES {fk['ref_table']}({fk['ref_column']})"
+    )
+  return f"CREATE TABLE {table['name']} ({', '.join(parts)})"
 
 async def dump_schema(conn, prefix: str = 'schema') -> str:
   schema = await get_schema(conn)
   ts = datetime.now(timezone.utc).strftime('%Y%m%d')
   filename = f"{prefix}_{ts}.sql"
-
-  table_stmts: list[str] = []
-  unique_stmts: list[str] = []
-  check_stmts: list[str] = []
-  index_stmts: list[str] = []
-  fk_stmts: list[str] = []
-
+  lines: list[str] = []
   for table in schema['tables']:
-    table_stmts.append(_build_create_sql(table))
-    for constraint in table['unique_constraints']:
-      unique_stmts.append(_build_unique_constraint_sql(table, constraint))
-    for constraint in table['check_constraints']:
-      check_stmts.extend(_build_check_constraint_sql(table, constraint))
-    for index in table['indexes']:
-      index_stmts.append(_build_index_sql(table, index))
-    for fk in table['foreign_keys']:
-      fk_stmts.extend(_build_foreign_key_sql(table, fk))
-
-  view_stmts: list[str] = [
-    _normalize_view_definition(view) for view in schema.get('views', [])
-  ]
-
-  sections = [
-    table_stmts,
-    unique_stmts,
-    check_stmts,
-    index_stmts,
-    fk_stmts,
-    view_stmts,
-  ]
-
-  lines: list[str] = ['SET ANSI_NULLS ON;', 'SET QUOTED_IDENTIFIER ON;', '']
-  for stmts in sections:
-    if not stmts:
-      continue
-    if lines and lines[-1] != '':
-      lines.append('')
-    lines.extend(stmts)
+    lines.append(_build_create_sql(table) + ';')
+    for idx in table.get('indexes', []):
+      lines.append(f"CREATE INDEX {idx['index_name']} ON {table['name']} ({idx['columns']});")
+  for view in schema.get('views', []):
+    raw_def = re.sub(r'--.*?(\r?\n|$)', ' ', view['definition'])
+    definition = ' '.join(raw_def.split())
+    if not definition.lower().startswith('create'):
+      definition = f"CREATE VIEW {view['name']} AS {definition}"
+    if not definition.endswith(';'):
+      definition += ';'
+    lines.append(definition)
   with open(filename, 'w') as f:
-    f.write('\n'.join(line for line in lines if line is not None))
+    f.write('\n'.join(lines))
   print(f'Schema dumped to {filename}')
   return filename
 
@@ -756,11 +506,10 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
   schema = await get_schema(conn)
   data: dict[str, list[dict]] = {}
   for tbl in schema['tables']:
-    table_name = _qualify(tbl['schema'], tbl['name'])
-    key = f"{tbl['schema']}.{tbl['name']}"
+    name = tbl['name']
     async with conn.cursor() as cur:
-      await cur.execute(f"SELECT * FROM {table_name} FOR JSON PATH")
-      data[key] = await _fetch_json(cur)
+      await cur.execute(f"SELECT * FROM {name} FOR JSON PATH")
+      data[name] = await _fetch_json(cur)
   ts = datetime.now(timezone.utc).strftime('%Y%m%d_BACKUP')
   filename = f"{prefix}_{ts}.json"
   with open(filename, 'w') as f:
