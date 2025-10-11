@@ -334,7 +334,7 @@ async def list_columns(conn, schema: str, table: str):
           ORDER BY c.column_id""",
       (_qualify(schema, table),),
     )
-  rows = await _fetch_dicts(cur)
+    rows = await _fetch_dicts(cur)
   columns: list[dict] = []
   for row in rows:
     logger.debug(
