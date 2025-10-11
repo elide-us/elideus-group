@@ -191,7 +191,7 @@ async def list_views(conn):
     await cur.execute(
       """SELECT SCHEMA_NAME(v.schema_id) AS view_schema,
                 v.name AS view_name,
-                CONVERT(VARBINARY(MAX), m.definition) AS view_definition
+                CONVERT(NVARCHAR(MAX), m.definition) AS view_definition
            FROM sys.views v
            JOIN sys.sql_modules m ON v.object_id = m.object_id
           WHERE SCHEMA_NAME(v.schema_id)='dbo'
@@ -227,12 +227,12 @@ async def list_columns(conn, schema: str, table: str):
                 c.precision,
                 c.scale,
                 c.is_nullable,
-                CONVERT(VARBINARY(MAX), dc.definition) AS default_definition,
+                CONVERT(NVARCHAR(MAX), dc.definition) AS default_definition,
                 ic.seed_value,
                 ic.increment_value,
                 c.is_identity,
                 c.is_rowguidcol,
-                CONVERT(VARBINARY(MAX), cc.definition) AS computed_definition,
+                CONVERT(NVARCHAR(MAX), cc.definition) AS computed_definition,
                 cc.is_persisted,
                 c.collation_name
            FROM sys.columns c
@@ -324,7 +324,7 @@ async def list_indexes(conn, schema: str, table: str):
     await cur.execute(
       """SELECT i.name AS index_name,
                 i.is_unique AS is_unique,
-                CONVERT(VARBINARY(MAX), i.filter_definition) AS filter_definition,
+                CONVERT(NVARCHAR(MAX), i.filter_definition) AS filter_definition,
                 ic.is_descending_key AS is_descending,
                 ic.is_included_column AS is_included,
                 ic.key_ordinal AS key_ordinal,
@@ -390,7 +390,7 @@ async def list_check_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
       """SELECT cc.CONSTRAINT_NAME AS constraint_name,
-                CONVERT(VARBINARY(MAX), cc.definition) AS definition,
+                CONVERT(NVARCHAR(MAX), cc.definition) AS definition,
                 cc.is_not_trusted,
                 cc.is_disabled
            FROM sys.check_constraints cc
