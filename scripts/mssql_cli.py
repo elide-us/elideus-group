@@ -1,6 +1,38 @@
 from __future__ import annotations
-import asyncio, subprocess, pyodbc
+import argparse, asyncio, os, subprocess, pyodbc
 from scriptlib import connect, dump_schema, apply_schema, dump_data, bump_version
+
+
+def _ensure_env_var(name: str, env: str) -> None:
+  if env == 'test':
+    source = f'{name}_DEV'
+    value = os.getenv(source)
+    if not value:
+      raise RuntimeError(f'{source} not set')
+    os.environ[name] = value
+  else:
+    value = os.getenv(name)
+    if not value:
+      raise RuntimeError(f'{name} not set')
+
+
+def _configure_environment(env: str) -> None:
+  if env not in {'test', 'prod'}:
+    raise ValueError(f"Unknown environment '{env}'")
+  _ensure_env_var('AZURE_SQL_CONNECTION_STRING', env)
+  _ensure_env_var('DISCORD_SECRET', env)
+
+
+def _parse_args() -> argparse.Namespace:
+  parser = argparse.ArgumentParser(description='Interactive MSSQL management CLI')
+  parser.add_argument(
+    '-e',
+    '--env',
+    default='test',
+    choices=['test', 'prod'],
+    help='Environment to target (default: test)',
+  )
+  return parser.parse_args()
 
 
 def _commit_and_tag(version: str, schema_file: str) -> None:
@@ -115,7 +147,8 @@ async def interactive_console(conn):
           print(f'Error: {e2}')
 
 async def main():
-  # register converter right before connecting
+  args = _parse_args()
+  _configure_environment(args.env)
   pyodbc.add_output_converter(-16, _wide_to_str)
   conn = await connect()
   try:
