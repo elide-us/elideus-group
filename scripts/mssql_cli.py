@@ -91,18 +91,30 @@ async def interactive_console(conn):
       case ['dump', 'data', name]:
         await dump_data(conn, name)
       case ['update', 'version', part] if part in {'major', 'minor', 'patch'}:
-        async with conn.cursor() as cur:
-          await cur.execute("SELECT element_value FROM system_config WHERE element_key='Version'")
-          row = await cur.fetchone()
-        if not row:
-          print('Version entry not found in system_config table')
-          continue
-        cur_ver = row[0]
-        new_ver = bump_version(cur_ver, part)
-        await _update_config(conn, 'Version', new_ver)
-        print(f'Updated Version: {cur_ver} -> {new_ver}')
-        schema_file = await dump_schema(conn, new_ver)
-        _commit_and_tag(new_ver, schema_file)
+        cur_ver = None
+        config_updated = False
+        try:
+          async with conn.cursor() as cur:
+            await cur.execute("SELECT element_value FROM system_config WHERE element_key='Version'")
+            row = await cur.fetchone()
+          if not row:
+            print('Version entry not found in system_config table')
+            continue
+          cur_ver = row[0]
+          new_ver = bump_version(cur_ver, part)
+          await _update_config(conn, 'Version', new_ver)
+          config_updated = True
+          print(f'Updated Version: {cur_ver} -> {new_ver}')
+          schema_file = await dump_schema(conn, new_ver)
+          _commit_and_tag(new_ver, schema_file)
+        except Exception as exc:
+          print(f'Error updating version: {exc}')
+          if config_updated and cur_ver is not None:
+            try:
+              await _update_config(conn, 'Version', cur_ver)
+              print(f'Reverted Version to {cur_ver}')
+            except Exception as rollback_exc:
+              print(f'Failed to roll back Version update: {rollback_exc}')
       case _:
         try:
           async with conn.cursor() as cur:
