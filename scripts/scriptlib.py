@@ -177,6 +177,17 @@ def _qualify(schema: str, name: str) -> str:
   return f'{_quote(schema)}.{_quote(name)}'
 
 
+def _map_constraint_type(code: str | None) -> str | None:
+  if not code:
+    return code
+  mapping = {
+    'PK': 'PRIMARY KEY',
+    'UQ': 'UNIQUE',
+    'F': 'FOREIGN KEY',
+  }
+  return mapping.get(code, code)
+
+
 async def list_tables(conn):
   async with conn.cursor() as cur:
     await cur.execute(
@@ -370,20 +381,45 @@ async def list_indexes(conn, schema: str, table: str):
 async def list_constraints(conn, schema: str, table: str):
   async with conn.cursor() as cur:
     await cur.execute(
-      """SELECT tc.CONSTRAINT_NAME AS constraint_name,
-                tc.CONSTRAINT_TYPE AS constraint_type,
-                STRING_AGG(k.COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY k.ORDINAL_POSITION) AS columns
-           FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-           LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-             ON tc.CONSTRAINT_NAME = k.CONSTRAINT_NAME
-            AND tc.TABLE_SCHEMA = k.TABLE_SCHEMA
-            AND tc.TABLE_NAME = k.TABLE_NAME
-          WHERE tc.TABLE_NAME=? AND tc.TABLE_SCHEMA=?
-          GROUP BY tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE
-          FOR JSON PATH""",
-      (table, schema),
+      """SELECT kc.name AS constraint_name,
+                kc.type AS constraint_type,
+                ic.key_ordinal,
+                c.name AS column_name
+           FROM sys.key_constraints kc
+           JOIN sys.tables t ON kc.parent_object_id = t.object_id
+           JOIN sys.schemas s ON t.schema_id = s.schema_id
+           LEFT JOIN sys.index_columns ic
+             ON kc.parent_object_id = ic.object_id
+            AND kc.unique_index_id = ic.index_id
+           LEFT JOIN sys.columns c
+             ON ic.object_id = c.object_id
+            AND ic.column_id = c.column_id
+          WHERE s.name=? AND t.name=?
+          ORDER BY kc.name, ic.key_ordinal""",
+      (schema, table),
     )
-    return await _fetch_json(cur)
+    rows = await _fetch_dicts(cur)
+  grouped: dict[str, dict] = {}
+  order: list[str] = []
+  for row in rows:
+    name = row['constraint_name']
+    if name not in grouped:
+      order.append(name)
+      grouped[name] = {
+        'constraint_name': name,
+        'constraint_type': _map_constraint_type(row['constraint_type']),
+        'columns': [],
+      }
+    column = row.get('column_name')
+    if column:
+      grouped[name]['columns'].append(column)
+  results: list[dict] = []
+  for name in order:
+    entry = grouped[name]
+    columns = entry['columns']
+    entry['columns'] = ', '.join(columns) if columns else None
+    results.append(entry)
+  return results
 
 
 async def list_check_constraints(conn, schema: str, table: str):
