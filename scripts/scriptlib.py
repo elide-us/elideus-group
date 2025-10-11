@@ -197,8 +197,13 @@ async def _fetch_json(cur):
 
 
 async def _fetch_dicts(cur):
+  logger.debug('_fetch_dicts attempting to read all rows from cursor %s', cur)
   description = getattr(cur, 'description', None)
-  rows = await cur.fetchall()
+  try:
+    rows = await cur.fetchall()
+  except Exception as exc:
+    logger.exception('_fetch_dicts failed to fetch rows: %s', exc)
+    raise
   if not rows:
     logger.debug('_fetch_dicts returned 0 rows')
     return []
@@ -539,12 +544,16 @@ async def list_check_constraints(conn, schema: str, table: str):
 
 async def _table_schema(conn, schema_name: str, table: str):
   logger.debug('Building schema snapshot for table %s.%s', schema_name, table)
-  columns = await list_columns(conn, schema_name, table)
-  primary_key = await list_primary_key(conn, schema_name, table)
-  foreign_keys = await list_foreign_keys(conn, schema_name, table)
-  indexes = await list_indexes(conn, schema_name, table)
-  constraints = await list_constraints(conn, schema_name, table)
-  check_constraints = await list_check_constraints(conn, schema_name, table)
+  try:
+    columns = await list_columns(conn, schema_name, table)
+    primary_key = await list_primary_key(conn, schema_name, table)
+    foreign_keys = await list_foreign_keys(conn, schema_name, table)
+    indexes = await list_indexes(conn, schema_name, table)
+    constraints = await list_constraints(conn, schema_name, table)
+    check_constraints = await list_check_constraints(conn, schema_name, table)
+  except Exception:
+    logger.exception('Failed to build schema snapshot for %s.%s', schema_name, table)
+    raise
   schema = {
     'schema': schema_name,
     'name': _qualify(schema_name, table),
@@ -575,7 +584,12 @@ async def get_schema(conn):
   for t in tables:
     schema_name = t['table_schema']
     table_name = t['table_name']
-    info = await _table_schema(conn, schema_name, table_name)
+    logger.debug('Gathering schema information for %s.%s', schema_name, table_name)
+    try:
+      info = await _table_schema(conn, schema_name, table_name)
+    except Exception:
+      logger.exception('Error while gathering schema information for %s.%s', schema_name, table_name)
+      raise
     key = f'{schema_name}.{table_name}'
     schemas[key] = info
     deps[key] = {
@@ -604,7 +618,12 @@ async def get_schema(conn):
   view_map = {v['view_name']: v['view_definition'] for v in view_defs}
   logger.debug('get_schema processing %d views', len(view_map))
   view_deps: dict[str, set[str]] = {}
-  for dep in await list_view_dependencies(conn):
+  try:
+    raw_view_deps = await list_view_dependencies(conn)
+  except Exception:
+    logger.exception('Failed to load view dependency metadata')
+    raise
+  for dep in raw_view_deps:
     view_deps.setdefault(dep['view_name'], set()).add(dep['ref_name'])
   logger.debug('View dependencies: %s', view_deps)
   vordered: list[str] = []
