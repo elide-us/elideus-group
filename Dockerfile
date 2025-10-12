@@ -23,7 +23,10 @@ RUN python3 scripts/generate_rpc_bindings.py
 
 WORKDIR /app/frontend
 
+ARG PNPM_VERSION=9.12.0
+
 RUN corepack enable \
+ && corepack prepare pnpm@${PNPM_VERSION} --activate \
  && pnpm install --frozen-lockfile \
  && pnpm build
 
