@@ -3,7 +3,7 @@
 # ────────────────────────────────────────────────────────────────────────────────
 FROM node:20 AS builder
 
-# Download and install Node 18
+# Install frontend tooling and Python dependencies
 RUN apt-get update && apt-get install -y curl python3 python3-pip python3-venv
 WORKDIR /app
 
