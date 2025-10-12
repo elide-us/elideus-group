@@ -33,6 +33,8 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 20
+        cache: 'pnpm'
+        cache-dependency-path: frontend/pnpm-lock.yaml
 
     - name: Enable Corepack
       run: corepack enable
@@ -40,7 +42,7 @@ jobs:
     - name: Install Node dependencies
       run: |
         cd frontend
-        pnpm install
+        pnpm install --frozen-lockfile
 
     - name: Generate RPC bindings
       run: python scripts/generate_rpc_bindings.py
