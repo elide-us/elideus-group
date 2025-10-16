@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from pydantic import BaseModel
+from server.registry.types import DBRequest, DBResponse, DBResult
 
 __all__ = [
   "AuthProvider",
@@ -20,14 +20,11 @@ __all__ = [
   "LifecycleProvider",
   "AuthProviderBase",
   "DbProviderBase",
+  "DBRequest",
+  "DBResponse",
   "DBResult",
   "DbRunMode",
 ]
-
-
-class DBResult(BaseModel):
-  rows: list[dict] = []
-  rowcount: int = 0
 
 
 class DbRunMode(str, Enum):
@@ -65,8 +62,21 @@ class AuthProviderBase(LifecycleProvider):
 
 
 class DbProviderBase(LifecycleProvider):
+  async def run(
+    self,
+    request: DBRequest | str,
+    args: Dict[str, Any] | None = None,
+  ) -> DBResponse:
+    if isinstance(request, str):
+      payload = args or {}
+      return await self._run(DBRequest(op=request, payload=payload))
+    return await self._run(request)
+
+  async def execute(self, op: str, args: Dict[str, Any]) -> DBResponse:
+    return await self.run(DBRequest(op=op, payload=args))
+
   @abstractmethod
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult: ...
+  async def _run(self, request: DBRequest) -> DBResponse: ...
 
 
 class AuthProvider(AuthProviderBase):
