@@ -9,7 +9,7 @@ import logging
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
-from .providers import DBResult
+from .providers import DBRequest, DBResponse
 from server.helpers.logging import update_logging_level
 
 
@@ -46,13 +46,20 @@ class DbModule(BaseModule):
 
     self._provider = provider_cls(**cfg)
 
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
+  async def run(self, op: str, args: Dict[str, Any]) -> DBResponse:
     assert self._provider, "db_module not initialized"
-    out = await self._provider.run(op, args)
-    # normalize to DBResult
-    if isinstance(out, DBResult):
+    request = DBRequest(op=op, payload=args)
+    out = await self._provider.run(request)
+    if isinstance(out, DBResponse):
+      if not out.op:
+        out.attach_op(op)
       return out
-    return DBResult(**out)  # expects {"rows":[...], "rowcount":N}
+    if isinstance(out, dict):
+      rows = out.get("rows")
+      rowcount = out.get("rowcount")
+      payload = out.get("payload", rows)
+      return DBResponse(op=op, payload=payload, rowcount=rowcount)
+    raise TypeError(f"Unexpected database response type: {type(out)!r}")
 
   async def startup(self):
     env: EnvModule = self.app.state.env
@@ -137,7 +144,7 @@ class DbModule(BaseModule):
     res = await self.run("db:users:account:exists:1", {"user_guid": user_guid})
     return bool(res.rows)
 
-  async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResult:
+  async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
     return await self.run("db:storage:cache:upsert:1", item)
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
