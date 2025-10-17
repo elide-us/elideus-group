@@ -2,10 +2,13 @@
 from typing import Any, Dict
 
 from ... import DbProviderBase, DbRunMode
+from server.registry import get_handler as resolve_handler
 from server.registry.types import DBRequest, DBResponse
 from .logic import init_pool, close_pool
 from .db_helpers import fetch_rows, fetch_json, exec_query
-from .registry import get_handler
+
+def get_handler(op: str):
+  return resolve_handler(op, provider="mssql")
 
 
 class MssqlProvider(DbProviderBase):
