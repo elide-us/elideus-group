@@ -18,7 +18,6 @@ __all__ = [
   "link_provider_v1",
   "set_provider_v1",
   "soft_delete_account_v1",
-  "unlink_last_provider_v1",
   "unlink_provider_v1",
 ]
 
@@ -247,8 +246,3 @@ async def set_provider_v1(args: dict[str, Any]) -> DBResponse:
   )
 
 
-async def unlink_last_provider_v1(args: dict[str, Any]) -> DBResponse:
-  guid = args["guid"]
-  provider = args["provider"]
-  sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
-  return await run_exec(sql, (guid, provider))

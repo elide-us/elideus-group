@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from server.registry.providers.mssql import run_exec, run_json_one
-from server.registry.users.security.identities.mssql import get_auth_provider_recid
+from server.registry.users.providers.mssql import get_auth_provider_recid
 from server.registry.types import DBResponse
 
 __all__ = [

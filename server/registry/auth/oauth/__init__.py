@@ -7,7 +7,7 @@ from typing import Any, TYPE_CHECKING
 from server.registry.types import DBRequest
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import DomainRouter
 
 __all__ = [
   "relink_discord_request",
@@ -17,8 +17,8 @@ __all__ = [
 ]
 
 
-def _relink_request(op: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=op, params=params)
+def _relink_request(provider: str, params: dict[str, Any]) -> DBRequest:
+  return DBRequest(op=f"db:auth:{provider}:oauth_relink:1", params=params)
 
 
 def _common_params(
@@ -53,7 +53,7 @@ def relink_discord_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security_oauth:relink_discord:1",
+    "discord",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,
@@ -75,7 +75,7 @@ def relink_google_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security_oauth:relink_google:1",
+    "google",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,
@@ -97,7 +97,7 @@ def relink_microsoft_request(
   reauth_token: str | None = None,
 ) -> DBRequest:
   return _relink_request(
-    "db:users:security_oauth:relink_microsoft:1",
+    "microsoft",
     _common_params(
       provider_identifier=provider_identifier,
       email=email,
@@ -109,7 +109,19 @@ def relink_microsoft_request(
   )
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("relink_discord", version=1)
-  router.add_function("relink_google", version=1)
-  router.add_function("relink_microsoft", version=1)
+def register(domain: "DomainRouter") -> None:
+  domain.subdomain("discord").add_function(
+    "oauth_relink",
+    version=1,
+    implementation="relink_discord",
+  )
+  domain.subdomain("google").add_function(
+    "oauth_relink",
+    version=1,
+    implementation="relink_google",
+  )
+  domain.subdomain("microsoft").add_function(
+    "oauth_relink",
+    version=1,
+    implementation="relink_microsoft",
+  )

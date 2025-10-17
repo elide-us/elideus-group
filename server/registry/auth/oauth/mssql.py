@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from server.registry.providers.mssql import run_exec
 from server.registry.types import DBResponse
 
-from server.registry.users.security.identities import mssql as identities_mssql
+from server.registry.users.providers import mssql as identities_mssql
 
 __all__ = [
   "relink_discord_v1",

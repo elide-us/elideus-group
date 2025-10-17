@@ -9,7 +9,7 @@ from server.registry.providers.mssql import run_exec
 from server.registry.types import DBResponse
 from server.modules.providers.database.mssql_provider.logic import transaction
 
-from server.registry.users.security.identities.mssql import get_auth_provider_recid
+from server.registry.users.providers.mssql import get_auth_provider_recid
 
 __all__ = [
   "create_session_v1",

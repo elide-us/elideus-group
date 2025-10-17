@@ -22,7 +22,7 @@ __all__ = [
 
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=f"db:users:security_sessions:{name}:1", params=params)
+  return DBRequest(op=f"db:auth:session:{name}:1", params=params)
 
 
 def create_session_request(
