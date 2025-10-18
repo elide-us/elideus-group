@@ -182,8 +182,7 @@ class OpenaiModule(BaseModule):
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
     assert self.db
     await self.db.run(
-      "db:assistant:personas:delete:1",
-      {"recid": recid, "name": name},
+      DBRequest(op="db:assistant:personas:delete:1", payload={"recid": recid, "name": name}),
     )
 
   async def _log_conversation_start(
@@ -203,32 +202,36 @@ class OpenaiModule(BaseModule):
       channel_id_str = str(channel_id) if channel_id is not None else None
       user_id_str = str(user_id) if user_id is not None else None
       existing = await self.db.run(
-        "db:assistant:conversations:find_recent:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-        },
+        DBRequest(
+          op="db:assistant:conversations:find_recent:1",
+          payload={
+            "personas_recid": personas_recid,
+            "models_recid": models_recid,
+            "guild_id": guild_id_str,
+            "channel_id": channel_id_str,
+            "user_id": user_id_str,
+            "input_data": input_data,
+          },
+        ),
       )
       if existing.rows:
         recid = existing.rows[0].get("recid")
         if recid is not None:
           return recid
       res = await self.db.run(
-        "db:assistant:conversations:insert:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-          "output_data": "",
-          "tokens": tokens,
-        },
+        DBRequest(
+          op="db:assistant:conversations:insert:1",
+          payload={
+            "personas_recid": personas_recid,
+            "models_recid": models_recid,
+            "guild_id": guild_id_str,
+            "channel_id": channel_id_str,
+            "user_id": user_id_str,
+            "input_data": input_data,
+            "output_data": "",
+            "tokens": tokens,
+          },
+        ),
       )
       if res.rows:
         return res.rows[0].get("recid")
@@ -246,8 +249,10 @@ class OpenaiModule(BaseModule):
       return
     try:
       res = await self.db.run(
-        "db:assistant:conversations:update_output:1",
-        {"recid": recid, "output_data": output_data, "tokens": tokens},
+        DBRequest(
+          op="db:assistant:conversations:update_output:1",
+          payload={"recid": recid, "output_data": output_data, "tokens": tokens},
+        ),
       )
       if res.rowcount == 0:
         logging.warning(
