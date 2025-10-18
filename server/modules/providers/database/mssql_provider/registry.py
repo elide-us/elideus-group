@@ -283,14 +283,16 @@ def _users_profile(args: Dict[str, Any]):
         v.credits,
         v.profile_image_base64 AS profile_image,
         v.provider_name AS default_provider,
-        (
-          SELECT
-            ap.element_name AS name,
-            ap.element_display AS display
-          FROM users_auth ua
-          JOIN auth_providers ap ON ap.recid = ua.providers_recid
-          WHERE ua.users_guid = v.user_guid AND ua.element_linked = 1
-          FOR JSON PATH
+        JSON_QUERY(
+          (
+            SELECT
+              ap.element_name AS name,
+              ap.element_display AS display
+            FROM users_auth ua
+            JOIN auth_providers ap ON ap.recid = ua.providers_recid
+            WHERE ua.users_guid = v.user_guid AND ua.element_linked = 1
+            FOR JSON PATH
+          )
         ) AS auth_providers
       FROM vw_account_user_profile v
       WHERE v.user_guid = ?;

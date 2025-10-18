@@ -39,9 +39,8 @@ async def users_profile_get_profile_v1(request: Request):
   row = res.rows[0]
   row["guid"] = str(row.get("guid", ""))
   auth_providers = row.get("auth_providers")
-  if isinstance(auth_providers, str):
-    import json
-    row["auth_providers"] = json.loads(auth_providers) if auth_providers else []
+  if not auth_providers:
+    row["auth_providers"] = []
   profile = UsersProfileProfile1(**row)
   return RPCResponse(
     op=rpc_request.op,

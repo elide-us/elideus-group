@@ -60,6 +60,7 @@ svc_spec.loader.exec_module(svc_mod)
 # restore real helpers for other tests
 sys.modules["rpc.helpers"] = real_helpers
 
+users_profile_get_profile_v1 = svc_mod.users_profile_get_profile_v1
 users_profile_get_roles_v1 = svc_mod.users_profile_get_roles_v1
 users_profile_set_profile_image_v1 = svc_mod.users_profile_set_profile_image_v1
 
@@ -79,6 +80,22 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
+    if op == "db:users:profile:get_profile:1":
+      return DBRes([
+        {
+          "guid": args.get("guid"),
+          "display_name": "Test User",
+          "email": "user@example.com",
+          "display_email": True,
+          "credits": 10,
+          "profile_image": None,
+          "default_provider": "microsoft",
+          "auth_providers": [
+            {"name": "microsoft", "display": "Microsoft"},
+            {"name": "google", "display": "Google"},
+          ],
+        }
+      ], 1)
     if op == "db:users:profile:get_roles:1":
       return DBRes([{"element_roles": self.roles}], 1)
     if op == "db:users:profile:set_profile_image:1":
@@ -109,6 +126,23 @@ def test_get_roles_service_returns_mask():
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
   assert ("db:users:profile:get_roles:1", {"guid": "u1"}) in db.calls
+
+
+def test_get_profile_returns_structured_auth_providers():
+  async def fake_get(request):
+    rpc = RPCRequest(op="urn:users:profile:get_profile:1", payload=None, version=1)
+    return rpc, SimpleNamespace(user_guid="user-guid"), None
+  svc_mod.unbox_request = fake_get
+  db = DummyDb()
+  req = DummyRequest(DummyState(db))
+  resp = asyncio.run(users_profile_get_profile_v1(req))
+  assert isinstance(resp, RPCResponse)
+  assert resp.payload["guid"] == "user-guid"
+  providers = resp.payload["auth_providers"]
+  assert isinstance(providers, list)
+  assert providers[0]["name"] == "microsoft"
+  assert providers[1]["display"] == "Google"
+  assert ("db:users:profile:get_profile:1", {"guid": "user-guid"}) in db.calls
 
 def test_set_profile_image_calls_db():
   async def fake_img(request):
