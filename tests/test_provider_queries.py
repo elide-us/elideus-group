@@ -65,6 +65,7 @@ def test_mssql_get_profile_uses_profile_view():
   assert "vw_account_user_profile" in sql
   assert "v.credits" in sql
   assert "users_credits" not in sql
+  assert "json_query" in sql
 
 def test_mssql_get_rotkey_queries_users_and_providers():
   handler = get_mssql_handler("db:users:session:get_rotkey:1")
