@@ -319,44 +319,65 @@ def _db_auth_unlink_last_provider(args: Dict[str, Any]):
   return _auth_unlink_last_provider(args)
 
 @register("urn:auth:microsoft:oauth_relink:1")
-def _auth_ms_oauth_relink(args: Dict[str, Any]):
-    identifier = str(UUID(args["provider_identifier"]))
-    email = args.get("email")
-    display = args.get("display_name")
-    img = args.get("profile_image", "")
-    sql = "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+async def _auth_ms_oauth_relink(args: Dict[str, Any]):
+  identifier = str(UUID(args["provider_identifier"]))
+  email = args.get("email")
+  display = args.get("display_name")
+  img = args.get("profile_image", "")
+  await exec_query(
+    "EXEC auth_oauth_relink @provider='microsoft', @identifier=?, @email=?, @display=?, @image=?;",
+    (identifier, email, display, img),
+  )
+  _, sql, params = _users_select({
+    "provider": "microsoft",
+    "provider_identifier": identifier,
+  })
+  return await fetch_json(sql, params)
 
 @register("db:auth:microsoft:oauth_relink:1")
-def _db_auth_ms_oauth_relink(args: Dict[str, Any]):
-  return _auth_ms_oauth_relink(args)
+async def _db_auth_ms_oauth_relink(args: Dict[str, Any]):
+  return await _auth_ms_oauth_relink(args)
 
 @register("urn:auth:google:oauth_relink:1")
-def _auth_google_oauth_relink(args: Dict[str, Any]):
-    identifier = str(UUID(args["provider_identifier"]))
-    email = args.get("email")
-    display = args.get("display_name")
-    img = args.get("profile_image", "")
-    sql = "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+async def _auth_google_oauth_relink(args: Dict[str, Any]):
+  identifier = str(UUID(args["provider_identifier"]))
+  email = args.get("email")
+  display = args.get("display_name")
+  img = args.get("profile_image", "")
+  await exec_query(
+    "EXEC auth_oauth_relink @provider='google', @identifier=?, @email=?, @display=?, @image=?;",
+    (identifier, email, display, img),
+  )
+  _, sql, params = _users_select({
+    "provider": "google",
+    "provider_identifier": identifier,
+  })
+  return await fetch_json(sql, params)
 
 @register("db:auth:google:oauth_relink:1")
-def _db_auth_google_oauth_relink(args: Dict[str, Any]):
-  return _auth_google_oauth_relink(args)
+async def _db_auth_google_oauth_relink(args: Dict[str, Any]):
+  return await _auth_google_oauth_relink(args)
 
 @register("urn:auth:discord:oauth_relink:1")
-def _auth_discord_oauth_relink(args: Dict[str, Any]):
-    raw_id = args["provider_identifier"]
-    identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
-    email = args.get("email")
-    display = args.get("display_name")
-    img = args.get("profile_image", "")
-    sql = "EXEC auth_oauth_relink @provider='discord', @identifier=?, @email=?, @display=?, @image=?;"
-    return (DbRunMode.ROW_ONE, sql, (identifier, email, display, img))
+async def _auth_discord_oauth_relink(args: Dict[str, Any]):
+  raw_id = args["provider_identifier"]
+  identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{raw_id}"))))
+  email = args.get("email")
+  display = args.get("display_name")
+  img = args.get("profile_image", "")
+  await exec_query(
+    "EXEC auth_oauth_relink @provider='discord', @identifier=?, @email=?, @display=?, @image=?;",
+    (identifier, email, display, img),
+  )
+  _, sql, params = _users_select({
+    "provider": "discord",
+    "provider_identifier": identifier,
+  })
+  return await fetch_json(sql, params)
 
 @register("db:auth:discord:oauth_relink:1")
-def _db_auth_discord_oauth_relink(args: Dict[str, Any]):
-  return _auth_discord_oauth_relink(args)
+async def _db_auth_discord_oauth_relink(args: Dict[str, Any]):
+  return await _auth_discord_oauth_relink(args)
 
 @register("urn:auth:discord:get_security:1")
 def _auth_discord_get_security(args: Dict[str, Any]):
