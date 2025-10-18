@@ -22,7 +22,12 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     self.calls.append((op, args))
     if op == "db:auth:session:create_session:1":
       return SimpleNamespace(rows=[{"session_guid": "sess", "device_guid": "dev"}])

@@ -3,6 +3,8 @@ from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.system.roles import list_roles_request
+from server.registry.types import DBRequest
 
 
 class RoleAdminModule(BaseModule):
@@ -34,7 +36,7 @@ class RoleAdminModule(BaseModule):
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def list_roles(self, actor_mask: int | None = None) -> list[dict]:
-    res = await self.db.run("db:system:roles:list:1", {})
+    res = await self.db.run(list_roles_request())
     roles = [
       {
         "name": r.get("name", ""),
@@ -51,8 +53,18 @@ class RoleAdminModule(BaseModule):
     return roles
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
-    mem_res = await self.db.run("db:security:roles:get_role_members:1", {"role": role})
-    non_res = await self.db.run("db:security:roles:get_role_non_members:1", {"role": role})
+    mem_res = await self.db.run(
+      DBRequest(
+        op="db:security:roles:get_role_members:1",
+        payload={"role": role},
+      ),
+    )
+    non_res = await self.db.run(
+      DBRequest(
+        op="db:security:roles:get_role_non_members:1",
+        payload={"role": role},
+      ),
+    )
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
       for r in mem_res.rows
@@ -68,8 +80,10 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
-      "db:security:roles:add_role_member:1",
-      {"role": role, "user_guid": user_guid},
+      DBRequest(
+        op="db:security:roles:add_role_member:1",
+        payload={"role": role, "user_guid": user_guid},
+      ),
     )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
@@ -79,8 +93,10 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
-      "db:security:roles:remove_role_member:1",
-      {"role": role, "user_guid": user_guid},
+      DBRequest(
+        op="db:security:roles:remove_role_member:1",
+        payload={"role": role, "user_guid": user_guid},
+      ),
     )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)

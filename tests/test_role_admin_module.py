@@ -9,7 +9,12 @@ class DummyDb:
     self.roles = roles or []
   async def on_ready(self):
     pass
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     if op == "db:system:roles:list:1":
       return types.SimpleNamespace(rows=self.roles)
     return types.SimpleNamespace(rows=[])

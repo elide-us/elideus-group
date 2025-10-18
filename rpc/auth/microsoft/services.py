@@ -9,6 +9,7 @@ from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
+from server.registry.types import DBRequest
 from .models import AuthMicrosoftOauthLogin1
 
 
@@ -68,18 +69,26 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   new_img = profile.get("profilePicture")
   if new_img != user.get("profile_image"):
     await db.run(
-      "db:users:profile:set_profile_image:1",
-      {"guid": user_guid, "image_b64": new_img, "provider": provider},
+      DBRequest(
+        op="db:users:profile:set_profile_image:1",
+        payload={
+          "guid": user_guid,
+          "image_b64": new_img,
+          "provider": provider,
+        },
+      ),
     )
     user["profile_image"] = new_img
   if user.get("provider_name") == "microsoft":
     res_prof = await db.run(
-      "db:users:profile:update_if_unedited:1",
-      {
-        "guid": user_guid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-      },
+      DBRequest(
+        op="db:users:profile:update_if_unedited:1",
+        payload={
+          "guid": user_guid,
+          "email": profile["email"],
+          "display_name": profile["username"],
+        },
+      ),
     )
     if res_prof.rows:
       updated = res_prof.rows[0]

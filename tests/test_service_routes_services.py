@@ -111,7 +111,12 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     self.calls.append((op, args))
     if op == 'db:service:routes:get_routes:1':
       rows = [{

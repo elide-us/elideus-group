@@ -32,7 +32,12 @@ class DummyDb(BaseModule):
   async def shutdown(self):
     pass
 
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     class Res:
       def __init__(self, rows):
         self.rows = rows
@@ -156,7 +161,12 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
       self.existing = set()
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -254,7 +264,12 @@ def test_reindex_skips_unknown_users(monkeypatch):
       self.checked = []
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -337,7 +352,12 @@ def test_move_file_copies_and_updates_cache(monkeypatch):
       self.upserted = None
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -420,7 +440,12 @@ def test_rename_file_preserves_public_flag(monkeypatch):
     async def startup(self):
       self.mark_ready()
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -549,7 +574,12 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
     async def startup(self):
       self.mark_ready()
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -674,7 +704,12 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
 
 def test_get_storage_stats_counts_all_folders(monkeypatch):
   class DummyDb:
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -744,7 +779,12 @@ def test_upload_files_sets_created_on(monkeypatch):
     def __init__(self):
       self.upserts = []
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -808,7 +848,12 @@ def test_create_folder_creates_marker_and_cache(monkeypatch):
       self.upserts = []
     async def startup(self):
       self.mark_ready()
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows
@@ -878,7 +923,12 @@ def test_create_folder_creates_marker_and_cache(monkeypatch):
 
 def test_get_storage_stats_counts_user_folders(monkeypatch):
   class DummyDb:
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       class Res:
         def __init__(self, rows):
           self.rows = rows

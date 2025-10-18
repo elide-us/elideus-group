@@ -19,7 +19,12 @@ class DummyDb(BaseModule):
   async def shutdown(self):
     pass
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     class Res:
       def __init__(self, rows):
         self.rows = rows

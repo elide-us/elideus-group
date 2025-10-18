@@ -11,6 +11,8 @@ from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
+from server.registry.system.config import get_config_request
+from server.registry.types import DBRequest
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
 
 
@@ -52,7 +54,7 @@ async def auth_discord_oauth_login_v1(request: Request):
   if not client_secret:
     raise HTTPException(status_code=500, detail="DISCORD_AUTH_SECRET not configured")
 
-  res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
+  res_redirect = await db.run(get_config_request(key="Hostname"))
   if not res_redirect.rows:
     raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]
@@ -88,18 +90,26 @@ async def auth_discord_oauth_login_v1(request: Request):
   new_img = profile.get("profilePicture")
   if new_img and new_img != user.get("profile_image"):
     await db.run(
-      "db:users:profile:set_profile_image:1",
-      {"guid": user_guid, "image_b64": new_img, "provider": provider},
+      DBRequest(
+        op="db:users:profile:set_profile_image:1",
+        payload={
+          "guid": user_guid,
+          "image_b64": new_img,
+          "provider": provider,
+        },
+      ),
     )
     user["profile_image"] = new_img
   if user.get("provider_name") == "discord":
     res_prof = await db.run(
-      "db:users:profile:update_if_unedited:1",
-      {
-        "guid": user_guid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-      },
+      DBRequest(
+        op="db:users:profile:update_if_unedited:1",
+        payload={
+          "guid": user_guid,
+          "email": profile["email"],
+          "display_name": profile["username"],
+        },
+      ),
     )
     if res_prof.rows:
       updated = res_prof.rows[0]

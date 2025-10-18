@@ -12,6 +12,21 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.auth.oauth import (
+  relink_discord_request,
+  relink_google_request,
+  relink_microsoft_request,
+)
+from server.registry.auth.session import (
+  create_session_request,
+  update_device_token_request,
+)
+from server.registry.types import DBRequest
+from server.registry.users.providers import (
+  create_from_provider_request,
+  get_any_by_provider_identifier_request,
+  get_by_provider_identifier_request,
+)
 
 
 class OauthModule(BaseModule):
@@ -160,8 +175,10 @@ class OauthModule(BaseModule):
       checked.add(uid)
       logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
       res = await self.db.run(
-        "db:users:providers:get_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": uid},
+        get_by_provider_identifier_request(
+          provider=provider,
+          provider_identifier=uid,
+        ),
       )
       if res.rows:
         logging.debug(f"[lookup_user] user found with identifier={pid[:40]}")
@@ -180,23 +197,29 @@ class OauthModule(BaseModule):
     logging.debug(f"[create_session] rotation_token={rotation_token[:40]}")
     now = datetime.now(timezone.utc)
     await self.db.run(
-      "db:users:session:set_rotkey:1",
-      {"guid": user_guid, "rotkey": rotation_token, "iat": now, "exp": rot_exp},
+      DBRequest(
+        op="db:users:session:set_rotkey:1",
+        payload={
+          "guid": user_guid,
+          "rotkey": rotation_token,
+          "iat": now,
+          "exp": rot_exp,
+        },
+      ),
     )
     roles, _ = await self.auth.get_user_roles(user_guid)
     session_exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
     placeholder = uuid.uuid4().hex
     res = await self.db.run(
-      "db:auth:session:create_session:1",
-      {
-        "access_token": placeholder,
-        "expires": session_exp,
-        "fingerprint": fingerprint,
-        "user_agent": user_agent,
-        "ip_address": ip_address,
-        "user_guid": user_guid,
-        "provider": provider,
-      },
+      create_session_request(
+        access_token=placeholder,
+        expires=session_exp,
+        fingerprint=fingerprint,
+        user_guid=user_guid,
+        provider=provider,
+        user_agent=user_agent,
+        ip_address=ip_address,
+      ),
     )
     row = res.rows[0] if res.rows else {}
     session_guid = row.get("session_guid")
@@ -205,8 +228,7 @@ class OauthModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp,
     )
     await self.db.run(
-      "db:auth:session:update_device_token:1",
-      {"device_guid": device_guid, "access_token": session_token},
+      update_device_token_request(device_guid=device_guid, access_token=session_token),
     )
     logging.debug(f"[create_session] session_token={session_token[:40]}")
     return session_token, session_exp, rotation_token, rot_exp
@@ -227,41 +249,61 @@ class OauthModule(BaseModule):
       needs_relink = True
     elif not user:
       await self.db.run(
-        "db:users:providers:get_any_by_provider_identifier:1",
-        {"provider": provider, "provider_identifier": provider_uid},
+        get_any_by_provider_identifier_request(
+          provider=provider,
+          provider_identifier=provider_uid,
+        ),
       )
       needs_relink = True
 
     if needs_relink:
-      res = await self.db.run(
-        f"db:auth:{provider}:oauth_relink:1",
-        {
-          "provider_identifier": provider_uid,
-          "email": profile["email"],
-          "display_name": profile["username"],
-          "profile_image": profile.get("profilePicture"),
-          "confirm": confirm,
-          "reauth_token": reauth_token,
-        },
-      )
+      relink_builders = {
+        "discord": relink_discord_request,
+        "google": relink_google_request,
+        "microsoft": relink_microsoft_request,
+      }
+      relink_builder = relink_builders.get(provider)
+      if relink_builder:
+        request = relink_builder(
+          provider_identifier=provider_uid,
+          email=profile["email"],
+          display_name=profile["username"],
+          profile_image=profile.get("profilePicture"),
+          confirm=confirm,
+          reauth_token=reauth_token,
+        )
+      else:
+        request = DBRequest(
+          op=f"db:auth:{provider}:oauth_relink:1",
+          payload={
+            "provider_identifier": provider_uid,
+            "email": profile["email"],
+            "display_name": profile["username"],
+            "profile_image": profile.get("profilePicture"),
+            "confirm": confirm,
+            "reauth_token": reauth_token,
+          },
+        )
+      res = await self.db.run(request)
       user = res.rows[0] if res.rows else None
 
     if not user:
       res = await self.db.run(
-        "db:users:providers:create_from_provider:1",
-        {
-          "provider": provider,
-          "provider_identifier": provider_uid,
-          "provider_email": profile["email"],
-          "provider_displayname": profile["username"],
-          "provider_profile_image": profile.get("profilePicture"),
-        },
+        create_from_provider_request(
+          provider=provider,
+          provider_identifier=provider_uid,
+          provider_email=profile["email"],
+          provider_displayname=profile["username"],
+          provider_profile_image=profile.get("profilePicture"),
+        ),
       )
       user = res.rows[0] if res.rows else None
       if not user:
         res = await self.db.run(
-          "db:users:providers:get_by_provider_identifier:1",
-          {"provider": provider, "provider_identifier": provider_uid},
+          get_by_provider_identifier_request(
+            provider=provider,
+            provider_identifier=provider_uid,
+          ),
         )
         user = res.rows[0] if res.rows else None
       if not user:

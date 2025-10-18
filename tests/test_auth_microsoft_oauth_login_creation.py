@@ -24,7 +24,12 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     self.calls.append((op, args))
     if op == "db:users:providers:get_by_provider_identifier:1":
       if len([c for c in self.calls if c[0] == op]) == 1:
