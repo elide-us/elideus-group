@@ -42,9 +42,10 @@ def _users_select(provider_args: Dict[str, Any]):
       FROM vw_account_user_profile v
       JOIN users_auth ua ON ua.users_guid = v.user_guid AND ua.element_linked = 1
       JOIN auth_providers ap ON ap.recid = ua.providers_recid
-      WHERE ap.element_name = ? AND ua.element_identifier = ?;
+      WHERE ap.element_name = ? AND ua.element_identifier = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (provider, identifier))
+    return (DbRunMode.JSON_ONE, sql, (provider, identifier))
 
 @register("db:users:providers:get_by_provider_identifier:1")
 def _db_users_select(provider_args: Dict[str, Any]):
@@ -59,9 +60,10 @@ def _users_select_any(provider_args: Dict[str, Any]):
         au.element_soft_deleted_at
       FROM users_auth ua
       JOIN account_users au ON au.element_guid = ua.users_guid
-      WHERE ua.element_identifier = ?;
+      WHERE ua.element_identifier = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (identifier,))
+    return (DbRunMode.JSON_ONE, sql, (identifier,))
 
 @register("db:users:providers:get_any_by_provider_identifier:1")
 def _db_users_select_any(provider_args: Dict[str, Any]):
@@ -105,7 +107,7 @@ async def _users_insert(args: Dict[str, Any]):
         (ap_recid, existing_guid),
       )
       sel = _users_select({"provider": provider, "provider_identifier": identifier})
-      return await fetch_rows(sel[1], sel[2], one=True)
+      return await fetch_json(sel[1], sel[2])
 
     async with transaction() as cur:
         await cur.execute(
@@ -134,7 +136,7 @@ async def _users_insert(args: Dict[str, Any]):
 
     # return same shape as select_user
     sel = _users_select({"provider": provider, "provider_identifier": identifier})
-    return await fetch_rows(sel[1], sel[2], one=True)
+    return await fetch_json(sel[1], sel[2])
 
 @register("db:users:providers:create_from_provider:1")
 async def _db_users_insert(args: Dict[str, Any]):
@@ -252,9 +254,10 @@ def _users_get_user_by_email(args: Dict[str, Any]):
       SELECT TOP 1
         element_guid AS guid
       FROM account_users
-      WHERE element_email = ?;
+      WHERE element_email = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (email,))
+    return (DbRunMode.JSON_ONE, sql, (email,))
 
 @register("db:users:providers:get_user_by_email:1")
 def _db_users_get_user_by_email(args: Dict[str, Any]):
@@ -267,9 +270,10 @@ def _db_users_account_exists(args: Dict[str, Any]):
   sql = """
     SELECT 1 AS exists_flag
     FROM account_users
-    WHERE element_guid = ?;
+    WHERE element_guid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (guid,))
+  return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("urn:users:profile:get_profile:1")
 def _users_profile(args: Dict[str, Any]):
