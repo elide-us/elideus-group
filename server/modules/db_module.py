@@ -46,9 +46,17 @@ class DbModule(BaseModule):
 
     self._provider = provider_cls(**cfg)
 
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResponse:
+  async def run(
+    self,
+    request: DBRequest | str,
+    args: Dict[str, Any] | None = None,
+  ) -> DBResponse:
     assert self._provider, "db_module not initialized"
-    request = DBRequest(op=op, payload=args)
+    if isinstance(request, str):
+      request = DBRequest(op=request, payload=args or {})
+    elif args is not None:
+      raise TypeError("args cannot be provided when passing a DBRequest instance")
+    op = request.op
     out = await self._provider.run(request)
     if isinstance(out, DBResponse):
       if not out.op:
@@ -71,7 +79,9 @@ class DbModule(BaseModule):
     await self.init(provider=self.provider, **cfg)
     assert self._provider
     await self._provider.startup()
-    res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "LoggingLevel"})
+    )
     val = res.rows[0]["value"] if res.rows else "0"
     try:
       self.logging_level = int(val)
@@ -86,13 +96,17 @@ class DbModule(BaseModule):
       self._provider = None
 
   async def get_ms_api_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "MsApiId"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "MsApiId"})
+    )
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
     return res.rows[0]["value"]
 
   async def get_google_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleClientId"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "GoogleClientId"})
+    )
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] GoogleClientId=%s", value)
     if not value:
@@ -109,7 +123,9 @@ class DbModule(BaseModule):
     return value
 
   async def get_discord_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "DiscordClientId"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "DiscordClientId"})
+    )
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] DiscordClientId=%s", value)
     if not value:
@@ -117,45 +133,59 @@ class DbModule(BaseModule):
     return value
 
   async def get_auth_providers(self) -> list[str]:
-    res = await self.run("db:system:config:get_config:1", {"key": "AuthProviders"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "AuthProviders"})
+    )
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: AuthProviders")
     return [p.strip() for p in value.split(',') if p.strip()]
 
   async def get_jwks_cache_time(self) -> int:
-    res = await self.run("db:system:config:get_config:1", {"key": "JwksCacheTime"})
+    res = await self.run(
+      DBRequest(op="db:system:config:get_config:1", payload={"key": "JwksCacheTime"})
+    )
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: JwksCacheTime")
     return int(value)
 
   async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
-    res = await self.run("db:storage:cache:list:1", {"user_guid": user_guid})
+    res = await self.run(
+      DBRequest(op="db:storage:cache:list:1", payload={"user_guid": user_guid})
+    )
     return res.rows
 
   async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
     await self.run(
-      "db:storage:cache:replace_user:1",
-      {"user_guid": user_guid, "items": items},
+      DBRequest(
+        op="db:storage:cache:replace_user:1",
+        payload={"user_guid": user_guid, "items": items},
+      )
     )
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run("db:users:account:exists:1", {"user_guid": user_guid})
+    res = await self.run(
+      DBRequest(op="db:users:account:exists:1", payload={"user_guid": user_guid})
+    )
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
-    return await self.run("db:storage:cache:upsert:1", item)
+    return await self.run(DBRequest(op="db:storage:cache:upsert:1", payload=item))
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
     await self.run(
-      "db:storage:cache:delete:1",
-      {"user_guid": user_guid, "path": path, "filename": filename},
+      DBRequest(
+        op="db:storage:cache:delete:1",
+        payload={"user_guid": user_guid, "path": path, "filename": filename},
+      )
     )
 
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
     await self.run(
-      "db:storage:cache:delete_folder:1",
-      {"user_guid": user_guid, "path": path},
+      DBRequest(
+        op="db:storage:cache:delete_folder:1",
+        payload={"user_guid": user_guid, "path": path},
+      )
     )
 

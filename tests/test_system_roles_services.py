@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
+from server.registry.models import DBRequest
 
 # Stub rpc package
 pkg = types.ModuleType('rpc')
@@ -43,13 +44,20 @@ class RoleCache:
   async def upsert_role(self, name, mask, display):
     self.upsert_args = (name, mask, display)
     if self.db:
-      await self.db.run('db:security:roles:upsert_role:1', {'name': name, 'mask': mask, 'display': display})
+      await self.db.run(
+        DBRequest(
+          op='db:security:roles:upsert_role:1',
+          payload={'name': name, 'mask': mask, 'display': display},
+        )
+      )
     await self.refresh_role_cache()
 
   async def delete_role(self, name):
     self.delete_args = name
     if self.db:
-      await self.db.run('db:security:roles:delete_role:1', {'name': name})
+      await self.db.run(
+        DBRequest(op='db:security:roles:delete_role:1', payload={'name': name})
+      )
     await self.refresh_role_cache()
 
 class AuthModule:
@@ -112,14 +120,10 @@ class DummyDb:
   def __init__(self):
     self.calls = []
 
-  async def run(self, request, payload=None):
-    if isinstance(request, str):
-      op = request
-      args = payload or {}
-    else:
-      op = request.op
-      args = request.payload
-    self.calls.append((op, args))
+  async def run(self, request):
+    assert isinstance(request, DBRequest)
+    op = request.op
+    self.calls.append(request)
     if op == 'db:system:roles:list:1':
       rows = [{'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}]
       return SimpleNamespace(rows=rows, rowcount=1)
@@ -137,7 +141,7 @@ class DummyRoleAdmin:
     self.auth = auth
 
   async def list_roles(self):
-    res = await self.db.run('db:system:roles:list:1', {})
+    res = await self.db.run(DBRequest(op='db:system:roles:list:1', payload={}))
     return [
       {
         'name': r.get('name', ''),
@@ -179,13 +183,24 @@ def test_get_roles_service():
   assert data['payload'] == {
     'roles': [{'name': 'ROLE_FOO', 'mask': '1', 'display': 'Foo'}]
   }
-  assert ('db:system:roles:list:1', {}) in db.calls
+  assert any(
+    call.op == 'db:system:roles:list:1' and call.payload == {}
+    for call in db.calls
+  )
 
 def test_upsert_and_delete_role_service():
   resp = client.post('/rpc', json={'op': 'urn:system:roles:upsert_role:1', 'payload': {'name': 'ROLE_FOO', 'mask': '1', 'display': 'Foo'}})
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:system:roles:delete_role:1', 'payload': {'name': 'ROLE_FOO'}})
   assert resp.status_code == 200
-  assert ('db:security:roles:upsert_role:1', {'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}) in db.calls
-  assert ('db:security:roles:delete_role:1', {'name': 'ROLE_FOO'}) in db.calls
+  assert any(
+    call.op == 'db:security:roles:upsert_role:1'
+    and call.payload == {'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}
+    for call in db.calls
+  )
+  assert any(
+    call.op == 'db:security:roles:delete_role:1'
+    and call.payload == {'name': 'ROLE_FOO'}
+    for call in db.calls
+  )
   assert auth.role_cache.refreshed
