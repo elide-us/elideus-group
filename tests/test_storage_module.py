@@ -80,14 +80,14 @@ def test_list_public_files(monkeypatch):
   app = FastAPI()
   provider = MssqlProvider()
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert not one
+  async def fake_fetch_json(sql, params, *, many=False):
+    assert many
     return DBResult(rows=[
       {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
       {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
     ], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
+  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
 
   mod = StorageModule(app)
   mod.db = provider
