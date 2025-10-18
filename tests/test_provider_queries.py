@@ -5,7 +5,6 @@ import pathlib
 import sys
 import types
 import pytest
-import server.modules.providers.database.mssql_provider  # ensure provider module loaded
 
 # stub server package
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -17,6 +16,24 @@ modules_pkg.__path__ = [str(root_path / "server/modules")]
 sys.modules.setdefault("server.modules", modules_pkg)
 providers_pkg = types.ModuleType("server.modules.providers")
 providers_pkg.__path__ = [str(root_path / "server/modules/providers")]
+class _DbRunMode:
+  ROW_ONE = "row_one"
+  ROW_MANY = "row_many"
+  JSON_ONE = "json_one"
+  JSON_MANY = "json_many"
+  EXEC = "exec"
+
+
+class _DBResult:
+  def __init__(self, rows=None, rowcount=0, payload=None):
+    if rows is None:
+      rows = []
+    self.rows = rows
+    self.rowcount = rowcount
+    self.payload = payload if payload is not None else rows
+
+providers_pkg.DbRunMode = _DbRunMode
+providers_pkg.DBResult = _DBResult
 sys.modules.setdefault("server.modules.providers", providers_pkg)
 database_pkg = types.ModuleType("server.modules.providers.database")
 database_pkg.__path__ = [str(root_path / "server/modules/providers/database")]
@@ -24,6 +41,51 @@ sys.modules.setdefault("server.modules.providers.database", database_pkg)
 mssql_pkg = types.ModuleType("server.modules.providers.database.mssql_provider")
 mssql_pkg.__path__ = [str(root_path / "server/modules/providers/database/mssql_provider")]
 sys.modules.setdefault("server.modules.providers.database.mssql_provider", mssql_pkg)
+
+registry_pkg = types.ModuleType("server.registry")
+registry_pkg.__path__ = [str(root_path / "server/registry")]
+sys.modules.setdefault("server.registry", registry_pkg)
+registry_types_pkg = types.ModuleType("server.registry.types")
+registry_types_pkg.__path__ = [str(root_path / "server/registry")]
+
+class _DBResponse:
+  def __init__(self, *, op="", payload=None, rows=None, rowcount=None):
+    if rows is not None:
+      payload = [dict(row) for row in rows]
+      if rowcount is None:
+        rowcount = len(payload)
+    self.op = op
+    self.payload = [] if payload is None else payload
+    if rowcount is None:
+      rowcount = 0
+    self.rowcount = rowcount
+
+  @property
+  def rows(self):
+    data = self.payload
+    if data is None:
+      return []
+    if isinstance(data, list):
+      return data
+    if isinstance(data, (tuple, set)):
+      return list(data)
+    return [data]
+
+registry_types_pkg.DBResponse = _DBResponse
+sys.modules.setdefault("server.registry.types", registry_types_pkg)
+registry_pkg.types = registry_types_pkg
+registry_users_pkg = types.ModuleType("server.registry.users")
+registry_users_pkg.__path__ = [str(root_path / "server/registry/users")]
+sys.modules.setdefault("server.registry.users", registry_users_pkg)
+registry_users_content_pkg = types.ModuleType("server.registry.users.content")
+registry_users_content_pkg.__path__ = [str(root_path / "server/registry/users/content")]
+sys.modules.setdefault("server.registry.users.content", registry_users_content_pkg)
+registry_users_content_profile_pkg = types.ModuleType("server.registry.users.content.profile")
+registry_users_content_profile_pkg.__path__ = [str(root_path / "server/registry/users/content/profile")]
+sys.modules.setdefault("server.registry.users.content.profile", registry_users_content_profile_pkg)
+registry_providers_pkg = types.ModuleType("server.registry.providers")
+registry_providers_pkg.__path__ = [str(root_path / "server/registry/providers")]
+sys.modules.setdefault("server.registry.providers", registry_providers_pkg)
 
 spec_logic = importlib.util.spec_from_file_location(
   "server.modules.providers.database.mssql_provider.logic",
@@ -50,6 +112,14 @@ sys.modules["server.modules.providers.database.mssql_provider.registry"] = regis
 spec_registry.loader.exec_module(registry_mod)
 get_mssql_handler = registry_mod.get_handler
 
+spec_content_profile = importlib.util.spec_from_file_location(
+  "server.registry.users.content.profile.mssql",
+  root_path / "server/registry/users/content/profile/mssql.py",
+)
+content_profile_mssql = importlib.util.module_from_spec(spec_content_profile)
+sys.modules["server.registry.users.content.profile.mssql"] = content_profile_mssql
+spec_content_profile.loader.exec_module(content_profile_mssql)
+
 def test_mssql_get_by_provider_identifier_uses_user_view():
   handler = get_mssql_handler("db:users:providers:get_by_provider_identifier:1")
   _, sql, _ = handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
@@ -66,6 +136,21 @@ def test_mssql_get_profile_uses_profile_view():
   assert "v.credits" in sql
   assert "users_credits" not in sql
   assert "json_query" in sql
+  assert "for json path, without_array_wrapper" in sql
+
+
+def test_registry_content_profile_query_uses_json(monkeypatch):
+  captured = {}
+
+  async def fake_run_json_one(sql, params):
+    captured["sql"] = sql
+    return content_profile_mssql.DBResponse()
+
+  monkeypatch.setattr(content_profile_mssql, "run_json_one", fake_run_json_one)
+  asyncio.run(content_profile_mssql.get_profile_v1({"guid": "gid"}))
+  sql = captured["sql"].lower()
+  assert "json_query" in sql
+  assert "for json path, without_array_wrapper" in sql
 
 def test_mssql_get_rotkey_queries_users_and_providers():
   handler = get_mssql_handler("db:users:session:get_rotkey:1")

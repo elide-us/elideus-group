@@ -39,8 +39,10 @@ async def users_profile_get_profile_v1(request: Request):
   row = res.rows[0]
   row["guid"] = str(row.get("guid", ""))
   auth_providers = row.get("auth_providers")
-  if not auth_providers:
+  if auth_providers is None:
     row["auth_providers"] = []
+  elif not isinstance(auth_providers, list):
+    raise HTTPException(status_code=500, detail="Invalid auth provider payload")
   profile = UsersProfileProfile1(**row)
   return RPCResponse(
     op=rpc_request.op,
