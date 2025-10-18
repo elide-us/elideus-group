@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from atproto import AsyncClient as AsyncBskyClient, client_utils
 from fastapi import FastAPI
 
+from server.registry.system.config import get_config_request
 from . import BaseModule
 from .db_module import DbModule
 
@@ -43,7 +44,7 @@ class BskyModule(BaseModule):
   async def _load_optional_config(self, key: str) -> str:
     if not self.db:
       raise RuntimeError("BskyModule requires database module")
-    res = await self.db.run("db:system:config:get_config:1", {"key": key})
+    res = await self.db.run(get_config_request(key=key))
     if not res.rows:
       return ""
     return res.rows[0].get("value") or ""

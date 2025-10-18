@@ -1,5 +1,6 @@
 from __future__ import annotations
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
@@ -23,10 +24,17 @@ class PublicUsersModule(BaseModule):
 
   async def get_profile(self, guid: str):
     assert self.db
-    res = await self.db.run("db:public:users:get_profile:1", {"guid": guid})
+    res = await self.db.run(
+      DBRequest(op="db:public:users:get_profile:1", payload={"guid": guid}),
+    )
     return res.rows[0] if res.rows else None
 
   async def get_published_files(self, guid: str):
     assert self.db
-    res = await self.db.run("db:public:users:get_published_files:1", {"guid": guid})
+    res = await self.db.run(
+      DBRequest(
+        op="db:public:users:get_published_files:1",
+        payload={"guid": guid},
+      ),
+    )
     return res.rows

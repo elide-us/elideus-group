@@ -98,7 +98,12 @@ def test_fetch_chat_logs_conversation():
     def __init__(self):
       self.calls = []
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:assistant:personas:get_by_name:1":
         return DBResult(
@@ -167,7 +172,12 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       assert op == "db:assistant:conversations:update_output:1"
       assert args == {"recid": 99, "output_data": "done", "tokens": 3}
       return DBResult(rowcount=0)
@@ -201,7 +211,12 @@ def test_fetch_chat_reuses_existing_conversation():
       self.calls: list[tuple[str, dict]] = []
       self.insert_count = 0
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:assistant:personas:get_by_name:1":
         return DBResult(
@@ -277,7 +292,12 @@ def test_persona_response_calls_openai():
     def __init__(self):
       self.calls = []
 
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:assistant:personas:get_by_name:1":
         return DBResult(
@@ -345,7 +365,12 @@ def test_persona_response_missing_persona():
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       if op == "db:assistant:personas:get_by_name:1":
         return DBResult(rows=[], rowcount=0)
       return DBResult()
@@ -362,7 +387,12 @@ def test_persona_response_stub_without_client():
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       if op == "db:assistant:personas:get_by_name:1":
         return DBResult(
           rows=[{

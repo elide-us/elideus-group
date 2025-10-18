@@ -28,10 +28,24 @@ class DummyDb:
   def __init__(self, allow_update):
     self.calls = []
     self.allow_update = allow_update
-  async def run(self, op, args):
+
+  async def run(self, request, payload=None):
+    if isinstance(request, str):
+      op = request
+      args = payload or {}
+    else:
+      op = request.op
+      args = request.payload
     self.calls.append((op, args))
     if op == "db:users:providers:get_by_provider_identifier:1":
-      return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "provider_name": "google" }], 1)
+      return DBRes([
+        {
+          "guid": "user-guid",
+          "display_name": "User",
+          "credits": 0,
+          "provider_name": "google",
+        }
+      ], 1)
     if op == "db:users:profile:update_if_unedited:1":
       if self.allow_update:
         return DBRes([{ "display_name": args["display_name"], "email": args["email"] }], 1)

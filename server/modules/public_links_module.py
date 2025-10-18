@@ -1,5 +1,6 @@
 from __future__ import annotations
 from fastapi import FastAPI
+from server.registry.types import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
@@ -22,9 +23,16 @@ class PublicLinksModule(BaseModule):
     self.db = None
 
   async def get_home_links(self):
-    res = await self.db.run("db:public:links:get_home_links:1", {})
+    res = await self.db.run(
+      DBRequest(op="db:public:links:get_home_links:1", payload={}),
+    )
     return res.rows
 
   async def get_navbar_routes(self, role_mask: int):
-    res = await self.db.run("db:public:links:get_navbar_routes:1", {"role_mask": role_mask})
+    res = await self.db.run(
+      DBRequest(
+        op="db:public:links:get_navbar_routes:1",
+        payload={"role_mask": role_mask},
+      ),
+    )
     return res.rows

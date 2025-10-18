@@ -8,6 +8,8 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.system.config import get_config_request
+from server.registry.types import DBRequest
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -87,7 +89,7 @@ class OpenaiModule(BaseModule):
 
   async def get_openai_token(self) -> str:
     assert self.db
-    res = await self.db.run("db:system:config:get_config:1", {"key": "OpenAIApiKey"})
+    res = await self.db.run(get_config_request(key="OpenAIApiKey"))
     if res.rows:
       return res.rows[0].get("value", "")
     return ""
@@ -103,7 +105,9 @@ class OpenaiModule(BaseModule):
     if not self.db:
       return None
     try:
-      res = await self.db.run("db:assistant:personas:get_by_name:1", {"name": name})
+      res = await self.db.run(
+        DBRequest(op="db:assistant:personas:get_by_name:1", payload={"name": name}),
+      )
       if res.rows:
         return res.rows[0]
     except Exception:
@@ -133,12 +137,16 @@ class OpenaiModule(BaseModule):
 
   async def list_models(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:models:list:1", {})
+    res = await self.db.run(
+      DBRequest(op="db:assistant:models:list:1", payload={}),
+    )
     return list(res.rows or [])
 
   async def list_personas(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:personas:list:1", {})
+    res = await self.db.run(
+      DBRequest(op="db:assistant:personas:list:1", payload={}),
+    )
     personas: List[Dict[str, Any]] = []
     for row in res.rows or []:
       personas.append({
@@ -167,7 +175,9 @@ class OpenaiModule(BaseModule):
     }
     if not payload["name"]:
       raise ValueError("name required")
-    await self.db.run("db:assistant:personas:upsert:1", payload)
+    await self.db.run(
+      DBRequest(op="db:assistant:personas:upsert:1", payload=payload),
+    )
 
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
     assert self.db

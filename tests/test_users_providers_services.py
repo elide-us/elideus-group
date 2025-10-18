@@ -79,7 +79,12 @@ class DBRes:
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op, args):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     self.calls.append((op, args))
     return DBRes()
 
@@ -198,7 +203,12 @@ def test_link_provider_google_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:system:config:get_config:1":
         key = args["key"]
@@ -254,7 +264,12 @@ def test_link_provider_discord_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:system:config:get_config:1":
         key = args["key"]
@@ -310,7 +325,12 @@ def test_link_provider_microsoft_normalizes_identifier():
   class DummyDb:
     def __init__(self):
       self.calls = []
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       return DBRes()
 
@@ -330,7 +350,12 @@ def test_unlink_non_default_provider_retains_tokens():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "microsoft"}])
@@ -354,7 +379,12 @@ def test_unlink_default_provider_without_new_default_raises():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])
@@ -377,7 +407,12 @@ def test_unlink_default_provider_sets_new_default_and_revokes_tokens():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])
@@ -401,7 +436,12 @@ def test_unlink_last_provider_soft_deletes_and_revokes():
   svc_mod.unbox_request = fake_get
 
   class LocalDb(DummyDb):
-    async def run(self, op, args):
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
       self.calls.append((op, args))
       if op == "db:users:profile:get_profile:1":
         return DBRes(rows=[{"default_provider": "google"}])

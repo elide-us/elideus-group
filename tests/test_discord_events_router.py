@@ -35,7 +35,12 @@ class DummyDb:
     self.values = values
     self.calls: list[tuple[str, dict]] = []
 
-  async def run(self, op: str, args: dict):
+  async def run(self, op, args=None):
+    if not isinstance(op, str):
+      args = op.payload
+      op = op.op
+    elif args is None:
+      args = {}
     self.calls.append((op, args))
     value = self.values.get(args.get("key"))
     rows = [{"value": value}] if value is not None else []

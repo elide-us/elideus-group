@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
+from server.registry.system.config import get_config_request
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers
@@ -75,7 +76,7 @@ class DiscordBotModule(BaseModule):
       register_discord_event_handlers(self)
       update_logging_level(self.db.logging_level)
       configure_discord_logging(self)
-      res = await self.db.run("db:system:config:get_config:1", {"key": "DiscordSyschan"})
+      res = await self.db.run(get_config_request(key="DiscordSyschan"))
       if not res.rows:
         raise ValueError("Missing config value for key: DiscordSyschan")
       self.syschan = int(res.rows[0]["value"] or 0)

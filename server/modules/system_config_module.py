@@ -1,6 +1,11 @@
 from __future__ import annotations
 import logging
 from fastapi import FastAPI
+from server.registry.system.config import (
+  delete_config_request,
+  get_configs_request,
+  upsert_config_request,
+)
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
@@ -29,7 +34,7 @@ class SystemConfigModule(BaseModule):
 
   async def get_configs(self, user_guid: str, roles: list[str]) -> SystemConfigList1:
     logging.debug("[system_config_get_configs_v1] user=%s roles=%s", user_guid, roles)
-    res = await self.db.run("db:system:config:get_configs:1", {})
+    res = await self.db.run(get_configs_request())
     items = [
       SystemConfigConfigItem1(
         key=row.get("element_key", ""),
@@ -52,8 +57,7 @@ class SystemConfigModule(BaseModule):
       value,
     )
     await self.db.run(
-      "db:system:config:upsert_config:1",
-      {"key": key, "value": value},
+      upsert_config_request(key=key, value=value),
     )
     logging.debug(
       "[system_config_upsert_config_v1] upserted config %s",
@@ -69,8 +73,7 @@ class SystemConfigModule(BaseModule):
       key,
     )
     await self.db.run(
-      "db:system:config:delete_config:1",
-      {"key": key},
+      delete_config_request(key),
     )
     logging.debug(
       "[system_config_delete_config_v1] deleted config %s",

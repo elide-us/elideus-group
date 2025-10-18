@@ -111,7 +111,14 @@ svc.unbox_request = fake_unbox
 class DummyDb:
   def __init__(self):
     self.calls = []
-  async def run(self, op: str, args: dict):
+
+  async def run(self, request, payload=None):
+    if isinstance(request, str):
+      op = request
+      args = payload or {}
+    else:
+      op = request.op
+      args = request.payload
     self.calls.append((op, args))
     if op == 'db:system:roles:list:1':
       rows = [{'name': 'ROLE_FOO', 'mask': 1, 'display': 'Foo'}]

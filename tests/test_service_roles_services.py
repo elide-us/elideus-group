@@ -76,7 +76,13 @@ class DummyDb:
     self.members = members or []
     self.non_members = non_members or []
 
-  async def run(self, op, args):
+  async def run(self, request, payload=None):
+    if isinstance(request, str):
+      op = request
+      args = payload or {}
+    else:
+      op = request.op
+      args = request.payload
     self.calls.append((op, args))
     if op == "db:security:roles:get_role_members:1":
       return DBRes(self.members, len(self.members))

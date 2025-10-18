@@ -14,6 +14,8 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.system.roles import list_roles_request
+from server.registry.types import DBRequest
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -30,7 +32,7 @@ class RoleCache:
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
-      result = await self.db.run("db:system:roles:list:1", {})
+      result = await self.db.run(list_roles_request())
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
@@ -52,15 +54,23 @@ class RoleCache:
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
     await self.db.run(
-      "db:security:roles:upsert_role:1",
-      {"name": name, "mask": mask, "display": display},
+      DBRequest(
+        op="db:security:roles:upsert_role:1",
+        payload={
+          "name": name,
+          "mask": mask,
+          "display": display,
+        },
+      ),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
     await self.db.run(
-      "db:security:roles:delete_role:1",
-      {"name": name},
+      DBRequest(
+        op="db:security:roles:delete_role:1",
+        payload={"name": name},
+      ),
     )
     await self.refresh_role_cache()
 
@@ -83,7 +93,9 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
+    res = await self.db.run(
+      DBRequest(op="db:users:profile:get_roles:1", payload={"guid": guid}),
+    )
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
@@ -254,7 +266,9 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
+    res = await self.db.run(
+      DBRequest(op="db:users:session:get_rotkey:1", payload={"guid": guid}),
+    )
     rotkey = res.rows[0].get("rotkey") if res.rows else None
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
@@ -325,7 +339,12 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run("db:auth:discord:get_security:1", {"discord_id": discord_id})
+    res = await self.db.run(
+      DBRequest(
+        op="db:auth:discord:get_security:1",
+        payload={"discord_id": discord_id},
+      ),
+    )
     if not res.rows:
       return "", [], 0
     row = res.rows[0]
