@@ -44,13 +44,14 @@ def test_assistant_conversations_insert(monkeypatch):
     'tokens': 5,
   }
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert one
+  async def fake_fetch_json(sql, params, *, many=False):
+    assert not many
     assert "INSERT INTO assistant_conversations" in sql
+    assert "FOR JSON PATH" in sql
     assert params == (1, 2, '1', '2', '3', 'hi', '', 5)
     return DBResult(rows=[{'recid': 9}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_rows', fake_fetch_rows)
+  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
 
   res = asyncio.run(provider.run('db:assistant:conversations:insert:1', args))
   assert res.rows == [{'recid': 9}]
@@ -68,14 +69,15 @@ def test_assistant_conversations_find_recent(monkeypatch):
     'window_seconds': 120,
   }
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert one
+  async def fake_fetch_json(sql, params, *, many=False):
+    assert not many
     assert "SELECT TOP 1 recid" in sql
     assert "DATEADD" in sql
+    assert "FOR JSON PATH" in sql
     assert params == (1, 2, 'hi', '1', '1', '2', '2', '3', '3', 120)
     return DBResult(rows=[{'recid': 5}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_rows', fake_fetch_rows)
+  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
 
   res = asyncio.run(provider.run('db:assistant:conversations:find_recent:1', args))
   assert res.rows == [{'recid': 5}]
