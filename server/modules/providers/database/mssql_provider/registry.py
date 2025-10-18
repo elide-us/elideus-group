@@ -1373,9 +1373,10 @@ def _assistant_personas_get_by_name(args: Dict[str, Any]):
       vp.element_modified_on
     FROM vw_personas vp
     JOIN assistant_personas ap ON ap.element_name = vp.persona_name
-    WHERE vp.persona_name = ?;
+    WHERE vp.persona_name = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (name,))
+  return (DbRunMode.JSON_ONE, sql, (name,))
 
 @register("urn:assistant:models:list:1")
 def _assistant_models_list(_: Dict[str, Any]):
@@ -1496,9 +1497,12 @@ def _db_assistant_personas_delete(args: Dict[str, Any]):
 def _assistant_models_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
-    SELECT recid FROM assistant_models WHERE element_name = ?;
+    SELECT recid
+    FROM assistant_models
+    WHERE element_name = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
-  return (DbRunMode.ROW_ONE, sql, (name,))
+  return (DbRunMode.JSON_ONE, sql, (name,))
 
 @register("db:assistant:conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
@@ -1521,10 +1525,11 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
       element_output,
       element_tokens
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-    SELECT SCOPE_IDENTITY() AS recid;
+    SELECT CAST(SCOPE_IDENTITY() AS BIGINT) AS recid
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   return (
-    DbRunMode.ROW_ONE,
+    DbRunMode.JSON_ONE,
     sql,
     (
       personas_recid,
@@ -1565,10 +1570,11 @@ def _assistant_conversations_find_recent(args: Dict[str, Any]):
       AND ((element_channel_id = ?) OR (element_channel_id IS NULL AND ? IS NULL))
       AND ((element_user_id = ?) OR (element_user_id IS NULL AND ? IS NULL))
       AND element_created_on >= DATEADD(second, -?, SYSDATETIMEOFFSET())
-    ORDER BY element_created_on DESC;
+    ORDER BY element_created_on DESC
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   return (
-    DbRunMode.ROW_ONE,
+    DbRunMode.JSON_ONE,
     sql,
     (
       personas_recid,
