@@ -658,9 +658,10 @@ def _storage_cache_list_public(_: Dict[str, Any]):
     JOIN account_users au ON au.element_guid = usc.users_guid
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:public:gallery:get_public_files:1")
@@ -676,9 +677,10 @@ def _public_gallery_get_public_files(_: Dict[str, Any]):
     JOIN account_users au ON au.element_guid = usc.users_guid
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:list_reported:1")
@@ -692,9 +694,10 @@ def _storage_cache_list_reported(_: Dict[str, Any]):
     FROM users_storage_cache usc
     JOIN storage_types st ON st.recid = usc.types_recid
     WHERE usc.element_reported = 1 AND usc.element_deleted = 0
-    ORDER BY usc.element_created_on;
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
   """
-  return (DbRunMode.ROW_MANY, sql, ())
+  return (DbRunMode.JSON_MANY, sql, ())
 
 
 @register("db:storage:cache:count_rows:1")
@@ -977,9 +980,10 @@ def _public_users_get_profile(args: Dict[str, Any]):
         up.element_base64 AS profile_image
       FROM account_users au
       LEFT JOIN users_profileimg up ON up.users_guid = au.element_guid
-      WHERE au.element_guid = ?;
+      WHERE au.element_guid = ?
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
     """
-    return (DbRunMode.ROW_ONE, sql, (guid,))
+    return (DbRunMode.JSON_ONE, sql, (guid,))
 
 @register("db:public:users:get_profile:1")
 def _db_public_users_get_profile(args: Dict[str, Any]):
@@ -997,9 +1001,10 @@ def _public_users_get_published_files(args: Dict[str, Any]):
       FROM users_storage_cache usc
       JOIN storage_types st ON st.recid = usc.types_recid
       WHERE usc.users_guid = ? AND usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
-      ORDER BY usc.element_created_on;
+      ORDER BY usc.element_created_on
+      FOR JSON PATH;
     """
-    return (DbRunMode.ROW_MANY, sql, (guid,))
+    return (DbRunMode.JSON_MANY, sql, (guid,))
 
 @register("db:public:users:get_published_files:1")
 def _db_public_users_get_published_files(args: Dict[str, Any]):
