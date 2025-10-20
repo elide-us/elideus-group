@@ -6,6 +6,11 @@ from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
+from .model import (
+  GetModelByNameParams,
+  ModelRecord,
+)
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -13,6 +18,8 @@ __all__ = [
   "get_model_by_name_request",
   "list_models_request",
   "register",
+  "GetModelByNameParams",
+  "ModelRecord",
 ]
 
 _OP_PREFIX = "db:system:assistant_models"

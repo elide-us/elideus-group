@@ -1090,7 +1090,7 @@ def _security_roles_remove_member(args: Dict[str, Any]):
   """
   return (DbRunMode.EXEC, sql, (role, user_guid, user_guid))
 
-@register("db:assistant:personas:get_by_name:1")
+@register("db:system:assistant_personas:get_by_name:1")
 def _assistant_personas_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
@@ -1129,8 +1129,8 @@ def _assistant_models_list(_: Dict[str, Any]):
   """
   return (DbRunMode.JSON_MANY, sql, ())
 
-@register("db:assistant:models:list:1")
-def _db_assistant_models_list(args: Dict[str, Any]):
+@register("db:system:assistant_models:list:1")
+def _db_system_assistant_models_list(args: Dict[str, Any]):
   return _assistant_models_list(args)
 
 @register("urn:assistant:personas:list:1")
@@ -1159,8 +1159,8 @@ def _assistant_personas_list(_: Dict[str, Any]):
   """
   return (DbRunMode.JSON_MANY, sql, ())
 
-@register("db:assistant:personas:list:1")
-def _db_assistant_personas_list(args: Dict[str, Any]):
+@register("db:system:assistant_personas:list:1")
+def _db_system_assistant_personas_list(args: Dict[str, Any]):
   return _assistant_personas_list(args)
 
 @register("urn:assistant:personas:upsert:1")
@@ -1210,8 +1210,8 @@ async def _assistant_personas_upsert(args: Dict[str, Any]):
     (name, prompt, tokens, models_recid),
   )
 
-@register("db:assistant:personas:upsert:1")
-async def _db_assistant_personas_upsert(args: Dict[str, Any]):
+@register("db:system:assistant_personas:upsert:1")
+async def _db_system_assistant_personas_upsert(args: Dict[str, Any]):
   return await _assistant_personas_upsert(args)
 
 @register("urn:assistant:personas:delete:1")
@@ -1228,11 +1228,11 @@ def _assistant_personas_delete(args: Dict[str, Any]):
     raise ValueError("Missing identifier for persona delete")
   return (DbRunMode.EXEC, sql, params)
 
-@register("db:assistant:personas:delete:1")
-def _db_assistant_personas_delete(args: Dict[str, Any]):
+@register("db:system:assistant_personas:delete:1")
+def _db_system_assistant_personas_delete(args: Dict[str, Any]):
   return _assistant_personas_delete(args)
 
-@register("db:assistant:models:get_by_name:1")
+@register("db:system:assistant_models:get_by_name:1")
 def _assistant_models_get_by_name(args: Dict[str, Any]):
   name = args["name"]
   sql = """
@@ -1243,7 +1243,7 @@ def _assistant_models_get_by_name(args: Dict[str, Any]):
   """
   return (DbRunMode.JSON_ONE, sql, (name,))
 
-@register("db:assistant:conversations:insert:1")
+@register("db:system:assistant_conversations:insert:1")
 def _assistant_conversations_insert(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
   models_recid = args["models_recid"]
@@ -1282,7 +1282,7 @@ def _assistant_conversations_insert(args: Dict[str, Any]):
     ),
   )
 
-@register("db:assistant:conversations:find_recent:1")
+@register("db:system:assistant_conversations:find_recent:1")
 def _assistant_conversations_find_recent(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
   models_recid = args["models_recid"]
@@ -1329,7 +1329,7 @@ def _assistant_conversations_find_recent(args: Dict[str, Any]):
     ),
   )
 
-@register("db:assistant:conversations:update_output:1")
+@register("db:system:assistant_conversations:update_output:1")
 def _assistant_conversations_update_output(args: Dict[str, Any]):
   recid = args["recid"]
   output_data = args.get("output_data")
@@ -1342,7 +1342,7 @@ def _assistant_conversations_update_output(args: Dict[str, Any]):
   """
   return (DbRunMode.EXEC, sql, (output_data, tokens, recid))
 
-@register("db:assistant:conversations:list_by_time:1")
+@register("db:system:assistant_conversations:list_by_time:1")
 def _assistant_conversations_list_by_time(args: Dict[str, Any]):
   personas_recid = args["personas_recid"]
   start = args["start"]
@@ -1366,7 +1366,7 @@ def _assistant_conversations_list_by_time(args: Dict[str, Any]):
   return (DbRunMode.JSON_MANY, sql, (personas_recid, start, end))
 
 
-@register("db:assistant:conversations:list_recent:1")
+@register("db:system:assistant_conversations:list_recent:1")
 def _assistant_conversations_list_recent(_: Dict[str, Any]):
   sql = """
     SELECT TOP (2)
