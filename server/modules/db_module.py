@@ -10,6 +10,13 @@ from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
 from .providers import DBRequest, DBResponse
+from server.registry.users.content.cache import (
+  delete_cache_folder_request,
+  delete_cache_item_request,
+  list_cache_request,
+  replace_user_cache_request,
+  upsert_cache_item_request,
+)
 from server.helpers.logging import update_logging_level
 
 
@@ -151,18 +158,11 @@ class DbModule(BaseModule):
     return int(value)
 
   async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
-    res = await self.run(
-      DBRequest(op="db:storage:cache:list:1", payload={"user_guid": user_guid})
-    )
+    res = await self.run(list_cache_request(user_guid))
     return res.rows
 
   async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
-    await self.run(
-      DBRequest(
-        op="db:storage:cache:replace_user:1",
-        payload={"user_guid": user_guid, "items": items},
-      )
-    )
+    await self.run(replace_user_cache_request(user_guid, items))
 
   async def user_exists(self, user_guid: str) -> bool:
     res = await self.run(
@@ -171,21 +171,11 @@ class DbModule(BaseModule):
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
-    return await self.run(DBRequest(op="db:storage:cache:upsert:1", payload=item))
+    return await self.run(upsert_cache_item_request(item))
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
-    await self.run(
-      DBRequest(
-        op="db:storage:cache:delete:1",
-        payload={"user_guid": user_guid, "path": path, "filename": filename},
-      )
-    )
+    await self.run(delete_cache_item_request(user_guid, path, filename))
 
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
-    await self.run(
-      DBRequest(
-        op="db:storage:cache:delete_folder:1",
-        payload={"user_guid": user_guid, "path": path},
-      )
-    )
+    await self.run(delete_cache_folder_request(user_guid, path))
 
