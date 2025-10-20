@@ -6,10 +6,13 @@ from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
+from .model import SetCreditsParams
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
 __all__ = [
+  "SetCreditsParams",
   "register",
   "set_credits_request",
 ]
@@ -20,7 +23,7 @@ def _request(name: str, params: dict[str, Any]) -> DBRequest:
 
 
 def set_credits_request(*, guid: str, credits: int) -> DBRequest:
-  params = {"guid": guid, "credits": credits}
+  params: SetCreditsParams = {"guid": guid, "credits": credits}
   return _request("set", params)
 
 

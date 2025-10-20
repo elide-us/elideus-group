@@ -434,11 +434,6 @@ def _support_users_set_credits(args: Dict[str, Any]):
   return (DbRunMode.EXEC, sql, (credits, guid))
 
 
-@register("db:support:users:set_credits:1")
-def _db_support_users_set_credits(args: Dict[str, Any]):
-  return _support_users_set_credits(args)
-
-
 @register("db:storage:files:set_gallery:1")
 def _storage_files_set_gallery(args: Dict[str, Any]):
   guid = str(UUID(args["user_guid"]))

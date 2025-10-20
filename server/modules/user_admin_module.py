@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.finance.credits import set_credits_request
 from server.registry.types import DBRequest
 
 
@@ -43,12 +44,7 @@ class UserAdminModule(BaseModule):
     return credits
 
   async def set_credits(self, guid: str, credits: int) -> None:
-    await self.db.run(
-      DBRequest(
-        op="db:support:users:set_credits:1",
-        payload={"guid": guid, "credits": credits},
-      ),
-    )
+    await self.db.run(set_credits_request(guid=guid, credits=credits))
 
   async def reset_display(self, guid: str) -> None:
     await self.db.run(
