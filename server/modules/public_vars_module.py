@@ -1,7 +1,11 @@
 from __future__ import annotations
 import asyncio, subprocess
 from fastapi import FastAPI
-from server.registry.types import DBRequest
+from server.registry.system.vars import (
+  get_hostname_request,
+  get_repo_request,
+  get_version_request,
+)
 from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
@@ -41,21 +45,18 @@ class PublicVarsModule(BaseModule):
       return result.stdout, result.stderr
 
   async def get_version(self) -> str:
-    res = await self.db.run(
-      DBRequest(op="db:public:vars:get_version:1", payload={}),
-    )
+    assert self.db
+    res = await self.db.run(get_version_request())
     return res.rows[0].get("version") if res.rows else ""
 
   async def get_hostname(self) -> str:
-    res = await self.db.run(
-      DBRequest(op="db:public:vars:get_hostname:1", payload={}),
-    )
+    assert self.db
+    res = await self.db.run(get_hostname_request())
     return res.rows[0].get("hostname") if res.rows else ""
 
   async def get_repo(self) -> str:
-    res = await self.db.run(
-      DBRequest(op="db:public:vars:get_repo:1", payload={}),
-    )
+    assert self.db
+    res = await self.db.run(get_repo_request())
     return res.rows[0].get("repo") if res.rows else ""
 
   async def get_ffmpeg_version(self) -> str:

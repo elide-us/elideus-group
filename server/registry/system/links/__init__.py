@@ -6,10 +6,15 @@ from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
 
+from .model import HomeLink, NavbarRoute, NavbarRoutesParams
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
 __all__ = [
+  "HomeLink",
+  "NavbarRoute",
+  "NavbarRoutesParams",
   "get_home_links_request",
   "get_navbar_routes_request",
   "register",
@@ -25,7 +30,8 @@ def get_home_links_request() -> DBRequest:
 
 
 def get_navbar_routes_request(*, role_mask: int) -> DBRequest:
-  return _request("db:system:public_links:get_navbar_routes:1", {"role_mask": role_mask})
+  params: NavbarRoutesParams = {"role_mask": role_mask}
+  return _request("db:system:public_links:get_navbar_routes:1", params)
 
 
 def register(router: "SubdomainRouter") -> None:
