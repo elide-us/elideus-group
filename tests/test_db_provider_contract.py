@@ -59,16 +59,19 @@ def test_run_row_one(monkeypatch):
 def test_run_row_many(monkeypatch):
   provider = MssqlProvider()
   guid = "00000000-0000-0000-0000-000000000000"
-  expected_guid = str(UUID(guid))
-
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert not one
-    assert params == (expected_guid,)
+  async def fake_handler(payload):
+    assert payload == {"guid": guid}
     return DBResult(rows=[{"path": "a"}, {"path": "b"}], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
+  def fake_get_handler(op):
+    assert op == "db:system:public_users:get_published_files:1"
+    return fake_handler
 
-  res = asyncio.run(provider.run("db:public:users:get_published_files:1", {"guid": guid}))
+  monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
+
+  res = asyncio.run(
+    provider.run("db:system:public_users:get_published_files:1", {"guid": guid})
+  )
   assert isinstance(res, DBResult)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
   assert res.rowcount == 2

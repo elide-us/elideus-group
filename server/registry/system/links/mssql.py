@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from server.registry.providers.mssql import run_json_many
 from server.registry.types import DBResponse
+
+from .model import NavbarRoutesParams
 
 __all__ = [
   "get_home_links_v1",
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-async def get_home_links_v1(_: dict[str, Any]) -> DBResponse:
+async def get_home_links_v1(_: object) -> DBResponse:
   sql = """
     SELECT
       element_title AS title,
@@ -25,7 +25,7 @@ async def get_home_links_v1(_: dict[str, Any]) -> DBResponse:
   return await run_json_many(sql)
 
 
-async def get_navbar_routes_v1(args: dict[str, Any]) -> DBResponse:
+async def get_navbar_routes_v1(args: NavbarRoutesParams) -> DBResponse:
   mask = int(args.get("role_mask", 0))
   sql = """
     SELECT

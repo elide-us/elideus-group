@@ -851,10 +851,6 @@ def _public_links_get_home_links(args: Dict[str, Any]):
     """
     return (DbRunMode.JSON_MANY, sql, ())
 
-@register("db:public:links:get_home_links:1")
-def _db_public_links_get_home_links(args: Dict[str, Any]):
-  return _public_links_get_home_links(args)
-
 @register("urn:public:links:get_navbar_routes:1")
 def _public_links_get_navbar_routes(args: Dict[str, Any]):
     mask = int(args.get("role_mask", 0))
@@ -871,9 +867,6 @@ def _public_links_get_navbar_routes(args: Dict[str, Any]):
     """
     return (DbRunMode.JSON_MANY, sql, (mask,))
 
-@register("db:public:links:get_navbar_routes:1")
-def _db_public_links_get_navbar_routes(args: Dict[str, Any]):
-  return _public_links_get_navbar_routes(args)
 
 # -------------------- SERVICE ROUTES --------------------
 
@@ -938,9 +931,6 @@ def _public_vars_get_hostname(args: Dict[str, Any]):
   """
   return (DbRunMode.JSON_ONE, sql, ())
 
-@register("db:public:vars:get_hostname:1")
-def _db_public_vars_get_hostname(args: Dict[str, Any]):
-  return _public_vars_get_hostname(args)
 
 @register("urn:public:vars:get_version:1")
 def _public_vars_get_version(args: Dict[str, Any]):
@@ -952,9 +942,6 @@ def _public_vars_get_version(args: Dict[str, Any]):
   """
   return (DbRunMode.JSON_ONE, sql, ())
 
-@register("db:public:vars:get_version:1")
-def _db_public_vars_get_version(args: Dict[str, Any]):
-  return _public_vars_get_version(args)
 
 @register("urn:public:vars:get_repo:1")
 def _public_vars_get_repo(args: Dict[str, Any]):
@@ -966,9 +953,6 @@ def _public_vars_get_repo(args: Dict[str, Any]):
   """
   return (DbRunMode.JSON_ONE, sql, ())
 
-@register("db:public:vars:get_repo:1")
-def _db_public_vars_get_repo(args: Dict[str, Any]):
-  return _public_vars_get_repo(args)
 
 @register("urn:public:users:get_profile:1")
 def _public_users_get_profile(args: Dict[str, Any]):
@@ -985,9 +969,6 @@ def _public_users_get_profile(args: Dict[str, Any]):
     """
     return (DbRunMode.JSON_ONE, sql, (guid,))
 
-@register("db:public:users:get_profile:1")
-def _db_public_users_get_profile(args: Dict[str, Any]):
-  return _public_users_get_profile(args)
 
 @register("urn:public:users:get_published_files:1")
 def _public_users_get_published_files(args: Dict[str, Any]):
@@ -1006,9 +987,6 @@ def _public_users_get_published_files(args: Dict[str, Any]):
     """
     return (DbRunMode.JSON_MANY, sql, (guid,))
 
-@register("db:public:users:get_published_files:1")
-def _db_public_users_get_published_files(args: Dict[str, Any]):
-  return _public_users_get_published_files(args)
 
 @register("urn:users:profile:set_profile_image:1")
 async def _users_set_img(args: Dict[str, Any]):
