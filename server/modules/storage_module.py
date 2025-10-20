@@ -8,7 +8,13 @@ from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings
 from fastapi import FastAPI
 from server.registry.system.config import get_config_request
-from server.registry.types import DBRequest
+from server.registry.users.content.cache import (
+  count_rows_request,
+  list_public_request,
+  list_reported_request,
+  set_reported_request,
+)
+from server.registry.users.content.files import set_gallery_request
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
@@ -358,17 +364,13 @@ class StorageModule(BaseModule):
   async def list_public_files(self):
     """Return files marked as publicly accessible."""
     assert self.db
-    res = await self.db.run(
-      DBRequest(op="db:storage:cache:list_public:1", payload={}),
-    )
+    res = await self.db.run(list_public_request())
     return res.rows
 
   async def list_flagged_for_moderation(self):
     """Return files that have been reported for moderation review."""
     assert self.db
-    res = await self.db.run(
-      DBRequest(op="db:storage:cache:list_reported:1", payload={}),
-    )
+    res = await self.db.run(list_reported_request())
     return res.rows
 
   async def upload_files(self, user_guid: str, files):
@@ -467,31 +469,12 @@ class StorageModule(BaseModule):
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
-    await self.db.run(
-      DBRequest(
-        op="db:storage:files:set_gallery:1",
-        payload={
-          "user_guid": user_guid,
-          "name": name,
-          "gallery": 1 if gallery else 0,
-        },
-      ),
-    )
+    await self.db.run(set_gallery_request(user_guid, name, gallery))
 
   async def report_file(self, user_guid: str, name: str):
     assert self.db
     path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-    await self.db.run(
-      DBRequest(
-        op="db:storage:cache:set_reported:1",
-        payload={
-          "user_guid": user_guid,
-          "path": path,
-          "filename": filename,
-          "reported": 1,
-        },
-      ),
-    )
+    await self.db.run(set_reported_request(user_guid, path=path, filename=filename, reported=True))
 
   async def create_folder(self, user_guid: str, path: str):
     if not self.connection_string or not self.db:
@@ -901,9 +884,7 @@ class StorageModule(BaseModule):
 
   async def get_storage_stats(self):
     assert self.db
-    db_res = await self.db.run(
-      DBRequest(op="db:storage:cache:count_rows:1", payload={}),
-    )
+    db_res = await self.db.run(count_rows_request())
     db_rows = db_res.rows[0]["count"] if db_res.rows else 0
     if not self.connection_string:
       return {

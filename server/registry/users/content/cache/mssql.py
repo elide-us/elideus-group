@@ -16,6 +16,8 @@ __all__ = [
   "delete_folder_v1",
   "delete_v1",
   "list_v1",
+  "list_public_v1",
+  "list_reported_v1",
   "replace_user_v1",
   "set_public_v1",
   "set_reported_v1",
@@ -75,6 +77,40 @@ async def list_v1(args: Dict[str, Any]) -> DBResponse:
     FOR JSON PATH;
   """
   return await run_json_many(sql, (user_guid,))
+
+
+async def list_public_v1(_: Dict[str, Any]) -> DBResponse:
+  sql = """
+    SELECT usc.users_guid AS user_guid,
+           au.element_display AS display_name,
+           usc.element_path AS path,
+           usc.element_filename AS name,
+           usc.element_url AS url,
+           st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN account_users au ON au.element_guid = usc.users_guid
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.element_public = 1 AND usc.element_deleted = 0 AND ISNULL(usc.element_reported,0) = 0
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
+  """
+  return await run_json_many(sql)
+
+
+async def list_reported_v1(_: Dict[str, Any]) -> DBResponse:
+  sql = """
+    SELECT usc.users_guid AS user_guid,
+           usc.element_path AS path,
+           usc.element_filename AS name,
+           usc.element_url AS url,
+           st.element_mimetype AS content_type
+    FROM users_storage_cache usc
+    JOIN storage_types st ON st.recid = usc.types_recid
+    WHERE usc.element_reported = 1 AND usc.element_deleted = 0
+    ORDER BY usc.element_created_on
+    FOR JSON PATH;
+  """
+  return await run_json_many(sql)
 
 
 async def replace_user_v1(args: Dict[str, Any]) -> DBResponse:

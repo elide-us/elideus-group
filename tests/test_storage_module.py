@@ -6,7 +6,7 @@ from server.modules.storage_module import StorageModule
 import server.modules.storage_module as storage_module
 from server.modules import BaseModule
 from server.modules.providers.database.mssql_provider import MssqlProvider
-import server.modules.providers.database.mssql_provider as mssql_provider
+import server.registry.providers.mssql as registry_mssql
 from server.modules.providers import DBResult
 
 
@@ -87,7 +87,7 @@ def test_list_public_files(monkeypatch):
       {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
     ], rowcount=2)
 
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
+  monkeypatch.setattr(registry_mssql, "fetch_json", fake_fetch_json)
 
   mod = StorageModule(app)
   mod.db = provider
@@ -713,7 +713,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:storage:cache:count_rows:1":
+      if op == "db:users:content:content_cache:count_rows:1":
         return Res([{ "count": 10 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])
@@ -932,7 +932,7 @@ def test_get_storage_stats_counts_user_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:storage:cache:count_rows:1":
+      if op == "db:users:content:content_cache:count_rows:1":
         return Res([{ "count": 0 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])
