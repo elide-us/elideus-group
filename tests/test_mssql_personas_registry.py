@@ -3,7 +3,7 @@ from server.modules.providers.database.mssql_provider import registry
 
 
 def test_persona_lookup_query_targets_element_name():
-  handler = registry.get_handler("db:assistant:personas:get_by_name:1")
+  handler = registry.get_handler("db:system:assistant_personas:get_by_name:1")
   mode, sql, params = handler({"name": "stark"})
 
   assert mode is DbRunMode.JSON_ONE

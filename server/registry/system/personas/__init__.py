@@ -6,6 +6,13 @@ from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
+from .model import (
+  DeletePersonaParams,
+  PersonaRecord,
+  PersonaSummary,
+  UpsertPersonaParams,
+)
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -15,6 +22,10 @@ __all__ = [
   "list_personas_request",
   "register",
   "upsert_persona_request",
+  "DeletePersonaParams",
+  "PersonaRecord",
+  "PersonaSummary",
+  "UpsertPersonaParams",
 ]
 
 _OP_PREFIX = "db:system:assistant_personas"

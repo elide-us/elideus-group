@@ -8,7 +8,11 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.openai_module import OpenaiModule
-from server.registry.types import DBRequest
+from server.registry.system.conversations import (
+  insert_conversation_request,
+  list_by_time_request,
+  update_output_request,
+)
 
 from .models import (
   DiscordChatPersonaRequest1,
@@ -315,13 +319,10 @@ async def discord_chat_get_conversation_history_v1(request: Request):
   start = now - timedelta(days=30)
   try:
     history_res = await db_module.run(
-      DBRequest(
-        op="db:assistant:conversations:list_by_time:1",
-        payload={
-          "personas_recid": personas_recid,
-          "start": start.isoformat(),
-          "end": now.isoformat(),
-        },
+      list_by_time_request(
+        personas_recid=personas_recid,
+        start=start.isoformat(),
+        end=now.isoformat(),
       )
     )
   except Exception:
@@ -534,20 +535,18 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
   channel_id = payload.get("channel_id")
   user_id = payload.get("user_id")
 
-  args = {
-    "personas_recid": personas_recid,
-    "models_recid": models_recid,
-    "guild_id": str(guild_id) if guild_id is not None else None,
-    "channel_id": str(channel_id) if channel_id is not None else None,
-    "user_id": str(user_id) if user_id is not None else None,
-    "input_data": message,
-    "output_data": "",
-    "tokens": None,
-  }
-
   try:
     insert_res = await db_module.run(
-      DBRequest(op="db:assistant:conversations:insert:1", payload=args)
+      insert_conversation_request(
+        personas_recid=personas_recid,
+        models_recid=models_recid,
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+        input_data=message,
+        output_data="",
+        tokens=None,
+      )
     )
   except Exception:
     logging.exception("[discord_chat_insert_conversation_input_v1] insert failed", extra={"persona": persona})
@@ -701,13 +700,10 @@ async def discord_chat_generate_persona_response_v1(request: Request):
     await db_module.on_ready()
     try:
       await db_module.run(
-        DBRequest(
-          op="db:assistant:conversations:update_output:1",
-          payload={
-            "recid": conversation_reference,
-            "output_data": content or "",
-            "tokens": total_tokens,
-          },
+        update_output_request(
+          recid=conversation_reference,
+          output_data=content or "",
+          tokens=total_tokens,
         )
       )
     except Exception:

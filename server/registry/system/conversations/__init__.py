@@ -6,6 +6,14 @@ from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
 
+from .model import (
+  ConversationRecord,
+  FindRecentConversationParams,
+  InsertConversationParams,
+  ListByTimeParams,
+  UpdateConversationOutputParams,
+)
+
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
 
@@ -16,6 +24,11 @@ __all__ = [
   "list_recent_request",
   "register",
   "update_output_request",
+  "ConversationRecord",
+  "FindRecentConversationParams",
+  "InsertConversationParams",
+  "ListByTimeParams",
+  "UpdateConversationOutputParams",
 ]
 
 _OP_PREFIX = "db:system:assistant_conversations"

@@ -1,8 +1,8 @@
 import asyncio
 
-from server.modules.providers.database.mssql_provider import MssqlProvider
-import server.modules.providers.database.mssql_provider as mssql_provider
 from server.modules.providers import DBResult
+from server.modules.providers.database.mssql_provider import MssqlProvider
+import server.registry.providers.mssql as registry_mssql
 
 
 def test_assistant_conversations_list_by_time(monkeypatch):
@@ -21,10 +21,10 @@ def test_assistant_conversations_list_by_time(monkeypatch):
     assert params == (personas_recid, start, end)
     return DBResult(rows=[{"recid": 1}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
+  monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
   res = asyncio.run(provider.run(
-    'db:assistant:conversations:list_by_time:1',
+    'db:system:assistant_conversations:list_by_time:1',
     {'personas_recid': personas_recid, 'start': start, 'end': end},
   ))
   assert isinstance(res, DBResult)
@@ -51,9 +51,9 @@ def test_assistant_conversations_insert(monkeypatch):
     assert params == (1, 2, '1', '2', '3', 'hi', '', 5)
     return DBResult(rows=[{'recid': 9}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
+  monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:assistant:conversations:insert:1', args))
+  res = asyncio.run(provider.run('db:system:assistant_conversations:insert:1', args))
   assert res.rows == [{'recid': 9}]
 
 
@@ -77,9 +77,9 @@ def test_assistant_conversations_find_recent(monkeypatch):
     assert params == (1, 2, 'hi', '1', '1', '2', '2', '3', '3', 120)
     return DBResult(rows=[{'recid': 5}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
+  monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:assistant:conversations:find_recent:1', args))
+  res = asyncio.run(provider.run('db:system:assistant_conversations:find_recent:1', args))
   assert res.rows == [{'recid': 5}]
 
 
@@ -93,9 +93,9 @@ def test_assistant_conversations_update_output(monkeypatch):
     assert params == ('out', 12, 9)
     return DBResult(rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'exec_query', fake_exec)
+  monkeypatch.setattr(registry_mssql, 'exec_query', fake_exec)
 
-  res = asyncio.run(provider.run('db:assistant:conversations:update_output:1', args))
+  res = asyncio.run(provider.run('db:system:assistant_conversations:update_output:1', args))
   assert res.rowcount == 1
 
 
@@ -112,9 +112,9 @@ def test_assistant_conversations_list_recent(monkeypatch):
     assert params == ()
     return DBResult(rows=[{"recid": 2}], rowcount=1)
 
-  monkeypatch.setattr(mssql_provider, 'fetch_json', fake_fetch_json)
+  monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:assistant:conversations:list_recent:1', {}))
+  res = asyncio.run(provider.run('db:system:assistant_conversations:list_recent:1', {}))
   assert isinstance(res, DBResult)
   assert res.rows == [{"recid": 2}]
 
