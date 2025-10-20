@@ -8,6 +8,7 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.openai_module import OpenaiModule
+from server.registry.types import DBRequest
 
 from .models import (
   DiscordChatPersonaRequest1,
@@ -314,12 +315,14 @@ async def discord_chat_get_conversation_history_v1(request: Request):
   start = now - timedelta(days=30)
   try:
     history_res = await db_module.run(
-      "db:assistant:conversations:list_by_time:1",
-      {
-        "personas_recid": personas_recid,
-        "start": start.isoformat(),
-        "end": now.isoformat(),
-      },
+      DBRequest(
+        op="db:assistant:conversations:list_by_time:1",
+        payload={
+          "personas_recid": personas_recid,
+          "start": start.isoformat(),
+          "end": now.isoformat(),
+        },
+      )
     )
   except Exception:
     logging.exception("[discord_chat_get_conversation_history_v1] db query failed")
@@ -543,7 +546,9 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
   }
 
   try:
-    insert_res = await db_module.run("db:assistant:conversations:insert:1", args)
+    insert_res = await db_module.run(
+      DBRequest(op="db:assistant:conversations:insert:1", payload=args)
+    )
   except Exception:
     logging.exception("[discord_chat_insert_conversation_input_v1] insert failed", extra={"persona": persona})
     return RPCResponse(
@@ -696,12 +701,14 @@ async def discord_chat_generate_persona_response_v1(request: Request):
     await db_module.on_ready()
     try:
       await db_module.run(
-        "db:assistant:conversations:update_output:1",
-        {
-          "recid": conversation_reference,
-          "output_data": content or "",
-          "tokens": total_tokens,
-        },
+        DBRequest(
+          op="db:assistant:conversations:update_output:1",
+          payload={
+            "recid": conversation_reference,
+            "output_data": content or "",
+            "tokens": total_tokens,
+          },
+        )
       )
     except Exception:
       logging.exception(
