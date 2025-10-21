@@ -8,13 +8,13 @@ from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings
 from fastapi import FastAPI
 from server.registry.system.config import get_config_request
-from server.registry.users.content.cache import (
+from server.registry.users.cache import (
   count_rows_request,
   list_public_request,
   list_reported_request,
   set_reported_request,
 )
-from server.registry.users.content.files import set_gallery_request
+from server.registry.users.files import set_gallery_request
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule

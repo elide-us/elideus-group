@@ -10,7 +10,7 @@ from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
 from .providers import DBRequest, DBResponse
-from server.registry.users.content.cache import (
+from server.registry.users.cache import (
   delete_cache_folder_request,
   delete_cache_item_request,
   list_cache_request,

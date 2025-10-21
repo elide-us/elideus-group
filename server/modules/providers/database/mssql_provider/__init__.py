@@ -1,14 +1,18 @@
 # providers/database/mssql_provider/__init__.py
+import logging
 from typing import Any, Dict
 
 from ... import DbProviderBase, DbRunMode
-from server.registry import get_handler as resolve_handler
+from server.registry import get_handler as resolve_handler, parse_db_op
 from server.registry.types import DBRequest, DBResponse
 from .logic import init_pool, close_pool
 from .db_helpers import fetch_rows, fetch_json, exec_query
 
 def get_handler(op: str):
   return resolve_handler(op, provider="mssql")
+
+
+logger = logging.getLogger(__name__)
 
 
 class MssqlProvider(DbProviderBase):
@@ -19,6 +23,14 @@ class MssqlProvider(DbProviderBase):
     await close_pool()
 
   async def _run(self, request: DBRequest) -> DBResponse:
+    domain, path, version = parse_db_op(request.op)
+    logger.debug(
+      "[MssqlProvider] dispatching op=%s domain=%s path=%s v=%d",
+      request.op,
+      domain,
+      "/".join(path),
+      version,
+    )
     handler = get_handler(request.op)
     spec = handler(request.payload)
     result = await self._execute_spec(spec)

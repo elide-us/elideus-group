@@ -105,7 +105,7 @@ def test_fetch_chat_logs_conversation():
       elif args is None:
         args = {}
       self.calls.append((op, args))
-      if op == "db:system:assistant_personas:get_by_name:1":
+      if op == "db:system:personas:get_by_name:1":
         return DBResult(
           rows=[
             {
@@ -117,7 +117,7 @@ def test_fetch_chat_logs_conversation():
           ],
           rowcount=1,
         )
-      if op == "db:system:assistant_conversations:find_recent:1":
+      if op == "db:system:conversations:find_recent:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
         assert args["guild_id"] == "1"
@@ -125,7 +125,7 @@ def test_fetch_chat_logs_conversation():
         assert args["user_id"] == "3"
         assert args["input_data"] == "hello"
         return DBResult(rows=[], rowcount=0)
-      if op == "db:system:assistant_conversations:insert:1":
+      if op == "db:system:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
         assert args["guild_id"] == "1"
@@ -134,7 +134,7 @@ def test_fetch_chat_logs_conversation():
         assert args["input_data"] == "hello"
         assert args["tokens"] == 7
         return DBResult(rows=[{"recid": 99}], rowcount=1)
-      if op == "db:system:assistant_conversations:update_output:1":
+      if op == "db:system:conversations:update_output:1":
         assert args == {"recid": 99, "output_data": "hi", "tokens": 42}
         return DBResult(rowcount=1)
       return DBResult()
@@ -160,10 +160,10 @@ def test_fetch_chat_logs_conversation():
   assert "tools" not in dummy_create.kwargs
   calls = [c[0] for c in module.db.calls]
   assert calls == [
-    "db:system:assistant_personas:get_by_name:1",
-    "db:system:assistant_conversations:find_recent:1",
-    "db:system:assistant_conversations:insert:1",
-    "db:system:assistant_conversations:update_output:1",
+    "db:system:personas:get_by_name:1",
+    "db:system:conversations:find_recent:1",
+    "db:system:conversations:insert:1",
+    "db:system:conversations:update_output:1",
   ]
 
 
@@ -178,7 +178,7 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
         op = op.op
       elif args is None:
         args = {}
-      assert op == "db:system:assistant_conversations:update_output:1"
+      assert op == "db:system:conversations:update_output:1"
       assert args == {"recid": 99, "output_data": "done", "tokens": 3}
       return DBResult(rowcount=0)
 
@@ -218,7 +218,7 @@ def test_fetch_chat_reuses_existing_conversation():
       elif args is None:
         args = {}
       self.calls.append((op, args))
-      if op == "db:system:assistant_personas:get_by_name:1":
+      if op == "db:system:personas:get_by_name:1":
         return DBResult(
           rows=[
             {
@@ -230,14 +230,14 @@ def test_fetch_chat_reuses_existing_conversation():
           ],
           rowcount=1,
         )
-      if op == "db:system:assistant_conversations:find_recent:1":
+      if op == "db:system:conversations:find_recent:1":
         if self.insert_count:
           return DBResult(rows=[{"recid": 555}], rowcount=1)
         return DBResult(rows=[], rowcount=0)
-      if op == "db:system:assistant_conversations:insert:1":
+      if op == "db:system:conversations:insert:1":
         self.insert_count += 1
         return DBResult(rows=[{"recid": 555}], rowcount=1)
-      if op == "db:system:assistant_conversations:update_output:1":
+      if op == "db:system:conversations:update_output:1":
         return DBResult(rowcount=1)
       return DBResult()
 
@@ -262,13 +262,13 @@ def test_fetch_chat_reuses_existing_conversation():
   assert module.db.insert_count == 1
   call_ops = [op for op, _ in module.db.calls]
   assert call_ops == [
-    "db:system:assistant_personas:get_by_name:1",
-    "db:system:assistant_conversations:find_recent:1",
-    "db:system:assistant_conversations:insert:1",
-    "db:system:assistant_conversations:update_output:1",
-    "db:system:assistant_personas:get_by_name:1",
-    "db:system:assistant_conversations:find_recent:1",
-    "db:system:assistant_conversations:update_output:1",
+    "db:system:personas:get_by_name:1",
+    "db:system:conversations:find_recent:1",
+    "db:system:conversations:insert:1",
+    "db:system:conversations:update_output:1",
+    "db:system:personas:get_by_name:1",
+    "db:system:conversations:find_recent:1",
+    "db:system:conversations:update_output:1",
   ]
 
 
@@ -299,7 +299,7 @@ def test_persona_response_calls_openai():
       elif args is None:
         args = {}
       self.calls.append((op, args))
-      if op == "db:system:assistant_personas:get_by_name:1":
+      if op == "db:system:personas:get_by_name:1":
         return DBResult(
           rows=[{
             "recid": 1,
@@ -311,10 +311,10 @@ def test_persona_response_calls_openai():
           }],
           rowcount=1,
         )
-      if op == "db:system:assistant_conversations:find_recent:1":
+      if op == "db:system:conversations:find_recent:1":
         assert args["input_data"] == "Tell me"
         return DBResult(rows=[], rowcount=0)
-      if op == "db:system:assistant_conversations:insert:1":
+      if op == "db:system:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
         assert args["guild_id"] == "1"
@@ -323,7 +323,7 @@ def test_persona_response_calls_openai():
         assert args["input_data"] == "Tell me"
         assert args["tokens"] is None
         return DBResult(rows=[{"recid": 77}], rowcount=1)
-      if op == "db:system:assistant_conversations:update_output:1":
+      if op == "db:system:conversations:update_output:1":
         assert args == {"recid": 77, "output_data": "Response", "tokens": 11}
         return DBResult(rowcount=1)
       return DBResult()
@@ -353,10 +353,10 @@ def test_persona_response_calls_openai():
     {"role": "user", "content": "Tell me"},
   ]
   assert [op for op, _ in module.db.calls] == [
-    "db:system:assistant_personas:get_by_name:1",
-    "db:system:assistant_conversations:find_recent:1",
-    "db:system:assistant_conversations:insert:1",
-    "db:system:assistant_conversations:update_output:1",
+    "db:system:personas:get_by_name:1",
+    "db:system:conversations:find_recent:1",
+    "db:system:conversations:insert:1",
+    "db:system:conversations:update_output:1",
   ]
 
 
@@ -371,7 +371,7 @@ def test_persona_response_missing_persona():
         op = op.op
       elif args is None:
         args = {}
-      if op == "db:system:assistant_personas:get_by_name:1":
+      if op == "db:system:personas:get_by_name:1":
         return DBResult(rows=[], rowcount=0)
       return DBResult()
 
@@ -393,7 +393,7 @@ def test_persona_response_stub_without_client():
         op = op.op
       elif args is None:
         args = {}
-      if op == "db:system:assistant_personas:get_by_name:1":
+      if op == "db:system:personas:get_by_name:1":
         return DBResult(
           rows=[{
             "recid": 1,

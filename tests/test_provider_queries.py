@@ -161,12 +161,9 @@ providers_pkg.DBResult = _DBResponse
 registry_users_pkg = types.ModuleType("server.registry.users")
 registry_users_pkg.__path__ = [str(root_path / "server/registry/users")]
 sys.modules.setdefault("server.registry.users", registry_users_pkg)
-registry_users_content_pkg = types.ModuleType("server.registry.users.content")
-registry_users_content_pkg.__path__ = [str(root_path / "server/registry/users/content")]
-sys.modules.setdefault("server.registry.users.content", registry_users_content_pkg)
-registry_users_content_profile_pkg = types.ModuleType("server.registry.users.content.profile")
-registry_users_content_profile_pkg.__path__ = [str(root_path / "server/registry/users/content/profile")]
-sys.modules.setdefault("server.registry.users.content.profile", registry_users_content_profile_pkg)
+registry_users_profile_pkg = types.ModuleType("server.registry.users.profile")
+registry_users_profile_pkg.__path__ = [str(root_path / "server/registry/users/profile")]
+sys.modules.setdefault("server.registry.users.profile", registry_users_profile_pkg)
 registry_providers_pkg = types.ModuleType("server.registry.providers")
 registry_providers_pkg.__path__ = [str(root_path / "server/registry/providers")]
 sys.modules.setdefault("server.registry.providers", registry_providers_pkg)
@@ -197,11 +194,11 @@ spec_registry.loader.exec_module(registry_mod)
 get_mssql_handler = registry_mod.get_handler
 
 spec_content_profile = importlib.util.spec_from_file_location(
-  "server.registry.users.content.profile.mssql",
-  root_path / "server/registry/users/content/profile/mssql.py",
+  "server.registry.users.profile.mssql",
+  root_path / "server/registry/users/profile/mssql.py",
 )
 content_profile_mssql = importlib.util.module_from_spec(spec_content_profile)
-sys.modules["server.registry.users.content.profile.mssql"] = content_profile_mssql
+sys.modules["server.registry.users.profile.mssql"] = content_profile_mssql
 spec_content_profile.loader.exec_module(content_profile_mssql)
 
 spec_finance_credits = importlib.util.spec_from_file_location(

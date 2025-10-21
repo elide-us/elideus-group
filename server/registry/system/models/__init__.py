@@ -22,7 +22,7 @@ __all__ = [
   "ModelRecord",
 ]
 
-_OP_PREFIX = "db:system:assistant_models"
+_OP_PREFIX = "db:system:models"
 
 
 def _op(name: str) -> str:
