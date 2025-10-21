@@ -64,7 +64,7 @@ def test_account_security_filters_by_provider(monkeypatch):
   monkeypatch.setattr(accounts_mssql, "run_json_one", fake_run_json_one)
 
   provider_identifier = str(uuid4())
-  handler = get_handler("db:users:account:get_security_profile:1")
+  handler = get_handler("db:users:accounts:get_security_profile:1")
   asyncio.run(
     handler({
       "provider": "microsoft",
@@ -90,7 +90,7 @@ def test_account_security_filters_by_discord(monkeypatch):
 
   monkeypatch.setattr(accounts_mssql, "run_json_one", fake_run_json_one)
 
-  handler = get_handler("db:users:account:get_security_profile:1")
+  handler = get_handler("db:users:accounts:get_security_profile:1")
   asyncio.run(handler({"discord_id": "42"}))
   sql = captured["sql"].lower()
   assert "vw_user_session_security" in sql
