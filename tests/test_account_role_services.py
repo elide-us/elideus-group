@@ -46,9 +46,9 @@ class DummyDb:
     assert isinstance(request, DBRequest)
     op = request.op
     self.calls.append(request)
-    if op == "db:security:roles:get_role_members:1":
+    if op == "db:system:roles:get_role_members:1":
       return DBRes(self.members, len(self.members))
-    if op == "db:security:roles:get_role_non_members:1":
+    if op == "db:system:roles:get_role_non_members:1":
       return DBRes(self.non_members, len(self.non_members))
     if op == "db:system:roles:list:1":
       return DBRes(self.roles, len(self.roles))
@@ -70,7 +70,7 @@ class RoleCache:
     if self.db:
       await self.db.run(
         DBRequest(
-          op="db:security:roles:upsert_role:1",
+          op="db:system:roles:upsert_role:1",
           payload={"name": name, "mask": mask, "display": display},
         )
       )
@@ -80,7 +80,7 @@ class RoleCache:
     self.delete_args = name
     if self.db:
       await self.db.run(
-        DBRequest(op="db:security:roles:delete_role:1", payload={"name": name})
+        DBRequest(op="db:system:roles:delete_role:1", payload={"name": name})
       )
     await self.refresh_role_cache()
 
@@ -126,10 +126,10 @@ class DummyRoleAdmin:
 
   async def get_role_members(self, role):
     mem_res = await self.db.run(
-      DBRequest(op="db:security:roles:get_role_members:1", payload={"role": role})
+      DBRequest(op="db:system:roles:get_role_members:1", payload={"role": role})
     )
     non_res = await self.db.run(
-      DBRequest(op="db:security:roles:get_role_non_members:1", payload={"role": role})
+      DBRequest(op="db:system:roles:get_role_non_members:1", payload={"role": role})
     )
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
@@ -147,7 +147,7 @@ class DummyRoleAdmin:
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       DBRequest(
-        op="db:security:roles:add_role_member:1",
+        op="db:system:roles:add_role_member:1",
         payload={"role": role, "user_guid": user_guid},
       )
     )
@@ -160,7 +160,7 @@ class DummyRoleAdmin:
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       DBRequest(
-        op="db:security:roles:remove_role_member:1",
+        op="db:system:roles:remove_role_member:1",
         payload={"role": role, "user_guid": user_guid},
       )
     )
@@ -223,7 +223,7 @@ def test_add_and_remove_member():
   svc_mod.unbox_request = fake_get_add
   resp = asyncio.run(account_role_add_role_member_v1(req))
   assert any(
-    call.op == "db:security:roles:add_role_member:1"
+    call.op == "db:system:roles:add_role_member:1"
     for call in db.calls
   )
   assert resp.payload["members"] == [{"guid": "u1", "displayName": "User 1"}]
@@ -249,7 +249,7 @@ def test_add_and_remove_member():
   svc_mod.unbox_request = fake_get_remove
   resp2 = asyncio.run(account_role_remove_role_member_v1(req))
   assert any(
-    call.op == "db:security:roles:remove_role_member:1"
+    call.op == "db:system:roles:remove_role_member:1"
     for call in db.calls
   )
   assert resp2.payload["members"] == []
@@ -279,7 +279,7 @@ def test_upsert_and_delete_role():
   resp = asyncio.run(account_role_upsert_role_v1(req))
   assert auth.role_cache.upsert_args == ("ROLE_NEW", 8, "New")
   assert any(
-    call.op == "db:security:roles:upsert_role:1"
+    call.op == "db:system:roles:upsert_role:1"
     and call.payload == {"name": "ROLE_NEW", "mask": 8, "display": "New"}
     for call in db.calls
   )
@@ -301,7 +301,7 @@ def test_upsert_and_delete_role():
   resp2 = asyncio.run(account_role_delete_role_v1(req))
   assert auth.role_cache.delete_args == "ROLE_NEW"
   assert any(
-    call.op == "db:security:roles:delete_role:1"
+    call.op == "db:system:roles:delete_role:1"
     and call.payload == {"name": "ROLE_NEW"}
     for call in db.calls
   )

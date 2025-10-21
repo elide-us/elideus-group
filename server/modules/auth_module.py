@@ -14,7 +14,11 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.system.roles import list_roles_request
+from server.registry.system.roles import (
+  delete_role_request,
+  list_roles_request,
+  upsert_role_request,
+)
 from server.registry.types import DBRequest
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
@@ -54,24 +58,12 @@ class RoleCache:
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
     await self.db.run(
-      DBRequest(
-        op="db:security:roles:upsert_role:1",
-        payload={
-          "name": name,
-          "mask": mask,
-          "display": display,
-        },
-      ),
+      upsert_role_request(name=name, mask=mask, display=display),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
-    await self.db.run(
-      DBRequest(
-        op="db:security:roles:delete_role:1",
-        payload={"name": name},
-      ),
-    )
+    await self.db.run(delete_role_request(name=name))
     await self.refresh_role_cache()
 
   def mask_to_names(self, mask: int) -> list[str]:
