@@ -27,6 +27,7 @@ from server.registry.users.providers import (
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
 )
+from server.registry.users.session import set_rotkey_request
 
 
 class OauthModule(BaseModule):
@@ -197,14 +198,11 @@ class OauthModule(BaseModule):
     logging.debug(f"[create_session] rotation_token={rotation_token[:40]}")
     now = datetime.now(timezone.utc)
     await self.db.run(
-      DBRequest(
-        op="db:users:session:set_rotkey:1",
-        payload={
-          "guid": user_guid,
-          "rotkey": rotation_token,
-          "iat": now,
-          "exp": rot_exp,
-        },
+      set_rotkey_request(
+        guid=user_guid,
+        rotkey=rotation_token,
+        iat=now,
+        exp=rot_exp,
       ),
     )
     roles, _ = await self.auth.get_user_roles(user_guid)

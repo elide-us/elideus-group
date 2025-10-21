@@ -15,6 +15,7 @@ from server.registry.auth.session import (
   update_session_request,
 )
 from server.registry.types import DBRequest
+from server.registry.users.session import get_rotkey_request, set_rotkey_request
 
 
 class SessionModule(BaseModule):
@@ -105,9 +106,7 @@ class SessionModule(BaseModule):
   ) -> str:
     data = self.auth.decode_rotation_token(rotation_token)
     user_guid = data["guid"]
-    stored = await self.db.run(
-      DBRequest(op="db:users:session:get_rotkey:1", payload={"guid": user_guid}),
-    )
+    stored = await self.db.run(get_rotkey_request(guid=user_guid))
     row = stored.rows[0] if stored.rows else None
     if not row or row.get("rotkey") != rotation_token:
       raise HTTPException(status_code=401, detail="Invalid rotation token")
@@ -142,10 +141,7 @@ class SessionModule(BaseModule):
   async def invalidate_token(self, user_guid: str) -> None:
     now = datetime.now(timezone.utc)
     await self.db.run(
-      DBRequest(
-        op="db:users:session:set_rotkey:1",
-        payload={"guid": user_guid, "rotkey": "", "iat": now, "exp": now},
-      ),
+      set_rotkey_request(guid=user_guid, rotkey="", iat=now, exp=now),
     )
 
   async def logout_device(self, token: str) -> None:
