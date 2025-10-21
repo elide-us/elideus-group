@@ -1,6 +1,7 @@
 from __future__ import annotations
 from fastapi import FastAPI
 from server.registry.system.links import (
+  NavbarRoutesParams,
   get_home_links_request,
   get_navbar_routes_request,
 )
@@ -32,5 +33,7 @@ class PublicLinksModule(BaseModule):
 
   async def get_navbar_routes(self, role_mask: int):
     assert self.db
-    res = await self.db.run(get_navbar_routes_request(role_mask=role_mask))
+    res = await self.db.run(
+      get_navbar_routes_request(NavbarRoutesParams(role_mask=role_mask))
+    )
     return res.rows

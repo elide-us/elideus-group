@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 from server.registry.providers.mssql import run_json_many
 from server.registry.types import DBResponse
 
@@ -25,8 +27,14 @@ async def get_home_links_v1(_: object) -> DBResponse:
   return await run_json_many(sql)
 
 
-async def get_navbar_routes_v1(args: NavbarRoutesParams) -> DBResponse:
-  mask = int(args.get("role_mask", 0))
+async def get_navbar_routes_v1(
+  args: Mapping[str, Any] | NavbarRoutesParams,
+) -> DBResponse:
+  params = (
+    args if isinstance(args, NavbarRoutesParams)
+    else NavbarRoutesParams.model_validate(args)
+  )
+  mask = int(params.role_mask or 0)
   sql = """
     SELECT
       element_path AS path,
