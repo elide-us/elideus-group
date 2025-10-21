@@ -70,9 +70,70 @@ class RPCResponse:
     self.__dict__.update(data)
 
 
+class RPCRequest:
+  def __init__(self, **data):
+    self.__dict__.update(data)
+
+
+class AuthContext:
+  def __init__(self):
+    self.user_guid = None
+    self.roles = []
+    self.role_mask = 0
+    self.provider = None
+    self.claims = {}
+
+
 models_pkg.RPCResponse = RPCResponse
+models_pkg.RPCRequest = RPCRequest
+models_pkg.AuthContext = AuthContext
 server_pkg.modules = modules_pkg
 server_pkg.models = models_pkg
+
+registry_pkg = types.ModuleType('server.registry')
+registry_pkg.__path__ = []
+
+registry_system_pkg = types.ModuleType('server.registry.system')
+registry_system_pkg.__path__ = []
+
+registry_system_routes_pkg = types.ModuleType('server.registry.system.routes')
+
+
+def _make_request(op, payload=None):
+  if payload is None:
+    payload = {}
+  return SimpleNamespace(op=op, payload=payload)
+
+
+def get_routes_request():
+  return _make_request('db:system:routes:get_routes:1')
+
+
+def upsert_route_request(*, path, name, icon, sequence, roles):
+  return _make_request('db:system:routes:upsert_route:1', {
+    'path': path,
+    'name': name,
+    'icon': icon,
+    'sequence': sequence,
+    'roles': roles,
+  })
+
+
+def delete_route_request(path):
+  return _make_request('db:system:routes:delete_route:1', {'path': path})
+
+
+registry_system_routes_pkg.get_routes_request = get_routes_request
+registry_system_routes_pkg.upsert_route_request = upsert_route_request
+registry_system_routes_pkg.delete_route_request = delete_route_request
+
+sys.modules.setdefault('server.registry', registry_pkg)
+sys.modules.setdefault('server.registry.system', registry_system_pkg)
+sys.modules.setdefault('server.registry.system.routes', registry_system_routes_pkg)
+
+server_pkg.registry = registry_pkg
+registry_pkg.system = registry_system_pkg
+registry_system_pkg.routes = registry_system_routes_pkg
 
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
@@ -118,7 +179,7 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
-    if op == 'db:service:routes:get_routes:1':
+    if op == 'db:system:routes:get_routes:1':
       rows = [{
         'element_path': '/a',
         'element_name': 'A',
@@ -127,7 +188,7 @@ class DummyDb:
         'element_roles': 1,
       }]
       return SimpleNamespace(rows=rows, rowcount=1)
-    if op in ('db:service:routes:upsert_route:1', 'db:service:routes:delete_route:1'):
+    if op in ('db:system:routes:upsert_route:1', 'db:system:routes:delete_route:1'):
       return SimpleNamespace(rows=[], rowcount=1)
     raise AssertionError(f'unexpected op {op}')
 
@@ -169,7 +230,7 @@ def test_get_routes_service():
       'required_roles': ['ROLE_SERVICE_ADMIN'],
     }]
   }
-  assert ('db:service:routes:get_routes:1', {}) in db.calls
+  assert ('db:system:routes:get_routes:1', {}) in db.calls
 
 
 def test_upsert_and_delete_route_service():
@@ -184,11 +245,11 @@ def test_upsert_and_delete_route_service():
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
   assert resp.status_code == 200
-  assert ('db:service:routes:upsert_route:1', {
+  assert ('db:system:routes:upsert_route:1', {
     'path': '/a',
     'name': 'A',
     'icon': 'home',
     'sequence': 1,
     'roles': 1,
   }) in db.calls
-  assert ('db:service:routes:delete_route:1', {'path': '/a'}) in db.calls
+  assert ('db:system:routes:delete_route:1', {'path': '/a'}) in db.calls
