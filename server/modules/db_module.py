@@ -175,7 +175,7 @@ class DbModule(BaseModule):
 
   async def user_exists(self, user_guid: str) -> bool:
     res = await self.run(
-      DBRequest(op="db:users:account:exists:1", payload={"user_guid": user_guid})
+      DBRequest(op="db:users:accounts:exists:1", payload={"user_guid": user_guid})
     )
     return bool(res.rows)
 

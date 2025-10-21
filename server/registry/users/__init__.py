@@ -21,6 +21,9 @@ __all__ = [
 def register(router: "RegistryRouter") -> None:
   domain = router.domain("users")
   content.register(domain)
-  accounts.register(domain.subdomain("accounts", op_segment="account"))
+  accounts.register(
+    domain.subdomain("accounts"),
+    legacy_op_segment="account",
+  )
   providers.register(domain.subdomain("providers"))
   session.register(domain.subdomain("session"))
