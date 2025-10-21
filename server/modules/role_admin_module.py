@@ -3,8 +3,13 @@ from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.system.roles import list_roles_request
-from server.registry.types import DBRequest
+from server.registry.system.roles import (
+  add_role_member_request,
+  get_role_members_request,
+  get_role_non_members_request,
+  list_roles_request,
+  remove_role_member_request,
+)
 
 
 class RoleAdminModule(BaseModule):
@@ -53,18 +58,8 @@ class RoleAdminModule(BaseModule):
     return roles
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
-    mem_res = await self.db.run(
-      DBRequest(
-        op="db:security:roles:get_role_members:1",
-        payload={"role": role},
-      ),
-    )
-    non_res = await self.db.run(
-      DBRequest(
-        op="db:security:roles:get_role_non_members:1",
-        payload={"role": role},
-      ),
-    )
+    mem_res = await self.db.run(get_role_members_request(role))
+    non_res = await self.db.run(get_role_non_members_request(role))
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
       for r in mem_res.rows
@@ -79,12 +74,7 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(
-      DBRequest(
-        op="db:security:roles:add_role_member:1",
-        payload={"role": role, "user_guid": user_guid},
-      ),
-    )
+    await self.db.run(add_role_member_request(role, user_guid))
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
@@ -92,12 +82,7 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(
-      DBRequest(
-        op="db:security:roles:remove_role_member:1",
-        payload={"role": role, "user_guid": user_guid},
-      ),
-    )
+    await self.db.run(remove_role_member_request(role, user_guid))
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
