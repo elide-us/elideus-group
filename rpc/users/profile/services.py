@@ -30,7 +30,7 @@ async def users_profile_get_profile_v1(request: Request):
   db: DbModule = request.app.state.db
   res = await db.run(
     DBRequest(
-      op="db:users:profile:get_profile:1",
+      op="db:account:profile:get_profile:1",
       payload={"guid": user_guid},
     ),
   )
@@ -60,7 +60,7 @@ async def users_profile_set_display_v1(request: Request):
   db: DbModule = request.app.state.db
   await db.run(
     DBRequest(
-      op="db:users:profile:set_display:1",
+      op="db:account:profile:set_display:1",
       payload={
         "guid": user_guid,
         "display_name": payload.display_name,
@@ -83,7 +83,7 @@ async def users_profile_set_optin_v1(request: Request):
   db: DbModule = request.app.state.db
   await db.run(
     DBRequest(
-      op="db:users:profile:set_optin:1",
+      op="db:account:profile:set_optin:1",
       payload={
         "guid": user_guid,
         "display_email": payload.display_email,
@@ -105,7 +105,7 @@ async def users_profile_get_roles_v1(request: Request):
   db: DbModule = request.app.state.db
   res = await db.run(
     DBRequest(
-      op="db:users:profile:get_roles:1",
+      op="db:account:profile:get_roles:1",
       payload={"guid": user_guid},
     ),
   )
@@ -127,7 +127,7 @@ async def users_profile_set_profile_image_v1(request: Request):
   db: DbModule = request.app.state.db
   await db.run(
     DBRequest(
-      op="db:users:profile:set_profile_image:1",
+      op="db:account:profile:set_profile_image:1",
       payload={
         "guid": user_guid,
         "image_b64": payload.image_b64,

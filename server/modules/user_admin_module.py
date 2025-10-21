@@ -24,7 +24,7 @@ class UserAdminModule(BaseModule):
 
   async def get_displayname(self, guid: str) -> str:
     res = await self.db.run(
-      DBRequest(op="db:users:profile:get_profile:1", payload={"guid": guid}),
+      DBRequest(op="db:account:profile:get_profile:1", payload={"guid": guid}),
     )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
@@ -33,7 +33,7 @@ class UserAdminModule(BaseModule):
 
   async def get_credits(self, guid: str) -> int:
     res = await self.db.run(
-      DBRequest(op="db:users:profile:get_profile:1", payload={"guid": guid}),
+      DBRequest(op="db:account:profile:get_profile:1", payload={"guid": guid}),
     )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
@@ -51,7 +51,7 @@ class UserAdminModule(BaseModule):
   async def reset_display(self, guid: str) -> None:
     await self.db.run(
       DBRequest(
-        op="db:users:profile:set_display:1",
+        op="db:account:profile:set_display:1",
         payload={"guid": guid, "display_name": "Default User"},
       ),
     )

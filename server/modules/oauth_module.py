@@ -12,22 +12,22 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.auth.oauth import (
+from server.registry.account.oauth import (
   relink_discord_request,
   relink_google_request,
   relink_microsoft_request,
 )
-from server.registry.auth.session import (
+from server.registry.account.session import (
   create_session_request,
   update_device_token_request,
 )
 from server.registry.types import DBRequest
-from server.registry.users.providers import (
+from server.registry.account.providers import (
   create_from_provider_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
 )
-from server.registry.users.session import set_rotkey_request
+from server.registry.account.session import set_rotkey_request
 
 
 class OauthModule(BaseModule):
@@ -272,7 +272,7 @@ class OauthModule(BaseModule):
         )
       else:
         request = DBRequest(
-          op=f"db:auth:{provider}:oauth_relink:1",
+          op=f"db:account:oauth:relink_{provider}:1",
           payload={
             "provider_identifier": provider_uid,
             "email": profile["email"],

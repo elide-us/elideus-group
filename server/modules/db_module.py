@@ -10,14 +10,14 @@ from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
 from .providers import DBRequest, DBResponse
-from server.registry.users.cache import (
+from server.registry.account.cache import (
   delete_cache_folder_request,
   delete_cache_item_request,
   list_cache_request,
   replace_user_cache_request,
   upsert_cache_item_request,
 )
-from server.registry.users.cache.model import (
+from server.registry.account.cache.model import (
   CacheItemKey,
   DeleteCacheFolderParams,
   ListCacheParams,
@@ -175,7 +175,7 @@ class DbModule(BaseModule):
 
   async def user_exists(self, user_guid: str) -> bool:
     res = await self.run(
-      DBRequest(op="db:users:accounts:exists:1", payload={"user_guid": user_guid})
+      DBRequest(op="db:account:accounts:exists:1", payload={"user_guid": user_guid})
     )
     return bool(res.rows)
 

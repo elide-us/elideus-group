@@ -156,12 +156,11 @@ class SubdomainRouter:
 
 _registry_router = RegistryRouter()
 
-from . import auth, finance, system, users  # noqa: E402
+from . import account, finance, system  # noqa: E402
 
 finance.register(_registry_router)
-auth.register(_registry_router)
+account.register(_registry_router)
 system.register(_registry_router)
-users.register(_registry_router)
 
 
 def get_handler(op: str, *, provider: str = "mssql") -> Callable[[Mapping[str, Any]], Any]:

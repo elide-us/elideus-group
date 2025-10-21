@@ -8,14 +8,14 @@ from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.auth.session import (
+from server.registry.account.session import (
   create_session_request,
   revoke_device_token_request,
   update_device_token_request,
   update_session_request,
 )
 from server.registry.types import DBRequest
-from server.registry.users.session import get_rotkey_request, set_rotkey_request
+from server.registry.account.session import get_rotkey_request, set_rotkey_request
 
 
 class SessionModule(BaseModule):
@@ -154,7 +154,7 @@ class SessionModule(BaseModule):
     user_agent: str | None,
   ) -> dict:
     res = await self.db.run(
-      DBRequest(op="db:auth:session:get_by_access_token:1", payload={"access_token": token}),
+      DBRequest(op="db:account:session:get_by_access_token:1", payload={"access_token": token}),
     )
     session = res.rows[0] if res.rows else None
     if not session:

@@ -45,13 +45,13 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
-    if op == "db:users:providers:get_by_provider_identifier:1":
+    if op == "db:account:providers:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "profile_image": "old" }], 1)
-    if op == "db:users:session:set_rotkey:1" or op == "db:users:profile:set_profile_image:1":
+    if op == "db:account:session:set_rotkey:1" or op == "db:account:profile:set_profile_image:1":
       return DBRes([], 1)
-    if op == "db:auth:session:create_session:1":
+    if op == "db:account:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:account:session:update_device_token:1":
       return DBRes([], 1)
     if op == "db:system:config:get_config:1":
       key = args.get("key")
@@ -152,5 +152,5 @@ def test_updates_profile_image(monkeypatch):
   req = DummyRequest()
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(auth_google_oauth_login_v1(req))
-  assert any(op == "db:users:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:account:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)
   asyncio.run(req.app.state.auth.providers["google"].shutdown())
