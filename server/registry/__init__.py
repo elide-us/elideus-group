@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any, Callable, Dict, Mapping
 
 from .models import DBRequest
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
   "DomainRouter",
@@ -44,7 +47,9 @@ class _HandlerRegistry:
     try:
       spec = self._providers[provider][op]
     except KeyError as exc:
-      raise KeyError(f"Handler for {op} not found") from exc
+      raise KeyError(
+        f"No handler registered for operation '{op}' with provider '{provider}'"
+      ) from exc
     return spec.load()
 
 
@@ -162,11 +167,19 @@ users.register(_registry_router)
 def get_handler(op: str, *, provider: str = "mssql") -> Callable[[Mapping[str, Any]], Any]:
   try:
     if provider == _registry_router.provider:
-      return _registry_router.get_handler(op)
-    return _registry_router._registry.get(op, provider=provider)
+      handler = _registry_router.get_handler(op)
+    else:
+      handler = _registry_router._registry.get(op, provider=provider)
   except KeyError:
-    if provider == "mssql":
-      from server.modules.providers.database.mssql_provider.registry import get_handler as legacy_get_handler
-
-      return legacy_get_handler(op)
+    logger.error(
+      "Registry handler resolution failed",
+      extra={"db_op": op, "db_provider": provider},
+      exc_info=False,
+    )
     raise
+
+  logger.info(
+    "Registry handler resolved",
+    extra={"db_op": op, "db_provider": provider},
+  )
+  return handler

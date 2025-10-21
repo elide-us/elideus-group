@@ -1,43 +1,55 @@
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Any, Iterable
 
-from server.modules.providers.database.mssql_provider import registry
+from server.registry.users.providers import mssql as users_providers_mssql
+
 
 class FakeCursor:
-  def __init__(self, fetches, log):
-    self._fetches = fetches
+  def __init__(self, fetches: Iterable[Any], log: list[tuple[str, tuple[Any, ...]]]):
+    self._fetches = iter(fetches)
     self.log = log
+
   async def execute(self, sql, params):
-    self.log.append((sql.strip(), params))
+    self.log.append((sql.strip().lower(), params))
+
   async def fetchone(self):
-    return self._fetches.pop(0)
+    return next(self._fetches, None)
+
 
 @asynccontextmanager
 async def fake_transaction(fetches, log):
   cur = FakeCursor(fetches, log)
   yield cur
 
+
 def test_unlink_last_provider_clears_profile(monkeypatch):
-  log = []
-  fetches = [
-    (1,),  # current providers_recid
-    (1,),  # provider recid lookup
-    (0,),  # remaining linked providers
-  ]
+  log: list[tuple[str, tuple[Any, ...]]] = []
+  fetches = [(1,), (0,)]
+
   monkeypatch.setattr(
-    registry,
+    users_providers_mssql,
     "transaction",
     lambda: fake_transaction(fetches, log),
   )
+
+  async def fake_get_auth_provider_recid(provider, *, cursor=None):
+    return 1
+
+  monkeypatch.setattr(
+    users_providers_mssql,
+    "get_auth_provider_recid",
+    fake_get_auth_provider_recid,
+  )
+
   res = asyncio.run(
-    registry._users_unlink_provider({
+    users_providers_mssql.unlink_provider_v1({
       "guid": "00000000-0000-0000-0000-000000000001",
       "provider": "google",
     })
   )
-  assert res["rows"][0]["providers_remaining"] == 0
+  assert res.rows[0]["providers_remaining"] == 0
   assert any(
-    "element_display = ''" in sql and "element_email = ''" in sql
+    "update account_users set providers_recid = null, element_display = '', element_email = ''" in sql
     for sql, _ in log
   )
-
