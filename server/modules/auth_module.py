@@ -20,6 +20,7 @@ from server.registry.system.roles import (
   upsert_role_request,
 )
 from server.registry.types import DBRequest
+from server.registry.users.accounts import get_security_profile_request
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -332,10 +333,7 @@ class AuthModule(BaseModule):
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
     res = await self.db.run(
-      DBRequest(
-        op="db:auth:discord:get_security:1",
-        payload={"discord_id": discord_id},
-      ),
+      get_security_profile_request(discord_id=discord_id),
     )
     if not res.rows:
       return "", [], 0
