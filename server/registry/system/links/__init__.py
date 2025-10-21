@@ -1,8 +1,12 @@
-"""Public links registry bindings."""
+"""Public links registry bindings.
+
+Helpers in this module exchange validated Pydantic models so registries,
+providers, and services share consistent payload shapes for public link data.
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
@@ -21,16 +25,16 @@ __all__ = [
 ]
 
 
-def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
-  return DBRequest(op=op, params=params or {})
+def _request(op: str, params: NavbarRoutesParams | None = None) -> DBRequest:
+  payload = params.model_dump(exclude_none=True) if params else {}
+  return DBRequest(op=op, params=payload)
 
 
 def get_home_links_request() -> DBRequest:
   return _request("db:system:public_links:get_home_links:1")
 
 
-def get_navbar_routes_request(*, role_mask: int) -> DBRequest:
-  params: NavbarRoutesParams = {"role_mask": role_mask}
+def get_navbar_routes_request(params: NavbarRoutesParams) -> DBRequest:
   return _request("db:system:public_links:get_navbar_routes:1", params)
 
 

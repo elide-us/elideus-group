@@ -17,6 +17,13 @@ from server.registry.users.cache import (
   replace_user_cache_request,
   upsert_cache_item_request,
 )
+from server.registry.users.cache.model import (
+  CacheItemKey,
+  DeleteCacheFolderParams,
+  ListCacheParams,
+  ReplaceUserCacheParams,
+  UpsertCacheItemParams,
+)
 from server.helpers.logging import update_logging_level
 
 
@@ -158,11 +165,13 @@ class DbModule(BaseModule):
     return int(value)
 
   async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
-    res = await self.run(list_cache_request(user_guid))
+    params = ListCacheParams(user_guid=user_guid)
+    res = await self.run(list_cache_request(params))
     return res.rows
 
   async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
-    await self.run(replace_user_cache_request(user_guid, items))
+    params = ReplaceUserCacheParams(user_guid=user_guid, items=items)
+    await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
     res = await self.run(
@@ -171,11 +180,14 @@ class DbModule(BaseModule):
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
-    return await self.run(upsert_cache_item_request(item))
+    params = UpsertCacheItemParams.model_validate(item)
+    return await self.run(upsert_cache_item_request(params))
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
-    await self.run(delete_cache_item_request(user_guid, path, filename))
+    params = CacheItemKey(user_guid=user_guid, path=path, filename=filename)
+    await self.run(delete_cache_item_request(params))
 
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
-    await self.run(delete_cache_folder_request(user_guid, path))
+    params = DeleteCacheFolderParams(user_guid=user_guid, path=path)
+    await self.run(delete_cache_folder_request(params))
 

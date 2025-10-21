@@ -1,8 +1,8 @@
-"""Type contracts for system public link registry operations."""
+"""Pydantic models for system public link registry interactions."""
 
 from __future__ import annotations
 
-from typing import TypedDict
+from pydantic import BaseModel, ConfigDict
 
 __all__ = [
   "HomeLink",
@@ -11,15 +11,19 @@ __all__ = [
 ]
 
 
-class HomeLink(TypedDict):
+class HomeLink(BaseModel):
   """Metadata for a public home link."""
+
+  model_config = ConfigDict(extra="forbid")
 
   title: str
   url: str
 
 
-class NavbarRoute(TypedDict):
+class NavbarRoute(BaseModel):
   """Metadata for a public navigation route."""
+
+  model_config = ConfigDict(extra="forbid")
 
   path: str
   name: str
@@ -27,7 +31,9 @@ class NavbarRoute(TypedDict):
   sequence: int
 
 
-class NavbarRoutesParams(TypedDict, total=False):
+class NavbarRoutesParams(BaseModel):
   """Parameters for fetching navbar routes."""
 
-  role_mask: int
+  model_config = ConfigDict(extra="forbid")
+
+  role_mask: int | None = None
