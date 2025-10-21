@@ -2,37 +2,45 @@ import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from server.modules.providers.database.mssql_provider import registry
-from server.modules.providers import DBResult
+from server.registry.types import DBResponse
+from server.registry.users.providers import mssql as users_providers_mssql
 
 
 def test_create_from_provider_inserts_profile_image(monkeypatch):
-  executed = []
+  executed: list[str] = []
+  fetch_iter = iter([(None,)])
 
   class DummyCursor:
     async def execute(self, sql, params):
       executed.append(sql.lower())
 
+    async def fetchone(self):
+      return next(fetch_iter, None)
+
   @asynccontextmanager
   async def dummy_transaction():
     yield DummyCursor()
 
-  async def fake_fetch_json(query, params, many=False):
-    q = query.strip().lower()
-    if q.startswith("select recid from auth_providers"):
-      return DBResult(rows=[{"recid": 1}], rowcount=1)
-    if q.startswith("select users_guid from users_auth"):
-      return DBResult(rows=[], rowcount=0)
-    return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
+  async def fake_run_exec(sql, params):
+    executed.append(sql.lower())
+    return DBResponse(rowcount=1)
 
-  async def fake_fetch_rows(query, params, one=False, stream=False):
-    return DBResult(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
+  async def fake_run_json_one(sql, params):
+    query = sql.strip().lower()
+    if "select users_guid from users_auth" in query:
+      return DBResponse()
+    if "from vw_account_user_profile" in query:
+      return DBResponse(rows=[{"guid": "gid", "profile_image": args["provider_profile_image"]}], rowcount=1)
+    raise AssertionError(f"Unexpected query: {sql}")
 
-  monkeypatch.setattr(registry, "transaction", dummy_transaction)
-  monkeypatch.setattr(registry, "fetch_json", fake_fetch_json)
-  monkeypatch.setattr(registry, "fetch_rows", fake_fetch_rows)
+  async def fake_get_auth_provider_recid(provider, *, cursor=None):
+    return 1
 
-  handler = registry.get_handler("db:users:providers:create_from_provider:1")
+  monkeypatch.setattr(users_providers_mssql, "transaction", dummy_transaction)
+  monkeypatch.setattr(users_providers_mssql, "run_exec", fake_run_exec)
+  monkeypatch.setattr(users_providers_mssql, "run_json_one", fake_run_json_one)
+  monkeypatch.setattr(users_providers_mssql, "get_auth_provider_recid", fake_get_auth_provider_recid)
+
   args = {
     "provider": "microsoft",
     "provider_identifier": str(uuid4()),
@@ -40,10 +48,9 @@ def test_create_from_provider_inserts_profile_image(monkeypatch):
     "provider_displayname": "User",
     "provider_profile_image": "img",
   }
-  res = asyncio.run(handler(args))
+  res = asyncio.run(users_providers_mssql.create_from_provider_v1(args))
 
   assert any("insert into users_profileimg" in sql for sql in executed)
   assert any("insert into users_roles" in sql for sql in executed)
   assert res.rows
   assert res.rows[0]["profile_image"] == "img"
-
