@@ -20,8 +20,8 @@ from server.registry.system.roles import (
   upsert_role_request,
 )
 from server.registry.types import DBRequest
-from server.registry.users.accounts import get_security_profile_request
-from server.registry.users.session import get_rotkey_request
+from server.registry.account.accounts import get_security_profile_request
+from server.registry.account.session import get_rotkey_request
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -88,7 +88,7 @@ class RoleCache:
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
     res = await self.db.run(
-      DBRequest(op="db:users:profile:get_roles:1", payload={"guid": guid}),
+      DBRequest(op="db:account:profile:get_roles:1", payload={"guid": guid}),
     )
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)

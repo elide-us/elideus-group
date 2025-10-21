@@ -713,7 +713,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:users:cache:count_rows:1":
+      if op == "db:account:cache:count_rows:1":
         return Res([{ "count": 10 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])
@@ -932,7 +932,7 @@ def test_get_storage_stats_counts_user_folders(monkeypatch):
       class Res:
         def __init__(self, rows):
           self.rows = rows
-      if op == "db:users:cache:count_rows:1":
+      if op == "db:account:cache:count_rows:1":
         return Res([{ "count": 0 }])
       if op == "db:system:config:get_config:1" and args.get("key") == "AzureBlobContainerName":
         return Res([{ "value": "container" }])

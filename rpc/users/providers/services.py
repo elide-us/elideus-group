@@ -7,11 +7,11 @@ from server.models import RPCResponse
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
-from server.registry.auth.providers import unlink_last_provider_request
-from server.registry.auth.session import revoke_provider_tokens_request
+from server.registry.account.providers import unlink_last_provider_request
+from server.registry.account.session import revoke_provider_tokens_request
 from server.registry.system.config import get_config_request
 from server.registry.types import DBRequest
-from server.registry.users.providers import (
+from server.registry.account.providers import (
   create_from_provider_request,
   get_by_provider_identifier_request,
   get_user_by_email_request,
@@ -135,7 +135,7 @@ async def users_providers_set_provider_v1(request: Request):
     display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
     await db.run(
       DBRequest(
-        op="db:users:profile:update_if_unedited:1",
+        op="db:account:profile:update_if_unedited:1",
         payload={
           "guid": auth_ctx.user_guid,
           "email": email,
@@ -266,7 +266,7 @@ async def users_providers_unlink_provider_v1(request: Request):
   db: DbModule = request.app.state.db
   res_prof = await db.run(
     DBRequest(
-      op="db:users:profile:get_profile:1",
+      op="db:account:profile:get_profile:1",
       payload={"guid": auth_ctx.user_guid},
     ),
   )

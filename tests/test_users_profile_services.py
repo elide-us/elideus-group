@@ -142,7 +142,7 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
-    if op == "db:users:profile:get_profile:1":
+    if op == "db:account:profile:get_profile:1":
       return DBRes([
         {
           "guid": args.get("guid"),
@@ -155,9 +155,9 @@ class DummyDb:
           "auth_providers": self.auth_providers,
         }
       ], 1)
-    if op == "db:users:profile:get_roles:1":
+    if op == "db:account:profile:get_roles:1":
       return DBRes([{"element_roles": self.roles}], 1)
-    if op == "db:users:profile:set_profile_image:1":
+    if op == "db:account:profile:set_profile_image:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -184,7 +184,7 @@ def test_get_roles_service_returns_mask():
   resp = asyncio.run(users_profile_get_roles_v1(req))
   assert isinstance(resp, RPCResponse)
   assert resp.payload["roles"] == 5
-  assert ("db:users:profile:get_roles:1", {"guid": "u1"}) in db.calls
+  assert ("db:account:profile:get_roles:1", {"guid": "u1"}) in db.calls
 
 
 def test_get_profile_returns_structured_auth_providers():
@@ -201,7 +201,7 @@ def test_get_profile_returns_structured_auth_providers():
   assert isinstance(providers, list)
   assert providers[0]["name"] == "microsoft"
   assert providers[1]["display"] == "Google"
-  assert ("db:users:profile:get_profile:1", {"guid": "user-guid"}) in db.calls
+  assert ("db:account:profile:get_profile:1", {"guid": "user-guid"}) in db.calls
 
 
 def test_get_profile_defaults_auth_providers_to_empty_list():
@@ -235,7 +235,7 @@ def test_set_profile_image_calls_db():
   db = DummyDb()
   req = DummyRequest(DummyState(db))
   resp = asyncio.run(users_profile_set_profile_image_v1(req))
-  assert ("db:users:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
+  assert ("db:account:profile:set_profile_image:1", {"guid": "u1", "image_b64": "abc", "provider": "microsoft"}) in db.calls
   assert resp.payload["image_b64"] == "abc"
 
 

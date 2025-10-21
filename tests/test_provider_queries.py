@@ -7,9 +7,9 @@ import pytest
 from server.registry import get_handler
 from server.registry.finance.credits import mssql as finance_credits_mssql
 from server.registry.types import DBResponse
-from server.registry.users.accounts import mssql as accounts_mssql
-from server.registry.users.profile import mssql as profile_mssql
-from server.registry.users.providers import mssql as users_providers_mssql
+from server.registry.account.accounts import mssql as accounts_mssql
+from server.registry.account.profile import mssql as profile_mssql
+from server.registry.account.providers import mssql as users_providers_mssql
 from server.modules.providers.database.mssql_provider import db_helpers
 
 
@@ -23,7 +23,7 @@ def test_users_provider_query_uses_user_view(monkeypatch):
 
   monkeypatch.setattr(users_providers_mssql, "run_json_one", fake_run_json_one)
 
-  handler = get_handler("db:users:providers:get_by_provider_identifier:1")
+  handler = get_handler("db:account:providers:get_by_provider_identifier:1")
   asyncio.run(
     handler({"provider": "microsoft", "provider_identifier": str(uuid4())})
   )
@@ -43,7 +43,7 @@ def test_users_profile_get_profile_uses_profile_view(monkeypatch):
 
   monkeypatch.setattr(profile_mssql, "run_json_one", fake_run_json_one)
 
-  handler = get_handler("db:users:profile:get_profile:1")
+  handler = get_handler("db:account:profile:get_profile:1")
   asyncio.run(handler({"guid": "gid"}))
   sql = captured["sql"].lower()
   assert "vw_account_user_profile" in sql
@@ -64,7 +64,7 @@ def test_account_security_filters_by_provider(monkeypatch):
   monkeypatch.setattr(accounts_mssql, "run_json_one", fake_run_json_one)
 
   provider_identifier = str(uuid4())
-  handler = get_handler("db:users:accounts:get_security_profile:1")
+  handler = get_handler("db:account:accounts:get_security_profile:1")
   asyncio.run(
     handler({
       "provider": "microsoft",
@@ -90,7 +90,7 @@ def test_account_security_filters_by_discord(monkeypatch):
 
   monkeypatch.setattr(accounts_mssql, "run_json_one", fake_run_json_one)
 
-  handler = get_handler("db:users:accounts:get_security_profile:1")
+  handler = get_handler("db:account:accounts:get_security_profile:1")
   asyncio.run(handler({"discord_id": "42"}))
   sql = captured["sql"].lower()
   assert "vw_user_session_security" in sql

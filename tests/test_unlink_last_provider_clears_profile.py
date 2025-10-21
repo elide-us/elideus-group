@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, Iterable
 
-from server.registry.users.providers import mssql as users_providers_mssql
+from server.registry.account.providers import mssql as users_providers_mssql
 
 
 class FakeCursor:

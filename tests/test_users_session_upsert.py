@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from server.registry import get_handler
-from server.registry.auth.session import mssql as session_mssql
+from server.registry.account.session import mssql as session_mssql
 
 
 def test_create_session_updates_existing(monkeypatch):
@@ -27,7 +27,7 @@ def test_create_session_updates_existing(monkeypatch):
   monkeypatch.setattr(session_mssql, "transaction", fake_transaction)
   monkeypatch.setattr(session_mssql, "get_auth_provider_recid", fake_get_auth_provider_recid)
 
-  handler = get_handler("db:auth:session:create_session:1")
+  handler = get_handler("db:account:session:create_session:1")
   args = {
     "access_token": "tok",
     "expires": datetime.now(timezone.utc),

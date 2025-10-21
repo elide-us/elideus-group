@@ -31,13 +31,13 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
-    if op == "db:users:providers:get_by_provider_identifier:1":
+    if op == "db:account:providers:get_by_provider_identifier:1":
       return DBRes([{ "guid": "user-guid", "display_name": "User", "credits": 0, "profile_image": "old" }], 1)
-    if op == "db:users:session:set_rotkey:1" or op == "db:users:profile:set_profile_image:1":
+    if op == "db:account:session:set_rotkey:1" or op == "db:account:profile:set_profile_image:1":
       return DBRes([], 1)
-    if op == "db:auth:session:create_session:1":
+    if op == "db:account:session:create_session:1":
       return DBRes([{ "session_guid": "sess", "device_guid": "dev" }], 1)
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:account:session:update_device_token:1":
       return DBRes([], 1)
     return DBRes()
 
@@ -106,4 +106,4 @@ def test_updates_profile_image(monkeypatch):
 
   req = DummyRequest()
   asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:users:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)
+  assert any(op == "db:account:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)

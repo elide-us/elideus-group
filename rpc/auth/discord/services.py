@@ -91,7 +91,7 @@ async def auth_discord_oauth_login_v1(request: Request):
   if new_img and new_img != user.get("profile_image"):
     await db.run(
       DBRequest(
-        op="db:users:profile:set_profile_image:1",
+        op="db:account:profile:set_profile_image:1",
         payload={
           "guid": user_guid,
           "image_b64": new_img,
@@ -103,7 +103,7 @@ async def auth_discord_oauth_login_v1(request: Request):
   if user.get("provider_name") == "discord":
     res_prof = await db.run(
       DBRequest(
-        op="db:users:profile:update_if_unedited:1",
+        op="db:account:profile:update_if_unedited:1",
         payload={
           "guid": user_guid,
           "email": profile["email"],

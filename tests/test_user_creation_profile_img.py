@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from server.registry.types import DBResponse
-from server.registry.users.providers import mssql as users_providers_mssql
+from server.registry.account.providers import mssql as users_providers_mssql
 
 
 def test_create_from_provider_inserts_profile_image(monkeypatch):

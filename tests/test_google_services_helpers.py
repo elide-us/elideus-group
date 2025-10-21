@@ -42,9 +42,9 @@ class DummyDb:
     elif args is None:
       args = {}
     self.calls.append((op, args))
-    if op == "db:auth:session:create_session:1":
+    if op == "db:account:session:create_session:1":
       return SimpleNamespace(rows=[{"session_guid": "sess", "device_guid": "dev"}])
-    if op == "db:auth:session:update_device_token:1":
+    if op == "db:account:session:update_device_token:1":
       return SimpleNamespace(rows=[], rowcount=1)
     return SimpleNamespace(rows=[])
 
@@ -81,7 +81,7 @@ def test_create_session_handles_missing_roles():
   assert token == "sess"
   assert rot == "rot"
   ops = [op for op, _ in db.calls]
-  assert "db:auth:session:create_session:1" in ops
-  args = [a for op, a in db.calls if op == "db:auth:session:create_session:1"][0]
+  assert "db:account:session:create_session:1" in ops
+  args = [a for op, a in db.calls if op == "db:account:session:create_session:1"][0]
   assert args["provider"] == "google"
 
