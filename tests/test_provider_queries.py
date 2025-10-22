@@ -7,9 +7,13 @@ import pytest
 from server.registry import get_handler
 from server.registry.finance.credits import mssql as finance_credits_mssql
 from server.registry.types import DBResponse
+from server.registry.account.actions import mssql as actions_mssql
 from server.registry.account.accounts import mssql as accounts_mssql
+from server.registry.account.enablements import mssql as enablements_mssql
 from server.registry.account.profile import mssql as profile_mssql
 from server.registry.account.providers import mssql as users_providers_mssql
+from server.registry.account.session import mssql as session_mssql
+from server.registry.system.service_pages import mssql as service_pages_mssql
 from server.modules.providers.database.mssql_provider import db_helpers
 
 
@@ -97,6 +101,244 @@ def test_account_security_filters_by_discord(monkeypatch):
   assert "auth_providers" in sql
   assert "ua.element_identifier" in sql
   assert any(param == "discord" for param in captured["params"])
+
+
+def test_account_enablements_get_by_user_uses_table(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_one(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(enablements_mssql, "run_json_one", fake_run_json_one)
+
+  guid = str(uuid4())
+  handler = get_handler("db:account:enablements:get_by_user:1")
+  asyncio.run(handler({"users_guid": guid}))
+  sql = captured["sql"].lower()
+  assert "from users_enablements" in sql
+  assert "for json path" in sql
+  assert captured["params"] == (guid,)
+
+
+def test_account_enablements_upsert_inserts_when_missing(monkeypatch):
+  calls: list[tuple[str, tuple[Any, ...]]] = []
+
+  async def fake_run_exec(sql, params):
+    calls.append((sql, tuple(params)))
+    if "update users_enablements" in sql.lower():
+      return DBResponse(rowcount=0)
+    return DBResponse(rowcount=1)
+
+  monkeypatch.setattr(enablements_mssql, "run_exec", fake_run_exec)
+
+  guid = str(uuid4())
+  asyncio.run(
+    enablements_mssql.upsert_v1({
+      "users_guid": guid,
+      "element_enablements": "111",
+    })
+  )
+
+  sql_calls = [sql.lower() for sql, _ in calls]
+  assert any("update users_enablements" in sql for sql in sql_calls)
+  assert any("insert into users_enablements" in sql for sql in sql_calls)
+
+
+def test_account_actions_list_by_user_joins_actions(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_many(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(actions_mssql, "run_json_many", fake_run_json_many)
+
+  guid = str(uuid4())
+  handler = get_handler("db:account:actions:list_by_user:1")
+  asyncio.run(handler({"users_guid": guid, "limit": 5}))
+  sql = captured["sql"].lower()
+  assert "from users_actions_log" in sql
+  assert "left join account_actions" in sql
+  assert "fetch next ? rows only" in sql
+  assert captured["params"][-1] == 5
+
+
+def test_account_actions_log_inserts_log_table(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(actions_mssql, "run_exec", fake_run_exec)
+
+  guid = str(uuid4())
+  asyncio.run(
+    actions_mssql.log_v1({
+      "recid": 100,
+      "users_guid": guid,
+      "action_recid": 42,
+    })
+  )
+
+  sql = captured["sql"].lower()
+  assert "insert into users_actions_log" in sql
+  assert captured["params"][:3] == (100, guid, 42)
+
+
+def test_account_actions_update_builds_dynamic_assignments(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(actions_mssql, "run_exec", fake_run_exec)
+
+  asyncio.run(
+    actions_mssql.update_v1({
+      "recid": 10,
+      "element_url": "https://example", 
+      "element_notes": "note",
+    })
+  )
+
+  sql = captured["sql"].lower()
+  assert "update users_actions_log" in sql
+  assert "element_url = ?" in sql
+  assert "element_notes = ?" in sql
+  assert captured["params"][-1] == 10
+
+
+def test_account_session_list_snapshots_uses_view(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_many(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(session_mssql, "run_json_many", fake_run_json_many)
+
+  guid = str(uuid4())
+  handler = get_handler("db:account:session:list_snapshots:1")
+  asyncio.run(handler({"guid": guid}))
+  sql = captured["sql"].lower()
+  assert "vw_account_user_sessions" in sql
+  assert "for json path" in sql
+
+
+def test_account_session_security_snapshot_uses_view(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_many(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(session_mssql, "run_json_many", fake_run_json_many)
+
+  guid = str(uuid4())
+  handler = get_handler("db:account:session:get_security_snapshot:1")
+  asyncio.run(handler({"guid": guid}))
+  sql = captured["sql"].lower()
+  assert "vw_account_user_security" in sql
+  assert "order by" in sql
+
+
+def test_service_pages_list_filters_active(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_json_many(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(service_pages_mssql, "run_json_many", fake_run_json_many)
+
+  handler = get_handler("db:system:service_pages:list:1")
+  asyncio.run(handler({"element_is_active": True}))
+  sql = captured["sql"].lower()
+  assert "from service_pages" in sql
+  assert "element_is_active = ?" in sql
+  assert captured["params"] == (1,)
+
+
+def test_service_pages_create_inserts_table(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(service_pages_mssql, "run_exec", fake_run_exec)
+
+  guid = str(uuid4())
+  asyncio.run(
+    service_pages_mssql.create_v1({
+      "recid": 5,
+      "element_route_name": "home",
+      "element_pageblob": "<p>hi</p>",
+      "element_version": 3,
+      "element_created_by": guid,
+      "element_modified_by": guid,
+      "element_is_active": False,
+    })
+  )
+
+  sql = captured["sql"].lower()
+  assert "insert into service_pages" in sql
+  assert captured["params"][0] == 5
+  assert captured["params"][-1] == 0
+
+
+def test_service_pages_update_sets_modified_fields(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(service_pages_mssql, "run_exec", fake_run_exec)
+
+  guid = str(uuid4())
+  asyncio.run(
+    service_pages_mssql.update_v1({
+      "recid": 8,
+      "element_modified_by": guid,
+      "element_pageblob": "<p>updated</p>",
+      "element_is_active": True,
+    })
+  )
+
+  sql = captured["sql"].lower()
+  assert "update service_pages" in sql
+  assert "element_modified_on = sysutcdatetime()" in sql
+  assert captured["params"][0] == guid
+  assert captured["params"][-1] == 8
+
+
+def test_service_pages_delete_uses_table(monkeypatch):
+  captured: dict[str, Any] = {}
+
+  async def fake_run_exec(sql, params):
+    captured["sql"] = sql
+    captured["params"] = tuple(params)
+    return DBResponse()
+
+  monkeypatch.setattr(service_pages_mssql, "run_exec", fake_run_exec)
+
+  asyncio.run(service_pages_mssql.delete_v1({"recid": 12}))
+  sql = captured["sql"].lower()
+  assert "delete from service_pages" in sql
+  assert captured["params"] == (12,)
 
 
 def test_finance_credits_set_updates_table(monkeypatch):

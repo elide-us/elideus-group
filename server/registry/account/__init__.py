@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import accounts, content, oauth, providers, session
+from . import actions, accounts, content, enablements, oauth, providers, session
 
 if TYPE_CHECKING:
   from server.registry import RegistryRouter
 
 __all__ = [
+  "actions",
   "accounts",
   "content",
+  "enablements",
   "providers",
   "register",
   "session",
@@ -25,6 +27,8 @@ def register(router: "RegistryRouter") -> None:
     domain.subdomain("accounts"),
     legacy_op_segment="account",
   )
+  actions.register(domain.subdomain("actions"))
+  enablements.register(domain.subdomain("enablements"))
   providers.register(domain.subdomain("providers"))
   oauth.register(domain.subdomain("oauth"))
   session.register(domain.subdomain("session"))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from . import config, conversations, guilds, links, models, personas, public_users, roles, routes, vars
+from . import config, conversations, guilds, links, models, personas, public_users, roles, routes, service_pages, vars
 
 if TYPE_CHECKING:
   from server.registry import RegistryRouter
@@ -15,11 +15,12 @@ __all__ = [
   "guilds",
   "links",
   "models",
-  "public_users",
   "personas",
+  "public_users",
   "register",
   "roles",
   "routes",
+  "service_pages",
   "vars",
 ]
 
@@ -35,4 +36,5 @@ def register(router: "RegistryRouter") -> None:
   roles.register(domain.subdomain("roles"))
   routes.register(domain.subdomain("routes"))
   public_users.register(domain.subdomain("public_users"))
+  service_pages.register(domain.subdomain("service_pages"))
   vars.register(domain.subdomain("vars"))
