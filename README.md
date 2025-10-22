@@ -64,6 +64,7 @@ Two tables record persona definitions and usage:
 | Table | Purpose |
 | ----- | ------- |
 | `assistant_personas` | Stores persona names, prompts, token limits, and model references. |
+| `discord_guilds` | Tracks Discord guild metadata (name, join timestamps, membership counts, owner IDs, etc.) for registry lookups. |
 | `assistant_conversations` | Logs each interaction including guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps. |
 
 The OpenAI module records conversation details whenever `!summarize` is executed.

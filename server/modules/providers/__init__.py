@@ -5,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
-from enum import Enum
 
 import aiohttp
 from fastapi import HTTPException, status
@@ -23,17 +22,7 @@ __all__ = [
   "DBRequest",
   "DBResponse",
   "DBResult",
-  "DbRunMode",
 ]
-
-
-class DbRunMode(str, Enum):
-  ROW_ONE = "row_one"
-  ROW_MANY = "row_many"
-  JSON_ONE = "json_one"
-  JSON_MANY = "json_many"
-  EXEC = "exec"
-
 
 class BaseProvider(ABC):
   def __init__(self, **config: Any):

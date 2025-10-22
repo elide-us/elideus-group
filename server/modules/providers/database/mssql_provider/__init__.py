@@ -1,12 +1,11 @@
 # providers/database/mssql_provider/__init__.py
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from ... import DbProviderBase, DbRunMode
+from ... import DbProviderBase
 from server.registry import get_handler as resolve_handler, parse_db_op
 from server.registry.types import DBRequest, DBResponse
 from .logic import init_pool, close_pool
-from .db_helpers import fetch_rows, fetch_json, exec_query
 
 def get_handler(op: str):
   return resolve_handler(op, provider="mssql")
@@ -39,19 +38,6 @@ class MssqlProvider(DbProviderBase):
   async def _execute_spec(self, spec: Any) -> Any:
     if hasattr(spec, "__await__"):
       return await spec
-    if isinstance(spec, tuple) and len(spec) == 3:
-      mode, sql, params = spec
-      if mode is DbRunMode.JSON_ONE:
-        return await fetch_json(sql, params)
-      if mode is DbRunMode.ROW_ONE:
-        return await fetch_rows(sql, params, one=True)
-      if mode is DbRunMode.ROW_MANY:
-        return await fetch_rows(sql, params)
-      if mode is DbRunMode.JSON_MANY:
-        return await fetch_json(sql, params, many=True)
-      if mode is DbRunMode.EXEC:
-        return await exec_query(sql, params)
-      raise ValueError(f"Unknown mode: {mode}")
     return spec
 
   def _normalize_response(self, op: str, result: Any) -> DBResponse:
