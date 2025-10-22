@@ -45,32 +45,6 @@ def account_exists_request(user_guid: str) -> DBRequest:
   )
 
 
-def register(
-  router: "SubdomainRouter",
-  *,
-  legacy_op_segment: str | None = None,
-) -> None:
+def register(router: "SubdomainRouter") -> None:
   router.add_function("get_security_profile", version=1)
   router.add_function("account_exists", version=1)
-
-  if legacy_op_segment:
-    # Temporary compatibility alias while dependents migrate off singular ops.
-    from server.registry import SubdomainRouter as _SubdomainRouter
-
-    legacy_router = _SubdomainRouter(
-      router._registry,
-      router._domain,
-      router._module_components,
-      (legacy_op_segment,),
-      provider=router._provider,
-    )
-    legacy_router.add_function(
-      "get_security_profile",
-      version=1,
-      implementation="get_security_profile",
-    )
-    legacy_router.add_function(
-      "account_exists",
-      version=1,
-      implementation="account_exists",
-    )

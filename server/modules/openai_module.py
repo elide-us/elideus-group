@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.system.config import get_config_request
+from server.registry.system.config import ConfigKeyParams, get_config_request
 from server.registry.system.conversations import (
   find_recent_request,
   insert_conversation_request,
@@ -100,7 +100,7 @@ class OpenaiModule(BaseModule):
 
   async def get_openai_token(self) -> str:
     assert self.db
-    res = await self.db.run(get_config_request(key="OpenAIApiKey"))
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="OpenAIApiKey")))
     if res.rows:
       return res.rows[0].get("value", "")
     return ""

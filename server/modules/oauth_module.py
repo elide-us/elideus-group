@@ -18,16 +18,21 @@ from server.registry.account.oauth import (
   relink_microsoft_request,
 )
 from server.registry.account.session import (
+  CreateSessionParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
   create_session_request,
+  set_rotkey_request,
   update_device_token_request,
 )
 from server.registry.types import DBRequest
 from server.registry.account.providers import (
+  CreateFromProviderParams,
+  ProviderIdentifierParams,
   create_from_provider_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
 )
-from server.registry.account.session import set_rotkey_request
 
 
 class OauthModule(BaseModule):
@@ -177,8 +182,7 @@ class OauthModule(BaseModule):
       logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
       res = await self.db.run(
         get_by_provider_identifier_request(
-          provider=provider,
-          provider_identifier=uid,
+          ProviderIdentifierParams(provider=provider, provider_identifier=uid),
         ),
       )
       if res.rows:
@@ -199,10 +203,7 @@ class OauthModule(BaseModule):
     now = datetime.now(timezone.utc)
     await self.db.run(
       set_rotkey_request(
-        guid=user_guid,
-        rotkey=rotation_token,
-        iat=now,
-        exp=rot_exp,
+        SetRotkeyParams(guid=user_guid, rotkey=rotation_token, iat=now, exp=rot_exp),
       ),
     )
     roles, _ = await self.auth.get_user_roles(user_guid)
@@ -210,13 +211,15 @@ class OauthModule(BaseModule):
     placeholder = uuid.uuid4().hex
     res = await self.db.run(
       create_session_request(
-        access_token=placeholder,
-        expires=session_exp,
-        fingerprint=fingerprint,
-        user_guid=user_guid,
-        provider=provider,
-        user_agent=user_agent,
-        ip_address=ip_address,
+        CreateSessionParams(
+          access_token=placeholder,
+          expires=session_exp,
+          fingerprint=fingerprint,
+          user_guid=user_guid,
+          provider=provider,
+          user_agent=user_agent,
+          ip_address=ip_address,
+        ),
       ),
     )
     row = res.rows[0] if res.rows else {}
@@ -226,7 +229,9 @@ class OauthModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp,
     )
     await self.db.run(
-      update_device_token_request(device_guid=device_guid, access_token=session_token),
+      update_device_token_request(
+        UpdateDeviceTokenParams(device_guid=device_guid, access_token=session_token),
+      ),
     )
     logging.debug(f"[create_session] session_token={session_token[:40]}")
     return session_token, session_exp, rotation_token, rot_exp
@@ -248,8 +253,7 @@ class OauthModule(BaseModule):
     elif not user:
       await self.db.run(
         get_any_by_provider_identifier_request(
-          provider=provider,
-          provider_identifier=provider_uid,
+          ProviderIdentifierParams(provider=provider, provider_identifier=provider_uid),
         ),
       )
       needs_relink = True
@@ -288,19 +292,20 @@ class OauthModule(BaseModule):
     if not user:
       res = await self.db.run(
         create_from_provider_request(
-          provider=provider,
-          provider_identifier=provider_uid,
-          provider_email=profile["email"],
-          provider_displayname=profile["username"],
-          provider_profile_image=profile.get("profilePicture"),
+          CreateFromProviderParams(
+            provider=provider,
+            provider_identifier=provider_uid,
+            provider_email=profile["email"],
+            provider_displayname=profile["username"],
+            provider_profile_image=profile.get("profilePicture"),
+          ),
         ),
       )
       user = res.rows[0] if res.rows else None
       if not user:
         res = await self.db.run(
           get_by_provider_identifier_request(
-            provider=provider,
-            provider_identifier=provider_uid,
+            ProviderIdentifierParams(provider=provider, provider_identifier=provider_uid),
           ),
         )
         user = res.rows[0] if res.rows else None

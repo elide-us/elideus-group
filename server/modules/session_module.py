@@ -9,13 +9,20 @@ from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
 from server.registry.account.session import (
+  CreateSessionParams,
+  GuidParams,
+  RevokeDeviceTokenParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
+  UpdateSessionParams,
   create_session_request,
+  get_rotkey_request,
   revoke_device_token_request,
+  set_rotkey_request,
   update_device_token_request,
   update_session_request,
 )
 from server.registry.types import DBRequest
-from server.registry.account.session import get_rotkey_request, set_rotkey_request
 
 
 class SessionModule(BaseModule):
@@ -106,7 +113,7 @@ class SessionModule(BaseModule):
   ) -> str:
     data = self.auth.decode_rotation_token(rotation_token)
     user_guid = data["guid"]
-    stored = await self.db.run(get_rotkey_request(guid=user_guid))
+    stored = await self.db.run(get_rotkey_request(GuidParams(guid=user_guid)))
     row = stored.rows[0] if stored.rows else None
     if not row or row.get("rotkey") != rotation_token:
       raise HTTPException(status_code=401, detail="Invalid rotation token")
@@ -118,13 +125,15 @@ class SessionModule(BaseModule):
     placeholder = uuid.uuid4().hex
     res = await self.db.run(
       create_session_request(
-        access_token=placeholder,
-        expires=session_exp,
-        fingerprint=fingerprint,
-        user_guid=user_guid,
-        provider=provider,
-        user_agent=user_agent,
-        ip_address=ip_address,
+        CreateSessionParams(
+          access_token=placeholder,
+          expires=session_exp,
+          fingerprint=fingerprint,
+          user_guid=user_guid,
+          provider=provider,
+          user_agent=user_agent,
+          ip_address=ip_address,
+        ),
       ),
     )
     row2 = res.rows[0] if res.rows else {}
@@ -134,18 +143,20 @@ class SessionModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
     )
     await self.db.run(
-      update_device_token_request(device_guid=device_guid, access_token=session_token),
+      update_device_token_request(
+        UpdateDeviceTokenParams(device_guid=device_guid, access_token=session_token),
+      ),
     )
     return session_token
 
   async def invalidate_token(self, user_guid: str) -> None:
     now = datetime.now(timezone.utc)
     await self.db.run(
-      set_rotkey_request(guid=user_guid, rotkey="", iat=now, exp=now),
+      set_rotkey_request(SetRotkeyParams(guid=user_guid, rotkey="", iat=now, exp=now)),
     )
 
   async def logout_device(self, token: str) -> None:
-    await self.db.run(revoke_device_token_request(access_token=token))
+    await self.db.run(revoke_device_token_request(RevokeDeviceTokenParams(access_token=token)))
 
   async def get_session(
     self,
@@ -175,9 +186,7 @@ class SessionModule(BaseModule):
     try:
       await self.db.run(
         update_session_request(
-          access_token=token,
-          ip_address=ip_address,
-          user_agent=user_agent,
+          UpdateSessionParams(access_token=token, ip_address=ip_address, user_agent=user_agent),
         ),
       )
     except Exception as e:
