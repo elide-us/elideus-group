@@ -7,12 +7,14 @@ from uuid import UUID, uuid4
 
 from server.modules.providers.database.mssql_provider.logic import transaction
 from server.registry.account.providers.mssql import get_auth_provider_recid
-from server.registry.providers.mssql import run_exec, run_json_one
+from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
 from server.registry.types import DBResponse
 
 __all__ = [
   "create_session_v1",
   "get_rotkey_v1",
+  "get_security_snapshot_v1",
+  "list_snapshots_v1",
   "revoke_all_device_tokens_v1",
   "revoke_device_token_v1",
   "revoke_provider_tokens_v1",
@@ -215,3 +217,60 @@ async def set_rotkey_v1(args: dict[str, Any]) -> DBResponse:
     WHERE element_guid = ?;
   """
   return await run_exec(sql, (rotkey, iat, exp, guid))
+
+
+async def list_snapshots_v1(params: dict[str, Any]) -> DBResponse:
+  guid = str(UUID(params["guid"]))
+  sql = """
+    SELECT
+      aus.user_guid,
+      aus.user_roles,
+      aus.user_created_on,
+      aus.user_modified_on,
+      aus.element_rotkey,
+      aus.element_rotkey_iat,
+      aus.element_rotkey_exp,
+      aus.session_guid,
+      aus.session_created_on,
+      aus.session_modified_on,
+      aus.device_guid,
+      aus.device_created_on,
+      aus.device_modified_on,
+      aus.element_token,
+      aus.element_token_iat,
+      aus.element_token_exp,
+      aus.element_revoked_at,
+      aus.element_device_fingerprint,
+      aus.element_user_agent,
+      aus.element_ip_last_seen
+    FROM vw_account_user_sessions aus
+    WHERE aus.user_guid = ?
+    ORDER BY aus.session_created_on DESC, aus.device_created_on DESC
+    FOR JSON PATH;
+  """
+  return await run_json_many(sql, (guid,))
+
+
+async def get_security_snapshot_v1(params: dict[str, Any]) -> DBResponse:
+  guid = str(UUID(params["guid"]))
+  sql = """
+    SELECT
+      aus.user_guid,
+      aus.element_rotkey,
+      aus.element_rotkey_iat,
+      aus.element_rotkey_exp,
+      aus.session_guid,
+      aus.device_guid,
+      aus.element_token,
+      aus.element_token_iat,
+      aus.element_token_exp,
+      aus.element_revoked_at,
+      aus.element_device_fingerprint,
+      aus.element_user_agent,
+      aus.element_ip_last_seen
+    FROM vw_account_user_security aus
+    WHERE aus.user_guid = ?
+    ORDER BY aus.element_token_iat DESC
+    FOR JSON PATH;
+  """
+  return await run_json_many(sql, (guid,))

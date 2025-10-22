@@ -17,7 +17,9 @@ __all__ = [
   "revoke_all_device_tokens_request",
   "revoke_device_token_request",
   "revoke_provider_tokens_request",
+  "get_security_snapshot_request",
   "set_rotkey_request",
+  "list_session_snapshots_request",
   "update_device_token_request",
   "update_session_request",
 ]
@@ -25,6 +27,14 @@ __all__ = [
 
 def _request(name: str, params: dict[str, Any]) -> DBRequest:
   return DBRequest(op=f"db:account:session:{name}:1", params=params)
+
+
+def list_session_snapshots_request(*, guid: str) -> DBRequest:
+  return _request("list_snapshots", {"guid": guid})
+
+
+def get_security_snapshot_request(*, guid: str) -> DBRequest:
+  return _request("get_security_snapshot", {"guid": guid})
 
 
 def create_session_request(
@@ -124,3 +134,5 @@ def register(router: "SubdomainRouter") -> None:
   router.add_function("revoke_provider_tokens", version=1)
   router.add_function("get_rotkey", version=1)
   router.add_function("set_rotkey", version=1)
+  router.add_function("list_snapshots", version=1)
+  router.add_function("get_security_snapshot", version=1)
