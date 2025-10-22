@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
+from .model import (
+  CreateSessionParams,
+  GuidParams,
+  ListSessionSnapshotsParams,
+  RevokeAllDeviceTokensParams,
+  RevokeDeviceTokenParams,
+  RevokeProviderTokensParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
+  UpdateSessionParams,
+)
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
@@ -22,107 +32,61 @@ __all__ = [
   "list_session_snapshots_request",
   "update_device_token_request",
   "update_session_request",
+  "CreateSessionParams",
+  "GuidParams",
+  "ListSessionSnapshotsParams",
+  "RevokeAllDeviceTokensParams",
+  "RevokeDeviceTokenParams",
+  "RevokeProviderTokensParams",
+  "SetRotkeyParams",
+  "UpdateDeviceTokenParams",
+  "UpdateSessionParams",
 ]
 
 
-def _request(name: str, params: dict[str, Any]) -> DBRequest:
+def _request(name: str, params: dict[str, object]) -> DBRequest:
   return DBRequest(op=f"db:account:session:{name}:1", params=params)
 
 
-def list_session_snapshots_request(*, guid: str) -> DBRequest:
-  return _request("list_snapshots", {"guid": guid})
+def list_session_snapshots_request(params: ListSessionSnapshotsParams) -> DBRequest:
+  return _request("list_snapshots", params.model_dump())
 
 
-def get_security_snapshot_request(*, guid: str) -> DBRequest:
-  return _request("get_security_snapshot", {"guid": guid})
+def get_security_snapshot_request(params: GuidParams) -> DBRequest:
+  return _request("get_security_snapshot", params.model_dump())
 
 
-def create_session_request(
-  *,
-  access_token: str,
-  expires,
-  fingerprint: str,
-  user_guid: str,
-  provider: str,
-  user_agent: str | None = None,
-  ip_address: str | None = None,
-) -> DBRequest:
-  params: dict[str, Any] = {
-    "access_token": access_token,
-    "expires": expires,
-    "fingerprint": fingerprint,
-    "user_guid": user_guid,
-    "provider": provider,
-  }
-  if user_agent is not None:
-    params["user_agent"] = user_agent
-  if ip_address is not None:
-    params["ip_address"] = ip_address
-  return _request("create_session", params)
+def create_session_request(params: CreateSessionParams) -> DBRequest:
+  payload = params.model_dump(exclude_none=True)
+  return _request("create_session", payload)
 
 
-def update_session_request(
-  *,
-  access_token: str,
-  user_agent: str | None,
-  ip_address: str | None,
-) -> DBRequest:
-  params: dict[str, Any] = {
-    "access_token": access_token,
-    "user_agent": user_agent,
-    "ip_address": ip_address,
-  }
-  return _request("update_session", params)
+def update_session_request(params: UpdateSessionParams) -> DBRequest:
+  return _request("update_session", params.model_dump())
 
 
-def update_device_token_request(*, device_guid: str, access_token: str) -> DBRequest:
-  return _request(
-    "update_device_token",
-    {
-      "device_guid": device_guid,
-      "access_token": access_token,
-    },
-  )
+def update_device_token_request(params: UpdateDeviceTokenParams) -> DBRequest:
+  return _request("update_device_token", params.model_dump())
 
 
-def revoke_device_token_request(*, access_token: str) -> DBRequest:
-  return _request("revoke_device_token", {"access_token": access_token})
+def revoke_device_token_request(params: RevokeDeviceTokenParams) -> DBRequest:
+  return _request("revoke_device_token", params.model_dump())
 
 
-def revoke_all_device_tokens_request(*, guid: str) -> DBRequest:
-  return _request("revoke_all_device_tokens", {"guid": guid})
+def revoke_all_device_tokens_request(params: RevokeAllDeviceTokensParams) -> DBRequest:
+  return _request("revoke_all_device_tokens", params.model_dump())
 
 
-def revoke_provider_tokens_request(*, guid: str, provider: str) -> DBRequest:
-  return _request(
-    "revoke_provider_tokens",
-    {
-      "guid": guid,
-      "provider": provider,
-    },
-  )
+def revoke_provider_tokens_request(params: RevokeProviderTokensParams) -> DBRequest:
+  return _request("revoke_provider_tokens", params.model_dump())
 
 
-def get_rotkey_request(*, guid: str) -> DBRequest:
-  return _request("get_rotkey", {"guid": guid})
+def get_rotkey_request(params: GuidParams) -> DBRequest:
+  return _request("get_rotkey", params.model_dump())
 
 
-def set_rotkey_request(
-  *,
-  guid: str,
-  rotkey: str,
-  iat: datetime,
-  exp: datetime,
-) -> DBRequest:
-  return _request(
-    "set_rotkey",
-    {
-      "guid": guid,
-      "rotkey": rotkey,
-      "iat": iat,
-      "exp": exp,
-    },
-  )
+def set_rotkey_request(params: SetRotkeyParams) -> DBRequest:
+  return _request("set_rotkey", params.model_dump())
 
 
 def register(router: "SubdomainRouter") -> None:

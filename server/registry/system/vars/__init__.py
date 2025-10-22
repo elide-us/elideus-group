@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
+from .model import PublicVarRecord
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
@@ -14,6 +15,7 @@ __all__ = [
   "get_repo_request",
   "get_version_request",
   "register",
+  "PublicVarRecord",
 ]
 
 

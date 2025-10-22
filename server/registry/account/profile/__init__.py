@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
+from .model import (
+  GuidParams,
+  SetDisplayParams,
+  SetOptInParams,
+  SetProfileImageParams,
+  SetRolesParams,
+  UpdateIfUneditedParams,
+)
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
@@ -17,55 +25,43 @@ __all__ = [
   "set_roles_request",
   "update_if_unedited_request",
   "register",
+  "GuidParams",
+  "SetDisplayParams",
+  "SetOptInParams",
+  "SetProfileImageParams",
+  "SetRolesParams",
+  "UpdateIfUneditedParams",
 ]
 
 
-def _request(name: str, params: dict[str, Any]) -> DBRequest:
+def _request(name: str, params: dict[str, object]) -> DBRequest:
   return DBRequest(op=f"db:account:profile:{name}:1", params=params)
 
 
-def get_profile_request(*, guid: str) -> DBRequest:
-  return _request("get_profile", {"guid": guid})
+def get_profile_request(params: GuidParams) -> DBRequest:
+  return _request("get_profile", params.model_dump())
 
 
-def set_display_request(*, guid: str, display_name: str) -> DBRequest:
-  return _request("set_display", {"guid": guid, "display_name": display_name})
+def set_display_request(params: SetDisplayParams) -> DBRequest:
+  return _request("set_display", params.model_dump())
 
 
-def set_optin_request(*, guid: str, display_email: bool) -> DBRequest:
-  return _request("set_optin", {"guid": guid, "display_email": display_email})
+def set_optin_request(params: SetOptInParams) -> DBRequest:
+  payload = params.model_dump()
+  payload["display_email"] = 1 if params.display_email else 0
+  return _request("set_optin", payload)
 
 
-def set_profile_image_request(
-  *,
-  guid: str,
-  provider: str,
-  image_b64: str | None,
-) -> DBRequest:
-  params: dict[str, Any] = {
-    "guid": guid,
-    "provider": provider,
-    "image_b64": image_b64,
-  }
-  return _request("set_profile_image", params)
+def set_profile_image_request(params: SetProfileImageParams) -> DBRequest:
+  return _request("set_profile_image", params.model_dump())
 
 
-def set_roles_request(*, guid: str, roles: int) -> DBRequest:
-  return _request("set_roles", {"guid": guid, "roles": roles})
+def set_roles_request(params: SetRolesParams) -> DBRequest:
+  return _request("set_roles", params.model_dump())
 
 
-def update_if_unedited_request(
-  *,
-  guid: str,
-  display_name: str | None = None,
-  email: str | None = None,
-) -> DBRequest:
-  params: dict[str, Any] = {"guid": guid}
-  if display_name is not None:
-    params["display_name"] = display_name
-  if email is not None:
-    params["email"] = email
-  return _request("update_if_unedited", params)
+def update_if_unedited_request(params: UpdateIfUneditedParams) -> DBRequest:
+  return _request("update_if_unedited", params.model_dump(exclude_none=True))
 
 
 def register(router: "SubdomainRouter") -> None:

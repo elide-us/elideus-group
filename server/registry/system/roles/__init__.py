@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
+from .model import (
+  DeleteRoleParams,
+  ModifyRoleMemberParams,
+  RoleScopeParams,
+  UpsertRoleParams,
+)
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
@@ -18,6 +24,10 @@ __all__ = [
   "register",
   "remove_role_member_request",
   "upsert_role_request",
+  "DeleteRoleParams",
+  "ModifyRoleMemberParams",
+  "RoleScopeParams",
+  "UpsertRoleParams",
 ]
 
 
@@ -25,38 +35,46 @@ def list_roles_request() -> DBRequest:
   return DBRequest(op="db:system:roles:list:1", params={})
 
 
-def get_role_members_request(role: str) -> DBRequest:
-  return DBRequest(op="db:system:roles:get_role_members:1", params={"role": role})
+def get_role_members_request(params: RoleScopeParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:get_role_members:1",
+    params=params.model_dump(),
+  )
 
 
-def get_role_non_members_request(role: str) -> DBRequest:
-  return DBRequest(op="db:system:roles:get_role_non_members:1", params={"role": role})
+def get_role_non_members_request(params: RoleScopeParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:get_role_non_members:1",
+    params=params.model_dump(),
+  )
 
 
-def add_role_member_request(role: str, user_guid: str) -> DBRequest:
-  return DBRequest(op="db:system:roles:add_role_member:1", params={
-    "role": role,
-    "user_guid": user_guid,
-  })
+def add_role_member_request(params: ModifyRoleMemberParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:add_role_member:1",
+    params=params.model_dump(),
+  )
 
 
-def remove_role_member_request(role: str, user_guid: str) -> DBRequest:
-  return DBRequest(op="db:system:roles:remove_role_member:1", params={
-    "role": role,
-    "user_guid": user_guid,
-  })
+def remove_role_member_request(params: ModifyRoleMemberParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:remove_role_member:1",
+    params=params.model_dump(),
+  )
 
 
-def upsert_role_request(name: str, mask: int, display: str | None) -> DBRequest:
-  return DBRequest(op="db:system:roles:upsert_role:1", params={
-    "name": name,
-    "mask": mask,
-    "display": display,
-  })
+def upsert_role_request(params: UpsertRoleParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:upsert_role:1",
+    params=params.model_dump(),
+  )
 
 
-def delete_role_request(name: str) -> DBRequest:
-  return DBRequest(op="db:system:roles:delete_role:1", params={"name": name})
+def delete_role_request(params: DeleteRoleParams) -> DBRequest:
+  return DBRequest(
+    op="db:system:roles:delete_role:1",
+    params=params.model_dump(),
+  )
 
 
 def register(router: "SubdomainRouter") -> None:

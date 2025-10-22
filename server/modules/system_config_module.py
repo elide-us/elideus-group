@@ -2,6 +2,8 @@ from __future__ import annotations
 import logging
 from fastapi import FastAPI
 from server.registry.system.config import (
+  ConfigKeyParams,
+  UpsertConfigParams,
   delete_config_request,
   get_configs_request,
   upsert_config_request,
@@ -57,7 +59,7 @@ class SystemConfigModule(BaseModule):
       value,
     )
     await self.db.run(
-      upsert_config_request(key=key, value=value),
+      upsert_config_request(UpsertConfigParams(key=key, value=value)),
     )
     logging.debug(
       "[system_config_upsert_config_v1] upserted config %s",
@@ -73,7 +75,7 @@ class SystemConfigModule(BaseModule):
       key,
     )
     await self.db.run(
-      delete_config_request(key),
+      delete_config_request(ConfigKeyParams(key=key)),
     )
     logging.debug(
       "[system_config_delete_config_v1] deleted config %s",

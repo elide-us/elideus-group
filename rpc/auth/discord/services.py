@@ -11,7 +11,7 @@ from server.modules.env_module import EnvModule
 from server.modules.auth_module import AuthModule
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
-from server.registry.system.config import get_config_request
+from server.registry.system.config import ConfigKeyParams, get_config_request
 from server.registry.types import DBRequest
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
 
@@ -54,7 +54,7 @@ async def auth_discord_oauth_login_v1(request: Request):
   if not client_secret:
     raise HTTPException(status_code=500, detail="DISCORD_AUTH_SECRET not configured")
 
-  res_redirect = await db.run(get_config_request(key="Hostname"))
+  res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
   if not res_redirect.rows:
     raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
   redirect_uri = res_redirect.rows[0]["value"]

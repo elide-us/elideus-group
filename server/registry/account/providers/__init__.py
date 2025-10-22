@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
+from .model import (
+  CreateFromProviderParams,
+  GetUserByEmailParams,
+  LinkProviderParams,
+  ProviderIdentifierParams,
+  SetProviderParams,
+  SoftDeleteAccountParams,
+  UnlinkLastProviderParams,
+  UnlinkProviderParams,
+)
 
 if TYPE_CHECKING:
   from server.registry import SubdomainRouter
@@ -20,123 +30,79 @@ __all__ = [
   "soft_delete_account_request",
   "unlink_provider_request",
   "unlink_last_provider_request",
+  "CreateFromProviderParams",
+  "GetUserByEmailParams",
+  "LinkProviderParams",
+  "ProviderIdentifierParams",
+  "SetProviderParams",
+  "SoftDeleteAccountParams",
+  "UnlinkLastProviderParams",
+  "UnlinkProviderParams",
 ]
 
 
-def _request(op: str, params: dict[str, Any]) -> DBRequest:
+def _request(op: str, params: dict[str, object]) -> DBRequest:
   return DBRequest(op=op, params=params)
 
 
-def create_from_provider_request(
-  *,
-  provider: str,
-  provider_identifier: str,
-  provider_email: str,
-  provider_displayname: str,
-  provider_profile_image: str | None = None,
-) -> DBRequest:
-  return _request(
-    "db:account:providers:create_from_provider:1",
-    {
-      "provider": provider,
-      "provider_identifier": provider_identifier,
-      "provider_email": provider_email,
-      "provider_displayname": provider_displayname,
-      "provider_profile_image": provider_profile_image or "",
-    },
-  )
+def create_from_provider_request(params: CreateFromProviderParams) -> DBRequest:
+  payload = params.model_dump()
+  if payload.get("provider_profile_image") is None:
+    payload["provider_profile_image"] = ""
+  return _request("db:account:providers:create_from_provider:1", payload)
 
 
-def get_by_provider_identifier_request(
-  *,
-  provider: str,
-  provider_identifier: str,
-) -> DBRequest:
+def get_by_provider_identifier_request(params: ProviderIdentifierParams) -> DBRequest:
   return _request(
     "db:account:providers:get_by_provider_identifier:1",
-    {
-      "provider": provider,
-      "provider_identifier": provider_identifier,
-    },
+    params.model_dump(),
   )
 
 
-def get_any_by_provider_identifier_request(
-  *,
-  provider: str,
-  provider_identifier: str,
-) -> DBRequest:
+def get_any_by_provider_identifier_request(params: ProviderIdentifierParams) -> DBRequest:
   return _request(
     "db:account:providers:get_any_by_provider_identifier:1",
-    {
-      "provider": provider,
-      "provider_identifier": provider_identifier,
-    },
+    params.model_dump(),
   )
 
 
-def get_user_by_email_request(*, email: str) -> DBRequest:
+def get_user_by_email_request(params: GetUserByEmailParams) -> DBRequest:
   return _request(
     "db:account:providers:get_user_by_email:1",
-    {"email": email},
+    params.model_dump(),
   )
 
 
-def link_provider_request(
-  *,
-  guid: str,
-  provider: str,
-  provider_identifier: str,
-) -> DBRequest:
+def link_provider_request(params: LinkProviderParams) -> DBRequest:
   return _request(
     "db:account:providers:link_provider:1",
-    {
-      "guid": guid,
-      "provider": provider,
-      "provider_identifier": provider_identifier,
-    },
+    params.model_dump(),
   )
 
 
-def set_provider_request(*, guid: str, provider: str) -> DBRequest:
+def set_provider_request(params: SetProviderParams) -> DBRequest:
   return _request(
     "db:account:providers:set_provider:1",
-    {
-      "guid": guid,
-      "provider": provider,
-    },
+    params.model_dump(),
   )
 
 
-def soft_delete_account_request(*, guid: str) -> DBRequest:
+def soft_delete_account_request(params: SoftDeleteAccountParams) -> DBRequest:
   return _request(
     "db:account:providers:soft_delete_account:1",
-    {"guid": guid},
+    params.model_dump(),
   )
 
 
-def unlink_provider_request(
-  *,
-  guid: str,
-  provider: str,
-  new_provider_recid: int | None = None,
-) -> DBRequest:
-  params: dict[str, Any] = {
-    "guid": guid,
-    "provider": provider,
-  }
-  if new_provider_recid is not None:
-    params["new_provider_recid"] = new_provider_recid
-  return _request("db:account:providers:unlink_provider:1", params)
+def unlink_provider_request(params: UnlinkProviderParams) -> DBRequest:
+  payload = params.model_dump(exclude_none=True)
+  return _request("db:account:providers:unlink_provider:1", payload)
 
 
-def unlink_last_provider_request(*, guid: str, provider: str) -> DBRequest:
+def unlink_last_provider_request(params: UnlinkLastProviderParams) -> DBRequest:
   return _request(
     "db:account:providers:unlink_last_provider:1",
-    {
-      "guid": guid,
-      "provider": provider,
-    },
+    params.model_dump(),
   )
 
 
