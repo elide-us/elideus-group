@@ -3,28 +3,23 @@ from uuid import UUID
 
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
-from server.modules.providers import DBResult, DbRunMode
+from server.modules.providers import DBResult
 from server.registry.account.files import mssql as users_files_mssql
 
 
-def test_run_json_one(monkeypatch):
+def test_run_returns_dbresult_from_async_handler(monkeypatch):
   provider = MssqlProvider()
 
   def fake_get_handler(op):
     assert op == "db:account:test:json_one:1"
-    def handler(args):
+
+    async def handler(args):
       assert args == {}
-      return (DbRunMode.JSON_ONE, "select 1", ())
+      return DBResult(rows=[{"v": 1}], rowcount=1)
+
     return handler
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert sql == "select 1"
-    assert params == ()
-    assert not many
-    return DBResult(rows=[{"v": 1}], rowcount=1)
-
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
 
   res = asyncio.run(provider.run("db:account:test:json_one:1", {}))
   assert isinstance(res, DBResult)
@@ -32,24 +27,19 @@ def test_run_json_one(monkeypatch):
   assert res.rowcount == 1
 
 
-def test_run_row_one(monkeypatch):
+def test_run_returns_dbresult_from_sync_handler(monkeypatch):
   provider = MssqlProvider()
 
   def fake_get_handler(op):
     assert op == "db:account:test:row_one:1"
+
     def handler(args):
       assert args == {}
-      return (DbRunMode.ROW_ONE, "select 1", ())
+      return DBResult(rows=[{"v": 1}], rowcount=1)
+
     return handler
 
-  async def fake_fetch_rows(sql, params, *, one=False, stream=False):
-    assert sql == "select 1"
-    assert params == ()
-    assert one
-    return DBResult(rows=[{"v": 1}], rowcount=1)
-
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_rows", fake_fetch_rows)
 
   res = asyncio.run(provider.run("db:account:test:row_one:1", {}))
   assert isinstance(res, DBResult)
@@ -60,6 +50,7 @@ def test_run_row_one(monkeypatch):
 def test_run_row_many(monkeypatch):
   provider = MssqlProvider()
   guid = "00000000-0000-0000-0000-000000000000"
+
   async def fake_handler(payload):
     assert payload == {"guid": guid}
     return DBResult(rows=[{"path": "a"}, {"path": "b"}], rowcount=2)
@@ -78,22 +69,19 @@ def test_run_row_many(monkeypatch):
   assert res.rowcount == 2
 
 
-def test_run_json_many(monkeypatch):
+def test_run_normalizes_dict_response(monkeypatch):
   provider = MssqlProvider()
 
   def fake_get_handler(op):
     assert op == "db:account:test:json_many:1"
+
     def handler(args):
       assert args == {}
-      return (DbRunMode.JSON_MANY, "select", ())
+      return {"rows": [{"v": 1}, {"v": 2}], "rowcount": 2}
+
     return handler
 
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert many
-    return DBResult(rows=[{"v": 1}, {"v": 2}], rowcount=2)
-
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "fetch_json", fake_fetch_json)
 
   res = asyncio.run(provider.run("db:account:test:json_many:1", {}))
   assert isinstance(res, DBResult)
@@ -101,28 +89,24 @@ def test_run_json_many(monkeypatch):
   assert res.rowcount == 2
 
 
-def test_run_exec(monkeypatch):
+def test_run_returns_empty_response_for_none(monkeypatch):
   provider = MssqlProvider()
 
   def fake_get_handler(op):
     assert op == "db:account:test:exec:1"
+
     def handler(args):
       assert args == {}
-      return (DbRunMode.EXEC, "update", (1,))
+      return None
+
     return handler
 
-  async def fake_exec_query(sql, params):
-    assert sql == "update"
-    assert params == (1,)
-    return DBResult(rowcount=1)
-
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
-  monkeypatch.setattr(mssql_provider, "exec_query", fake_exec_query)
 
   res = asyncio.run(provider.run("db:account:test:exec:1", {}))
   assert isinstance(res, DBResult)
   assert res.rows == []
-  assert res.rowcount == 1
+  assert res.rowcount == 0
 
 
 def test_storage_files_set_gallery(monkeypatch):
