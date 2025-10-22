@@ -5,9 +5,13 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID, uuid4
 
-from server.modules.providers.database.mssql_provider.logic import transaction
 from server.registry.account.providers.mssql import get_auth_provider_recid
-from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
+from server.registry.providers.mssql import (
+  run_exec,
+  run_json_many,
+  run_json_one,
+  transaction,
+)
 from server.registry.types import DBResponse
 
 __all__ = [

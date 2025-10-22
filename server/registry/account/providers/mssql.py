@@ -5,9 +5,12 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from server.registry.providers.mssql import run_exec, run_json_one
+from server.registry.providers.mssql import (
+  run_exec,
+  run_json_one,
+  transaction,
+)
 from server.registry.types import DBResponse
-from server.modules.providers.database.mssql_provider.logic import transaction
 
 __all__ = [
   "create_from_provider_v1",

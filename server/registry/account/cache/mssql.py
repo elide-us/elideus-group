@@ -7,9 +7,13 @@ import logging
 from typing import Any, Dict
 from uuid import UUID
 
-from server.registry.providers.mssql import run_exec, run_json_many, run_json_one
+from server.registry.providers.mssql import (
+  run_exec,
+  run_json_many,
+  run_json_one,
+  transaction,
+)
 from server.registry.types import DBResponse
-from server.modules.providers.database.mssql_provider.logic import transaction
 
 __all__ = [
   "count_rows_v1",

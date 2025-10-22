@@ -61,6 +61,34 @@ class DbModule(BaseModule):
 
     self._provider = provider_cls(**cfg)
 
+  def _resolve_provider_config(self, provider_name: str, env: EnvModule, overrides: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Return configuration for ``provider_name`` using registry helpers."""
+
+    cfg: Dict[str, Any] = {}
+    registry_module = None
+    try:
+      registry_module = import_module(f"server.registry.providers.{provider_name}")
+    except ModuleNotFoundError:
+      registry_module = None
+
+    configure = getattr(registry_module, "configure", None) if registry_module else None
+
+    if callable(configure):
+      provider_cfg = configure(env)  # type: ignore[misc]
+      if provider_cfg is None:
+        provider_cfg = {}
+      if not isinstance(provider_cfg, dict):
+        raise TypeError(
+          f"Registry provider configuration for '{provider_name}' must be a mapping"
+        )
+      cfg.update(provider_cfg)
+    elif provider_name == "mssql" and "dsn" not in cfg:
+      cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
+
+    if overrides:
+      cfg.update(overrides)
+    return cfg
+
   async def run(
     self,
     request: DBRequest | str,
@@ -87,11 +115,10 @@ class DbModule(BaseModule):
   async def startup(self):
     env: EnvModule = self.app.state.env
     await env.on_ready()
-    self.provider = env.get("DATABASE_PROVIDER")
-    cfg: Dict[str, Any] = {}
-    if self.provider == "mssql":
-      cfg = {"dsn": env.get("AZURE_SQL_CONNECTION_STRING")}
-    await self.init(provider=self.provider, **cfg)
+    provider_name = env.get("DATABASE_PROVIDER") or "mssql"
+    self.provider = provider_name
+    cfg = self._resolve_provider_config(provider_name, env)
+    await self.init(provider=provider_name, **cfg)
     assert self._provider
     await self._provider.startup()
     res = await self.run(get_config_request(ConfigKeyParams(key="LoggingLevel")))
