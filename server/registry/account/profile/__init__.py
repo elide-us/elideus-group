@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 __all__ = [
   "get_profile_request",
+  "get_roles_request",
   "set_display_request",
   "set_optin_request",
   "set_profile_image_request",
@@ -40,6 +41,10 @@ def _request(name: str, params: dict[str, object]) -> DBRequest:
 
 def get_profile_request(params: GuidParams) -> DBRequest:
   return _request("get_profile", params.model_dump())
+
+
+def get_roles_request(params: GuidParams) -> DBRequest:
+  return _request("get_roles", params.model_dump())
 
 
 def set_display_request(params: SetDisplayParams) -> DBRequest:
@@ -66,6 +71,7 @@ def update_if_unedited_request(params: UpdateIfUneditedParams) -> DBRequest:
 
 def register(router: "SubdomainRouter") -> None:
   router.add_function("get_profile", version=1)
+  router.add_function("get_roles", version=1)
   router.add_function("set_display", version=1)
   router.add_function("set_optin", version=1)
   router.add_function("set_profile_image", version=1)

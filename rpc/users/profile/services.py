@@ -2,8 +2,7 @@ from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
-from server.registry.types import DBRequest
+from server.modules.profile_module import ProfileModule
 from .models import (
   UsersProfileProfile1,
   UsersProfileSetDisplay1,
@@ -27,26 +26,20 @@ async def users_profile_get_profile_v1(request: Request):
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
-  db: DbModule = request.app.state.db
-  res = await db.run(
-    DBRequest(
-      op="db:account:profile:get_profile:1",
-      payload={"guid": user_guid},
-    ),
-  )
-  if not res.rows:
+  profile: ProfileModule = request.app.state.profile
+  record = await profile.get_profile(user_guid)
+  if not record:
     raise HTTPException(status_code=404, detail="Profile not found")
-  row = res.rows[0]
-  row["guid"] = str(row.get("guid", ""))
-  auth_providers = row.get("auth_providers")
+  record["guid"] = str(record.get("guid", ""))
+  auth_providers = record.get("auth_providers")
   if auth_providers is None:
-    row["auth_providers"] = []
+    record["auth_providers"] = []
   elif not isinstance(auth_providers, list):
     raise HTTPException(status_code=500, detail="Invalid auth provider payload")
-  profile = UsersProfileProfile1(**row)
+  profile_payload = UsersProfileProfile1(**record)
   return RPCResponse(
     op=rpc_request.op,
-    payload=profile.model_dump(),
+    payload=profile_payload.model_dump(),
     version=rpc_request.version,
   )
 
@@ -57,16 +50,8 @@ async def users_profile_set_display_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetDisplay1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run(
-    DBRequest(
-      op="db:account:profile:set_display:1",
-      payload={
-        "guid": user_guid,
-        "display_name": payload.display_name,
-      },
-    ),
-  )
+  profile: ProfileModule = request.app.state.profile
+  await profile.set_display(user_guid, payload.display_name)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -80,16 +65,8 @@ async def users_profile_set_optin_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetOptin1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run(
-    DBRequest(
-      op="db:account:profile:set_optin:1",
-      payload={
-        "guid": user_guid,
-        "display_email": payload.display_email,
-      },
-    ),
-  )
+  profile: ProfileModule = request.app.state.profile
+  await profile.set_optin(user_guid, payload.display_email)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -102,14 +79,8 @@ async def users_profile_get_roles_v1(request: Request):
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
-  db: DbModule = request.app.state.db
-  res = await db.run(
-    DBRequest(
-      op="db:account:profile:get_roles:1",
-      payload={"guid": user_guid},
-    ),
-  )
-  roles = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+  profile: ProfileModule = request.app.state.profile
+  roles = await profile.get_roles(user_guid)
   payload = UsersProfileRoles1(roles=roles)
   return RPCResponse(
     op=rpc_request.op,
@@ -124,16 +95,11 @@ async def users_profile_set_profile_image_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetProfileImage1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run(
-    DBRequest(
-      op="db:account:profile:set_profile_image:1",
-      payload={
-        "guid": user_guid,
-        "image_b64": payload.image_b64,
-        "provider": payload.provider,
-      },
-    ),
+  profile: ProfileModule = request.app.state.profile
+  await profile.set_profile_image(
+    user_guid,
+    payload.provider,
+    payload.image_b64,
   )
   return RPCResponse(
     op=rpc_request.op,
