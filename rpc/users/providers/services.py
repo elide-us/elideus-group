@@ -1,31 +1,9 @@
 from fastapi import HTTPException, Request
 from pydantic import ValidationError
-import uuid
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.auth_module import AuthModule
-from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
-from server.registry.account.providers import unlink_last_provider_request
-from server.registry.account.session import RevokeProviderTokensParams, revoke_provider_tokens_request
-from server.registry.system.config import ConfigKeyParams, get_config_request
-from server.registry.types import DBRequest
-from server.registry.account.providers import (
-  CreateFromProviderParams,
-  GetUserByEmailParams,
-  LinkProviderParams,
-  ProviderIdentifierParams,
-  SetProviderParams,
-  UnlinkLastProviderParams,
-  UnlinkProviderParams,
-  create_from_provider_request,
-  get_by_provider_identifier_request,
-  get_user_by_email_request,
-  link_provider_request,
-  set_provider_request,
-  unlink_provider_request,
-)
 from .models import (
   UsersProvidersSetProvider1,
   UsersProvidersLinkProvider1,
@@ -34,125 +12,24 @@ from .models import (
   UsersProvidersCreateFromProvider1,
 )
 
-
-def normalize_provider_identifier(pid: str) -> str:
-  try:
-    return str(uuid.UUID(pid))
-  except ValueError:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
-
 async def users_providers_set_provider_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   try:
     payload = UsersProvidersSetProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
-  db: DbModule = request.app.state.db
-  auth: AuthModule = request.app.state.auth
   oauth: OauthModule = request.app.state.oauth
-  profile = None
-  if payload.code or (payload.id_token and payload.access_token):
-    if payload.provider == "google":
-      if payload.code:
-        google_provider = getattr(auth, "providers", {}).get("google")
-        if not google_provider or not google_provider.audience:
-          raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
-        client_id = google_provider.audience
-        env = request.app.state.env
-        client_secret = env.get("GOOGLE_AUTH_SECRET")
-        if not client_secret:
-          raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-        res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-        if not res_redirect.rows:
-          raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
-        redirect_uri = res_redirect.rows[0]["value"]
-        id_token, access_token = await oauth.exchange_code_for_tokens(
-          payload.code,
-          client_id,
-          client_secret,
-          redirect_uri,
-          payload.provider,
-        )
-        if not id_token:
-          raise HTTPException(status_code=400, detail="Missing id_token")
-      else:
-        id_token, access_token = payload.id_token, payload.access_token
-    elif payload.provider == "discord":
-      discord_provider = getattr(auth, "providers", {}).get("discord")
-      if not discord_provider or not getattr(discord_provider, "audience", None):
-        raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
-      if payload.code:
-        client_id = getattr(discord_provider, "audience")
-        env = request.app.state.env
-        client_secret = env.get("DISCORD_AUTH_SECRET")
-        if not client_secret:
-          raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
-        res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-        if not res_redirect.rows:
-          raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
-        redirect_uri = res_redirect.rows[0]["value"]
-        id_token, access_token = await oauth.exchange_code_for_tokens(
-          payload.code,
-          client_id,
-          client_secret,
-          redirect_uri,
-          payload.provider,
-        )
-      else:
-        if not payload.access_token:
-          raise HTTPException(status_code=400, detail="access_token required")
-        id_token, access_token = payload.id_token, payload.access_token
-    elif payload.provider == "microsoft":
-      ms_provider = getattr(auth, "providers", {}).get("microsoft")
-      if not ms_provider or not ms_provider.audience:
-        raise HTTPException(status_code=500, detail="Microsoft OAuth client_id not configured")
-      if payload.code:
-        client_id = ms_provider.audience
-        env = request.app.state.env
-        client_secret = env.get("MICROSOFT_AUTH_SECRET")
-        if not client_secret:
-          raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-        res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-        if not res_redirect.rows:
-          raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
-        redirect_uri = res_redirect.rows[0]["value"]
-        id_token, access_token = await oauth.exchange_code_for_tokens(
-          payload.code,
-          client_id,
-          client_secret,
-          redirect_uri,
-          payload.provider,
-        )
-        if not id_token:
-          raise HTTPException(status_code=400, detail="Missing id_token")
-      else:
-        if not payload.id_token or not payload.access_token:
-          raise HTTPException(status_code=400, detail="id_token and access_token required")
-        id_token, access_token = payload.id_token, payload.access_token
-    else:
-      raise HTTPException(status_code=400, detail="Unsupported auth provider")
-    _, profile, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
-  await db.run(
-    set_provider_request(SetProviderParams(guid=auth_ctx.user_guid, provider=payload.provider)),
+  await oauth.on_ready()
+  result = await oauth.set_user_default_provider(
+    auth_ctx.user_guid,
+    payload.provider,
+    code=payload.code,
+    id_token=payload.id_token,
+    access_token=payload.access_token,
   )
-  if profile:
-    raw_email = (profile.get("email") or "").strip()
-    raw_name = (profile.get("username") or "").strip()
-    email = raw_email
-    display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
-    await db.run(
-      DBRequest(
-        op="db:account:profile:update_if_unedited:1",
-        payload={
-          "guid": auth_ctx.user_guid,
-          "email": email,
-          "display_name": display_name,
-        },
-      ),
-    )
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=result,
     version=rpc_request.version,
   )
 
@@ -162,108 +39,16 @@ async def users_providers_link_provider_v1(request: Request):
     payload = UsersProvidersLinkProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
-  auth: AuthModule = request.app.state.auth
-  db: DbModule = request.app.state.db
   oauth: OauthModule = request.app.state.oauth
-  if payload.provider == "google":
-    if not payload.code:
-      raise HTTPException(status_code=400, detail="code required")
-    google_provider = getattr(auth, "providers", {}).get("google")
-    if not google_provider or not google_provider.audience:
-      raise HTTPException(status_code=500, detail="Google OAuth client_id not configured")
-    client_id = google_provider.audience
-    env = request.app.state.env
-    client_secret = env.get("GOOGLE_AUTH_SECRET")
-    if not client_secret:
-      raise HTTPException(status_code=500, detail="Google OAuth client_secret not configured")
-    res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-    if not res_redirect.rows:
-      raise HTTPException(status_code=500, detail="Google OAuth redirect URI not configured")
-    redirect_uri = res_redirect.rows[0]["value"]
-    id_token, access_token = await oauth.exchange_code_for_tokens(
-      payload.code,
-      client_id,
-      client_secret,
-      redirect_uri,
-      payload.provider,
-    )
-    if not id_token:
-      raise HTTPException(status_code=400, detail="Missing id_token")
-  elif payload.provider == "discord":
-    discord_provider = getattr(auth, "providers", {}).get("discord")
-    if not discord_provider or not getattr(discord_provider, "audience", None):
-      raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
-    if payload.code:
-      client_id = getattr(discord_provider, "audience")
-      env = request.app.state.env
-      client_secret = env.get("DISCORD_AUTH_SECRET")
-      if not client_secret:
-        raise HTTPException(status_code=500, detail="Discord OAuth client_secret not configured")
-      res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-      if not res_redirect.rows:
-        raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
-      redirect_uri = res_redirect.rows[0]["value"]
-      id_token, access_token = await oauth.exchange_code_for_tokens(
-        payload.code,
-        client_id,
-        client_secret,
-        redirect_uri,
-        payload.provider,
-      )
-    else:
-      if not payload.access_token:
-        raise HTTPException(status_code=400, detail="access_token required")
-      id_token = payload.id_token
-      access_token = payload.access_token
-  elif payload.provider == "microsoft":
-    ms_provider = getattr(auth, "providers", {}).get("microsoft")
-    if not ms_provider or not ms_provider.audience:
-      raise HTTPException(status_code=500, detail="Microsoft OAuth client_id not configured")
-    if payload.code:
-      client_id = ms_provider.audience
-      env = request.app.state.env
-      client_secret = env.get("MICROSOFT_AUTH_SECRET")
-      if not client_secret:
-        raise HTTPException(status_code=500, detail="Microsoft OAuth client_secret not configured")
-      res_redirect = await db.run(get_config_request(ConfigKeyParams(key="Hostname")))
-      if not res_redirect.rows:
-        raise HTTPException(status_code=500, detail="Microsoft OAuth redirect URI not configured")
-      redirect_uri = res_redirect.rows[0]["value"]
-      id_token, access_token = await oauth.exchange_code_for_tokens(
-        payload.code,
-        client_id,
-        client_secret,
-        redirect_uri,
-        payload.provider,
-      )
-      if not id_token:
-        raise HTTPException(status_code=400, detail="Missing id_token")
-    else:
-      if not payload.id_token or not payload.access_token:
-        raise HTTPException(status_code=400, detail="id_token and access_token required")
-      id_token = payload.id_token
-      access_token = payload.access_token
-  else:
-    raise HTTPException(status_code=400, detail="Unsupported auth provider")
-  provider_uid, _, _ = await auth.handle_auth_login(payload.provider, id_token, access_token)
-  provider_uid = normalize_provider_identifier(provider_uid)
-  res = await db.run(
-    get_by_provider_identifier_request(
-      ProviderIdentifierParams(provider=payload.provider, provider_identifier=provider_uid),
-    ),
+  await oauth.on_ready()
+  result = await oauth.link_user_provider(
+    auth_ctx.user_guid,
+    payload.provider,
+    code=payload.code,
+    id_token=payload.id_token,
+    access_token=payload.access_token,
   )
-  if res.rows and res.rows[0].get("guid") != auth_ctx.user_guid:
-    raise HTTPException(status_code=409, detail="Provider already linked")
-  await db.run(
-    link_provider_request(
-      LinkProviderParams(
-        guid=auth_ctx.user_guid,
-        provider=payload.provider,
-        provider_identifier=provider_uid,
-      ),
-    ),
-  )
-  return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
+  return RPCResponse(op=rpc_request.op, payload=result, version=rpc_request.version)
 
 async def users_providers_unlink_provider_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
@@ -271,40 +56,14 @@ async def users_providers_unlink_provider_v1(request: Request):
     payload = UsersProvidersUnlinkProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
-  db: DbModule = request.app.state.db
-  res_prof = await db.run(
-    DBRequest(
-      op="db:account:profile:get_profile:1",
-      payload={"guid": auth_ctx.user_guid},
-    ),
+  oauth: OauthModule = request.app.state.oauth
+  await oauth.on_ready()
+  result = await oauth.unlink_user_provider(
+    auth_ctx.user_guid,
+    payload.provider,
+    new_default=payload.new_default,
   )
-  default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
-  res = await db.run(
-    unlink_provider_request(
-      UnlinkProviderParams(guid=auth_ctx.user_guid, provider=payload.provider),
-    ),
-  )
-  remaining = res.rows[0].get("providers_remaining") if res.rows else 0
-  if remaining == 0:
-    await db.run(
-      unlink_last_provider_request(
-        UnlinkLastProviderParams(guid=auth_ctx.user_guid, provider=payload.provider),
-      ),
-    )
-  elif payload.provider == default_provider:
-    if not payload.new_default:
-      raise HTTPException(status_code=400, detail="new_default required")
-    await db.run(
-      set_provider_request(
-        SetProviderParams(guid=auth_ctx.user_guid, provider=payload.new_default),
-      ),
-    )
-    await db.run(
-      revoke_provider_tokens_request(
-        RevokeProviderTokensParams(guid=auth_ctx.user_guid, provider=payload.provider),
-      ),
-    )
-  return RPCResponse(op=rpc_request.op, payload={"provider": payload.provider}, version=rpc_request.version)
+  return RPCResponse(op=rpc_request.op, payload=result, version=rpc_request.version)
 
 async def users_providers_get_by_provider_identifier_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
@@ -312,13 +71,11 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
     payload = UsersProvidersGetByProviderIdentifier1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
-  db: DbModule = request.app.state.db
-  res = await db.run(
-    get_by_provider_identifier_request(
-      ProviderIdentifierParams(**payload.model_dump()),
-    ),
+  oauth: OauthModule = request.app.state.oauth
+  await oauth.on_ready()
+  row = await oauth.get_user_by_provider_identifier(
+    payload.provider, payload.provider_identifier
   )
-  row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 
 async def users_providers_create_from_provider_v1(request: Request):
@@ -327,15 +84,14 @@ async def users_providers_create_from_provider_v1(request: Request):
     payload = UsersProvidersCreateFromProvider1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
-  db: DbModule = request.app.state.db
-  res = await db.run(
-    get_user_by_email_request(GetUserByEmailParams(email=payload.provider_email)),
+  oauth: OauthModule = request.app.state.oauth
+  await oauth.on_ready()
+  row = await oauth.create_user_from_provider(
+    payload.provider,
+    payload.provider_identifier,
+    payload.provider_email,
+    payload.provider_displayname,
+    payload.provider_profile_image,
   )
-  if res.rows:
-    raise HTTPException(status_code=409, detail="Email already registered")
-  res = await db.run(
-    create_from_provider_request(CreateFromProviderParams(**payload.model_dump())),
-  )
-  row = res.rows[0] if res.rows else None
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
 
