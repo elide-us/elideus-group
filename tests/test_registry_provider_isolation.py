@@ -98,6 +98,7 @@ def test_db_module_uses_provider_specific_configuration(monkeypatch):
     provider = db_module._provider
     assert isinstance(provider, MockProvider)
     assert provider.started is True
+    assert db_module.provider == "mock"
     assert provider.config["dsn"] == "mock://dsn"
     assert provider.config["blob"] == "blob"
 

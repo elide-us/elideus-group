@@ -42,7 +42,9 @@ class DbModule(BaseModule):
     from the ``DATABASE_PROVIDER`` environment variable. Defaults to ``mssql``.
     """
 
-    provider_name = provider or "mssql"
+    config = dict(cfg)
+    provider_name = provider or config.pop("provider", None) or "mssql"
+    self.provider = provider_name
 
     try:
       module = import_module(f".providers.database.{provider_name}_provider", __package__)
@@ -59,7 +61,7 @@ class DbModule(BaseModule):
     if not provider_cls:
       raise ValueError(f"Provider '{provider_name}' missing DbProviderBase implementation")
 
-    self._provider = provider_cls(**cfg)
+    self._provider = provider_cls(**config)
 
   def _resolve_provider_config(self, provider_name: str, env: EnvModule, overrides: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Return configuration for ``provider_name`` using registry helpers."""

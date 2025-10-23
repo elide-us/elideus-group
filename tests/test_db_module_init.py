@@ -10,3 +10,4 @@ def test_init_uses_concrete_provider():
   db = DbModule(app)
   asyncio.run(db.init(provider="mssql"))
   assert isinstance(db._provider, MssqlProvider)
+  assert db.provider == "mssql"
