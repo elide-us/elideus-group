@@ -19,19 +19,32 @@ from server.registry.account.oauth import (
 )
 from server.registry.account.session import (
   CreateSessionParams,
+  RevokeProviderTokensParams,
   SetRotkeyParams,
   UpdateDeviceTokenParams,
   create_session_request,
+  revoke_provider_tokens_request,
   set_rotkey_request,
   update_device_token_request,
 )
+from server.registry.system.config import ConfigKeyParams, get_config_request
 from server.registry.types import DBRequest
 from server.registry.account.providers import (
   CreateFromProviderParams,
+  GetUserByEmailParams,
+  LinkProviderParams,
   ProviderIdentifierParams,
+  SetProviderParams,
+  UnlinkLastProviderParams,
+  UnlinkProviderParams,
   create_from_provider_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
+  get_user_by_email_request,
+  link_provider_request,
+  set_provider_request,
+  unlink_last_provider_request,
+  unlink_provider_request,
 )
 
 
@@ -45,12 +58,17 @@ class OauthModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.discord: DiscordBotModule | None = None
+    self.env = None
+    self._redirect_uri: str | None = None
 
   async def startup(self):
     self.auth: AuthModule = self.app.state.auth
     await self.auth.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.env = getattr(self.app.state, "env", None)
+    if self.env:
+      await self.env.on_ready()
     self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
@@ -58,6 +76,251 @@ class OauthModule(BaseModule):
 
   async def shutdown(self):
     pass
+
+  def _provider_title(self, provider: str) -> str:
+    return {"google": "Google", "microsoft": "Microsoft", "discord": "Discord"}.get(
+      provider, provider.title()
+    )
+
+  def _get_secret_var(self, provider: str) -> str | None:
+    return {
+      "google": "GOOGLE_AUTH_SECRET",
+      "microsoft": "MICROSOFT_AUTH_SECRET",
+      "discord": "DISCORD_AUTH_SECRET",
+    }.get(provider)
+
+  async def _get_redirect_uri(self, provider: str) -> str:
+    if self._redirect_uri:
+      return self._redirect_uri
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="Hostname")))
+    if not res.rows:
+      raise HTTPException(
+        status_code=500,
+        detail=f"{self._provider_title(provider)} OAuth redirect URI not configured",
+      )
+    self._redirect_uri = res.rows[0]["value"]
+    return self._redirect_uri
+
+  def _get_provider_client_id(self, provider: str) -> str:
+    providers = getattr(self.auth, "providers", {})
+    provider_data = providers.get(provider)
+    audience = getattr(provider_data, "audience", None) if provider_data else None
+    if not audience:
+      raise HTTPException(
+        status_code=500,
+        detail=f"{self._provider_title(provider)} OAuth client_id not configured",
+      )
+    return audience
+
+  async def _prepare_tokens(
+    self,
+    provider: str,
+    code: str | None,
+    id_token: str | None,
+    access_token: str | None,
+  ) -> tuple[str | None, str | None]:
+    provider = provider.lower()
+    if provider not in ("google", "microsoft", "discord"):
+      raise HTTPException(status_code=400, detail="Unsupported auth provider")
+    client_id = self._get_provider_client_id(provider)
+    if code:
+      secret_var = self._get_secret_var(provider)
+      if not self.env or not secret_var:
+        raise HTTPException(
+          status_code=500,
+          detail=f"{self._provider_title(provider)} OAuth client_secret not configured",
+        )
+      client_secret = self.env.get(secret_var)
+      if not client_secret:
+        raise HTTPException(
+          status_code=500,
+          detail=f"{self._provider_title(provider)} OAuth client_secret not configured",
+        )
+      redirect_uri = await self._get_redirect_uri(provider)
+      id_token, access_token = await self.exchange_code_for_tokens(
+        code, client_id, client_secret, redirect_uri, provider
+      )
+      if provider in ("google", "microsoft") and not id_token:
+        raise HTTPException(status_code=400, detail="Missing id_token")
+    else:
+      if provider == "discord" and not access_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+      if provider == "microsoft" and (not id_token or not access_token):
+        raise HTTPException(
+          status_code=400, detail="id_token and access_token required"
+        )
+    return id_token, access_token
+
+  def normalize_provider_identifier(self, pid: str) -> str:
+    try:
+      return str(uuid.UUID(pid))
+    except ValueError:
+      return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
+
+  async def set_user_default_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+  ) -> dict:
+    original = {
+      "provider": provider,
+      "code": code,
+      "id_token": id_token,
+      "access_token": access_token,
+    }
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
+    )
+    profile = None
+    if id_token or access_token:
+      _, profile, _ = await self.auth.handle_auth_login(
+        provider, id_token, access_token
+      )
+    await self.db.run(
+      set_provider_request(
+        SetProviderParams(guid=user_guid, provider=provider)
+      )
+    )
+    if profile:
+      raw_email = (profile.get("email") or "").strip()
+      raw_name = (profile.get("username") or "").strip()
+      email = raw_email
+      display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
+      await self.db.run(
+        DBRequest(
+          op="db:account:profile:update_if_unedited:1",
+          payload={
+            "guid": user_guid,
+            "email": email,
+            "display_name": display_name,
+          },
+        )
+      )
+    return original
+
+  async def link_user_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+  ) -> dict:
+    provider_key = provider.lower()
+    if provider_key == "google" and not code:
+      raise HTTPException(status_code=400, detail="code required")
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
+    )
+    provider_uid, _, _ = await self.auth.handle_auth_login(
+      provider, id_token, access_token
+    )
+    provider_uid = self.normalize_provider_identifier(provider_uid)
+    res = await self.db.run(
+      get_by_provider_identifier_request(
+        ProviderIdentifierParams(
+          provider=provider, provider_identifier=provider_uid
+        )
+      )
+    )
+    if res.rows and res.rows[0].get("guid") != user_guid:
+      raise HTTPException(status_code=409, detail="Provider already linked")
+    await self.db.run(
+      link_provider_request(
+        LinkProviderParams(
+          guid=user_guid,
+          provider=provider,
+          provider_identifier=provider_uid,
+        )
+      )
+    )
+    return {"provider": provider}
+
+  async def unlink_user_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    new_default: str | None = None,
+  ) -> dict:
+    res_prof = await self.db.run(
+      DBRequest(
+        op="db:account:profile:get_profile:1",
+        payload={"guid": user_guid},
+      )
+    )
+    default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
+    res = await self.db.run(
+      unlink_provider_request(
+        UnlinkProviderParams(guid=user_guid, provider=provider)
+      )
+    )
+    remaining = res.rows[0].get("providers_remaining") if res.rows else 0
+    if remaining == 0:
+      await self.db.run(
+        unlink_last_provider_request(
+          UnlinkLastProviderParams(guid=user_guid, provider=provider)
+        )
+      )
+    elif provider == default_provider:
+      if not new_default:
+        raise HTTPException(status_code=400, detail="new_default required")
+      await self.db.run(
+        set_provider_request(
+          SetProviderParams(guid=user_guid, provider=new_default)
+        )
+      )
+      await self.db.run(
+        revoke_provider_tokens_request(
+          RevokeProviderTokensParams(guid=user_guid, provider=provider)
+        )
+      )
+    return {"provider": provider}
+
+  async def get_user_by_provider_identifier(
+    self, provider: str, provider_identifier: str
+  ):
+    res = await self.db.run(
+      get_by_provider_identifier_request(
+        ProviderIdentifierParams(
+          provider=provider, provider_identifier=provider_identifier
+        )
+      )
+    )
+    return res.rows[0] if res.rows else None
+
+  async def create_user_from_provider(
+    self,
+    provider: str,
+    provider_identifier: str,
+    provider_email: str,
+    provider_displayname: str,
+    provider_profile_image: str | None = None,
+  ):
+    res = await self.db.run(
+      get_user_by_email_request(
+        GetUserByEmailParams(email=provider_email)
+      )
+    )
+    if res.rows:
+      raise HTTPException(status_code=409, detail="Email already registered")
+    res = await self.db.run(
+      create_from_provider_request(
+        CreateFromProviderParams(
+          provider=provider,
+          provider_identifier=provider_identifier,
+          provider_email=provider_email,
+          provider_displayname=provider_displayname,
+          provider_profile_image=provider_profile_image,
+        )
+      )
+    )
+    return res.rows[0] if res.rows else None
 
   async def exchange_code_for_tokens(
     self,
