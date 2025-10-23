@@ -17,52 +17,16 @@ rpc_service_routes_pkg = types.ModuleType('rpc.service.routes')
 rpc_service_routes_pkg.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / 'rpc/service/routes')]
 sys.modules.setdefault('rpc.service.routes', rpc_service_routes_pkg)
 
+from rpc.service.routes.models import (
+  ServiceRoutesDeleteRoute1,
+  ServiceRoutesList1,
+  ServiceRoutesRouteItem1,
+)
+
 # Stub server modules
 server_pkg = types.ModuleType('server')
 modules_pkg = types.ModuleType('server.modules')
-db_module_pkg = types.ModuleType('server.modules.db_module')
-auth_module_pkg = types.ModuleType('server.modules.auth_module')
 models_pkg = types.ModuleType('server.models')
-
-
-class DbModule:
-  pass
-
-
-db_module_pkg.DbModule = DbModule
-modules_pkg.db_module = db_module_pkg
-
-
-class RoleCache:
-  def __init__(self):
-    self.roles = {'ROLE_SERVICE_ADMIN': 1}
-
-  def mask_to_names(self, mask):
-    return [name for name, bit in self.roles.items() if mask & bit]
-
-  def names_to_mask(self, names):
-    mask = 0
-    for n in names:
-      mask |= self.roles.get(n, 0)
-    return mask
-
-class AuthModule:
-  def __init__(self):
-    self.role_cache = RoleCache()
-
-  @property
-  def roles(self):
-    return self.role_cache.roles
-
-  def mask_to_names(self, mask):
-    return self.role_cache.mask_to_names(mask)
-
-  def names_to_mask(self, names):
-    return self.role_cache.names_to_mask(names)
-
-
-auth_module_pkg.AuthModule = AuthModule
-modules_pkg.auth_module = auth_module_pkg
 
 
 class RPCResponse:
@@ -90,55 +54,55 @@ models_pkg.AuthContext = AuthContext
 server_pkg.modules = modules_pkg
 server_pkg.models = models_pkg
 
+service_routes_module_pkg = types.ModuleType('server.modules.service_routes_module')
+
+
+class StubServiceRoutesModule:
+  def __init__(self):
+    self.calls = []
+
+  async def on_ready(self):
+    self.calls.append(('on_ready', None))
+
+  async def get_routes(self, user_guid, roles):
+    self.calls.append(('get_routes', user_guid, tuple(roles)))
+    route = ServiceRoutesRouteItem1(
+      path='/a',
+      name='A',
+      icon='home',
+      sequence=1,
+      required_roles=['ROLE_SERVICE_ADMIN'],
+    )
+    return ServiceRoutesList1(routes=[route])
+
+  async def upsert_route(self, user_guid, roles, route):
+    self.calls.append(('upsert_route', user_guid, tuple(roles), route))
+    return route
+
+  async def delete_route(self, user_guid, roles, path):
+    self.calls.append(('delete_route', user_guid, tuple(roles), path))
+    return ServiceRoutesDeleteRoute1(path=path)
+
+
+service_routes_module_pkg.ServiceRoutesModule = StubServiceRoutesModule
+modules_pkg.service_routes_module = service_routes_module_pkg
+
+
 registry_pkg = types.ModuleType('server.registry')
 registry_pkg.__path__ = []
 
 registry_system_pkg = types.ModuleType('server.registry.system')
 registry_system_pkg.__path__ = []
 
-registry_system_routes_pkg = types.ModuleType('server.registry.system.routes')
-
-
-def _make_request(op, payload=None):
-  if payload is None:
-    payload = {}
-  return SimpleNamespace(op=op, payload=payload)
-
-
-def get_routes_request():
-  return _make_request('db:system:routes:get_routes:1')
-
-
-def upsert_route_request(*, path, name, icon, sequence, roles):
-  return _make_request('db:system:routes:upsert_route:1', {
-    'path': path,
-    'name': name,
-    'icon': icon,
-    'sequence': sequence,
-    'roles': roles,
-  })
-
-
-def delete_route_request(path):
-  return _make_request('db:system:routes:delete_route:1', {'path': path})
-
-
-registry_system_routes_pkg.get_routes_request = get_routes_request
-registry_system_routes_pkg.upsert_route_request = upsert_route_request
-registry_system_routes_pkg.delete_route_request = delete_route_request
-
 sys.modules.setdefault('server.registry', registry_pkg)
 sys.modules.setdefault('server.registry.system', registry_system_pkg)
-sys.modules.setdefault('server.registry.system.routes', registry_system_routes_pkg)
 
 server_pkg.registry = registry_pkg
 registry_pkg.system = registry_system_pkg
-registry_system_pkg.routes = registry_system_routes_pkg
 
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
-sys.modules.setdefault('server.modules.db_module', db_module_pkg)
-sys.modules.setdefault('server.modules.auth_module', auth_module_pkg)
+sys.modules.setdefault('server.modules.service_routes_module', service_routes_module_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
 import importlib.util
@@ -168,37 +132,9 @@ async def fake_unbox(request: Request):
 svc.unbox_request = fake_unbox
 
 
-class DummyDb:
-  def __init__(self):
-    self.calls = []
-
-  async def run(self, op, args=None):
-    if not isinstance(op, str):
-      args = op.payload
-      op = op.op
-    elif args is None:
-      args = {}
-    self.calls.append((op, args))
-    if op == 'db:system:routes:get_routes:1':
-      rows = [{
-        'element_path': '/a',
-        'element_name': 'A',
-        'element_icon': 'home',
-        'element_sequence': 1,
-        'element_roles': 1,
-      }]
-      return SimpleNamespace(rows=rows, rowcount=1)
-    if op in ('db:system:routes:upsert_route:1', 'db:system:routes:delete_route:1'):
-      return SimpleNamespace(rows=[], rowcount=1)
-    raise AssertionError(f'unexpected op {op}')
-
-
-db = DummyDb()
-auth = AuthModule()
-
 app = FastAPI()
-app.state.db = db
-app.state.auth = auth
+module = StubServiceRoutesModule()
+app.state.service_routes = module
 
 
 @app.post('/rpc')
@@ -230,7 +166,7 @@ def test_get_routes_service():
       'required_roles': ['ROLE_SERVICE_ADMIN'],
     }]
   }
-  assert ('db:system:routes:get_routes:1', {}) in db.calls
+  assert ('get_routes', 'u1', ('ROLE_SERVICE_ADMIN',)) in module.calls
 
 
 def test_upsert_and_delete_route_service():
@@ -245,11 +181,5 @@ def test_upsert_and_delete_route_service():
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
   assert resp.status_code == 200
-  assert ('db:system:routes:upsert_route:1', {
-    'path': '/a',
-    'name': 'A',
-    'icon': 'home',
-    'sequence': 1,
-    'roles': 1,
-  }) in db.calls
-  assert ('db:system:routes:delete_route:1', {'path': '/a'}) in db.calls
+  assert any(call[0] == 'upsert_route' and call[3].path == '/a' for call in module.calls)
+  assert ('delete_route', 'u1', ('ROLE_SERVICE_ADMIN',), '/a') in module.calls
