@@ -578,3 +578,77 @@ class OauthModule(BaseModule):
 
     return user
 
+  async def login_provider(
+    self,
+    provider: str,
+    *,
+    fingerprint: str | None,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+    confirm: bool | None = None,
+    reauth_token: str | None = None,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
+  ):
+    provider = provider.lower()
+    if not fingerprint:
+      raise HTTPException(status_code=400, detail="Missing fingerprint")
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
+    )
+    provider_uid, profile, payload = await self.auth.handle_auth_login(
+      provider, id_token, access_token
+    )
+    provider_uid = self.normalize_provider_identifier(provider_uid)
+    user = await self.resolve_user(
+      provider,
+      provider_uid,
+      profile,
+      payload,
+      confirm=confirm,
+      reauth_token=reauth_token,
+    )
+    user_guid = user["guid"]
+    new_img = profile.get("profilePicture")
+    if new_img and new_img != user.get("profile_image"):
+      await self.db.run(
+        DBRequest(
+          op="db:account:profile:set_profile_image:1",
+          payload={
+            "guid": user_guid,
+            "image_b64": new_img,
+            "provider": provider,
+          },
+        )
+      )
+      user["profile_image"] = new_img
+    if user.get("provider_name") == provider:
+      res_prof = await self.db.run(
+        DBRequest(
+          op="db:account:profile:update_if_unedited:1",
+          payload={
+            "guid": user_guid,
+            "email": profile["email"],
+            "display_name": profile["username"],
+          },
+        ),
+      )
+      if res_prof.rows:
+        updated = res_prof.rows[0]
+        if updated.get("display_name"):
+          user["display_name"] = updated["display_name"]
+        if updated.get("email"):
+          user["email"] = updated["email"]
+    session_token, session_exp, rotation_token, rot_exp = await self.create_session(
+      user_guid, provider, fingerprint, user_agent, ip_address
+    )
+    return {
+      "session_token": session_token,
+      "session_exp": session_exp,
+      "rotation_token": rotation_token,
+      "rotation_exp": rot_exp,
+      "user": user,
+      "profile": profile,
+    }
+
