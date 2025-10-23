@@ -3,13 +3,7 @@ import logging
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
-from server.modules.auth_module import AuthModule
-from server.registry.system.routes import (
-  delete_route_request,
-  get_routes_request,
-  upsert_route_request,
-)
+from server.modules.service_routes_module import ServiceRoutesModule
 from .models import (
   ServiceRoutesRouteItem1,
   ServiceRoutesList1,
@@ -24,26 +18,9 @@ async def service_routes_get_routes_v1(request: Request):
     auth_ctx.user_guid,
     auth_ctx.roles,
   )
-  db: DbModule = request.app.state.db
-  auth: AuthModule = request.app.state.auth
-  res = await db.run(get_routes_request())
-  routes = []
-  for row in res.rows:
-    mask = int(row.get("element_roles", 0))
-    roles = auth.mask_to_names(mask)
-    item = ServiceRoutesRouteItem1(
-      path=row.get("element_path", ""),
-      name=row.get("element_name", ""),
-      icon=row.get("element_icon"),
-      sequence=int(row.get("element_sequence", 0)),
-      required_roles=roles,
-    )
-    routes.append(item)
-  payload = ServiceRoutesList1(routes=routes)
-  logging.debug(
-    "[service_routes_get_routes_v1] returning %d routes",
-    len(routes),
-  )
+  module: ServiceRoutesModule = request.app.state.service_routes
+  await module.on_ready()
+  payload = await module.get_routes(auth_ctx.user_guid, auth_ctx.roles)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -60,22 +37,9 @@ async def service_routes_upsert_route_v1(request: Request):
     rpc_request.payload,
   )
   payload = ServiceRoutesRouteItem1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  auth: AuthModule = request.app.state.auth
-  mask = auth.names_to_mask(payload.required_roles)
-  await db.run(
-    upsert_route_request(
-      path=payload.path,
-      name=payload.name,
-      icon=payload.icon,
-      sequence=payload.sequence,
-      roles=mask,
-    )
-  )
-  logging.debug(
-    "[service_routes_upsert_route_v1] upserted route %s",
-    payload.path,
-  )
+  module: ServiceRoutesModule = request.app.state.service_routes
+  await module.on_ready()
+  await module.upsert_route(auth_ctx.user_guid, auth_ctx.roles, payload)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -92,12 +56,9 @@ async def service_routes_delete_route_v1(request: Request):
     rpc_request.payload,
   )
   payload = ServiceRoutesDeleteRoute1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.run(delete_route_request(payload.path))
-  logging.debug(
-    "[service_routes_delete_route_v1] deleted route %s",
-    payload.path,
-  )
+  module: ServiceRoutesModule = request.app.state.service_routes
+  await module.on_ready()
+  await module.delete_route(auth_ctx.user_guid, auth_ctx.roles, payload.path)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
