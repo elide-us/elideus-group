@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List
 from fastapi import FastAPI
 from openai import AsyncOpenAI
@@ -12,6 +13,7 @@ from server.registry.system.config import ConfigKeyParams, get_config_request
 from server.registry.system.conversations import (
   find_recent_request,
   insert_conversation_request,
+  list_by_time_request,
   update_output_request,
 )
 from server.registry.system.models import list_models_request
@@ -194,7 +196,7 @@ class OpenaiModule(BaseModule):
     assert self.db
     await self.db.run(delete_persona_request(recid=recid, name=name))
 
-  async def _log_conversation_start(
+  async def log_persona_conversation_input(
     self,
     personas_recid: int | None,
     models_recid: int | None,
@@ -239,7 +241,7 @@ class OpenaiModule(BaseModule):
       logging.exception("[OpenaiModule] insert conversation failed")
     return None
 
-  async def _log_conversation_end(
+  async def finalize_persona_conversation(
     self,
     recid: int,
     output_data: str,
@@ -258,6 +260,61 @@ class OpenaiModule(BaseModule):
         )
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
+
+  async def get_recent_persona_conversation_history(
+    self,
+    personas_recid: int,
+    *,
+    lookback_days: int = 30,
+    limit: int = 5,
+  ) -> List[Dict[str, str]]:
+    if not self.db:
+      return []
+    if personas_recid is None:
+      return []
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=max(lookback_days, 0))
+    try:
+      res = await self.db.run(
+        list_by_time_request(
+          personas_recid=personas_recid,
+          start=start.isoformat(),
+          end=end.isoformat(),
+        )
+      )
+    except Exception:
+      logging.exception("[OpenaiModule] failed to load persona conversation history")
+      raise
+
+    rows = list(res.rows or [])
+
+    def _parse_timestamp(value: Any) -> datetime:
+      if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+      if isinstance(value, datetime):
+        return value.astimezone(timezone.utc)
+      if isinstance(value, str):
+        candidate = value.replace("Z", "+00:00")
+        try:
+          return datetime.fromisoformat(candidate)
+        except ValueError:
+          pass
+      return datetime.min.replace(tzinfo=timezone.utc)
+
+    rows.sort(key=lambda row: _parse_timestamp(row.get("element_created_on")))
+    if limit and limit > 0:
+      rows = rows[-limit:]
+
+    conversation_history: List[Dict[str, str]] = []
+    for row in rows:
+      user_input = (row.get("element_input") or "").strip()
+      if user_input:
+        conversation_history.append({"role": "user", "content": user_input})
+      assistant_output = (row.get("element_output") or "").strip()
+      if assistant_output:
+        conversation_history.append({"role": "assistant", "content": assistant_output})
+
+    return conversation_history
 
   async def generate_chat(
     self,
@@ -315,7 +372,7 @@ class OpenaiModule(BaseModule):
       resolved_tokens = 64
 
     if persona and personas_recid is not None and models_recid is not None:
-      conv_id = await self._log_conversation_start(
+      conv_id = await self.log_persona_conversation_input(
         personas_recid,
         models_recid,
         guild_id,
@@ -361,7 +418,7 @@ class OpenaiModule(BaseModule):
         "total_tokens": total_tokens,
       }
     if conv_id:
-      await self._log_conversation_end(conv_id, content, total_tokens)
+      await self.finalize_persona_conversation(conv_id, content, total_tokens)
     return result
 
   async def persona_response(

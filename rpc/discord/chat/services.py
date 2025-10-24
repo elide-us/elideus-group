@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 from fastapi import HTTPException, Request
@@ -8,11 +7,6 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
 from server.modules.openai_module import OpenaiModule
-from server.registry.system.conversations import (
-  insert_conversation_request,
-  list_by_time_request,
-  update_output_request,
-)
 
 from .models import (
   DiscordChatPersonaRequest1,
@@ -282,12 +276,11 @@ async def discord_chat_get_conversation_history_v1(request: Request):
       version=rpc_request.version,
     )
 
-  db_module = getattr(request.app.state, "db", None)
   openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
-  if not db_module or not openai_module:
+  if not openai_module:
     logging.warning(
-      "[discord_chat_get_conversation_history_v1] required modules unavailable",
-      extra={"has_db": bool(db_module), "has_openai": bool(openai_module)},
+      "[discord_chat_get_conversation_history_v1] OpenAI module unavailable",
+      extra={"has_openai": False},
     )
     return RPCResponse(
       op=rpc_request.op,
@@ -299,10 +292,16 @@ async def discord_chat_get_conversation_history_v1(request: Request):
       version=rpc_request.version,
     )
 
-  await db_module.on_ready()
   await openai_module.on_ready()
 
-  persona_details = await openai_module.get_persona_definition(persona)
+  try:
+    persona_details = await openai_module.get_persona_definition(persona)
+  except Exception:
+    logging.exception(
+      "[discord_chat_get_conversation_history_v1] failed to load persona",
+      extra={"persona": persona},
+    )
+    persona_details = None
   personas_recid = persona_details.get("recid") if persona_details else None
   if personas_recid is None:
     return RPCResponse(
@@ -315,18 +314,17 @@ async def discord_chat_get_conversation_history_v1(request: Request):
       version=rpc_request.version,
     )
 
-  now = datetime.now(timezone.utc)
-  start = now - timedelta(days=30)
   try:
-    history_res = await db_module.run(
-      list_by_time_request(
-        personas_recid=personas_recid,
-        start=start.isoformat(),
-        end=now.isoformat(),
-      )
+    conversation_history = await openai_module.get_recent_persona_conversation_history(
+      personas_recid=personas_recid,
+      lookback_days=30,
+      limit=5,
     )
   except Exception:
-    logging.exception("[discord_chat_get_conversation_history_v1] db query failed")
+    logging.exception(
+      "[discord_chat_get_conversation_history_v1] failed to load history",
+      extra={"persona": persona, "personas_recid": personas_recid},
+    )
     return RPCResponse(
       op=rpc_request.op,
       payload={
@@ -336,32 +334,6 @@ async def discord_chat_get_conversation_history_v1(request: Request):
       },
       version=rpc_request.version,
     )
-
-  rows = list(history_res.rows or [])
-
-  def _parse_timestamp(value: Any) -> datetime:
-    if not value:
-      return datetime.min.replace(tzinfo=timezone.utc)
-    if isinstance(value, datetime):
-      return value.astimezone(timezone.utc)
-    if isinstance(value, str):
-      candidate = value.replace("Z", "+00:00")
-      try:
-        return datetime.fromisoformat(candidate)
-      except ValueError:
-        pass
-    return datetime.min.replace(tzinfo=timezone.utc)
-
-  rows.sort(key=lambda row: _parse_timestamp(row.get("element_created_on")))
-  recent_rows = rows[-5:]
-  conversation_history: List[Dict[str, str]] = []
-  for row in recent_rows:
-    user_input = (row.get("element_input") or "").strip()
-    if user_input:
-      conversation_history.append({"role": "user", "content": user_input})
-    assistant_output = (row.get("element_output") or "").strip()
-    if assistant_output:
-      conversation_history.append({"role": "assistant", "content": assistant_output})
 
   return RPCResponse(
     op=rpc_request.op,
@@ -482,12 +454,11 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
       version=rpc_request.version,
     )
 
-  db_module = getattr(request.app.state, "db", None)
   openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
-  if not db_module or not openai_module:
+  if not openai_module:
     logging.warning(
-      "[discord_chat_insert_conversation_input_v1] required modules unavailable",
-      extra={"has_db": bool(db_module), "has_openai": bool(openai_module)},
+      "[discord_chat_insert_conversation_input_v1] OpenAI module unavailable",
+      extra={"has_openai": False},
     )
     return RPCResponse(
       op=rpc_request.op,
@@ -499,7 +470,6 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
       version=rpc_request.version,
     )
 
-  await db_module.on_ready()
   await openai_module.on_ready()
 
   persona_details = payload.get("persona_details") or await openai_module.get_persona_definition(persona)
@@ -536,17 +506,14 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
   user_id = payload.get("user_id")
 
   try:
-    insert_res = await db_module.run(
-      insert_conversation_request(
-        personas_recid=personas_recid,
-        models_recid=models_recid,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_data=message,
-        output_data="",
-        tokens=None,
-      )
+    recid = await openai_module.log_persona_conversation_input(
+      personas_recid,
+      models_recid,
+      guild_id,
+      channel_id,
+      user_id,
+      message,
+      None,
     )
   except Exception:
     logging.exception("[discord_chat_insert_conversation_input_v1] insert failed", extra={"persona": persona})
@@ -559,10 +526,6 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
       },
       version=rpc_request.version,
     )
-
-  recid = None
-  if insert_res.rows:
-    recid = insert_res.rows[0].get("recid")
 
   return RPCResponse(
     op=rpc_request.op,
@@ -593,7 +556,6 @@ async def discord_chat_generate_persona_response_v1(request: Request):
     )
 
   openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
-  db_module = getattr(request.app.state, "db", None)
   if not openai_module:
     logging.warning("[discord_chat_generate_persona_response_v1] OpenAI module unavailable")
     return RPCResponse(
@@ -696,21 +658,26 @@ async def discord_chat_generate_persona_response_v1(request: Request):
     total_tokens = usage.get("total_tokens")
 
   conversation_reference = payload.get("conversation_reference")
-  if db_module and conversation_reference is not None:
-    await db_module.on_ready()
+  if conversation_reference is not None:
     try:
-      await db_module.run(
-        update_output_request(
-          recid=conversation_reference,
-          output_data=content or "",
-          tokens=total_tokens,
-        )
-      )
-    except Exception:
-      logging.exception(
-        "[discord_chat_generate_persona_response_v1] failed to update conversation output",
+      conversation_id = int(conversation_reference)
+    except (TypeError, ValueError):
+      logging.warning(
+        "[discord_chat_generate_persona_response_v1] invalid conversation reference",
         extra={"conversation_reference": conversation_reference},
       )
+    else:
+      try:
+        await openai_module.finalize_persona_conversation(
+          conversation_id,
+          content or "",
+          total_tokens,
+        )
+      except Exception:
+        logging.exception(
+          "[discord_chat_generate_persona_response_v1] failed to update conversation output",
+          extra={"conversation_reference": conversation_reference},
+        )
 
   return RPCResponse(
     op=rpc_request.op,

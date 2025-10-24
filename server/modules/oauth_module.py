@@ -282,6 +282,14 @@ class OauthModule(BaseModule):
       )
     return {"provider": provider}
 
+  async def unlink_last_provider_record(self, guid: str, provider: str) -> None:
+    assert self.db
+    await self.db.run(
+      unlink_last_provider_request(
+        UnlinkLastProviderParams(guid=guid, provider=provider)
+      )
+    )
+
   async def get_user_by_provider_identifier(
     self, provider: str, provider_identifier: str
   ):

@@ -185,9 +185,56 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
   module.db = DummyDB()
 
   with caplog.at_level(logging.WARNING):
-    asyncio.run(module._log_conversation_end(99, "done", 3))
+    asyncio.run(module.finalize_persona_conversation(99, "done", 3))
 
   assert "conversation update affected 0 rows (recid=99)" in caplog.text
+
+
+def test_get_recent_persona_conversation_history_returns_ordered_messages():
+  app = FastAPI()
+  module = OpenaiModule(app)
+
+  class DummyDB:
+    async def run(self, op, args=None):
+      if not isinstance(op, str):
+        args = op.payload
+        op = op.op
+      elif args is None:
+        args = {}
+      assert op == "db:system:conversations:list_by_time:1"
+      assert args["personas_recid"] == 7
+      return DBResult(
+        rows=[
+          {
+            "element_created_on": "2024-05-01T12:00:00Z",
+            "element_input": "Hi",
+            "element_output": "Hello",
+          },
+          {
+            "element_created_on": "2024-05-02T15:00:00+00:00",
+            "element_input": "How are you?",
+            "element_output": "I'm good",
+          },
+        ],
+        rowcount=2,
+      )
+
+  module.db = DummyDB()
+
+  history = asyncio.run(
+    module.get_recent_persona_conversation_history(
+      personas_recid=7,
+      lookback_days=7,
+      limit=5,
+    )
+  )
+
+  assert history == [
+    {"role": "user", "content": "Hi"},
+    {"role": "assistant", "content": "Hello"},
+    {"role": "user", "content": "How are you?"},
+    {"role": "assistant", "content": "I'm good"},
+  ]
 
 
 def test_fetch_chat_reuses_existing_conversation():
