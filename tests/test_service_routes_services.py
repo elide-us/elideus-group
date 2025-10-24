@@ -26,7 +26,10 @@ from rpc.service.routes.models import (
 # Stub server modules
 server_pkg = types.ModuleType('server')
 modules_pkg = types.ModuleType('server.modules')
+modules_pkg.__path__ = []
 models_pkg = types.ModuleType('server.models')
+modules_models_pkg = types.ModuleType('server.modules.models')
+modules_models_pkg.__path__ = []
 
 
 class RPCResponse:
@@ -53,6 +56,27 @@ models_pkg.RPCRequest = RPCRequest
 models_pkg.AuthContext = AuthContext
 server_pkg.modules = modules_pkg
 server_pkg.models = models_pkg
+modules_pkg.models = modules_models_pkg
+
+sys.modules.setdefault('server', server_pkg)
+sys.modules.setdefault('server.modules', modules_pkg)
+sys.modules.setdefault('server.models', models_pkg)
+sys.modules.setdefault('server.modules.models', modules_models_pkg)
+
+import importlib.util
+
+service_routes_models_spec = importlib.util.spec_from_file_location(
+  'server.modules.models.service_routes',
+  pathlib.Path(__file__).resolve().parent.parent / 'server/modules/models/service_routes.py',
+)
+service_routes_models = importlib.util.module_from_spec(service_routes_models_spec)
+sys.modules['server.modules.models.service_routes'] = service_routes_models
+modules_models_pkg.service_routes = service_routes_models
+service_routes_models_spec.loader.exec_module(service_routes_models)
+
+ServiceRouteCollection = service_routes_models.ServiceRouteCollection
+ServiceRouteDelete = service_routes_models.ServiceRouteDelete
+ServiceRouteItem = service_routes_models.ServiceRouteItem
 
 service_routes_module_pkg = types.ModuleType('server.modules.service_routes_module')
 
@@ -66,14 +90,14 @@ class StubServiceRoutesModule:
 
   async def get_routes(self, user_guid, roles):
     self.calls.append(('get_routes', user_guid, tuple(roles)))
-    route = ServiceRoutesRouteItem1(
+    route = ServiceRouteItem(
       path='/a',
       name='A',
       icon='home',
       sequence=1,
       required_roles=['ROLE_SERVICE_ADMIN'],
     )
-    return ServiceRoutesList1(routes=[route])
+    return ServiceRouteCollection(routes=[route])
 
   async def upsert_route(self, user_guid, roles, route):
     self.calls.append(('upsert_route', user_guid, tuple(roles), route))
@@ -81,7 +105,7 @@ class StubServiceRoutesModule:
 
   async def delete_route(self, user_guid, roles, path):
     self.calls.append(('delete_route', user_guid, tuple(roles), path))
-    return ServiceRoutesDeleteRoute1(path=path)
+    return ServiceRouteDelete(path=path)
 
 
 service_routes_module_pkg.ServiceRoutesModule = StubServiceRoutesModule
@@ -100,13 +124,7 @@ sys.modules.setdefault('server.registry.system', registry_system_pkg)
 server_pkg.registry = registry_pkg
 registry_pkg.system = registry_system_pkg
 
-sys.modules.setdefault('server', server_pkg)
-sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.service_routes_module', service_routes_module_pkg)
-sys.modules.setdefault('server.models', models_pkg)
-
-import importlib.util
-
 svc_spec = importlib.util.spec_from_file_location(
   'rpc.service.routes.services',
   pathlib.Path(__file__).resolve().parent.parent / 'rpc/service/routes/services.py',

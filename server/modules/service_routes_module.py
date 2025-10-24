@@ -3,11 +3,6 @@ from __future__ import annotations
 import logging
 from fastapi import FastAPI
 
-from rpc.service.routes.models import (
-  ServiceRoutesDeleteRoute1,
-  ServiceRoutesList1,
-  ServiceRoutesRouteItem1,
-)
 from server.registry.system.routes import (
   delete_route_request,
   get_routes_request,
@@ -17,6 +12,11 @@ from server.registry.system.routes import (
 from . import BaseModule
 from .auth_module import AuthModule
 from .db_module import DbModule
+from .models.service_routes import (
+  ServiceRouteCollection,
+  ServiceRouteDelete,
+  ServiceRouteItem,
+)
 
 
 class ServiceRoutesModule(BaseModule):
@@ -40,7 +40,7 @@ class ServiceRoutesModule(BaseModule):
     self,
     user_guid: str,
     roles: list[str],
-  ) -> ServiceRoutesList1:
+  ) -> ServiceRouteCollection:
     logging.debug(
       "[service_routes_get_routes_v1] user=%s roles=%s",
       user_guid,
@@ -49,11 +49,11 @@ class ServiceRoutesModule(BaseModule):
     if not self.db or not self.auth:
       raise RuntimeError("ServiceRoutesModule not ready")
     res = await self.db.run(get_routes_request())
-    routes: list[ServiceRoutesRouteItem1] = []
+    routes: list[ServiceRouteItem] = []
     for row in res.rows:
       mask = int(row.get("element_roles", 0))
       required_roles = self.auth.mask_to_names(mask)
-      route = ServiceRoutesRouteItem1(
+      route = ServiceRouteItem(
         path=row.get("element_path", ""),
         name=row.get("element_name", ""),
         icon=row.get("element_icon"),
@@ -65,19 +65,19 @@ class ServiceRoutesModule(BaseModule):
       "[service_routes_get_routes_v1] returning %d routes",
       len(routes),
     )
-    return ServiceRoutesList1(routes=routes)
+    return ServiceRouteCollection(routes=routes)
 
   async def upsert_route(
     self,
     user_guid: str,
     roles: list[str],
-    route: ServiceRoutesRouteItem1,
-  ) -> ServiceRoutesRouteItem1:
+    route: ServiceRouteItem,
+  ) -> ServiceRouteItem:
     logging.debug(
       "[service_routes_upsert_route_v1] user=%s roles=%s payload=%s",
       user_guid,
       roles,
-      route.model_dump(),
+      route.to_dict(),
     )
     if not self.db or not self.auth:
       raise RuntimeError("ServiceRoutesModule not ready")
@@ -102,7 +102,7 @@ class ServiceRoutesModule(BaseModule):
     user_guid: str,
     roles: list[str],
     path: str,
-  ) -> ServiceRoutesDeleteRoute1:
+  ) -> ServiceRouteDelete:
     logging.debug(
       "[service_routes_delete_route_v1] user=%s roles=%s payload={'path': %s}",
       user_guid,
@@ -116,4 +116,4 @@ class ServiceRoutesModule(BaseModule):
       "[service_routes_delete_route_v1] deleted route %s",
       path,
     )
-    return ServiceRoutesDeleteRoute1(path=path)
+    return ServiceRouteDelete(path=path)
