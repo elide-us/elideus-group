@@ -98,8 +98,11 @@ def test_get_configs_module():
   assert ('db:system:config:get_configs:1', {}) in db.calls
 
 def test_upsert_and_delete_module():
-  asyncio.run(module.upsert_config('u1', [], 'LoggingLevel', '2'))
-  asyncio.run(module.delete_config('u1', [], 'LoggingLevel'))
+  item = asyncio.run(module.upsert_config('u1', [], 'LoggingLevel', '2'))
+  delete_result = asyncio.run(module.delete_config('u1', [], 'LoggingLevel'))
+  assert item.key == 'LoggingLevel'
+  assert item.value == '2'
+  assert delete_result.key == 'LoggingLevel'
   assert (
     'db:system:config:upsert_config:1',
     {'key': 'LoggingLevel', 'value': '2'}
