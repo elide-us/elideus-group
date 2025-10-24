@@ -7,12 +7,19 @@ if TYPE_CHECKING:
 from .models import (
   SystemConfigConfigItem1,
   SystemConfigDeleteConfig1,
+  SystemConfigList1,
 )
 
 async def system_config_get_configs_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   config_mod: SystemConfigModule = request.app.state.system_config
-  payload = await config_mod.get_configs(auth_ctx.user_guid, auth_ctx.roles)
+  module_payload = await config_mod.get_configs(auth_ctx.user_guid, auth_ctx.roles)
+  payload = SystemConfigList1(
+    items=[
+      SystemConfigConfigItem1(key=item.key, value=item.value)
+      for item in module_payload.items
+    ],
+  )
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -23,11 +30,15 @@ async def system_config_upsert_config_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = SystemConfigConfigItem1(**(rpc_request.payload or {}))
   config_mod: SystemConfigModule = request.app.state.system_config
-  payload = await config_mod.upsert_config(
+  module_payload = await config_mod.upsert_config(
     auth_ctx.user_guid,
     auth_ctx.roles,
     input_payload.key,
     input_payload.value,
+  )
+  payload = SystemConfigConfigItem1(
+    key=module_payload.key,
+    value=module_payload.value,
   )
   return RPCResponse(
     op=rpc_request.op,
@@ -39,11 +50,12 @@ async def system_config_delete_config_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = SystemConfigDeleteConfig1(**(rpc_request.payload or {}))
   config_mod: SystemConfigModule = request.app.state.system_config
-  payload = await config_mod.delete_config(
+  module_payload = await config_mod.delete_config(
     auth_ctx.user_guid,
     auth_ctx.roles,
     input_payload.key,
   )
+  payload = SystemConfigDeleteConfig1(key=module_payload.key)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
