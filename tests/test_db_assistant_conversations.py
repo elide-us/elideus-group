@@ -1,6 +1,6 @@
 import asyncio
 
-from server.modules.providers import DBResult
+from server.modules.providers import DBResponse
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.registry.providers.mssql as registry_mssql
 
@@ -19,7 +19,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
     assert "FOR JSON PATH" in sql
     assert "INCLUDE_NULL_VALUES" in sql
     assert params == (personas_recid, start, end)
-    return DBResult(rows=[{"recid": 1}], rowcount=1)
+    return DBResponse(rows=[{"recid": 1}], rowcount=1)
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
@@ -27,7 +27,7 @@ def test_assistant_conversations_list_by_time(monkeypatch):
     'db:system:conversations:list_by_time:1',
     {'personas_recid': personas_recid, 'start': start, 'end': end},
   ))
-  assert isinstance(res, DBResult)
+  assert isinstance(res, DBResponse)
   assert res.rows == [{"recid": 1}]
 
 
@@ -49,7 +49,7 @@ def test_assistant_conversations_insert(monkeypatch):
     assert "INSERT INTO assistant_conversations" in sql
     assert "FOR JSON PATH" in sql
     assert params == (1, 2, '1', '2', '3', 'hi', '', 5)
-    return DBResult(rows=[{'recid': 9}], rowcount=1)
+    return DBResponse(rows=[{'recid': 9}], rowcount=1)
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
@@ -75,7 +75,7 @@ def test_assistant_conversations_find_recent(monkeypatch):
     assert "DATEADD" in sql
     assert "FOR JSON PATH" in sql
     assert params == (1, 2, 'hi', '1', '1', '2', '2', '3', '3', 120)
-    return DBResult(rows=[{'recid': 5}], rowcount=1)
+    return DBResponse(rows=[{'recid': 5}], rowcount=1)
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
@@ -91,7 +91,7 @@ def test_assistant_conversations_update_output(monkeypatch):
     assert "element_modified_on" not in sql
     assert "element_tokens" in sql
     assert params == ('out', 12, 9)
-    return DBResult(rowcount=1)
+    return DBResponse(rowcount=1)
 
   monkeypatch.setattr(registry_mssql, 'exec_query', fake_exec)
 
@@ -110,11 +110,11 @@ def test_assistant_conversations_list_recent(monkeypatch):
     assert "FOR JSON PATH" in sql
     assert "INCLUDE_NULL_VALUES" in sql
     assert params == ()
-    return DBResult(rows=[{"recid": 2}], rowcount=1)
+    return DBResponse(rows=[{"recid": 2}], rowcount=1)
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
   res = asyncio.run(provider.run('db:system:conversations:list_recent:1', {}))
-  assert isinstance(res, DBResult)
+  assert isinstance(res, DBResponse)
   assert res.rows == [{"recid": 2}]
 

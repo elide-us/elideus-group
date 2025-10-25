@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .models import DBRequest, DBResponse, DBResult
+from .models import DBRequest, DBResponse
 
-__all__ = ["DBRequest", "DBResponse", "DBResult"]
+__all__ = ["DBRequest", "DBResponse"]
