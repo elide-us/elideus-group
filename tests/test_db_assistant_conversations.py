@@ -1,6 +1,6 @@
 import asyncio
 
-from server.modules.providers import DBResponse
+from server.modules.providers import DBRequest, DBResponse
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.registry.providers.mssql as registry_mssql
 
@@ -23,10 +23,14 @@ def test_assistant_conversations_list_by_time(monkeypatch):
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run(
-    'db:system:conversations:list_by_time:1',
-    {'personas_recid': personas_recid, 'start': start, 'end': end},
-  ))
+  res = asyncio.run(
+    provider.run(
+      DBRequest(
+        op='db:system:conversations:list_by_time:1',
+        payload={'personas_recid': personas_recid, 'start': start, 'end': end},
+      )
+    )
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"recid": 1}]
 
@@ -53,7 +57,11 @@ def test_assistant_conversations_insert(monkeypatch):
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:system:conversations:insert:1', args))
+  res = asyncio.run(
+    provider.run(
+      DBRequest(op='db:system:conversations:insert:1', payload=args)
+    )
+  )
   assert res.rows == [{'recid': 9}]
 
 
@@ -79,7 +87,11 @@ def test_assistant_conversations_find_recent(monkeypatch):
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:system:conversations:find_recent:1', args))
+  res = asyncio.run(
+    provider.run(
+      DBRequest(op='db:system:conversations:find_recent:1', payload=args)
+    )
+  )
   assert res.rows == [{'recid': 5}]
 
 
@@ -95,7 +107,11 @@ def test_assistant_conversations_update_output(monkeypatch):
 
   monkeypatch.setattr(registry_mssql, 'exec_query', fake_exec)
 
-  res = asyncio.run(provider.run('db:system:conversations:update_output:1', args))
+  res = asyncio.run(
+    provider.run(
+      DBRequest(op='db:system:conversations:update_output:1', payload=args)
+    )
+  )
   assert res.rowcount == 1
 
 
@@ -114,7 +130,11 @@ def test_assistant_conversations_list_recent(monkeypatch):
 
   monkeypatch.setattr(registry_mssql, 'fetch_json', fake_fetch_json)
 
-  res = asyncio.run(provider.run('db:system:conversations:list_recent:1', {}))
+  res = asyncio.run(
+    provider.run(
+      DBRequest(op='db:system:conversations:list_recent:1', payload={})
+    )
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"recid": 2}]
 

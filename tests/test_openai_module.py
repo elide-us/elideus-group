@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 
 from server.modules.openai_module import OpenaiModule, SummaryQueue
-from server.modules.providers import DBResponse
+from server.modules.providers import DBRequest, DBResponse
 
 
 def test_fetch_chat_message_order_and_return():
@@ -98,12 +98,10 @@ def test_fetch_chat_logs_conversation():
     def __init__(self):
       self.calls = []
 
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      op = request.op
+      args = request.payload
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
         return DBResponse(
@@ -172,14 +170,10 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
-      assert op == "db:system:conversations:update_output:1"
-      assert args == {"recid": 99, "output_data": "done", "tokens": 3}
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      assert request.op == "db:system:conversations:update_output:1"
+      assert request.payload == {"recid": 99, "output_data": "done", "tokens": 3}
       return DBResponse(rowcount=0)
 
   module.db = DummyDB()
@@ -195,14 +189,10 @@ def test_get_recent_persona_conversation_history_returns_ordered_messages():
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
-      assert op == "db:system:conversations:list_by_time:1"
-      assert args["personas_recid"] == 7
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      assert request.op == "db:system:conversations:list_by_time:1"
+      assert request.payload["personas_recid"] == 7
       return DBResponse(
         rows=[
           {
@@ -258,12 +248,10 @@ def test_fetch_chat_reuses_existing_conversation():
       self.calls: list[tuple[str, dict]] = []
       self.insert_count = 0
 
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      op = request.op
+      args = request.payload
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
         return DBResponse(
@@ -339,12 +327,10 @@ def test_persona_response_calls_openai():
     def __init__(self):
       self.calls = []
 
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      op = request.op
+      args = request.payload
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
         return DBResponse(
@@ -412,13 +398,9 @@ def test_persona_response_missing_persona():
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
-      if op == "db:system:personas:get_by_name:1":
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      if request.op == "db:system:personas:get_by_name:1":
         return DBResponse(rows=[], rowcount=0)
       return DBResponse()
 
@@ -434,13 +416,9 @@ def test_persona_response_stub_without_client():
   module = OpenaiModule(app)
 
   class DummyDB:
-    async def run(self, op, args=None):
-      if not isinstance(op, str):
-        args = op.payload
-        op = op.op
-      elif args is None:
-        args = {}
-      if op == "db:system:personas:get_by_name:1":
+    async def run(self, request: DBRequest):
+      assert isinstance(request, DBRequest)
+      if request.op == "db:system:personas:get_by_name:1":
         return DBResponse(
           rows=[{
             "recid": 1,

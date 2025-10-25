@@ -3,7 +3,7 @@ from uuid import UUID
 
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.modules.providers.database.mssql_provider as mssql_provider
-from server.modules.providers import DBResponse
+from server.modules.providers import DBRequest, DBResponse
 from server.registry.account.files import mssql as users_files_mssql
 
 
@@ -21,7 +21,9 @@ def test_run_returns_dbresult_from_async_handler(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:account:test:json_one:1", {}))
+  res = asyncio.run(
+    provider.run(DBRequest(op="db:account:test:json_one:1", payload={}))
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
@@ -41,7 +43,9 @@ def test_run_returns_dbresult_from_sync_handler(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:account:test:row_one:1", {}))
+  res = asyncio.run(
+    provider.run(DBRequest(op="db:account:test:row_one:1", payload={}))
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"v": 1}]
   assert res.rowcount == 1
@@ -62,7 +66,12 @@ def test_run_row_many(monkeypatch):
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
   res = asyncio.run(
-    provider.run("db:system:public_users:get_published_files:1", {"guid": guid})
+    provider.run(
+      DBRequest(
+        op="db:system:public_users:get_published_files:1",
+        payload={"guid": guid},
+      )
+    )
   )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"path": "a"}, {"path": "b"}]
@@ -83,7 +92,9 @@ def test_run_normalizes_dict_response(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:account:test:json_many:1", {}))
+  res = asyncio.run(
+    provider.run(DBRequest(op="db:account:test:json_many:1", payload={}))
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == [{"v": 1}, {"v": 2}]
   assert res.rowcount == 2
@@ -103,7 +114,9 @@ def test_run_returns_empty_response_for_none(monkeypatch):
 
   monkeypatch.setattr(mssql_provider, "get_handler", fake_get_handler)
 
-  res = asyncio.run(provider.run("db:account:test:exec:1", {}))
+  res = asyncio.run(
+    provider.run(DBRequest(op="db:account:test:exec:1", payload={}))
+  )
   assert isinstance(res, DBResponse)
   assert res.rows == []
   assert res.rowcount == 0
@@ -122,7 +135,12 @@ def test_storage_files_set_gallery(monkeypatch):
   monkeypatch.setattr(users_files_mssql, "run_exec", fake_run_exec)
 
   res = asyncio.run(
-    provider.run("db:account:files:set_gallery:1", {"user_guid": guid, "name": "file.txt", "gallery": True})
+    provider.run(
+      DBRequest(
+        op="db:account:files:set_gallery:1",
+        payload={"user_guid": guid, "name": "file.txt", "gallery": True},
+      )
+    )
   )
   assert isinstance(res, DBResponse)
   assert res.rowcount == 1

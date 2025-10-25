@@ -50,14 +50,9 @@ class AuthProviderBase(LifecycleProvider):
 
 
 class DbProviderBase(LifecycleProvider):
-  async def run(
-    self,
-    request: DBRequest | str,
-    args: Dict[str, Any] | None = None,
-  ) -> DBResponse:
-    if isinstance(request, str):
-      payload = args or {}
-      return await self._run(DBRequest(op=request, payload=payload))
+  async def run(self, request: DBRequest) -> DBResponse:
+    if not isinstance(request, DBRequest):
+      raise TypeError("DbProviderBase.run requires a DBRequest instance")
     return await self._run(request)
 
   async def execute(self, op: str, args: Dict[str, Any]) -> DBResponse:
