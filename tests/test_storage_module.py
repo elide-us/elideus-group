@@ -8,6 +8,19 @@ from server.modules import BaseModule
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.registry.providers.mssql as registry_mssql
 from server.modules.providers import DBResult
+from server.modules.providers.storage import (
+  StorageBlobItem,
+  StorageBlobProperties,
+  StorageCreateFolderResult,
+  StorageDeleteResponse,
+  StorageMoveResult,
+  StorageRenameOperation,
+  StorageRenameResponse,
+  StorageReindexResponse,
+  StorageStats,
+  StorageUploadResult,
+  StorageUploadResponse,
+)
 
 
 class DummyEnv(BaseModule):
@@ -196,46 +209,45 @@ def test_reindex_indexes_files_and_folders(monkeypatch):
   mod.db = app.state.db
   mod.connection_string = "UseDevelopmentStorage=true"
 
-  from types import SimpleNamespace
+  class FakeProvider:
+    async def reindex(self, request):
+      return StorageReindexResponse(
+        container_url="http://blob",
+        blobs=[
+          StorageBlobItem(
+            name="123e4567-e89b-12d3-a456-426614174000/docs/.init",
+            metadata={},
+            content_type="text/plain",
+            created_on=None,
+            modified_on=None,
+            url="http://blob/123e4567-e89b-12d3-a456-426614174000/docs/.init",
+            size=None,
+            is_directory=False,
+          ),
+          StorageBlobItem(
+            name="123e4567-e89b-12d3-a456-426614174000/docs/file.txt",
+            metadata={},
+            content_type="text/plain",
+            created_on=None,
+            modified_on=None,
+            url="http://blob/123e4567-e89b-12d3-a456-426614174000/docs/file.txt",
+            size=None,
+            is_directory=False,
+          ),
+          StorageBlobItem(
+            name="123e4567-e89b-12d3-a456-426614174000/empty_test",
+            metadata={"hdi_isfolder": "true"},
+            content_type="text/plain",
+            created_on=None,
+            modified_on=None,
+            url="http://blob/123e4567-e89b-12d3-a456-426614174000/empty_test",
+            size=None,
+            is_directory=True,
+          ),
+        ],
+      )
 
-  class FakeBlob:
-    def __init__(self, name, metadata=None):
-      self.name = name
-      self.content_settings = SimpleNamespace(content_type = "text/plain")
-      self.creation_time = None
-      self.last_modified = None
-      self.metadata = metadata
-
-  class FakeContainer:
-    def __init__(self, blobs):
-      self.blobs = blobs
-      self.url = "http://blob"
-    def list_blobs(self, name_starts_with=None):
-      async def gen():
-        for b in self.blobs:
-          if not name_starts_with or b.name.startswith(name_starts_with):
-            yield b
-      return gen()
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer([
-    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/.init"),
-    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/file.txt"),
-    FakeBlob("123e4567-e89b-12d3-a456-426614174000/empty_test", {"hdi_isfolder": "true"}),
-  ])
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  mod.provider = FakeProvider()
 
   asyncio.run(mod.reindex())
   assert any(u["filename"] == "docs" for u in app.state.db.upserts)
@@ -298,44 +310,35 @@ def test_reindex_skips_unknown_users(monkeypatch):
   mod.db = app.state.db
   mod.connection_string = "UseDevelopmentStorage=true"
 
-  from types import SimpleNamespace
+  class FakeProvider:
+    async def reindex(self, request):
+      return StorageReindexResponse(
+        container_url="http://blob",
+        blobs=[
+          StorageBlobItem(
+            name=f"{orphan_guid}/docs/file.txt",
+            metadata={},
+            content_type="text/plain",
+            created_on=None,
+            modified_on=None,
+            url=f"http://blob/{orphan_guid}/docs/file.txt",
+            size=None,
+            is_directory=False,
+          ),
+          StorageBlobItem(
+            name=f"{known_guid}/docs/file.txt",
+            metadata={},
+            content_type="text/plain",
+            created_on=None,
+            modified_on=None,
+            url=f"http://blob/{known_guid}/docs/file.txt",
+            size=None,
+            is_directory=False,
+          ),
+        ],
+      )
 
-  class FakeBlob:
-    def __init__(self, name):
-      self.name = name
-      self.content_settings = SimpleNamespace(content_type = "text/plain")
-      self.creation_time = None
-      self.last_modified = None
-      self.metadata = {}
-
-  class FakeContainer:
-    def __init__(self, blobs):
-      self.blobs = blobs
-      self.url = "http://blob"
-    def list_blobs(self, name_starts_with=None):
-      async def gen():
-        for b in self.blobs:
-          yield b
-      return gen()
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer([
-    FakeBlob(f"{orphan_guid}/docs/file.txt"),
-    FakeBlob(f"{known_guid}/docs/file.txt"),
-  ])
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  mod.provider = FakeProvider()
 
   asyncio.run(mod.reindex())
   assert app.state.db.upserts
@@ -380,57 +383,36 @@ def test_move_file_copies_and_updates_cache(monkeypatch):
   mod.db = db
   mod.connection_string = "UseDevelopmentStorage=true"
 
-  from types import SimpleNamespace
+  class FakeProvider:
+    def __init__(self):
+      self.requests = []
 
-  class FakeBlob:
-    def __init__(self, name):
-      self.name = name
-      self.url = f"http://blob/{name}"
-      self.copied = None
-      self.deleted = False
-      self.content_settings = SimpleNamespace(content_type="text/plain")
-      self.creation_time = "now"
-      self.last_modified = "later"
-    async def get_blob_properties(self):
-      return self
-    async def start_copy_from_url(self, url):
-      self.copied = url
-    async def delete_blob(self):
-      self.deleted = True
+    async def move_file(self, request):
+      self.requests.append(request)
+      return StorageMoveResult(
+        src_relative=request.src_relative,
+        dst_relative=request.dst_relative,
+        url=f"http://blob/{request.dst_blob}",
+        properties=StorageBlobProperties(
+          content_type="text/plain",
+          created_on="now",
+          modified_on="later",
+        ),
+      )
 
-  blobs = {
-    "u1/a.txt": FakeBlob("u1/a.txt"),
-    "u1/docs/b.txt": FakeBlob("u1/docs/b.txt"),
-  }
-
-  class FakeContainer:
-    def get_blob_client(self, name):
-      return blobs[name]
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer()
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  provider = FakeProvider()
+  mod.provider = provider
 
   asyncio.run(mod.move_file("u1", "a.txt", "docs/b.txt"))
-  assert blobs["u1/docs/b.txt"].copied == blobs["u1/a.txt"].url
-  assert blobs["u1/a.txt"].deleted
+  assert provider.requests
+  request = provider.requests[0]
+  assert request.src_blob == "u1/a.txt"
+  assert request.dst_blob == "u1/docs/b.txt"
   assert db.deleted == ("u1", "", "a.txt")
   assert db.upserted["path"] == "docs" and db.upserted["filename"] == "b.txt"
 
 
-def test_rename_file_preserves_public_flag(monkeypatch):
+def test_rename_file_preserves_public_flag():
   class DummyDb(BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
@@ -483,88 +465,40 @@ def test_rename_file_preserves_public_flag(monkeypatch):
   mod = StorageModule(app)
   mod.db = db
   mod.connection_string = "UseDevelopmentStorage=true"
-
-  from types import SimpleNamespace
-
-  class FakeBlob:
-    def __init__(self, name):
-      self.name = name
-      self.url = f"http://blob/{name}"
-      self.exists_flag = True
-      self.copied = None
-      self.deleted = False
-      self.content_settings = SimpleNamespace(content_type="text/plain")
-      self.creation_time = "now"
-      self.last_modified = "later"
-      self.metadata = {}
-
-    async def exists(self):
-      return self.exists_flag
-
-    async def get_blob_properties(self):
-      return self
-
-    async def start_copy_from_url(self, url):
-      self.exists_flag = True
-      self.copied = url
-
-    async def delete_blob(self):
-      self.deleted = True
-      self.exists_flag = False
-
-  class FakeContainer:
+  class FakeProvider:
     def __init__(self):
-      self.url = "http://blob/container"
-      self.blobs: dict[str, FakeBlob] = {
-        "u1/a.txt": FakeBlob("u1/a.txt"),
-        "u1/b.txt": FakeBlob("u1/b.txt"),
-      }
-      self.blobs["u1/b.txt"].exists_flag = False
+      self.requests = []
 
-    def get_blob_client(self, name):
-      blob = self.blobs.get(name)
-      if blob is None:
-        blob = FakeBlob(name)
-        blob.exists_flag = False
-        self.blobs[name] = blob
-      return blob
+    async def rename_file(self, request):
+      self.requests.append(request)
+      return StorageRenameResponse(
+        container_url="http://blob/container",
+        operations=[
+          StorageRenameOperation(
+            old_relative="a.txt",
+            new_relative="b.txt",
+            url="http://blob/container/u1/b.txt",
+            properties=StorageBlobProperties(
+              content_type="text/plain",
+              created_on="now",
+              modified_on="later",
+            ),
+            source_missing=False,
+          ),
+        ],
+        errors=[],
+      )
 
-    def list_blobs(self, name_starts_with=None):
-      async def gen():
-        for name, blob in list(self.blobs.items()):
-          if not blob.exists_flag:
-            continue
-          if name_starts_with and not name.startswith(name_starts_with):
-            continue
-          yield SimpleNamespace(name=name)
-      return gen()
-
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer()
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  provider = FakeProvider()
+  mod.provider = provider
 
   asyncio.run(mod.rename_file("u1", "a.txt", "b.txt"))
-  assert fake_container.blobs["u1/b.txt"].copied == fake_container.blobs["u1/a.txt"].url
-  assert fake_container.blobs["u1/a.txt"].deleted
+  assert provider.requests and not provider.requests[0].is_folder
   assert ("u1", "", "a.txt") in db.deleted
   assert any(item["filename"] == "b.txt" and item["public"] == 1 for item in db.upserted)
 
 
-def test_rename_folder_updates_nested_entries(monkeypatch):
+def test_rename_folder_updates_nested_entries():
   class DummyDb(BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
@@ -612,89 +546,60 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
   mod = StorageModule(app)
   mod.db = db
   mod.connection_string = "UseDevelopmentStorage=true"
-
-  from types import SimpleNamespace
-
-  class FakeBlob:
-    def __init__(self, name, *, exists=True, metadata=None):
-      self.name = name
-      self.url = f"http://blob/{name}"
-      self.exists_flag = exists
-      self.copied = None
-      self.deleted = False
-      self.content_settings = SimpleNamespace(content_type="text/plain")
-      self.creation_time = "now"
-      self.last_modified = "later"
-      self.metadata = metadata or {}
-
-    async def exists(self):
-      return self.exists_flag
-
-    async def get_blob_properties(self):
-      return self
-
-    async def start_copy_from_url(self, url):
-      self.exists_flag = True
-      self.copied = url
-
-    async def delete_blob(self):
-      self.deleted = True
-      self.exists_flag = False
-
-  class FakeContainer:
+  class FakeProvider:
     def __init__(self):
-      self.url = "http://blob/container"
-      self.blobs: dict[str, FakeBlob] = {
-        "u1/docs": FakeBlob("u1/docs", metadata={"hdi_isfolder": "true"}),
-        "u1/docs/.init": FakeBlob("u1/docs/.init"),
-        "u1/docs/a.txt": FakeBlob("u1/docs/a.txt"),
-        "u1/docs/sub": FakeBlob("u1/docs/sub", metadata={"hdi_isfolder": "true"}),
-        "u1/docs/sub/.init": FakeBlob("u1/docs/sub/.init"),
-        "u1/docs/sub/b.txt": FakeBlob("u1/docs/sub/b.txt"),
-        "u1/renamed": FakeBlob("u1/renamed", exists=False, metadata={"hdi_isfolder": "true"}),
-        "u1/renamed/a.txt": FakeBlob("u1/renamed/a.txt", exists=False),
-        "u1/renamed/sub": FakeBlob("u1/renamed/sub", exists=False, metadata={"hdi_isfolder": "true"}),
-        "u1/renamed/sub/b.txt": FakeBlob("u1/renamed/sub/b.txt", exists=False),
-      }
+      self.requests = []
 
-    def get_blob_client(self, name):
-      blob = self.blobs.get(name)
-      if blob is None:
-        blob = FakeBlob(name, exists=False)
-        self.blobs[name] = blob
-      return blob
+    async def rename_file(self, request):
+      self.requests.append(request)
+      return StorageRenameResponse(
+        container_url="http://blob/container",
+        operations=[
+          StorageRenameOperation(
+            old_relative="docs",
+            new_relative="renamed",
+            url=None,
+            properties=None,
+            source_missing=False,
+          ),
+          StorageRenameOperation(
+            old_relative="docs/a.txt",
+            new_relative="renamed/a.txt",
+            url="http://blob/container/u1/renamed/a.txt",
+            properties=StorageBlobProperties(
+              content_type="text/plain",
+              created_on="now",
+              modified_on="later",
+            ),
+            source_missing=False,
+          ),
+          StorageRenameOperation(
+            old_relative="docs/sub",
+            new_relative="renamed/sub",
+            url=None,
+            properties=None,
+            source_missing=False,
+          ),
+          StorageRenameOperation(
+            old_relative="docs/sub/b.txt",
+            new_relative="renamed/sub/b.txt",
+            url="http://blob/container/u1/renamed/sub/b.txt",
+            properties=StorageBlobProperties(
+              content_type="text/plain",
+              created_on="now",
+              modified_on="later",
+            ),
+            source_missing=False,
+          ),
+        ],
+        errors=[],
+      )
 
-    def list_blobs(self, name_starts_with=None):
-      async def gen():
-        for name, blob in list(self.blobs.items()):
-          if not blob.exists_flag:
-            continue
-          if name_starts_with and not name.startswith(name_starts_with):
-            continue
-          yield SimpleNamespace(name=name)
-      return gen()
-
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer()
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  provider = FakeProvider()
+  mod.provider = provider
 
   asyncio.run(mod.rename_file("u1", "docs", "renamed"))
-  assert fake_container.blobs["u1/renamed/a.txt"].copied == fake_container.blobs["u1/docs/a.txt"].url
-  assert fake_container.blobs["u1/docs/a.txt"].deleted
+  assert provider.requests and provider.requests[0].is_folder
   assert any(item["filename"] == "renamed" for item in db.upserted)
   paths = {(item["path"], item["filename"]) for item in db.upserted}
   assert ("", "renamed") in paths
@@ -702,7 +607,7 @@ def test_rename_folder_updates_nested_entries(monkeypatch):
   assert ("renamed", "sub") in paths
   assert ("renamed/sub", "b.txt") in paths
 
-def test_get_storage_stats_counts_all_folders(monkeypatch):
+def test_get_storage_stats_counts_all_folders():
   class DummyDb:
     async def run(self, op, args=None):
       if not isinstance(op, str):
@@ -723,42 +628,19 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
   mod = StorageModule(app)
   mod.db = DummyDb()
   mod.connection_string = "UseDevelopmentStorage=true"
+  class FakeProvider:
+    async def get_storage_stats(self, request):
+      return StorageStats(
+        file_count=2,
+        total_bytes=3,
+        folder_paths=[
+          ("123e4567-e89b-12d3-a456-426614174000", "docs"),
+          ("123e4567-e89b-12d3-a456-426614174000", "docs/sub"),
+        ],
+        user_ids=["123e4567-e89b-12d3-a456-426614174000"],
+      )
 
-  from types import SimpleNamespace
-
-  class FakeBlob:
-    def __init__(self, name, size):
-      self.name = name
-      self.size = size
-
-  class FakeContainer:
-    def __init__(self, blobs):
-      self.blobs = blobs
-      self.url = "http://blob"
-    def list_blobs(self):
-      async def gen():
-        for b in self.blobs:
-          yield b
-      return gen()
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer([
-    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/file1.txt", 1),
-    FakeBlob("123e4567-e89b-12d3-a456-426614174000/docs/sub/file2.txt", 2),
-  ])
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-    async def close(self):
-      pass
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  mod.provider = FakeProvider()
 
   stats = asyncio.run(mod.get_storage_stats())
   assert stats == {
@@ -770,7 +652,7 @@ def test_get_storage_stats_counts_all_folders(monkeypatch):
   }
 
 
-def test_upload_files_sets_created_on(monkeypatch):
+def test_upload_files_sets_created_on():
   app = FastAPI()
   mod = StorageModule(app)
   mod.connection_string = "UseDevelopmentStorage=true"
@@ -799,33 +681,28 @@ def test_upload_files_sets_created_on(monkeypatch):
 
   mod.db = DummyDb()
 
-  class FakeContainer:
+  class FakeProvider:
     def __init__(self):
-      self.uploads = []
-      self.url = "http://blob"
+      self.requests = []
 
-    async def upload_blob(self, name, data, overwrite, content_settings=None):
-      self.uploads.append((name, data, getattr(content_settings, "content_type", None)))
+    async def upload_files(self, request):
+      self.requests.append(request)
+      now = datetime.now(timezone.utc)
+      return StorageUploadResponse(
+        results=[
+          StorageUploadResult(
+            relative_path="docs/a.txt",
+            url="http://blob/u1/docs/a.txt",
+            content_type="text/plain",
+            created_on=now,
+            modified_on=now,
+          )
+        ],
+        errors={},
+      )
 
-    async def close(self):
-      pass
-
-  fake_container = FakeContainer()
-
-  class FakeBSC:
-    def get_container_client(self, name):
-      return fake_container
-
-    async def close(self):
-      pass
-
-  from types import SimpleNamespace
-
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  provider = FakeProvider()
+  mod.provider = provider
 
   files = [{
     "name": "docs/a.txt",
@@ -834,14 +711,12 @@ def test_upload_files_sets_created_on(monkeypatch):
   }]
 
   asyncio.run(mod.upload_files("u1", files))
-
-  assert fake_container.uploads[0][0] == "u1/docs/a.txt"
   created_on = mod.db.upserts[0]["created_on"]
   assert isinstance(created_on, datetime)
   assert created_on.tzinfo == timezone.utc
 
 
-def test_create_folder_creates_marker_and_cache(monkeypatch):
+def test_create_folder_creates_marker_and_cache():
   class DummyDb(BaseModule):
     def __init__(self, app: FastAPI):
       super().__init__(app)
@@ -888,40 +763,25 @@ def test_create_folder_creates_marker_and_cache(monkeypatch):
   mod.env = app.state.env
   mod.db = app.state.db
   mod.connection_string = "UseDevelopmentStorage=true"
-
-  class FakeContainer:
+  class FakeProvider:
     def __init__(self):
-      self.uploads = []
-    async def upload_blob(self, name, data, **kwargs):
-      self.uploads.append((name, kwargs.get("metadata")))
-    async def close(self):
-      pass
+      self.requests = []
 
-  class FakeBSC:
-    def __init__(self):
-      self.container = FakeContainer()
-    def get_container_client(self, name):
-      return self.container
-    async def close(self):
-      pass
+    async def create_folder(self, request):
+      self.requests.append(request)
+      return StorageCreateFolderResult(relative_path="docs/new")
 
-  from types import SimpleNamespace
-  bsc = FakeBSC()
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: bsc),
-  )
+  provider = FakeProvider()
+  mod.provider = provider
 
   asyncio.run(mod.create_folder("u1", "/docs/new"))
-  assert ("u1/docs/new", {"hdi_isfolder": "true"}) in bsc.container.uploads
-  assert ("u1/docs/new/.init", None) in bsc.container.uploads
+  assert provider.requests
   assert app.state.db.upserts[0]["filename"] == "new"
   assert app.state.db.upserts[0]["path"] == "docs"
   assert app.state.db.upserts[0]["content_type"] == "path/folder"
 
 
-def test_get_storage_stats_counts_user_folders(monkeypatch):
+def test_get_storage_stats_counts_user_folders():
   class DummyDb:
     async def run(self, op, args=None):
       if not isinstance(op, str):
@@ -942,45 +802,25 @@ def test_get_storage_stats_counts_user_folders(monkeypatch):
   mod = StorageModule(app)
   mod.db = DummyDb()
   mod.connection_string = "UseDevelopmentStorage=true"
+  class FakeProvider:
+    async def get_storage_stats(self, request):
+      return StorageStats(
+        file_count=3,
+        total_bytes=3,
+        folder_paths=[
+          ("22222222-2222-2222-2222-222222222222", "docs"),
+          ("33333333-3333-3333-3333-333333333333", "docs"),
+          ("33333333-3333-3333-3333-333333333333", "docs/sub"),
+        ],
+        user_ids=[
+          "11111111-1111-1111-1111-111111111111",
+          "22222222-2222-2222-2222-222222222222",
+          "33333333-3333-3333-3333-333333333333",
+          "44444444-4444-4444-4444-444444444444",
+        ],
+      )
 
-  class FakeBlob:
-    def __init__(self, name, size=0):
-      self.name = name
-      self.size = size
-
-  blobs = [
-    FakeBlob("11111111-1111-1111-1111-111111111111/file.txt", 1),
-    FakeBlob("22222222-2222-2222-2222-222222222222/docs/a.txt", 1),
-    FakeBlob("33333333-3333-3333-3333-333333333333/docs/sub/b.txt", 1),
-    FakeBlob("44444444-4444-4444-4444-444444444444/.init", 0),
-    FakeBlob("notguid/skip.txt", 1),
-  ]
-
-  class FakeContainer:
-    def __init__(self):
-      self.url = "http://blob"
-    def list_blobs(self):
-      async def gen():
-        for b in blobs:
-          yield b
-      return gen()
-    async def close(self):
-      pass
-
-  class FakeBSC:
-    def __init__(self):
-      self.container = FakeContainer()
-    def get_container_client(self, name):
-      return self.container
-    async def close(self):
-      pass
-
-  from types import SimpleNamespace
-  monkeypatch.setattr(
-    storage_module,
-    "BlobServiceClient",
-    SimpleNamespace(from_connection_string=lambda conn: FakeBSC()),
-  )
+  mod.provider = FakeProvider()
 
   stats = asyncio.run(mod.get_storage_stats())
   assert stats == {
