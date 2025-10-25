@@ -45,7 +45,7 @@ def list_user_actions_request(
     params["action_recid"] = action_recid
   if limit is not None:
     params["limit"] = limit
-  return DBRequest(op=_op("list_by_user"), params=params)
+  return DBRequest(op=_op("list_by_user"), payload=params)
 
 
 def log_user_action_request(
@@ -65,7 +65,7 @@ def log_user_action_request(
     params["element_url"] = element_url
   if element_notes is not None:
     params["element_notes"] = element_notes
-  return DBRequest(op=_op("log"), params=params)
+  return DBRequest(op=_op("log"), payload=params)
 
 
 def update_user_action_request(
@@ -79,7 +79,7 @@ def update_user_action_request(
     params["element_url"] = element_url
   if element_notes is not None:
     params["element_notes"] = element_notes
-  return DBRequest(op=_op("update"), params=params)
+  return DBRequest(op=_op("update"), payload=params)
 
 
 def register(router: "SubdomainRouter") -> None:

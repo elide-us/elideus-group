@@ -66,18 +66,18 @@ def list_cache_request(params: ListCacheParams) -> DBRequest:
   from server.registry.types import DBRequest
   return DBRequest(
     op="db:account:cache:list:1",
-    params=params.model_dump(),
+    payload=params.model_dump(),
   )
 
 
 def list_public_request():
   from server.registry.types import DBRequest
-  return DBRequest(op="db:account:cache:list_public:1", params={})
+  return DBRequest(op="db:account:cache:list_public:1", payload={})
 
 
 def list_reported_request():
   from server.registry.types import DBRequest
-  return DBRequest(op="db:account:cache:list_reported:1", params={})
+  return DBRequest(op="db:account:cache:list_reported:1", payload={})
 
 
 def replace_user_cache_request(params: ReplaceUserCacheParams) -> DBRequest:
@@ -85,7 +85,7 @@ def replace_user_cache_request(params: ReplaceUserCacheParams) -> DBRequest:
   normalized_items = [item.model_dump() for item in params.items]
   payload = params.model_dump()
   payload["items"] = normalized_items
-  return DBRequest(op="db:account:cache:replace_user:1", params=payload)
+  return DBRequest(op="db:account:cache:replace_user:1", payload=payload)
 
 
 def upsert_cache_item_request(item: UpsertCacheItemParams | Dict[str, Any]):
@@ -94,36 +94,36 @@ def upsert_cache_item_request(item: UpsertCacheItemParams | Dict[str, Any]):
     normalized = item.model_dump()
   else:
     normalized = _normalize_cache_item_payload(item)
-  return DBRequest(op="db:account:cache:upsert:1", params=normalized)
+  return DBRequest(op="db:account:cache:upsert:1", payload=normalized)
 
 
 def delete_cache_item_request(params: CacheItemKey) -> DBRequest:
   from server.registry.types import DBRequest
-  return DBRequest(op="db:account:cache:delete:1", params=params.model_dump())
+  return DBRequest(op="db:account:cache:delete:1", payload=params.model_dump())
 
 
 def delete_cache_folder_request(params: DeleteCacheFolderParams) -> DBRequest:
   from server.registry.types import DBRequest
-  return DBRequest(op="db:account:cache:delete_folder:1", params=params.model_dump())
+  return DBRequest(op="db:account:cache:delete_folder:1", payload=params.model_dump())
 
 
 def set_public_request(params: SetPublicParams) -> DBRequest:
   from server.registry.types import DBRequest
   payload = params.model_dump(exclude_none=True)
   payload["public"] = 1 if params.public else 0
-  return DBRequest(op="db:account:cache:set_public:1", params=payload)
+  return DBRequest(op="db:account:cache:set_public:1", payload=payload)
 
 
 def set_reported_request(params: SetReportedParams) -> DBRequest:
   from server.registry.types import DBRequest
   payload = params.model_dump()
   payload["reported"] = 1 if params.reported else 0
-  return DBRequest(op="db:account:cache:set_reported:1", params=payload)
+  return DBRequest(op="db:account:cache:set_reported:1", payload=payload)
 
 
 def count_rows_request():
   from server.registry.types import DBRequest
-  return DBRequest(op="db:account:cache:count_rows:1", params={})
+  return DBRequest(op="db:account:cache:count_rows:1", payload={})
 
 
 def register(router: "SubdomainRouter") -> None:

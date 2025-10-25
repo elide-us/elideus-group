@@ -45,7 +45,7 @@ __all__ = [
 
 
 def _request(name: str, params: dict[str, object]) -> DBRequest:
-  return DBRequest(op=f"db:account:session:{name}:1", params=params)
+  return DBRequest(op=f"db:account:session:{name}:1", payload=params)
 
 
 def list_session_snapshots_request(params: ListSessionSnapshotsParams) -> DBRequest:

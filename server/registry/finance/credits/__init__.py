@@ -25,7 +25,7 @@ __all__ = [
 def _request(name: str, params: SetCreditsParams) -> DBRequest:
   return DBRequest(
     op=f"db:finance:credits:{name}:1",
-    params=params.model_dump(),
+    payload=params.model_dump(),
   )
 
 

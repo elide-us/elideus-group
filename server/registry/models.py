@@ -1,7 +1,7 @@
 """Database registry models.
 
 These mirror the RPC request/response shapes.  Requests carry an ``op``
-name and an arbitrary ``payload`` dictionary.  Responses standardize
+name and a required ``payload`` dictionary.  Responses standardize
 ``op``/``payload`` and expose ``rows``/``rowcount`` aliases for existing
 callers.
 """
@@ -22,23 +22,13 @@ class DBRequest:
     self,
     *,
     op: str,
-    payload: Mapping[str, Any] | None = None,
-    params: Mapping[str, Any] | None = None,
+    payload: Mapping[str, Any],
   ) -> None:
     if not op:
       raise ValueError("op is required for DBRequest")
-    source = payload if payload is not None else params
-    if source is None:
-      source = {}
     self.op = op
     # normalize to a mutable dict for convenience
-    self.payload: Dict[str, Any] = dict(source)
-
-  @property
-  def params(self) -> Dict[str, Any]:
-    """Alias retained for backwards compatibility."""
-
-    return self.payload
+    self.payload: Dict[str, Any] = dict(payload)
 
   def copy(self) -> "DBRequest":
     return DBRequest(op=self.op, payload=dict(self.payload))

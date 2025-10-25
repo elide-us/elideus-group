@@ -22,22 +22,22 @@ __all__ = [
 
 
 def get_config_request(params: ConfigKeyParams) -> DBRequest:
-  return DBRequest(op="db:system:config:get_config:1", params=params.model_dump())
+  return DBRequest(op="db:system:config:get_config:1", payload=params.model_dump())
 
 
 def get_configs_request() -> DBRequest:
-  return DBRequest(op="db:system:config:get_configs:1", params={})
+  return DBRequest(op="db:system:config:get_configs:1", payload={})
 
 
 def upsert_config_request(params: UpsertConfigParams) -> DBRequest:
   return DBRequest(
     op="db:system:config:upsert_config:1",
-    params=params.model_dump(),
+    payload=params.model_dump(),
   )
 
 
 def delete_config_request(params: ConfigKeyParams) -> DBRequest:
-  return DBRequest(op="db:system:config:delete_config:1", params=params.model_dump())
+  return DBRequest(op="db:system:config:delete_config:1", payload=params.model_dump())
 
 
 def register(router: "SubdomainRouter") -> None:

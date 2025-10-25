@@ -31,7 +31,7 @@ def _op(name: str) -> str:
 
 def get_user_enablements_request(*, users_guid: str) -> DBRequest:
   params: dict[str, Any] = {"users_guid": users_guid}
-  return DBRequest(op=_op("get_by_user"), params=params)
+  return DBRequest(op=_op("get_by_user"), payload=params)
 
 
 def upsert_user_enablements_request(
@@ -43,7 +43,7 @@ def upsert_user_enablements_request(
     "users_guid": users_guid,
     "element_enablements": element_enablements,
   }
-  return DBRequest(op=_op("upsert"), params=params)
+  return DBRequest(op=_op("upsert"), payload=params)
 
 
 def register(router: "SubdomainRouter") -> None:

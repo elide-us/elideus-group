@@ -38,7 +38,7 @@ __all__ = [
 
 
 def _request(name: str, params: dict[str, object]) -> DBRequest:
-  return DBRequest(op=f"db:account:profile:{name}:1", params=params)
+  return DBRequest(op=f"db:account:profile:{name}:1", payload=params)
 
 
 def get_profile_request(params: GuidParams) -> DBRequest:

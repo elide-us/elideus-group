@@ -30,11 +30,11 @@ def _op(name: str) -> str:
 
 
 def list_models_request() -> DBRequest:
-  return DBRequest(op=_op("list"), params={})
+  return DBRequest(op=_op("list"), payload={})
 
 
 def get_model_by_name_request(name: str) -> DBRequest:
-  return DBRequest(op=_op("get_by_name"), params={"name": name})
+  return DBRequest(op=_op("get_by_name"), payload={"name": name})
 
 
 def register(router: "SubdomainRouter") -> None:
