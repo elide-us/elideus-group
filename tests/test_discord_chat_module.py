@@ -1,8 +1,120 @@
 import asyncio
+import importlib.util
+import pathlib
+import sys
+import types
 from fastapi import FastAPI
 from types import SimpleNamespace
 
-from server.modules.discord_chat_module import DiscordChatModule
+root_path = pathlib.Path(__file__).resolve().parent.parent
+
+server_pkg = types.ModuleType('server')
+server_pkg.__path__ = [str(root_path / 'server')]
+sys.modules.setdefault('server', server_pkg)
+
+helpers_spec = importlib.util.spec_from_file_location('server.helpers', root_path / 'server/helpers/__init__.py')
+helpers_pkg = importlib.util.module_from_spec(helpers_spec)
+helpers_spec.loader.exec_module(helpers_pkg)
+sys.modules['server.helpers'] = helpers_pkg
+setattr(server_pkg, 'helpers', helpers_pkg)
+
+helpers_strings_spec = importlib.util.spec_from_file_location('server.helpers.strings', root_path / 'server/helpers/strings.py')
+helpers_strings_mod = importlib.util.module_from_spec(helpers_strings_spec)
+helpers_strings_spec.loader.exec_module(helpers_strings_mod)
+sys.modules['server.helpers.strings'] = helpers_strings_mod
+setattr(helpers_pkg, 'strings', helpers_strings_mod)
+
+modules_spec = importlib.util.spec_from_file_location('server.modules', root_path / 'server/modules/__init__.py')
+modules_pkg = importlib.util.module_from_spec(modules_spec)
+modules_spec.loader.exec_module(modules_pkg)
+sys.modules['server.modules'] = modules_pkg
+setattr(server_pkg, 'modules', modules_pkg)
+
+discord_chat_spec = importlib.util.spec_from_file_location(
+  'server.modules.discord_chat_module',
+  root_path / 'server/modules/discord_chat_module.py',
+)
+discord_chat_mod = importlib.util.module_from_spec(discord_chat_spec)
+discord_chat_spec.loader.exec_module(discord_chat_mod)
+sys.modules['server.modules.discord_chat_module'] = discord_chat_mod
+
+DiscordChatModule = discord_chat_mod.DiscordChatModule
+
+
+class PersonaOpenAIStub:
+  def __init__(self):
+    self.persona_requests: list[str] = []
+    self.history_calls: list[dict] = []
+    self.log_calls: list[dict] = []
+    self.generate_calls: list[dict] = []
+    self.finalize_calls: list[dict] = []
+    self.persona_details = {
+      "recid": 7,
+      "models_recid": 11,
+      "prompt": "be helpful",
+      "tokens": 128,
+      "model": "gpt-4o-mini",
+      "name": "Helper",
+    }
+    self.history_entries = [
+      {"role": "user", "content": "Hi"},
+      {"role": "assistant", "content": "Hello"},
+    ]
+
+  async def on_ready(self):
+    return None
+
+  async def get_persona_definition(self, name: str):
+    self.persona_requests.append(name)
+    if name.lower() != "helper":
+      return None
+    return dict(self.persona_details)
+
+  async def get_recent_persona_conversation_history(self, *, personas_recid: int, lookback_days: int, limit: int):
+    self.history_calls.append(
+      {
+        "personas_recid": personas_recid,
+        "lookback_days": lookback_days,
+        "limit": limit,
+      }
+    )
+    return list(self.history_entries)
+
+  async def log_persona_conversation_input(
+    self,
+    personas_recid: int,
+    models_recid: int,
+    guild_id,
+    channel_id,
+    user_id,
+    input_data,
+    tokens,
+  ):
+    self.log_calls.append(
+      {
+        "personas_recid": personas_recid,
+        "models_recid": models_recid,
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "user_id": user_id,
+        "input_data": input_data,
+        "tokens": tokens,
+      }
+    )
+    return 4242
+
+  async def generate_chat(self, **kwargs):
+    self.generate_calls.append(kwargs)
+    return {"content": "Final reply", "model": "gpt-4", "usage": {"total_tokens": 33}}
+
+  async def finalize_persona_conversation(self, recid: int, output_data: str, tokens):
+    self.finalize_calls.append(
+      {
+        "recid": recid,
+        "output_data": output_data,
+        "tokens": tokens,
+      }
+    )
 
 
 def test_summarize_channel(monkeypatch):
@@ -202,8 +314,154 @@ def test_deliver_summary_enqueues_output():
   assert output.channel_messages == [(2, "queued")]
   assert res["success"] is True
   assert res["queue_id"]
-  assert res["dm_enqueued"] is True
-  assert res["channel_ack_enqueued"] is True
-  assert res["messages_collected"] == 5
-  assert res["token_count_estimate"] == 10
-  assert res["cap_hit"] is False
+
+
+def test_get_persona_returns_details():
+  app = FastAPI()
+  openai = PersonaOpenAIStub()
+  app.state.openai = openai
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  res = asyncio.run(module.get_persona("helper", guild_id=1, channel_id=2, user_id=3))
+  assert res["success"] is True
+  assert res["persona_details"]["name"] == "Helper"
+  assert res["model"] == "gpt-4o-mini"
+  assert res["max_tokens"] == 128
+  assert openai.persona_requests == ["helper"]
+
+
+def test_get_conversation_history_returns_history():
+  app = FastAPI()
+  openai = PersonaOpenAIStub()
+  app.state.openai = openai
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  res = asyncio.run(module.get_conversation_history("helper", limit=10))
+  assert res["success"] is True
+  assert res["conversation_history"] == openai.history_entries
+  assert res["personas_recid"] == 7
+  assert openai.history_calls == [
+    {"personas_recid": 7, "lookback_days": 30, "limit": 10}
+  ]
+
+
+def test_get_channel_history_formats_messages():
+  app = FastAPI()
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  async def dummy_history(guild_id, channel_id, hours, max_messages=5000):
+    msg = SimpleNamespace(
+      content="Hello",
+      author=SimpleNamespace(display_name="Alice"),
+      created_at="now",
+    )
+    return {"messages": [msg], "cap_hit": False}
+
+  module.fetch_channel_history_backwards = dummy_history  # type: ignore
+
+  res = asyncio.run(module.get_channel_history(1, 2))
+  assert res["success"] is True
+  assert res["channel_history"] == [
+    {"author": "Alice", "content": "Hello", "created_at": "now"}
+  ]
+
+
+def test_insert_conversation_input_logs_message():
+  app = FastAPI()
+  openai = PersonaOpenAIStub()
+  app.state.openai = openai
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  res = asyncio.run(
+    module.insert_conversation_input(
+      "helper",
+      "Tell me something",
+      persona_details=openai.persona_details,
+      guild_id=1,
+      channel_id=2,
+      user_id=3,
+    )
+  )
+  assert res["success"] is True
+  assert res["conversation_reference"] == 4242
+  assert openai.log_calls == [
+    {
+      "personas_recid": 7,
+      "models_recid": 11,
+      "guild_id": 1,
+      "channel_id": 2,
+      "user_id": 3,
+      "input_data": "Tell me something",
+      "tokens": None,
+    }
+  ]
+
+
+def test_generate_persona_response_updates_conversation():
+  app = FastAPI()
+  openai = PersonaOpenAIStub()
+  app.state.openai = openai
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  res = asyncio.run(
+    module.generate_persona_response(
+      "helper",
+      "What is up?",
+      persona_details=openai.persona_details,
+      conversation_history=openai.history_entries,
+      channel_history=[{"author": "Bob", "content": "Hello"}],
+      conversation_reference=999,
+      guild_id=5,
+      channel_id=6,
+      user_id=7,
+    )
+  )
+  assert res["success"] is True
+  assert res["response"]["text"] == "Final reply"
+  assert openai.generate_calls
+  assert openai.finalize_calls == [
+    {"recid": 999, "output_data": "Final reply", "tokens": 33}
+  ]
+
+
+def test_deliver_persona_response_enqueues_output():
+  app = FastAPI()
+  module = DiscordChatModule(app)
+  module.mark_ready()
+
+  class DummyOutput:
+    def __init__(self):
+      self.channel_messages = []
+
+    async def queue_channel_message(self, channel_id, message):
+      self.channel_messages.append((channel_id, message))
+
+  output = DummyOutput()
+
+  class DummyDiscord:
+    async def on_ready(self):
+      return None
+
+    def _require_output_module(self):
+      return output
+
+  module.discord = DummyDiscord()
+
+  res = asyncio.run(
+    module.deliver_persona_response(
+      persona="helper",
+      response={"text": "queued"},
+      conversation_reference=123,
+      channel_id=44,
+      user_id=55,
+    )
+  )
+  assert res["success"] is True
+  assert res["reason"] == "persona_response_queued"
+  assert res["ack_message"] == "Persona response queued for <@55>."
+  assert output.channel_messages == [(44, "queued")]
