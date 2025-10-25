@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 
 from server.modules.openai_module import OpenaiModule, SummaryQueue
-from server.modules.providers import DBResult
+from server.modules.providers import DBResponse
 
 
 def test_fetch_chat_message_order_and_return():
@@ -106,7 +106,7 @@ def test_fetch_chat_logs_conversation():
         args = {}
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
-        return DBResult(
+        return DBResponse(
           rows=[
             {
               "recid": 1,
@@ -124,7 +124,7 @@ def test_fetch_chat_logs_conversation():
         assert args["channel_id"] == "2"
         assert args["user_id"] == "3"
         assert args["input_data"] == "hello"
-        return DBResult(rows=[], rowcount=0)
+        return DBResponse(rows=[], rowcount=0)
       if op == "db:system:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
@@ -133,11 +133,11 @@ def test_fetch_chat_logs_conversation():
         assert args["user_id"] == "3"
         assert args["input_data"] == "hello"
         assert args["tokens"] == 7
-        return DBResult(rows=[{"recid": 99}], rowcount=1)
+        return DBResponse(rows=[{"recid": 99}], rowcount=1)
       if op == "db:system:conversations:update_output:1":
         assert args == {"recid": 99, "output_data": "hi", "tokens": 42}
-        return DBResult(rowcount=1)
-      return DBResult()
+        return DBResponse(rowcount=1)
+      return DBResponse()
 
   module.db = DummyDB()
 
@@ -180,7 +180,7 @@ def test_log_conversation_end_warns_when_no_rows_updated(caplog):
         args = {}
       assert op == "db:system:conversations:update_output:1"
       assert args == {"recid": 99, "output_data": "done", "tokens": 3}
-      return DBResult(rowcount=0)
+      return DBResponse(rowcount=0)
 
   module.db = DummyDB()
 
@@ -203,7 +203,7 @@ def test_get_recent_persona_conversation_history_returns_ordered_messages():
         args = {}
       assert op == "db:system:conversations:list_by_time:1"
       assert args["personas_recid"] == 7
-      return DBResult(
+      return DBResponse(
         rows=[
           {
             "element_created_on": "2024-05-01T12:00:00Z",
@@ -266,7 +266,7 @@ def test_fetch_chat_reuses_existing_conversation():
         args = {}
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
-        return DBResult(
+        return DBResponse(
           rows=[
             {
               "recid": 7,
@@ -279,14 +279,14 @@ def test_fetch_chat_reuses_existing_conversation():
         )
       if op == "db:system:conversations:find_recent:1":
         if self.insert_count:
-          return DBResult(rows=[{"recid": 555}], rowcount=1)
-        return DBResult(rows=[], rowcount=0)
+          return DBResponse(rows=[{"recid": 555}], rowcount=1)
+        return DBResponse(rows=[], rowcount=0)
       if op == "db:system:conversations:insert:1":
         self.insert_count += 1
-        return DBResult(rows=[{"recid": 555}], rowcount=1)
+        return DBResponse(rows=[{"recid": 555}], rowcount=1)
       if op == "db:system:conversations:update_output:1":
-        return DBResult(rowcount=1)
-      return DBResult()
+        return DBResponse(rowcount=1)
+      return DBResponse()
 
   module.db = DummyDB()
 
@@ -347,7 +347,7 @@ def test_persona_response_calls_openai():
         args = {}
       self.calls.append((op, args))
       if op == "db:system:personas:get_by_name:1":
-        return DBResult(
+        return DBResponse(
           rows=[{
             "recid": 1,
             "name": "Stark",
@@ -360,7 +360,7 @@ def test_persona_response_calls_openai():
         )
       if op == "db:system:conversations:find_recent:1":
         assert args["input_data"] == "Tell me"
-        return DBResult(rows=[], rowcount=0)
+        return DBResponse(rows=[], rowcount=0)
       if op == "db:system:conversations:insert:1":
         assert args["personas_recid"] == 1
         assert args["models_recid"] == 2
@@ -369,11 +369,11 @@ def test_persona_response_calls_openai():
         assert args["user_id"] == "3"
         assert args["input_data"] == "Tell me"
         assert args["tokens"] is None
-        return DBResult(rows=[{"recid": 77}], rowcount=1)
+        return DBResponse(rows=[{"recid": 77}], rowcount=1)
       if op == "db:system:conversations:update_output:1":
         assert args == {"recid": 77, "output_data": "Response", "tokens": 11}
-        return DBResult(rowcount=1)
-      return DBResult()
+        return DBResponse(rowcount=1)
+      return DBResponse()
 
   module.db = DummyDB()
 
@@ -419,8 +419,8 @@ def test_persona_response_missing_persona():
       elif args is None:
         args = {}
       if op == "db:system:personas:get_by_name:1":
-        return DBResult(rows=[], rowcount=0)
-      return DBResult()
+        return DBResponse(rows=[], rowcount=0)
+      return DBResponse()
 
   module.db = DummyDB()
   module.client = SimpleNamespace(chat=SimpleNamespace(completions=None))
@@ -441,7 +441,7 @@ def test_persona_response_stub_without_client():
       elif args is None:
         args = {}
       if op == "db:system:personas:get_by_name:1":
-        return DBResult(
+        return DBResponse(
           rows=[{
             "recid": 1,
             "name": "stark",
@@ -452,7 +452,7 @@ def test_persona_response_stub_without_client():
           }],
           rowcount=1,
         )
-      return DBResult()
+      return DBResponse()
 
   module.db = DummyDB()
   module.client = None

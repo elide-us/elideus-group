@@ -1,8 +1,7 @@
 """Database registry models.
 
-These mirror the RPC request/response shapes while retaining backward
-compatibility with the existing ``DBResult`` helpers.  Requests carry an
-``op`` name and an arbitrary ``payload`` dictionary.  Responses standardize
+These mirror the RPC request/response shapes.  Requests carry an ``op``
+name and an arbitrary ``payload`` dictionary.  Responses standardize
 ``op``/``payload`` and expose ``rows``/``rowcount`` aliases for existing
 callers.
 """
@@ -11,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterator, Mapping, Sequence
 
-__all__ = ["DBRequest", "DBResponse", "DBResult"]
+__all__ = ["DBRequest", "DBResponse"]
 
 
 class DBRequest:
@@ -103,7 +102,3 @@ class DBResponse:
   # Backwards compatibility for helper usage expecting dict unpacking
   def __iter__(self) -> Iterator[tuple[str, Any]]:  # type: ignore[override]
     yield from {"rows": self.rows, "rowcount": self.rowcount}.items()
-
-
-# Historical name kept for downstream imports/tests.
-DBResult = DBResponse

@@ -11,7 +11,7 @@ from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from server.registry.types import DBRequest, DBResponse, DBResult
+from server.registry.types import DBRequest, DBResponse
 
 __all__ = [
   "AuthProvider",
@@ -21,7 +21,6 @@ __all__ = [
   "DbProviderBase",
   "DBRequest",
   "DBResponse",
-  "DBResult",
 ]
 
 class BaseProvider(ABC):

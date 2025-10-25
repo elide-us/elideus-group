@@ -7,7 +7,7 @@ import server.modules.storage_module as storage_module
 from server.modules import BaseModule
 from server.modules.providers.database.mssql_provider import MssqlProvider
 import server.registry.providers.mssql as registry_mssql
-from server.modules.providers import DBResult
+from server.modules.providers import DBResponse
 from server.modules.providers.storage import (
   StorageBlobItem,
   StorageBlobProperties,
@@ -95,7 +95,7 @@ def test_list_public_files(monkeypatch):
 
   async def fake_fetch_json(sql, params, *, many=False):
     assert many
-    return DBResult(rows=[
+    return DBResponse(rows=[
       {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
       {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
     ], rowcount=2)
