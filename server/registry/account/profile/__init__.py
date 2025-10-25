@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from server.registry.types import DBRequest
 from .model import (
   GuidParams,
+  ProfileRecord,
   SetDisplayParams,
   SetOptInParams,
   SetProfileImageParams,
@@ -27,6 +28,7 @@ __all__ = [
   "update_if_unedited_request",
   "register",
   "GuidParams",
+  "ProfileRecord",
   "SetDisplayParams",
   "SetOptInParams",
   "SetProfileImageParams",

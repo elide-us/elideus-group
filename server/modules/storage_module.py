@@ -4,8 +4,6 @@ import asyncio, logging, re, base64
 from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
-from azure.storage.blob.aio import BlobServiceClient
-from azure.storage.blob import ContentSettings
 from fastapi import FastAPI
 from server.registry.system.config import ConfigKeyParams, get_config_request
 from server.registry.account.cache import (
@@ -19,6 +17,19 @@ from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from .providers.storage import (
+  StorageBlobProperties,
+  StorageCreateFolderRequest,
+  StorageDeleteFolderRequest,
+  StorageDeleteRequest,
+  StorageMoveRequest,
+  StorageRenameRequest,
+  StorageReindexRequest,
+  StorageUploadFile,
+  StorageUploadRequest,
+  StorageStatsRequest,
+)
+from .providers.storage.azure_blob_provider import AzureBlobStorageProvider
 
 
 class StorageModule(BaseModule):
@@ -37,6 +48,7 @@ class StorageModule(BaseModule):
     self._reindex_task: asyncio.Task | None = None
     self.reindex_interval = 15 * 60
     self.discord: DiscordBotModule | None = None
+    self.provider: AzureBlobStorageProvider | None = None
 
   @staticmethod
   def _parse_duration(value: str) -> int:
@@ -59,8 +71,13 @@ class StorageModule(BaseModule):
       self.connection_string = self.env.get("AZURE_BLOB_CONNECTION_STRING")
       if not self.connection_string:
         logging.error("[StorageModule] AZURE_BLOB_CONNECTION_STRING missing")
+        self.provider = None
+      else:
+        self.provider = AzureBlobStorageProvider(connection_string=self.connection_string)
+        await self.provider.startup()
     except Exception as e:
       logging.error("[StorageModule] Failed to load AZURE_BLOB_CONNECTION_STRING: %s", e)
+      self.provider = None
 
     try:
       res = await self.db.run(get_config_request(ConfigKeyParams(key="StorageCacheTime")))
@@ -83,6 +100,12 @@ class StorageModule(BaseModule):
       except asyncio.CancelledError:
         pass
       self._reindex_task = None
+    if self.provider:
+      try:
+        await self.provider.shutdown()
+      except Exception as exc:
+        logging.error("[StorageModule] Provider shutdown failed: %s", exc)
+      self.provider = None
 
   async def _reindex_loop(self):
     while True:
@@ -92,196 +115,207 @@ class StorageModule(BaseModule):
       except Exception as e:
         logging.error("[StorageModule] Reindex failed: %s", e)
 
+  def _require_provider(self) -> AzureBlobStorageProvider | None:
+    if not self.provider:
+      logging.error("[StorageModule] Storage provider is not configured")
+      return None
+    return self.provider
+
+  async def _get_container_name(self) -> str | None:
+    if not self.db:
+      logging.error("[StorageModule] Database module unavailable")
+      return None
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
+    container_name = res.rows[0]["value"] if res.rows else None
+    if not container_name:
+      logging.error("[StorageModule] AzureBlobContainerName missing")
+    return container_name
+
   async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
     logging.info(
       "[StorageModule] Reindexing storage%s",
       f" for {user_guid}" if user_guid else " for all users",
     )
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
     valid_users: set[str] = set()
     missing_users: set[str] = set()
-    if user_guid:
+
+    async def ensure_user(guid: str) -> bool:
+      if guid in valid_users:
+        return True
+      if guid in missing_users:
+        return False
       try:
-        if not await self.db.user_exists(user_guid):
-          logging.warning("[StorageModule] Skipping reindex for unknown user %s", user_guid)
-          return
-        valid_users.add(user_guid)
-      except Exception as e:
-        logging.error("[StorageModule] Failed to validate user %s: %s", user_guid, e)
+        exists = await self.db.user_exists(guid)
+      except Exception as exc:
+        logging.error("[StorageModule] Failed to validate user %s: %s", guid, exc)
+        missing_users.add(guid)
+        return False
+      if not exists:
+        logging.warning("[StorageModule] Skipping blob for unknown user %s", guid)
+        missing_users.add(guid)
+        return False
+      valid_users.add(guid)
+      return True
+
+    if user_guid:
+      if not await ensure_user(user_guid):
         return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
+
+    prefix = f"{user_guid}/" if user_guid else None
+    response = await provider.reindex(
+      StorageReindexRequest(container_name=container_name, prefix=prefix)
+    )
     files_seen: dict[str, set[tuple[str, str]]] = {}
     folder_seen: dict[str, set[tuple[str, str]]] = {}
     public_map: dict[str, dict[tuple[str, str], int]] = {}
     files_indexed = 0
     folders_indexed = 0
-    prefix = f"{user_guid}/" if user_guid else None
-    try:
-      iterator = container.list_blobs(name_starts_with=prefix) if prefix else container.list_blobs()
-      async for blob in iterator:
-        name = getattr(blob, "name", None)
-        if not name:
-          continue
-        parts = name.split("/")
-        if len(parts) < 2:
-          continue
-        guid = parts[0]
-        try:
-          UUID(guid)
-        except Exception:
-          continue
-        if user_guid and guid != user_guid:
-          continue
-        if guid in missing_users:
-          continue
-        if guid not in valid_users:
-          try:
-            exists = await self.db.user_exists(guid)
-          except Exception as e:
-            logging.error("[StorageModule] Failed to validate user %s: %s", guid, e)
-            missing_users.add(guid)
-            continue
-          if not exists:
-            logging.warning("[StorageModule] Skipping blob for unknown user %s", guid)
-            missing_users.add(guid)
-            continue
-          valid_users.add(guid)
-        filename = parts[-1]
-        path = "/".join(parts[1:-1])
-        if guid not in public_map:
-          rows = await self.db.list_storage_cache(guid)
-          public_map[guid] = {
-            (r.get("path") or "", r.get("filename")): r.get("public", 0)
-            for r in rows
-            if r.get("content_type") != "path/folder"
-          }
-        # index folders along the path (up to 4 levels)
-        parent = ""
-        fset = folder_seen.setdefault(guid, set())
-        for folder_name in parts[1:-1][:4]:
-          key = (parent, folder_name)
-          if key not in fset:
-            logging.debug(
-              "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
-            )
-            res = await self.db.upsert_storage_cache({
-              "user_guid": guid,
-              "path": parent,
-              "filename": folder_name,
-              "content_type": "path/folder",
-              "public": 0,
-              "created_on": None,
-              "modified_on": None,
-              "url": None,
-              "reported": 0,
-              "moderation_recid": None,
-            })
-            if res.rowcount == 0:
-              logging.error(
-                "[StorageModule] Failed to upsert folder %s/%s",
-                parent or ".",
-                folder_name,
-              )
-            fset.add(key)
-            folders_indexed += 1
-          parent = f"{parent}/{folder_name}" if parent else folder_name
-        # handle explicit folder markers (Azure Storage Explorer etc.)
-        meta = getattr(blob, "metadata", {}) or {}
-        if meta.get("hdi_isfolder") == "true":
-          key = (path, filename)
-          if key not in fset:
-            logging.debug(
-              "[StorageModule] indexing folder %s/%s", path or ".", filename
-            )
-            res = await self.db.upsert_storage_cache({
-              "user_guid": guid,
-              "path": path,
-              "filename": filename,
-              "content_type": "path/folder",
-              "public": 0,
-              "created_on": None,
-              "modified_on": None,
-              "url": None,
-              "reported": 0,
-              "moderation_recid": None,
-            })
-            if res.rowcount == 0:
-              logging.error(
-                "[StorageModule] Failed to upsert folder %s/%s",
-                path or ".",
-                filename,
-              )
-            fset.add(key)
-            folders_indexed += 1
-          continue
-        if not filename or filename == ".init":
-          continue
-        ct = None
-        if hasattr(blob, "content_settings") and blob.content_settings:
-          ct = getattr(blob.content_settings, "content_type", None)
-        if not ct:
-          ct = getattr(blob, "content_type", None)
-        created_on = getattr(blob, "creation_time", None) or getattr(blob, "created_on", None)
-        modified_on = getattr(blob, "last_modified", None)
-        url = f"{container.url}/{name}"
-        logging.debug(
-          "[StorageModule] indexing file %s/%s", path or ".", filename
-        )
-        public_val = public_map.get(guid, {}).get((path, filename), 0)
-        res = await self.db.upsert_storage_cache({
-          "user_guid": guid,
-          "path": path,
-          "filename": filename,
-          "content_type": ct or "application/octet-stream",
-          "public": public_val,
-          "created_on": created_on,
-          "modified_on": modified_on,
-          "url": url,
-          "reported": 0,
-          "moderation_recid": None,
-        })
-        if res.rowcount == 0:
-          logging.error(
-            "[StorageModule] Failed to upsert file %s/%s",
-            path or ".",
-            filename,
+
+    for blob in response.blobs:
+      name = blob.name
+      if not name:
+        continue
+      parts = name.split("/")
+      if len(parts) < 2:
+        continue
+      guid = parts[0]
+      try:
+        UUID(guid)
+      except Exception:
+        continue
+      if user_guid and guid != user_guid:
+        continue
+      if not await ensure_user(guid):
+        continue
+      filename = parts[-1]
+      path = "/".join(parts[1:-1])
+      if guid not in public_map:
+        rows = await self.db.list_storage_cache(guid)
+        public_map[guid] = {
+          (r.get("path") or "", r.get("filename")): r.get("public", 0)
+          for r in rows
+          if r.get("content_type") != "path/folder"
+        }
+      parent = ""
+      fset = folder_seen.setdefault(guid, set())
+      for folder_name in parts[1:-1][:4]:
+        key = (parent, folder_name)
+        if key not in fset:
+          logging.debug(
+            "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
           )
-        files_seen.setdefault(guid, set()).add((path, filename))
-        public_map.setdefault(guid, {})[(path, filename)] = public_val
-        files_indexed += 1
-      if user_guid:
-        existing = public_map.get(user_guid, {})
-        for key in list(existing.keys()):
-          if key not in files_seen.get(user_guid, set()):
-            await self.db.delete_storage_cache(user_guid, key[0], key[1])
-      else:
-        for guid, items_seen in files_seen.items():
-          existing = public_map.get(guid, {})
-          for key in list(existing.keys()):
-            if key not in items_seen:
-              await self.db.delete_storage_cache(guid, key[0], key[1])
-    finally:
+          res = await self.db.upsert_storage_cache({
+            "user_guid": guid,
+            "path": parent,
+            "filename": folder_name,
+            "content_type": "path/folder",
+            "public": 0,
+            "created_on": None,
+            "modified_on": None,
+            "url": None,
+            "reported": 0,
+            "moderation_recid": None,
+          })
+          if res.rowcount == 0:
+            logging.error(
+              "[StorageModule] Failed to upsert folder %s/%s",
+              parent or ".",
+              folder_name,
+            )
+          fset.add(key)
+          folders_indexed += 1
+        parent = f"{parent}/{folder_name}" if parent else folder_name
+      if blob.is_directory:
+        key = (path, filename)
+        if key not in fset:
+          logging.debug(
+            "[StorageModule] indexing folder %s/%s", path or ".", filename
+          )
+          res = await self.db.upsert_storage_cache({
+            "user_guid": guid,
+            "path": path,
+            "filename": filename,
+            "content_type": "path/folder",
+            "public": 0,
+            "created_on": None,
+            "modified_on": None,
+            "url": None,
+            "reported": 0,
+            "moderation_recid": None,
+          })
+          if res.rowcount == 0:
+            logging.error(
+              "[StorageModule] Failed to upsert folder %s/%s",
+              path or ".",
+              filename,
+            )
+          fset.add(key)
+          folders_indexed += 1
+        continue
+      if not filename or filename == ".init":
+        continue
+      ct = blob.content_type or "application/octet-stream"
+      created_on = blob.created_on
+      modified_on = blob.modified_on
+      url = blob.url or f"{response.container_url}/{name}"
       logging.debug(
-        "[StorageModule] Reindex found %d files and %d folders%s",
-        files_indexed,
-        folders_indexed,
-        f" for {user_guid}" if user_guid else "",
+        "[StorageModule] indexing file %s/%s", path or ".", filename
       )
-      await container.close()
-      await bsc.close()
-      logging.info(
-        "[StorageModule] Reindex complete%s",
-        f" for {user_guid}" if user_guid else "",
-      )
+      public_val = public_map.get(guid, {}).get((path, filename), 0)
+      res = await self.db.upsert_storage_cache({
+        "user_guid": guid,
+        "path": path,
+        "filename": filename,
+        "content_type": ct,
+        "public": public_val,
+        "created_on": created_on,
+        "modified_on": modified_on,
+        "url": url,
+        "reported": 0,
+        "moderation_recid": None,
+      })
+      if res.rowcount == 0:
+        logging.error(
+          "[StorageModule] Failed to upsert file %s/%s",
+          path or ".",
+          filename,
+        )
+      files_seen.setdefault(guid, set()).add((path, filename))
+      public_map.setdefault(guid, {})[(path, filename)] = public_val
+      files_indexed += 1
+
+    if user_guid:
+      existing = public_map.get(user_guid, {})
+      for key in list(existing.keys()):
+        if key not in files_seen.get(user_guid, set()):
+          await self.db.delete_storage_cache(user_guid, key[0], key[1])
+    else:
+      for guid, items_seen in files_seen.items():
+        existing = public_map.get(guid, {})
+        for key in list(existing.keys()):
+          if key not in items_seen:
+            await self.db.delete_storage_cache(guid, key[0], key[1])
+
+    logging.debug(
+      "[StorageModule] Reindex found %d files and %d folders%s",
+      files_indexed,
+      folders_indexed,
+      f" for {user_guid}" if user_guid else "",
+    )
+    logging.info(
+      "[StorageModule] Reindex complete%s",
+      f" for {user_guid}" if user_guid else "",
+    )
 
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
@@ -374,98 +408,112 @@ class StorageModule(BaseModule):
     return res.rows
 
   async def upload_files(self, user_guid: str, files):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
-    try:
-      for f in files:
-        name = getattr(f, "name", None)
-        if not name and isinstance(f, dict):
-          name = f.get("name")
-        content_b64 = getattr(f, "content_b64", None)
-        if not content_b64 and isinstance(f, dict):
-          content_b64 = f.get("content_b64")
-        if not name or not content_b64:
-          continue
-        blob_name = f"{user_guid}/{name.lstrip('/')}"
+    payload: list[StorageUploadFile] = []
+    for f in files:
+      name = getattr(f, "name", None)
+      if not name and isinstance(f, dict):
+        name = f.get("name")
+      content_b64 = getattr(f, "content_b64", None)
+      if not content_b64 and isinstance(f, dict):
+        content_b64 = f.get("content_b64")
+      if not name or not content_b64:
+        continue
+      ct = getattr(f, "content_type", None)
+      if ct is None and isinstance(f, dict):
+        ct = f.get("content_type")
+      try:
         data = base64.b64decode(content_b64)
-        ct = getattr(f, "content_type", None)
-        if ct is None and isinstance(f, dict):
-          ct = f.get("content_type")
-        try:
-          await container.upload_blob(
-            blob_name,
-            data,
-            overwrite=True,
-            content_settings=ContentSettings(content_type=ct) if ct else None,
+      except Exception as exc:
+        logging.error("[StorageModule] Failed to decode upload for %s: %s", name, exc)
+        continue
+      normalized = name.lstrip("/")
+      payload.append(
+        StorageUploadFile(
+          blob_name=f"{user_guid}/{normalized}",
+          relative_path=normalized,
+          data=data,
+          content_type=ct,
+        )
+      )
+    if not payload:
+      return
+    response = await provider.upload_files(
+      StorageUploadRequest(container_name=container_name, files=payload)
+    )
+    for rel, err in response.errors.items():
+      logging.error("[StorageModule] Failed to upload %s: %s", rel, err)
+    for result in response.results:
+      name = result.relative_path.lstrip("/")
+      path = "/".join(name.split("/")[:-1])
+      filename = name.split("/")[-1]
+      try:
+        res = await self.db.upsert_storage_cache({
+          "user_guid": user_guid,
+          "path": path,
+          "filename": filename,
+          "content_type": result.content_type or "application/octet-stream",
+          "public": 0,
+          "created_on": result.created_on,
+          "modified_on": result.modified_on,
+          "url": result.url,
+          "reported": 0,
+          "moderation_recid": None,
+        })
+        if res.rowcount == 0:
+          logging.error(
+            "[StorageModule] Failed to upsert file %s/%s",
+            path or ".",
+            filename,
           )
-        except Exception as e:
-          logging.error("[StorageModule] Failed to upload %s: %s", blob_name, e)
-          continue
-        now = datetime.now(timezone.utc)
-        path = "/".join(name.split("/")[:-1])
-        filename = name.split("/")[-1]
-        url = f"{container.url}/{blob_name}"
-        try:
-          res = await self.db.upsert_storage_cache({
-            "user_guid": user_guid,
-            "path": path,
-            "filename": filename,
-            "content_type": ct or "application/octet-stream",
-            "public": 0,
-            "created_on": now,
-            "modified_on": now,
-            "url": url,
-            "reported": 0,
-            "moderation_recid": None,
-          })
-          if res.rowcount == 0:
-            logging.error("[StorageModule] Failed to upsert file %s/%s", path or '.', filename)
-        except Exception as e:
-          logging.error("[StorageModule] Failed to update cache for %s/%s: %s", path or '.', filename, e)
-    finally:
-      await container.close()
-      await bsc.close()
+      except Exception as exc:
+        logging.error(
+          "[StorageModule] Failed to update cache for %s/%s: %s",
+          path or ".",
+          filename,
+          exc,
+        )
 
   async def delete_files(self, user_guid: str, names: list[str]):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
-    try:
-      for name in names:
-        blob_name = f"{user_guid}/{name.lstrip('/')}"
-        path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-        blob = container.get_blob_client(blob_name)
-        try:
-          await blob.delete_blob()
-        except Exception as e:
-          logging.error("[StorageModule] Failed to delete %s: %s", blob_name, e)
-        try:
-          await self.db.delete_storage_cache(user_guid, path, filename)
-        except Exception as e:
-          logging.error(
-            "[StorageModule] Failed to delete cache for %s/%s: %s",
-            path or '.',
-            filename,
-            e,
-          )
-    finally:
-      await container.close()
-      await bsc.close()
+    normalized = [name.lstrip("/") for name in names]
+    blob_names = [f"{user_guid}/{name}" for name in normalized]
+    response = await provider.delete_files(
+      StorageDeleteRequest(
+        container_name=container_name,
+        blob_names=blob_names,
+        relative_paths=normalized,
+      )
+    )
+    for rel, err in response.errors.items():
+      logging.error("[StorageModule] Failed to delete %s: %s", rel, err)
+    for rel in response.deleted:
+      path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
+      try:
+        await self.db.delete_storage_cache(user_guid, path, filename)
+      except Exception as exc:
+        logging.error(
+          "[StorageModule] Failed to delete cache for %s/%s: %s",
+          path or ".",
+          filename,
+          exc,
+        )
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
@@ -477,149 +525,167 @@ class StorageModule(BaseModule):
     await self.db.run(set_reported_request(user_guid, path=path, filename=filename, reported=True))
 
   async def create_folder(self, user_guid: str, path: str):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
     folder_path = path.lstrip("/")
     blob_name = f"{user_guid}/{folder_path}"
     init_name = f"{blob_name}/.init"
-    parent, folder_name = folder_path.rsplit("/", 1) if "/" in folder_path else ("", folder_path)
     try:
-      await container.upload_blob(
-        blob_name,
-        b"",
-        metadata={"hdi_isfolder": "true"},
-        overwrite=True,
-      )
-      await container.upload_blob(
-        init_name,
-        b"",
-        overwrite=True,
-      )
-      try:
-        await self.db.upsert_storage_cache({
-          "user_guid": user_guid,
-          "path": parent,
-          "filename": folder_name,
-          "content_type": "path/folder",
-          "public": 0,
-          "created_on": None,
-          "modified_on": None,
-          "url": None,
-          "reported": 0,
-          "moderation_recid": None,
-        })
-      except Exception as e:
-        logging.error(
-          "[StorageModule] Failed to update cache for %s/%s: %s",
-          parent or ".",
-          folder_name,
-          e,
+      result = await provider.create_folder(
+        StorageCreateFolderRequest(
+          container_name=container_name,
+          blob_name=blob_name,
+          init_blob_name=init_name,
         )
-    finally:
-      await container.close()
-      await bsc.close()
+      )
+    except Exception as exc:
+      logging.error("[StorageModule] Failed to create folder %s: %s", path, exc)
+      return
+    relative = result.relative_path
+    parent, folder_name = relative.rsplit("/", 1) if "/" in relative else ("", relative)
+    try:
+      await self.db.upsert_storage_cache({
+        "user_guid": user_guid,
+        "path": parent,
+        "filename": folder_name,
+        "content_type": "path/folder",
+        "public": 0,
+        "created_on": None,
+        "modified_on": None,
+        "url": None,
+        "reported": 0,
+        "moderation_recid": None,
+      })
+    except Exception as exc:
+      logging.error(
+        "[StorageModule] Failed to update cache for %s/%s: %s",
+        parent or ".",
+        folder_name,
+        exc,
+      )
 
   async def delete_folder(self, user_guid: str, path: str):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
-    prefix = f"{user_guid}/{path.lstrip('/')}"
+    normalized = path.lstrip("/")
+    prefix = f"{user_guid}/{normalized}" if normalized else user_guid
+    response = await provider.delete_folder(
+      StorageDeleteFolderRequest(
+        container_name=container_name,
+        user_guid=user_guid,
+        prefix=prefix,
+      )
+    )
+    for rel, err in response.errors.items():
+      logging.error("[StorageModule] Failed to delete folder entry %s: %s", rel, err)
+    for entry in response.deleted_entries:
+      rel = entry.relative_path
+      if not rel:
+        continue
+      file_path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
+      try:
+        await self.db.delete_storage_cache(user_guid, file_path, filename)
+      except Exception as exc:
+        logging.error(
+          "[StorageModule] Failed to delete cache for %s/%s: %s",
+          file_path or ".",
+          filename,
+          exc,
+        )
     try:
-      async for blob in container.list_blobs(name_starts_with=prefix):
-        try:
-          await container.delete_blob(blob.name)
-        except Exception as e:
-          logging.error("[StorageModule] Failed to delete %s: %s", blob.name, e)
-        parts = blob.name.split("/")
-        if len(parts) < 2:
-          continue
-        file_path = "/".join(parts[1:-1])
-        filename = parts[-1]
-        try:
-          await self.db.delete_storage_cache(user_guid, file_path, filename)
-        except Exception as e:
-          logging.error(
-            "[StorageModule] Failed to delete cache for %s/%s: %s",
-            file_path or '.',
-            filename,
-            e,
-          )
-      await self.db.delete_storage_cache_folder(user_guid, path.lstrip('/'))
-    finally:
-      await container.close()
-      await bsc.close()
+      await self.db.delete_storage_cache_folder(user_guid, normalized)
+    except Exception as exc:
+      logging.error(
+        "[StorageModule] Failed to delete folder cache for %s/%s: %s",
+        user_guid,
+        normalized,
+        exc,
+      )
 
   async def create_user_folder(self, user_guid: str, path: str):
     await self.create_folder(user_guid, path)
 
   async def move_file(self, user_guid: str, src: str, dst: str):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
-    src_blob_name = f"{user_guid}/{src.lstrip('/')}"
-    dst_blob_name = f"{user_guid}/{dst.lstrip('/')}"
-    src_path, src_filename = src.rsplit('/', 1) if '/' in src else ('', src)
-    dst_path, dst_filename = dst.rsplit('/', 1) if '/' in dst else ('', dst)
-    src_blob = container.get_blob_client(src_blob_name)
-    dst_blob = container.get_blob_client(dst_blob_name)
+    normalized_src = src.lstrip("/")
+    normalized_dst = dst.lstrip("/")
+    result = await provider.move_file(
+      StorageMoveRequest(
+        container_name=container_name,
+        src_blob=f"{user_guid}/{normalized_src}",
+        dst_blob=f"{user_guid}/{normalized_dst}",
+        src_relative=normalized_src,
+        dst_relative=normalized_dst,
+      )
+    )
+    if not result:
+      return
+    src_path, src_filename = normalized_src.rsplit("/", 1) if "/" in normalized_src else ("", normalized_src)
+    dst_path, dst_filename = normalized_dst.rsplit("/", 1) if "/" in normalized_dst else ("", normalized_dst)
     try:
-      props = await src_blob.get_blob_properties()
-      await dst_blob.start_copy_from_url(src_blob.url)
-      await src_blob.delete_blob()
       await self.db.delete_storage_cache(user_guid, src_path, src_filename)
-      ct = None
-      if getattr(props, "content_settings", None):
-        ct = getattr(props.content_settings, "content_type", None)
-      created_on = getattr(props, "creation_time", None) or getattr(props, "created_on", None)
-      modified_on = getattr(props, "last_modified", None)
+    except Exception as exc:
+      logging.error(
+        "[StorageModule] Failed to delete cache for %s/%s: %s",
+        src_path or ".",
+        src_filename,
+        exc,
+      )
+    props = result.properties
+    try:
       await self.db.upsert_storage_cache({
         "user_guid": user_guid,
         "path": dst_path,
         "filename": dst_filename,
-        "content_type": ct or "application/octet-stream",
+        "content_type": props.content_type or "application/octet-stream",
         "public": 0,
-        "created_on": created_on,
-        "modified_on": modified_on,
-        "url": dst_blob.url,
+        "created_on": props.created_on,
+        "modified_on": props.modified_on,
+        "url": result.url,
         "reported": 0,
         "moderation_recid": None,
       })
-    except Exception as e:
-      logging.error("[StorageModule] Failed to move %s to %s: %s", src, dst, e)
-    finally:
-      await container.close()
-      await bsc.close()
+    except Exception as exc:
+      logging.error(
+        "[StorageModule] Failed to update cache for %s/%s: %s",
+        dst_path or ".",
+        dst_filename,
+        exc,
+      )
+
+  async def get_file_link(self, user_guid: str, name: str) -> str:
+    raise NotImplementedError
 
   async def _update_cache_entry(
     self,
-    container: Any,
     user_guid: str,
     old_rel: str,
     new_rel: str,
     cache_entry: dict[str, Any] | None,
-    props: Any,
+    properties: StorageBlobProperties | None,
+    container_url: str | None,
     dest_url: str | None,
   ):
     if not self.db:
@@ -628,34 +694,29 @@ class StorageModule(BaseModule):
     new_path, new_filename = new_rel.rsplit("/", 1) if "/" in new_rel else ("", new_rel)
     try:
       await self.db.delete_storage_cache(user_guid, old_path, old_filename)
-    except Exception as e:
+    except Exception as exc:
       logging.error(
         "[StorageModule] Failed to delete cache for %s/%s: %s",
-        old_path or '.',
+        old_path or ".",
         old_filename,
-        e,
+        exc,
       )
     if cache_entry is None:
       return
     ct = cache_entry.get("content_type") or "application/octet-stream"
-    if props is not None and getattr(props, "content_settings", None):
-      ct = getattr(props.content_settings, "content_type", None) or ct
+    if properties and properties.content_type:
+      ct = properties.content_type or ct
     created_on = cache_entry.get("created_on")
     modified_on = cache_entry.get("modified_on")
-    if props is not None:
-      created_on = (
-        getattr(props, "creation_time", None)
-        or getattr(props, "created_on", None)
-        or created_on
-      )
-      modified_on = getattr(props, "last_modified", None) or modified_on
-    url = dest_url
-    if url is None:
-      existing = cache_entry.get("url")
-      if existing:
-        base = getattr(container, "url", "").rstrip("/")
-        rel = f"{user_guid}/{new_rel}".lstrip("/")
-        url = f"{base}/{rel}" if base else existing
+    if properties:
+      created_on = properties.created_on or created_on
+      modified_on = properties.modified_on or modified_on
+    url = dest_url or cache_entry.get("url")
+    if not url and container_url:
+      rel = f"{user_guid}/{new_rel}".lstrip("/")
+      base = container_url.rstrip("/")
+      if base and rel:
+        url = f"{base}/{rel}"
     try:
       await self.db.upsert_storage_cache({
         "user_guid": user_guid,
@@ -669,159 +730,23 @@ class StorageModule(BaseModule):
         "reported": cache_entry.get("reported", 0),
         "moderation_recid": cache_entry.get("moderation_recid"),
       })
-    except Exception as e:
+    except Exception as exc:
       logging.error(
         "[StorageModule] Failed to update cache for %s/%s: %s",
-        new_path or '.',
+        new_path or ".",
         new_filename,
-        e,
+        exc,
       )
-
-  async def _rename_single_blob(
-    self,
-    container: Any,
-    user_guid: str,
-    old_rel: str,
-    new_rel: str,
-    cache_entry: dict[str, Any] | None,
-    processed: set[str],
-  ):
-    if old_rel == new_rel:
-      return
-    src_name = f"{user_guid}/{old_rel}"
-    dst_name = f"{user_guid}/{new_rel}"
-    src_blob = container.get_blob_client(src_name)
-    dst_blob = container.get_blob_client(dst_name)
-    try:
-      src_exists = await src_blob.exists()
-    except Exception as e:
-      logging.error("[StorageModule] Failed to check blob %s: %s", src_name, e)
-      src_exists = False
-    if not src_exists:
-      if cache_entry is not None:
-        await self._update_cache_entry(container, user_guid, old_rel, new_rel, cache_entry, None, None)
-        processed.add(old_rel)
-      return
-    try:
-      if await dst_blob.exists():
-        logging.error(
-          "[StorageModule] Destination blob already exists for rename %s -> %s",
-          old_rel,
-          new_rel,
-        )
-        return
-    except Exception as e:
-      logging.error("[StorageModule] Failed to check destination blob %s: %s", dst_name, e)
-      return
-    try:
-      props = await src_blob.get_blob_properties()
-      await dst_blob.start_copy_from_url(src_blob.url)
-      await src_blob.delete_blob()
-      await self._update_cache_entry(
-        container,
-        user_guid,
-        old_rel,
-        new_rel,
-        cache_entry,
-        props,
-        dst_blob.url,
-      )
-      if cache_entry is not None:
-        processed.add(old_rel)
-    except Exception as e:
-      logging.error(
-        "[StorageModule] Failed to rename blob %s to %s: %s",
-        old_rel,
-        new_rel,
-        e,
-      )
-
-  async def _rename_folder_contents(
-    self,
-    container: Any,
-    user_guid: str,
-    old_rel: str,
-    new_rel: str,
-    cache_map: dict[str, dict[str, Any]],
-    processed: set[str],
-  ):
-    if new_rel.startswith(f"{old_rel}/"):
-      logging.error(
-        "[StorageModule] Cannot rename folder %s into its own child %s",
-        old_rel,
-        new_rel,
-      )
-      return
-    dst_prefix = f"{user_guid}/{new_rel}"
-    dst_placeholder = container.get_blob_client(dst_prefix)
-    try:
-      if await dst_placeholder.exists():
-        logging.error("[StorageModule] Target folder %s already exists", new_rel)
-        return
-    except Exception as e:
-      logging.error("[StorageModule] Failed to check destination folder %s: %s", dst_prefix, e)
-      return
-    try:
-      async for _ in container.list_blobs(name_starts_with=f"{dst_prefix}/"):
-        logging.error("[StorageModule] Target folder %s already contains blobs", new_rel)
-        return
-    except Exception as e:
-      logging.error("[StorageModule] Failed to inspect destination folder %s: %s", dst_prefix, e)
-      return
-    await self._rename_single_blob(
-      container,
-      user_guid,
-      old_rel,
-      new_rel,
-      cache_map.get(old_rel),
-      processed,
-    )
-    src_prefix = f"{user_guid}/{old_rel}"
-    try:
-      async for blob in container.list_blobs(name_starts_with=f"{src_prefix}/"):
-        rel_name = blob.name[len(f"{user_guid}/"):]
-        if not rel_name:
-          continue
-        suffix = rel_name[len(old_rel):]
-        new_rel_name = f"{new_rel}{suffix}"
-        await self._rename_single_blob(
-          container,
-          user_guid,
-          rel_name,
-          new_rel_name,
-          cache_map.get(rel_name),
-          processed,
-        )
-    except Exception as e:
-      logging.error("[StorageModule] Failed to list blobs for folder %s: %s", old_rel, e)
-    prefix = f"{old_rel}/"
-    for full, entry in cache_map.items():
-      if full == old_rel or full.startswith(prefix):
-        if full in processed:
-          continue
-        new_full = f"{new_rel}{full[len(old_rel):]}"
-        await self._update_cache_entry(
-          container,
-          user_guid,
-          full,
-          new_full,
-          entry,
-          None,
-          None,
-        )
-        processed.add(full)
-
-  async def get_file_link(self, user_guid: str, name: str) -> str:
-    raise NotImplementedError
 
   async def rename_file(self, user_guid: str, old_name: str, new_name: str):
-    if not self.connection_string or not self.db:
-      logging.error("[StorageModule] Missing connection string or database module")
+    if not self.db:
+      logging.error("[StorageModule] Missing database module")
       return
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    provider = self._require_provider()
+    if not provider:
+      return
+    container_name = await self._get_container_name()
     if not container_name:
-      logging.error("[StorageModule] AzureBlobContainerName missing")
       return
     old_rel = (old_name or "").strip("/")
     new_rel = (new_name or "").strip("/")
@@ -830,8 +755,6 @@ class StorageModule(BaseModule):
       return
     if old_rel == new_rel:
       return
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
     cache_rows = await self.db.list_storage_cache(user_guid)
     cache_map: dict[str, dict[str, Any]] = {}
     for row in cache_rows:
@@ -839,42 +762,60 @@ class StorageModule(BaseModule):
       filename = row.get("filename") or ""
       full = f"{path}/{filename}" if path else filename
       cache_map[full] = row
-    processed: set[str] = set()
+    entry = cache_map.get(old_rel)
+    is_folder = bool(entry and entry.get("content_type") == "path/folder")
+    if not is_folder:
+      prefix = f"{old_rel}/"
+      for key in cache_map.keys():
+        if key.startswith(prefix):
+          is_folder = True
+          break
     try:
-      entry = cache_map.get(old_rel)
-      is_folder = bool(entry and entry.get("content_type") == "path/folder")
-      if not is_folder:
-        src_prefix = f"{user_guid}/{old_rel}"
-        try:
-          async for _ in container.list_blobs(name_starts_with=f"{src_prefix}/"):
-            is_folder = True
-            break
-        except Exception as e:
-          logging.error("[StorageModule] Failed to inspect folder %s: %s", old_rel, e)
-        if not is_folder:
-          try:
-            props = await container.get_blob_client(src_prefix).get_blob_properties()
-            metadata = getattr(props, "metadata", {}) or {}
-            if metadata.get("hdi_isfolder") == "true":
-              is_folder = True
-          except Exception:
-            pass
-      if is_folder:
-        await self._rename_folder_contents(container, user_guid, old_rel, new_rel, cache_map, processed)
-      else:
-        await self._rename_single_blob(
-          container,
-          user_guid,
-          old_rel,
-          new_rel,
-          entry,
-          processed,
+      response = await provider.rename_file(
+        StorageRenameRequest(
+          container_name=container_name,
+          user_guid=user_guid,
+          old_relative=old_rel,
+          new_relative=new_rel,
+          is_folder=is_folder,
         )
-    except Exception as e:
-      logging.error("[StorageModule] Failed to rename %s to %s: %s", old_name, new_name, e)
-    finally:
-      await container.close()
-      await bsc.close()
+      )
+    except Exception as exc:
+      logging.error("[StorageModule] Failed to rename %s to %s: %s", old_name, new_name, exc)
+      return
+    for err in response.errors:
+      logging.error("[StorageModule] Provider rename error: %s", err)
+    processed: set[str] = set()
+    for op in response.operations:
+      cache_entry = cache_map.get(op.old_relative)
+      await self._update_cache_entry(
+        user_guid,
+        op.old_relative,
+        op.new_relative,
+        cache_entry,
+        op.properties if not op.source_missing else None,
+        response.container_url or None,
+        op.url,
+      )
+      if cache_entry is not None:
+        processed.add(op.old_relative)
+    if is_folder:
+      prefix = f"{old_rel}/"
+      for full, cache_entry in cache_map.items():
+        if full == old_rel or full.startswith(prefix):
+          if full in processed:
+            continue
+          new_full = f"{new_rel}{full[len(old_rel):]}" if full != old_rel else new_rel
+          await self._update_cache_entry(
+            user_guid,
+            full,
+            new_full,
+            cache_entry,
+            None,
+            response.container_url or None,
+            None,
+          )
+          processed.add(full)
 
   async def get_file_metadata(self, user_guid: str, name: str):
     raise NotImplementedError
@@ -886,7 +827,8 @@ class StorageModule(BaseModule):
     assert self.db
     db_res = await self.db.run(count_rows_request())
     db_rows = db_res.rows[0]["count"] if db_res.rows else 0
-    if not self.connection_string:
+    provider = self._require_provider()
+    if not provider:
       return {
         "file_count": 0,
         "total_bytes": 0,
@@ -894,8 +836,7 @@ class StorageModule(BaseModule):
         "user_folder_count": 0,
         "db_rows": db_rows,
       }
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    container_name = await self._get_container_name()
     if not container_name:
       return {
         "file_count": 0,
@@ -904,44 +845,23 @@ class StorageModule(BaseModule):
         "user_folder_count": 0,
         "db_rows": db_rows,
       }
-    bsc = BlobServiceClient.from_connection_string(self.connection_string)
-    container = bsc.get_container_client(container_name)
-    file_count = 0
-    total_bytes = 0
-    folders: set[tuple[str, str]] = set()
-    users: set[str] = set()
     try:
-      async for blob in container.list_blobs():
-        name = getattr(blob, "name", "")
-        if not name:
-          continue
-        parts = name.split("/")
-        if len(parts) < 2:
-          continue
-        guid = parts[0]
-        try:
-          UUID(guid)
-        except Exception:
-          continue
-        users.add(guid)
-        parent = ""
-        for folder_name in parts[1:-1]:
-          parent = f"{parent}/{folder_name}" if parent else folder_name
-          folders.add((guid, parent))
-        if parts[-1] == ".init":
-          continue
-        file_count += 1
-        size = getattr(blob, "size", None)
-        if size is None:
-          size = getattr(getattr(blob, "properties", None), "content_length", 0)
-        total_bytes += size or 0
-    finally:
-      await container.close()
-      await bsc.close()
+      stats = await provider.get_storage_stats(
+        StorageStatsRequest(container_name=container_name)
+      )
+    except Exception as exc:
+      logging.error("[StorageModule] Failed to fetch storage stats: %s", exc)
+      return {
+        "file_count": 0,
+        "total_bytes": 0,
+        "folder_count": 0,
+        "user_folder_count": 0,
+        "db_rows": db_rows,
+      }
     return {
-      "file_count": file_count,
-      "total_bytes": total_bytes,
-      "folder_count": len(folders),
-      "user_folder_count": len(users),
+      "file_count": stats.file_count,
+      "total_bytes": stats.total_bytes,
+      "folder_count": len(stats.folder_paths),
+      "user_folder_count": len(stats.user_ids),
       "db_rows": db_rows,
     }
