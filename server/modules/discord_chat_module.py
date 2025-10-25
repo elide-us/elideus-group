@@ -220,15 +220,14 @@ class DiscordChatModule(BaseModule):
     if not self.discord:
       raise RuntimeError("Discord bot module is not available")
     await self.discord.on_ready()
-    output = self.discord._require_output_module()
     queue_id = str(uuid.uuid4())
     dm_enqueued = False
     channel_ack_enqueued = False
     if summary_text and user_id:
-      await output.queue_user_message(user_id, summary_text)
+      await self.discord.queue_user_message(user_id, summary_text)
       dm_enqueued = True
     if ack_message and channel_id:
-      await output.queue_channel_message(channel_id, ack_message)
+      await self.discord.queue_channel_message(channel_id, ack_message)
       channel_ack_enqueued = True
     overall_success = bool(success and dm_enqueued)
     payload = {
@@ -742,7 +741,6 @@ class DiscordChatModule(BaseModule):
     if not self.discord:
       raise RuntimeError("Discord bot module is not available")
     await self.discord.on_ready()
-    output = self.discord._require_output_module()
     if isinstance(response, str):
       response_text = response
     else:
@@ -752,7 +750,7 @@ class DiscordChatModule(BaseModule):
     success = False
     try:
       if channel_id is not None and response_text:
-        await output.queue_channel_message(int(channel_id), response_text)
+        await self.discord.queue_channel_message(int(channel_id), response_text)
         success = True
     except Exception:
       logging.exception(

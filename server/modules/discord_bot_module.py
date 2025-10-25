@@ -210,6 +210,18 @@ class DiscordBotModule(BaseModule):
     output = self._require_output_module()
     await output.send_to_user(user_id, message)
 
+  async def queue_channel_message(self, channel_id: int, message: str) -> None:
+    if not message:
+      return
+    output = self._require_output_module()
+    await output.queue_channel_message(channel_id, message)
+
+  async def queue_user_message(self, user_id: int, message: str) -> None:
+    if not message:
+      return
+    output = self._require_output_module()
+    await output.queue_user_message(user_id, message)
+
   async def _try_send_channel(self, channel_id: int, message: str) -> bool:
     try:
       await self.send_channel_message(channel_id, message)

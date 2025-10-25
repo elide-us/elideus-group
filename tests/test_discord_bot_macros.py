@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, pathlib, sys, types
 from types import SimpleNamespace
 
 from fastapi import FastAPI
@@ -6,6 +6,12 @@ from fastapi import FastAPI
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.providers.social.discord_input_provider import DiscordInputProvider
 from server.modules.social_input_module import SocialInputModule
+
+root_path = pathlib.Path(__file__).resolve().parent.parent
+pkg = types.ModuleType('rpc')
+pkg.__path__ = [str(root_path / 'rpc')]
+pkg.HANDLERS = {}
+sys.modules.setdefault('rpc', pkg)
 
 
 class DummyOutput:
