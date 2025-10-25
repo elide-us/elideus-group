@@ -35,13 +35,13 @@ def get_security_profile_request(
     params["provider_identifier"] = provider_identifier
   if discord_id is not None:
     params["discord_id"] = discord_id
-  return DBRequest(op="db:account:accounts:get_security_profile:1", params=params)
+  return DBRequest(op="db:account:accounts:get_security_profile:1", payload=params)
 
 
 def account_exists_request(user_guid: str) -> DBRequest:
   return DBRequest(
     op="db:account:accounts:exists:1",
-    params={"user_guid": user_guid},
+    payload={"user_guid": user_guid},
   )
 
 

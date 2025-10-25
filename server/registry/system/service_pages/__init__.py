@@ -44,15 +44,15 @@ def _op(name: str) -> str:
 
 
 def list_service_pages_request(*, include_inactive: bool = True) -> DBRequest:
-  params: ListServicePagesParams = {}
+  payload: ListServicePagesParams = {}
   if not include_inactive:
-    params["element_is_active"] = True
-  return DBRequest(op=_op("list"), params=params)
+    payload["element_is_active"] = True
+  return DBRequest(op=_op("list"), payload=payload)
 
 
 def get_service_page_request(*, recid: int) -> DBRequest:
-  params: GetServicePageParams = {"recid": recid}
-  return DBRequest(op=_op("get"), params=params)
+  payload: GetServicePageParams = {"recid": recid}
+  return DBRequest(op=_op("get"), payload=payload)
 
 
 def get_service_page_by_route_request(
@@ -60,10 +60,10 @@ def get_service_page_by_route_request(
   route_name: str,
   active_only: bool = True,
 ) -> DBRequest:
-  params: GetServicePageByRouteParams = {"element_route_name": route_name}
+  payload: GetServicePageByRouteParams = {"element_route_name": route_name}
   if active_only:
-    params["element_is_active"] = True
-  return DBRequest(op=_op("get_by_route"), params=params)
+    payload["element_is_active"] = True
+  return DBRequest(op=_op("get_by_route"), payload=payload)
 
 
 def create_service_page_request(
@@ -76,7 +76,7 @@ def create_service_page_request(
   version: int | None = None,
   is_active: bool | None = None,
 ) -> DBRequest:
-  params: CreateServicePageParams = {
+  payload: CreateServicePageParams = {
     "recid": recid,
     "element_route_name": route_name,
     "element_pageblob": page_blob,
@@ -84,10 +84,10 @@ def create_service_page_request(
     "element_modified_by": modified_by,
   }
   if version is not None:
-    params["element_version"] = version
+    payload["element_version"] = version
   if is_active is not None:
-    params["element_is_active"] = is_active
-  return DBRequest(op=_op("create"), params=params)
+    payload["element_is_active"] = is_active
+  return DBRequest(op=_op("create"), payload=payload)
 
 
 def update_service_page_request(
@@ -99,24 +99,24 @@ def update_service_page_request(
   version: int | None = None,
   is_active: bool | None = None,
 ) -> DBRequest:
-  params: UpdateServicePageParams = {
+  payload: UpdateServicePageParams = {
     "recid": recid,
     "element_modified_by": modified_by,
   }
   if route_name is not None:
-    params["element_route_name"] = route_name
+    payload["element_route_name"] = route_name
   if page_blob is not None:
-    params["element_pageblob"] = page_blob
+    payload["element_pageblob"] = page_blob
   if version is not None:
-    params["element_version"] = version
+    payload["element_version"] = version
   if is_active is not None:
-    params["element_is_active"] = is_active
-  return DBRequest(op=_op("update"), params=params)
+    payload["element_is_active"] = is_active
+  return DBRequest(op=_op("update"), payload=payload)
 
 
 def delete_service_page_request(*, recid: int) -> DBRequest:
-  params: DeleteServicePageParams = {"recid": recid}
-  return DBRequest(op=_op("delete"), params=params)
+  payload: DeleteServicePageParams = {"recid": recid}
+  return DBRequest(op=_op("delete"), payload=payload)
 
 
 def register(router: "SubdomainRouter") -> None:

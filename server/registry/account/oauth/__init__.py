@@ -18,7 +18,7 @@ __all__ = [
 
 
 def _relink_request(name: str, params: dict[str, Any]) -> DBRequest:
-  return DBRequest(op=f"db:account:oauth:{name}:1", params=params)
+  return DBRequest(op=f"db:account:oauth:{name}:1", payload=params)
 
 
 def _common_params(

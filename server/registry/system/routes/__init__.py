@@ -18,7 +18,7 @@ __all__ = [
 
 
 def get_routes_request() -> DBRequest:
-  return DBRequest(op="db:system:routes:get_routes:1", params={})
+  return DBRequest(op="db:system:routes:get_routes:1", payload={})
 
 
 def upsert_route_request(
@@ -29,7 +29,7 @@ def upsert_route_request(
   sequence: int,
   roles: int,
 ) -> DBRequest:
-  return DBRequest(op="db:system:routes:upsert_route:1", params={
+  return DBRequest(op="db:system:routes:upsert_route:1", payload={
     "path": path,
     "name": name,
     "icon": icon,
@@ -39,7 +39,7 @@ def upsert_route_request(
 
 
 def delete_route_request(path: str) -> DBRequest:
-  return DBRequest(op="db:system:routes:delete_route:1", params={"path": path})
+  return DBRequest(op="db:system:routes:delete_route:1", payload={"path": path})
 
 
 def register(router: "SubdomainRouter") -> None:

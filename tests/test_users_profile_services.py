@@ -59,10 +59,9 @@ registry_types_pkg = types.ModuleType("server.registry.types")
 registry_types_pkg.__path__ = [str(root_path / "server/registry")]
 
 class DBRequest:
-  def __init__(self, *, op, payload=None, params=None):
-    source = payload if payload is not None else params or {}
+  def __init__(self, *, op, payload):
     self.op = op
-    self.payload = dict(source)
+    self.payload = dict(payload)
 
 class DBResponse:
   def __init__(self, *, op="", payload=None, rows=None, rowcount=None):

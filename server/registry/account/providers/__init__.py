@@ -42,7 +42,7 @@ __all__ = [
 
 
 def _request(op: str, params: dict[str, object]) -> DBRequest:
-  return DBRequest(op=op, params=params)
+  return DBRequest(op=op, payload=params)
 
 
 def create_from_provider_request(params: CreateFromProviderParams) -> DBRequest:

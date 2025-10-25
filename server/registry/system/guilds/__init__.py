@@ -28,7 +28,7 @@ def _normalise_identifier(value: str | int | None) -> str | None:
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
-  return DBRequest(op=op, params=params or {})
+  return DBRequest(op=op, payload=params or {})
 
 
 def upsert_guild_request(

@@ -18,7 +18,7 @@ __all__ = [
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
-  return DBRequest(op=op, params=params or {})
+  return DBRequest(op=op, payload=params or {})
 
 
 def list_public_request() -> DBRequest:

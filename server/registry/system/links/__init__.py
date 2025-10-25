@@ -27,7 +27,7 @@ __all__ = [
 
 def _request(op: str, params: NavbarRoutesParams | None = None) -> DBRequest:
   payload = params.model_dump(exclude_none=True) if params else {}
-  return DBRequest(op=op, params=payload)
+  return DBRequest(op=op, payload=payload)
 
 
 def get_home_links_request() -> DBRequest:

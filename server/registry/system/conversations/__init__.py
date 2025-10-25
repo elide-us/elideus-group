@@ -57,7 +57,7 @@ def insert_conversation_request(
 ) -> DBRequest:
   return DBRequest(
     op=_op("insert"),
-    params={
+    payload={
       "personas_recid": personas_recid,
       "models_recid": models_recid,
       "guild_id": _normalize_identifier(guild_id),
@@ -80,7 +80,7 @@ def find_recent_request(
   input_data: str,
   window_seconds: int | None = None,
 ) -> DBRequest:
-  params = {
+  payload = {
     "personas_recid": personas_recid,
     "models_recid": models_recid,
     "guild_id": _normalize_identifier(guild_id),
@@ -89,8 +89,8 @@ def find_recent_request(
     "input_data": input_data,
   }
   if window_seconds is not None:
-    params["window_seconds"] = window_seconds
-  return DBRequest(op=_op("find_recent"), params=params)
+    payload["window_seconds"] = window_seconds
+  return DBRequest(op=_op("find_recent"), payload=payload)
 
 
 def update_output_request(
@@ -101,7 +101,7 @@ def update_output_request(
 ) -> DBRequest:
   return DBRequest(
     op=_op("update_output"),
-    params={
+    payload={
       "recid": recid,
       "output_data": output_data,
       "tokens": tokens,
@@ -112,7 +112,7 @@ def update_output_request(
 def list_by_time_request(*, personas_recid: int, start: str, end: str) -> DBRequest:
   return DBRequest(
     op=_op("list_by_time"),
-    params={
+    payload={
       "personas_recid": personas_recid,
       "start": start,
       "end": end,
@@ -121,7 +121,7 @@ def list_by_time_request(*, personas_recid: int, start: str, end: str) -> DBRequ
 
 
 def list_recent_request() -> DBRequest:
-  return DBRequest(op=_op("list_recent"), params={})
+  return DBRequest(op=_op("list_recent"), payload={})
 
 
 def register(router: "SubdomainRouter") -> None:
