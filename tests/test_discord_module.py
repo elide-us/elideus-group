@@ -127,3 +127,30 @@ def test_discord_module_startup_single_owner(monkeypatch, caplog):
   asyncio.run(module1.shutdown())
   asyncio.run(module2.shutdown())
 
+
+def test_queue_helpers_forward_to_output():
+  app = FastAPI()
+  module = DiscordBotModule(app)
+  module.mark_ready()
+
+  class DummyOutput:
+    def __init__(self):
+      self.queued_channels: list[tuple[int, str]] = []
+      self.queued_users: list[tuple[int, str]] = []
+
+    async def queue_channel_message(self, channel_id: int, message: str) -> None:
+      self.queued_channels.append((channel_id, message))
+
+    async def queue_user_message(self, user_id: int, message: str) -> None:
+      self.queued_users.append((user_id, message))
+
+  output = DummyOutput()
+  module.output_module = output
+
+  asyncio.run(module.queue_channel_message(42, "hello"))
+  asyncio.run(module.queue_user_message(7, "dm"))
+  asyncio.run(module.queue_channel_message(99, ""))
+
+  assert output.queued_channels == [(42, "hello")]
+  assert output.queued_users == [(7, "dm")]
+

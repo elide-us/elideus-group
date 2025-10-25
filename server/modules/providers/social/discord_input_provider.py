@@ -295,6 +295,14 @@ class DiscordInputProvider(SocialInputProvider):
           },
         )
     try:
+      await self.discord.queue_channel_message(channel_id, message)
+      return
+    except Exception:
+      logging.exception(
+        "[DiscordInputProvider] failed to queue channel message",
+        extra={"channel_id": channel_id},
+      )
+    try:
       await self.discord.send_channel_message(channel_id, message)
     except Exception:
       logging.exception(

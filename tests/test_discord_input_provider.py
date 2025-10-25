@@ -74,8 +74,14 @@ def test_summarize_command_relies_on_ack(monkeypatch):
     def bump_rate_limits(self, guild_id, user_id):
       self.rate_limits.append((guild_id, user_id))
 
+    async def queue_channel_message(self, channel_id, message):
+      self.sent_channel_messages.append((channel_id, message))
+
     async def send_channel_message(self, channel_id, message):
       self.sent_channel_messages.append((channel_id, message))
+
+    async def queue_user_message(self, user_id, message):
+      self.sent_user_messages.append((user_id, message))
 
     async def send_user_message(self, user_id, message):
       self.sent_user_messages.append((user_id, message))

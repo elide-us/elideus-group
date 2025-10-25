@@ -275,10 +275,13 @@ def test_summarize_chat_handles_persona_failure(monkeypatch):
 def test_deliver_summary_enqueues_output():
   app = FastAPI()
 
-  class DummyOutput:
+  class DummyDiscord:
     def __init__(self):
       self.user_messages = []
       self.channel_messages = []
+
+    async def on_ready(self):
+      return None
 
     async def queue_user_message(self, user_id, message):
       self.user_messages.append((user_id, message))
@@ -286,12 +289,7 @@ def test_deliver_summary_enqueues_output():
     async def queue_channel_message(self, channel_id, message):
       self.channel_messages.append((channel_id, message))
 
-  output = DummyOutput()
-
-  async def dummy_on_ready():
-    return None
-
-  discord_bot = SimpleNamespace(on_ready=dummy_on_ready, _require_output_module=lambda: output)
+  discord_bot = DummyDiscord()
   module = DiscordChatModule(app)
   module.discord = discord_bot
 
@@ -310,8 +308,8 @@ def test_deliver_summary_enqueues_output():
     )
   )
 
-  assert output.user_messages == [(3, "hello world")]
-  assert output.channel_messages == [(2, "queued")]
+  assert discord_bot.user_messages == [(3, "hello world")]
+  assert discord_bot.channel_messages == [(2, "queued")]
   assert res["success"] is True
   assert res["queue_id"]
 
@@ -434,23 +432,18 @@ def test_deliver_persona_response_enqueues_output():
   module = DiscordChatModule(app)
   module.mark_ready()
 
-  class DummyOutput:
+  class DummyDiscord:
     def __init__(self):
       self.channel_messages = []
+
+    async def on_ready(self):
+      return None
 
     async def queue_channel_message(self, channel_id, message):
       self.channel_messages.append((channel_id, message))
 
-  output = DummyOutput()
-
-  class DummyDiscord:
-    async def on_ready(self):
-      return None
-
-    def _require_output_module(self):
-      return output
-
-  module.discord = DummyDiscord()
+  discord_bot = DummyDiscord()
+  module.discord = discord_bot
 
   res = asyncio.run(
     module.deliver_persona_response(
@@ -464,4 +457,4 @@ def test_deliver_persona_response_enqueues_output():
   assert res["success"] is True
   assert res["reason"] == "persona_response_queued"
   assert res["ack_message"] == "Persona response queued for <@55>."
-  assert output.channel_messages == [(44, "queued")]
+  assert discord_bot.channel_messages == [(44, "queued")]
