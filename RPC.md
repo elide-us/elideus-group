@@ -105,14 +105,9 @@ User focused calls used by the React application.
 
 ### `vars`
 
-| Operation                              | Description                                            |
-| -------------------------------------- | ------------------------------------------------------ |
-| `urn:public:vars:get_version:1`        | Read the configured application version.               |
-| `urn:public:vars:get_hostname:1`       | Read the configured hostname.                          |
-| `urn:public:vars:get_repo:1`           | Read the GitHub repository URL.                        |
-| `urn:public:vars:get_ffmpeg_version:1` | Return the installed FFmpeg version.                   |
-| `urn:public:vars:get_odbc_version:1`   | Return the installed Linux MSSQL ODBC driver versions. |
-| `urn:public:vars:get_versions:1`       | Return app and component versions; component versions require `ROLE_SERVICE_ADMIN`. |
+| Operation                              | Description |
+| -------------------------------------- | ----------- |
+| `urn:public:vars:get_versions:1`       | Return public metadata (version, hostname, repo) and, when authorized with `ROLE_SERVICE_ADMIN`, include FFmpeg and ODBC component versions. |
 
 ### `users`
 
