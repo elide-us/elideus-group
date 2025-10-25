@@ -102,7 +102,9 @@ def test_db_module_uses_provider_specific_configuration(monkeypatch):
     assert provider.config["dsn"] == "mock://dsn"
     assert provider.config["blob"] == "blob"
 
-    response = await db_module.run("db:test:echo:1", {"foo": "bar"})
+    response = await db_module.run(
+      DBRequest(op="db:test:echo:1", payload={"foo": "bar"})
+    )
     assert response.op == "db:test:echo:1"
     assert response.payload == {"payload": {"foo": "bar"}}
     assert provider.requests and provider.requests[-1].payload == {"foo": "bar"}

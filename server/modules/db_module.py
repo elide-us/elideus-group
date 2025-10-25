@@ -91,16 +91,10 @@ class DbModule(BaseModule):
       cfg.update(overrides)
     return cfg
 
-  async def run(
-    self,
-    request: DBRequest | str,
-    args: Dict[str, Any] | None = None,
-  ) -> DBResponse:
+  async def run(self, request: DBRequest) -> DBResponse:
     assert self._provider, "db_module not initialized"
-    if isinstance(request, str):
-      request = DBRequest(op=request, payload=args or {})
-    elif args is not None:
-      raise TypeError("args cannot be provided when passing a DBRequest instance")
+    if not isinstance(request, DBRequest):
+      raise TypeError("DbModule.run requires a DBRequest instance")
     op = request.op
     out = await self._provider.run(request)
     if isinstance(out, DBResponse):
