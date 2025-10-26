@@ -32,11 +32,15 @@ async def update_build_version() -> None:
   from dotenv import load_dotenv
   load_dotenv()
 
+  dsn = os.environ.get("AZURE_SQL_CONNECTION_STRING")
+  if not dsn:
+    print('AZURE_SQL_CONNECTION_STRING not set, skipping build version update')
+    return
+
   pool = None
   try:
-    dsn = os.environ["AZURE_SQL_CONNECTION_STRING"]
-    pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
-  except Exception as e:
+    pool = await asyncio.wait_for(aioodbc.create_pool(dsn=dsn, autocommit=True), timeout=10)
+  except (asyncio.TimeoutError, Exception) as e:
     print(f'Unable to connect to database: {e}')
     return
 
