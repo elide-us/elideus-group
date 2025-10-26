@@ -10,6 +10,7 @@ import json
 class DummyAuth:
   def __init__(self, profile):
     self.profile = profile
+    self.providers = {"microsoft": SimpleNamespace(audience="mid")}
   async def handle_auth_login(self, provider, id_token, access_token):
     return "00000000-0000-0000-0000-000000000001", self.profile, {}
   def make_rotation_token(self, user_guid):
@@ -61,13 +62,24 @@ class DummyDb:
     return DBRes()
 
 
+class DummyEnv:
+  async def on_ready(self):
+    return None
+
+  def get(self, k):
+    assert k == "MICROSOFT_AUTH_SECRET"
+    return "msecret"
+
+
 class DummyState:
   def __init__(self, auth, db):
     self.auth = auth
     self.db = db
+    self.env = DummyEnv()
     self.oauth = OauthModule(FastAPI())
     self.oauth.auth = self.auth
     self.oauth.db = self.db
+    self.oauth.env = self.env
 
 
 class DummyApp:

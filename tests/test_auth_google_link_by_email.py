@@ -84,6 +84,7 @@ class DummyState:
     self.oauth = OauthModule(FastAPI())
     self.oauth.auth = self.auth
     self.oauth.db = self.db
+    self.oauth.env = self.env
 
 
 class DummyApp:
