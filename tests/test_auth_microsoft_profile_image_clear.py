@@ -1,4 +1,4 @@
-import sys, types, importlib.util, asyncio
+import sys, types, importlib.util, asyncio, json
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI
@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
 
 class DummyAuth:
+  def __init__(self):
+    self.providers = {"microsoft": SimpleNamespace(audience="mid")}
+
   async def handle_auth_login(self, provider, id_token, access_token):
     profile = {"email": "user@example.com", "username": "User", "profilePicture": None}
     return "00000000-0000-0000-0000-000000000001", profile, {}
@@ -41,13 +44,23 @@ class DummyDb:
       return DBRes([], 1)
     return DBRes()
 
+class DummyEnv:
+  async def on_ready(self):
+    return None
+
+  def get(self, k):
+    assert k == "MICROSOFT_AUTH_SECRET"
+    return "msecret"
+
 class DummyState:
   def __init__(self):
     self.auth = DummyAuth()
     self.db = DummyDb()
+    self.env = DummyEnv()
     self.oauth = OauthModule(FastAPI())
     self.oauth.auth = self.auth
     self.oauth.db = self.db
+    self.oauth.env = self.env
 
 class DummyApp:
   def __init__(self):
@@ -105,8 +118,10 @@ def test_clears_profile_image(monkeypatch):
   auth_microsoft_oauth_login_v1 = svc_mod.auth_microsoft_oauth_login_v1
 
   req = DummyRequest()
-  asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(
-    op == "db:account:profile:set_profile_image:1" and args.get("image_b64") is None
-    for op, args in req.app.state.db.calls
+  resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
+  data = json.loads(resp.body)
+  assert data["payload"]["profile_image"] == "old"
+  assert not any(
+    op == "db:account:profile:set_profile_image:1"
+    for op, _ in req.app.state.db.calls
   )
