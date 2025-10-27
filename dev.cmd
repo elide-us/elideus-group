@@ -22,7 +22,7 @@ EXIT /b 1
 
 :GET_LATEST
 ECHO Getting latest from GitHub...
-CALL git pull origin elideus
+CALL git pull origin test
 IF ERRORLEVEL 1 EXIT /b 1
 EXIT /b 0
 
