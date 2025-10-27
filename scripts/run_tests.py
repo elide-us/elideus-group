@@ -28,14 +28,48 @@ def _parse_args() -> argparse.Namespace:
   )
   return parser.parse_args()
 
+def _determine_environment() -> str:
+  branch = os.environ.get('GITHUB_REF_NAME', '').strip().lower()
+  if branch == 'test':
+    return 'test'
+  if branch == 'main':
+    return 'prod'
+
+  ref = os.environ.get('GITHUB_REF', '').strip().lower()
+  if ref.endswith('/test'):
+    return 'test'
+  if ref.endswith('/main'):
+    return 'prod'
+
+  return 'prod'
+
+def _resolve_sql_connection_string(environment: str) -> tuple[str | None, str]:
+  attempted = []
+
+  if environment == 'test':
+    dsn = os.environ.get('AZURE_SQL_CONNECTION_STRING_DEV')
+    if dsn:
+      return dsn, 'AZURE_SQL_CONNECTION_STRING_DEV'
+    attempted.append('AZURE_SQL_CONNECTION_STRING_DEV')
+
+  dsn = os.environ.get('AZURE_SQL_CONNECTION_STRING')
+  if dsn:
+    return dsn, 'AZURE_SQL_CONNECTION_STRING'
+  attempted.append('AZURE_SQL_CONNECTION_STRING')
+
+  return None, ' or '.join(attempted)
+
 async def update_build_version() -> None:
   from dotenv import load_dotenv
   load_dotenv()
 
-  dsn = os.environ.get("AZURE_SQL_CONNECTION_STRING")
+  environment = _determine_environment()
+  dsn, source = _resolve_sql_connection_string(environment)
   if not dsn:
-    print('AZURE_SQL_CONNECTION_STRING not set, skipping build version update')
+    print(f'{source} not set, skipping build version update')
     return
+
+  print(f'Using {source} for build version update in {environment} environment')
 
   pool = None
   try:
