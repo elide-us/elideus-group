@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from fastapi import FastAPI
 
-from server.registry.system.routes import (
+from server.modules.registry.helpers import (
   delete_route_request,
   get_routes_request,
   upsert_route_request,

@@ -10,13 +10,6 @@ from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
 from .providers import DBRequest, DBResponse
-from server.registry.account.cache import (
-  delete_cache_folder_request,
-  delete_cache_item_request,
-  list_cache_request,
-  replace_user_cache_request,
-  upsert_cache_item_request,
-)
 from server.registry.account.cache.model import (
   CacheItemKey,
   DeleteCacheFolderParams,
@@ -24,7 +17,16 @@ from server.registry.account.cache.model import (
   ReplaceUserCacheParams,
   UpsertCacheItemParams,
 )
-from server.registry.system.config import ConfigKeyParams, get_config_request
+from server.registry.system.config import ConfigKeyParams
+from server.modules.registry.helpers import (
+  account_exists_request,
+  delete_cache_folder_request,
+  delete_cache_item_request,
+  get_config_request,
+  list_cache_request,
+  replace_user_cache_request,
+  upsert_cache_item_request,
+)
 from server.helpers.logging import update_logging_level
 
 
@@ -186,9 +188,7 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run(
-      DBRequest(op="db:account:accounts:exists:1", payload={"user_guid": user_guid})
-    )
+    res = await self.run(account_exists_request(user_guid))
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from fastapi import FastAPI
-from server.registry.system.links import (
-  NavbarRoutesParams,
+from server.registry.system.links import NavbarRoutesParams
+from server.modules.registry.helpers import (
   get_home_links_request,
   get_navbar_routes_request,
 )

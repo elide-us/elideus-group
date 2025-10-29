@@ -8,6 +8,7 @@ from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.account.profile import SetProfileImageParams
 from server.registry.account.session import (
   CreateSessionParams,
   GuidParams,
@@ -15,14 +16,17 @@ from server.registry.account.session import (
   SetRotkeyParams,
   UpdateDeviceTokenParams,
   UpdateSessionParams,
+)
+from server.registry.types import DBRequest
+from server.modules.registry.helpers import (
   create_session_request,
   get_rotkey_request,
   revoke_device_token_request,
+  set_profile_image_request,
   set_rotkey_request,
   update_device_token_request,
   update_session_request,
 )
-from server.registry.types import DBRequest
 
 
 class SessionModule(BaseModule):
@@ -80,13 +84,12 @@ class SessionModule(BaseModule):
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
       await self.db.run(
-        DBRequest(
-          op="urn:users:profile:set_profile_image:1",
-          payload={
-            "guid": user["guid"],
-            "image_b64": new_img,
-            "provider": provider,
-          },
+        set_profile_image_request(
+          SetProfileImageParams(
+            guid=user["guid"],
+            provider=provider,
+            image_b64=new_img,
+          ),
         ),
       )
       user["profile_image"] = new_img
