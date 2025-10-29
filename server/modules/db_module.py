@@ -188,7 +188,7 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run(account_exists_request(user_guid))
+    res = await self.run(account_exists_request(user_guid=user_guid))
     return bool(res.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
