@@ -88,7 +88,8 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    res = await self.db.run(get_roles_request(GuidParams(guid=guid)))
+    params = GuidParams(guid=guid)
+    res = await self.db.run(get_roles_request(params))
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
