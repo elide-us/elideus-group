@@ -18,7 +18,8 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-from server.registry.system.config import ConfigKeyParams, get_config_request
+from server.registry.system.config import ConfigKeyParams
+from server.modules.registry.helpers import get_config_request
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers

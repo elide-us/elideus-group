@@ -1,9 +1,8 @@
 from __future__ import annotations
 import logging
 from fastapi import FastAPI
-from server.registry.system.config import (
-  ConfigKeyParams,
-  UpsertConfigParams,
+from server.registry.system.config import ConfigKeyParams, UpsertConfigParams
+from server.modules.registry.helpers import (
   delete_config_request,
   get_configs_request,
   upsert_config_request,

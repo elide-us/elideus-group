@@ -6,6 +6,8 @@ from server.modules.discord_bot_module import DiscordBotModule
 from server.registry.system.roles import (
   ModifyRoleMemberParams,
   RoleScopeParams,
+)
+from server.modules.registry.helpers import (
   add_role_member_request,
   get_role_members_request,
   get_role_non_members_request,

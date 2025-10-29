@@ -12,22 +12,18 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.oauth import (
-  relink_discord_request,
-  relink_google_request,
-  relink_microsoft_request,
+from server.registry.account.profile import (
+  GuidParams,
+  SetProfileImageParams,
+  UpdateIfUneditedParams,
 )
 from server.registry.account.session import (
   CreateSessionParams,
   RevokeProviderTokensParams,
   SetRotkeyParams,
   UpdateDeviceTokenParams,
-  create_session_request,
-  revoke_provider_tokens_request,
-  set_rotkey_request,
-  update_device_token_request,
 )
-from server.registry.system.config import ConfigKeyParams, get_config_request
+from server.registry.system.config import ConfigKeyParams
 from server.registry.types import DBRequest
 from server.registry.account.providers import (
   CreateFromProviderParams,
@@ -37,14 +33,27 @@ from server.registry.account.providers import (
   SetProviderParams,
   UnlinkLastProviderParams,
   UnlinkProviderParams,
+)
+from server.modules.registry.helpers import (
   create_from_provider_request,
+  create_session_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,
+  get_config_request,
+  get_profile_request,
   get_user_by_email_request,
   link_provider_request,
+  relink_discord_request,
+  relink_google_request,
+  relink_microsoft_request,
+  revoke_provider_tokens_request,
+  set_profile_image_request,
   set_provider_request,
+  set_rotkey_request,
   unlink_last_provider_request,
   unlink_provider_request,
+  update_device_token_request,
+  update_if_unedited_request,
 )
 
 
@@ -190,16 +199,12 @@ class OauthModule(BaseModule):
       raw_name = (profile.get("username") or "").strip()
       email = raw_email
       display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
-      await self.db.run(
-        DBRequest(
-          op="db:account:profile:update_if_unedited:1",
-          payload={
-            "guid": user_guid,
-            "email": email,
-            "display_name": display_name,
-          },
-        )
+      params = UpdateIfUneditedParams(
+        guid=user_guid,
+        email=email,
+        display_name=display_name,
       )
+      await self.db.run(update_if_unedited_request(params))
     return original
 
   async def link_user_provider(
@@ -249,10 +254,7 @@ class OauthModule(BaseModule):
     new_default: str | None = None,
   ) -> dict:
     res_prof = await self.db.run(
-      DBRequest(
-        op="db:account:profile:get_profile:1",
-        payload={"guid": user_guid},
-      )
+      get_profile_request(GuidParams(guid=user_guid))
     )
     default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
     res = await self.db.run(
@@ -621,27 +623,22 @@ class OauthModule(BaseModule):
     new_img = profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
       await self.db.run(
-        DBRequest(
-          op="db:account:profile:set_profile_image:1",
-          payload={
-            "guid": user_guid,
-            "image_b64": new_img,
-            "provider": provider,
-          },
+        set_profile_image_request(
+          SetProfileImageParams(
+            guid=user_guid,
+            provider=provider,
+            image_b64=new_img,
+          ),
         )
       )
       user["profile_image"] = new_img
     if user.get("provider_name") == provider:
-      res_prof = await self.db.run(
-        DBRequest(
-          op="db:account:profile:update_if_unedited:1",
-          payload={
-            "guid": user_guid,
-            "email": profile["email"],
-            "display_name": profile["username"],
-          },
-        ),
+      params = UpdateIfUneditedParams(
+        guid=user_guid,
+        email=profile["email"],
+        display_name=profile["username"],
       )
+      res_prof = await self.db.run(update_if_unedited_request(params))
       if res_prof.rows:
         updated = res_prof.rows[0]
         if updated.get("display_name"):

@@ -2,8 +2,13 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.finance.credits import SetCreditsParams, set_credits_request
-from server.registry.types import DBRequest
+from server.registry.account.profile import GuidParams, SetDisplayParams
+from server.registry.finance.credits import SetCreditsParams
+from server.modules.registry.helpers import (
+  get_profile_request,
+  set_credits_request,
+  set_display_request,
+)
 
 
 class UserAdminModule(BaseModule):
@@ -23,18 +28,16 @@ class UserAdminModule(BaseModule):
     pass
 
   async def get_displayname(self, guid: str) -> str:
-    res = await self.db.run(
-      DBRequest(op="db:account:profile:get_profile:1", payload={"guid": guid}),
-    )
+    params = GuidParams(guid=guid)
+    res = await self.db.run(get_profile_request(params))
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
     return row.get("display_name", "")
 
   async def get_credits(self, guid: str) -> int:
-    res = await self.db.run(
-      DBRequest(op="db:account:profile:get_profile:1", payload={"guid": guid}),
-    )
+    params = GuidParams(guid=guid)
+    res = await self.db.run(get_profile_request(params))
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -49,9 +52,5 @@ class UserAdminModule(BaseModule):
     )
 
   async def reset_display(self, guid: str) -> None:
-    await self.db.run(
-      DBRequest(
-        op="db:account:profile:set_display:1",
-        payload={"guid": guid, "display_name": "Default User"},
-      ),
-    )
+    params = SetDisplayParams(guid=guid, display_name="Default User")
+    await self.db.run(set_display_request(params))
