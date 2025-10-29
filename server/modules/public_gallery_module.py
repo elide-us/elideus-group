@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from server.registry.types import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.modules.registry.helpers import get_public_files_request
 
 class PublicGalleryModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -23,7 +23,5 @@ class PublicGalleryModule(BaseModule):
 
   async def list_public_files(self):
     assert self.db
-    res = await self.db.run(
-      DBRequest(op="db:account:public:get_public_files:1", payload={}),
-    )
+    res = await self.db.run(get_public_files_request())
     return res.rows

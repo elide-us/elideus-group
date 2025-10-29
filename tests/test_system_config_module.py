@@ -4,8 +4,10 @@ import pathlib
 import sys
 import types
 from types import SimpleNamespace
+
 import pytest
 from fastapi import FastAPI
+from tests.helpers import normalize_call
 
 root = pathlib.Path(__file__).resolve().parent.parent
 
@@ -95,7 +97,7 @@ asyncio.run(module.startup())
 def test_get_configs_module():
   payload = asyncio.run(module.get_configs('u1', []))
   assert payload.items[0].key == 'LoggingLevel'
-  assert ('db:system:config:get_configs:1', {}) in db.calls
+  assert any(normalize_call(call) == ('db:system:config:get_configs:1', {}) for call in db.calls)
 
 def test_upsert_and_delete_module():
   item = asyncio.run(module.upsert_config('u1', [], 'LoggingLevel', '2'))
@@ -103,11 +105,17 @@ def test_upsert_and_delete_module():
   assert item.key == 'LoggingLevel'
   assert item.value == '2'
   assert delete_result.key == 'LoggingLevel'
-  assert (
-    'db:system:config:upsert_config:1',
-    {'key': 'LoggingLevel', 'value': '2'}
-  ) in db.calls
-  assert (
-    'db:system:config:delete_config:1',
-    {'key': 'LoggingLevel'}
-  ) in db.calls
+  assert any(
+    normalize_call(call) == (
+      'db:system:config:upsert_config:1',
+      {'key': 'LoggingLevel', 'value': '2'},
+    )
+    for call in db.calls
+  )
+  assert any(
+    normalize_call(call) == (
+      'db:system:config:delete_config:1',
+      {'key': 'LoggingLevel'},
+    )
+    for call in db.calls
+  )

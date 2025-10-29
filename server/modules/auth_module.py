@@ -14,14 +14,15 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.system.roles import (
+from server.registry.account.profile import GuidParams
+from server.modules.registry.helpers import (
   delete_role_request,
+  get_roles_request,
+  get_rotkey_request,
+  get_security_profile_request,
   list_roles_request,
   upsert_role_request,
 )
-from server.registry.types import DBRequest
-from server.registry.account.accounts import get_security_profile_request
-from server.registry.account.session import get_rotkey_request
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -87,9 +88,7 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    res = await self.db.run(
-      DBRequest(op="db:account:profile:get_roles:1", payload={"guid": guid}),
-    )
+    res = await self.db.run(get_roles_request(GuidParams(guid=guid)))
     mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)

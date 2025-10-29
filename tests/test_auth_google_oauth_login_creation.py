@@ -5,9 +5,11 @@ import importlib.util
 import sys
 import types
 import uuid
+
 from fastapi import FastAPI
-from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.oauth_module import OauthModule
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from tests.helpers import call_op, call_payload
 
 class DummyAuth:
   async def handle_auth_login(self, provider, id_token, access_token):
@@ -159,15 +161,17 @@ def test_fetch_user_after_create(monkeypatch):
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   resp = asyncio.run(auth_google_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  calls = [op for op, _ in req.app.state.db.calls if op == "db:account:providers:get_by_provider_identifier:1"]
-  assert len(calls) == 2
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert ops.count("db:account:providers:get_by_provider_identifier:1") == 2
   assert any(
-    op == "db:account:session:create_session:1" and args.get("provider") == "google"
-    for op, args in req.app.state.db.calls
+    call_op(call) == "db:account:session:create_session:1"
+    and call_payload(call).get("provider") == "google"
+    for call in req.app.state.db.calls
   )
   expected = str(uuid.uuid5(uuid.NAMESPACE_URL, "google-id"))
   assert any(
-    op == "db:account:providers:create_from_provider:1" and args["provider_identifier"] == expected
-    for op, args in req.app.state.db.calls
+    call_op(call) == "db:account:providers:create_from_provider:1"
+    and call_payload(call)["provider_identifier"] == expected
+    for call in req.app.state.db.calls
   )
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

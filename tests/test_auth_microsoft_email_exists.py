@@ -2,9 +2,10 @@ import sys, types, pytest, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 import json
-from fastapi import HTTPException, FastAPI
 
+from fastapi import HTTPException, FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 
 class DummyAuth:
   def __init__(self):
@@ -137,8 +138,9 @@ def test_email_exists_prompt(monkeypatch):
     asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert exc.value.status_code == 409
   assert exc.value.detail == {"default_provider": "google"}
-  assert any(op == "db:account:oauth:relink_microsoft:1" for op, _ in req.app.state.db.calls)
-  assert not any(op == "db:account:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert "db:account:oauth:relink_microsoft:1" in ops
+  assert "db:account:providers:create_from_provider:1" not in ops
 
 def test_email_exists_confirm_links(monkeypatch):
   spec = importlib.util.spec_from_file_location("server.models", "server/models.py")
@@ -191,4 +193,5 @@ def test_email_exists_confirm_links(monkeypatch):
   res = asyncio.run(auth_microsoft_oauth_login_v1(req))
   data = json.loads(res.body)
   assert data["payload"]["display_name"] == "User"
-  assert any(op == "db:account:oauth:relink_microsoft:1" for op, _ in req.app.state.db.calls)
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert "db:account:oauth:relink_microsoft:1" in ops

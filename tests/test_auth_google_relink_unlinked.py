@@ -1,10 +1,11 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
-from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from tests.helpers import call_op
 
 class DummyAuth:
   def __init__(self):
@@ -148,7 +149,7 @@ def test_relinks_unlinked_account(monkeypatch):
   req = DummyRequest()
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(auth_google_oauth_login_v1(req))
-  calls = req.app.state.db.calls
-  assert any(op == "db:account:oauth:relink_google:1" for op, _ in calls)
-  assert not any(op == "db:account:providers:create_from_provider:1" for op, _ in calls)
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert "db:account:oauth:relink_google:1" in ops
+  assert "db:account:providers:create_from_provider:1" not in ops
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

@@ -1,10 +1,11 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
-from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from server.modules.providers.auth.google_provider import GoogleAuthProvider
+from tests.helpers import call_op
 
 
 class DummyAuth:
@@ -153,5 +154,8 @@ def test_updates_profile_image(monkeypatch):
   req = DummyRequest()
   req.app.state.oauth.exchange_code_for_tokens = fake_exchange
   asyncio.run(auth_google_oauth_login_v1(req))
-  assert any(op == "db:account:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)
+  assert any(
+    call_op(call) == "db:account:profile:set_profile_image:1"
+    for call in req.app.state.db.calls
+  )
   asyncio.run(req.app.state.auth.providers["google"].shutdown())

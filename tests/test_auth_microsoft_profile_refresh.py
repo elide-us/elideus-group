@@ -1,9 +1,10 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 import json
 
 
@@ -146,7 +147,7 @@ def test_updates_profile_if_unedited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:account:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(call_op(call) == "db:account:profile:update_if_unedited:1" for call in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "New"
 
@@ -157,7 +158,7 @@ def test_leaves_profile_if_edited():
   state = DummyState(auth, db)
   req = DummyRequest(state)
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:account:profile:update_if_unedited:1" for op, _ in db.calls)
+  assert any(call_op(call) == "db:account:profile:update_if_unedited:1" for call in db.calls)
   data = json.loads(resp.body)
   assert data["payload"]["display_name"] == "User"
 

@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI
 
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 
 class DummyAuth:
   def __init__(self):
@@ -119,4 +120,7 @@ def test_updates_profile_image(monkeypatch):
 
   req = DummyRequest()
   asyncio.run(auth_microsoft_oauth_login_v1(req))
-  assert any(op == "db:account:profile:set_profile_image:1" for op, _ in req.app.state.db.calls)
+  assert any(
+    call_op(call) == "db:account:profile:set_profile_image:1"
+    for call in req.app.state.db.calls
+  )

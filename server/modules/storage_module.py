@@ -5,14 +5,15 @@ from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import FastAPI
-from server.registry.system.config import ConfigKeyParams, get_config_request
-from server.registry.account.cache import (
+from server.registry.system.config import ConfigKeyParams
+from server.modules.registry.helpers import (
   count_rows_request,
+  get_config_request,
   list_public_request,
   list_reported_request,
+  set_gallery_request,
   set_reported_request,
 )
-from server.registry.account.files import set_gallery_request
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from server.modules.openai_module import OpenaiModule, SummaryQueue
 from server.modules.providers import DBRequest, DBResponse
+from tests.helpers import call_op, call_payload
 
 
 def test_fetch_chat_message_order_and_return():
@@ -156,7 +157,7 @@ def test_fetch_chat_logs_conversation():
   assert res["content"] == "hi"
   assert dummy_create.kwargs["max_tokens"] == 5
   assert "tools" not in dummy_create.kwargs
-  calls = [c[0] for c in module.db.calls]
+  calls = [call_op(call) for call in module.db.calls]
   assert calls == [
     "db:system:personas:get_by_name:1",
     "db:system:conversations:find_recent:1",
@@ -295,7 +296,7 @@ def test_fetch_chat_reuses_existing_conversation():
   asyncio.run(module.fetch_chat(**args))
 
   assert module.db.insert_count == 1
-  call_ops = [op for op, _ in module.db.calls]
+  call_ops = [call_op(call) for call in module.db.calls]
   assert call_ops == [
     "db:system:personas:get_by_name:1",
     "db:system:conversations:find_recent:1",
@@ -385,7 +386,7 @@ def test_persona_response_calls_openai():
     {"role": "system", "content": "be stark"},
     {"role": "user", "content": "Tell me"},
   ]
-  assert [op for op, _ in module.db.calls] == [
+  assert [call_op(call) for call in module.db.calls] == [
     "db:system:personas:get_by_name:1",
     "db:system:conversations:find_recent:1",
     "db:system:conversations:insert:1",

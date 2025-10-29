@@ -1,9 +1,10 @@
 import sys, types, importlib.util, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 
 
 class DummyAuth:
@@ -137,6 +138,6 @@ def test_links_by_email(monkeypatch):
 
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
-  calls = req.app.state.db.calls
-  assert any(op == "db:account:oauth:relink_microsoft:1" for op, _ in calls)
-  assert not any(op == "db:account:providers:create_from_provider:1" for op, _ in calls)
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert "db:account:oauth:relink_microsoft:1" in ops
+  assert "db:account:providers:create_from_provider:1" not in ops

@@ -1,9 +1,10 @@
 import sys, types, importlib.util, asyncio, base64, uuid
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 
 class DummyAuth:
   def __init__(self):
@@ -125,4 +126,5 @@ def test_lookup_with_home_account_id(monkeypatch):
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  assert not any(op == "db:account:providers:create_from_provider:1" for op, _ in req.app.state.db.calls)
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert "db:account:providers:create_from_provider:1" not in ops

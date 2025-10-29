@@ -1,9 +1,10 @@
 import sys, types, pytest, importlib.util, importlib.machinery, asyncio
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op, call_payload
 
 class DummyAuth:
   def __init__(self):
@@ -129,11 +130,12 @@ def test_fetch_user_after_create(monkeypatch):
   req = DummyRequest()
   resp = asyncio.run(auth_microsoft_oauth_login_v1(req))
   assert "rotation_token=" in resp.headers.get("set-cookie", "")
-  calls = [op for op, _ in req.app.state.db.calls if op == "db:account:providers:get_by_provider_identifier:1"]
-  assert len(calls) == 2
+  ops = [call_op(call) for call in req.app.state.db.calls]
+  assert ops.count("db:account:providers:get_by_provider_identifier:1") == 2
   assert any(
-    op == "db:account:session:create_session:1" and args.get("provider") == "microsoft"
-    for op, args in req.app.state.db.calls
+    call_op(call) == "db:account:session:create_session:1"
+    and call_payload(call).get("provider") == "microsoft"
+    for call in req.app.state.db.calls
   )
 
 

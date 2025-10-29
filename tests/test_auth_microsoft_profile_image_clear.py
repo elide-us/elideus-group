@@ -1,9 +1,10 @@
 import sys, types, importlib.util, asyncio, json
 from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op
 
 class DummyAuth:
   def __init__(self):
@@ -122,6 +123,6 @@ def test_clears_profile_image(monkeypatch):
   data = json.loads(resp.body)
   assert data["payload"]["profile_image"] == "old"
   assert not any(
-    op == "db:account:profile:set_profile_image:1"
-    for op, _ in req.app.state.db.calls
+    call_op(call) == "db:account:profile:set_profile_image:1"
+    for call in req.app.state.db.calls
   )

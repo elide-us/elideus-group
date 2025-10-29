@@ -9,18 +9,17 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.system.config import ConfigKeyParams, get_config_request
-from server.registry.system.conversations import (
+from server.registry.system.config import ConfigKeyParams
+from server.modules.registry.helpers import (
+  delete_persona_request,
   find_recent_request,
+  get_config_request,
+  get_persona_by_name_request,
   insert_conversation_request,
   list_by_time_request,
-  update_output_request,
-)
-from server.registry.system.models import list_models_request
-from server.registry.system.personas import (
-  delete_persona_request,
-  get_persona_by_name_request,
+  list_models_request,
   list_personas_request,
+  update_output_request,
   upsert_persona_request,
 )
 

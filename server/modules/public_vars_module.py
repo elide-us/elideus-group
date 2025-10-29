@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio, subprocess
 from fastapi import FastAPI
-from server.registry.system.vars import (
+from server.modules.registry.helpers import (
   get_hostname_request,
   get_repo_request,
   get_version_request,

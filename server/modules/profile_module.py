@@ -12,6 +12,8 @@ from server.registry.account.profile import (
   SetDisplayParams,
   SetOptInParams,
   SetProfileImageParams,
+)
+from server.modules.registry.helpers import (
   get_profile_request,
   get_roles_request,
   set_display_request,

@@ -5,9 +5,10 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from types import SimpleNamespace
-from fastapi import FastAPI
 
+from fastapi import FastAPI
 from server.modules.oauth_module import OauthModule
+from tests.helpers import call_op, call_payload
 
 
 def test_extract_identifiers_bad_base(caplog):
@@ -55,7 +56,7 @@ def test_lookup_user_skips_invalid_identifier():
   oauth.db = db
   user = asyncio.run(oauth.lookup_user("google", ["bad-id"]))
   assert user is None
-  assert db.calls == []
+  assert not db.calls
 
 
 class DummyAuth:
@@ -80,8 +81,12 @@ def test_create_session_handles_missing_roles():
   )
   assert token == "sess"
   assert rot == "rot"
-  ops = [op for op, _ in db.calls]
+  ops = [call_op(call) for call in db.calls]
   assert "db:account:session:create_session:1" in ops
-  args = [a for op, a in db.calls if op == "db:account:session:create_session:1"][0]
-  assert args["provider"] == "google"
+  payload = next(
+    call_payload(call)
+    for call in db.calls
+    if call_op(call) == "db:account:session:create_session:1"
+  )
+  assert payload["provider"] == "google"
 
