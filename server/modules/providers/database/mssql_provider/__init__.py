@@ -1,6 +1,6 @@
 # providers/database/mssql_provider/__init__.py
 import logging
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from ... import DbProviderBase
 from server.registry import get_handler as resolve_handler, parse_db_op
@@ -22,25 +22,41 @@ class MssqlProvider(DbProviderBase):
     await close_pool()
 
   async def _run(self, request: DBRequest) -> DBResponse:
-    domain, path, version = parse_db_op(request.op)
+    self.log_dispatch(request.op)
+    handler = self.resolve_handler(request.op)
+    result = await self.call_handler(handler, request.payload)
+    return self.normalize_response(request.op, result)
+
+  def resolve_handler(self, op: str) -> Callable[[Mapping[str, Any]], Any]:
+    return get_handler(op)
+
+  def describe_operation(self, op: str) -> tuple[str, tuple[str, ...], int]:
+    return parse_db_op(op)
+
+  def log_dispatch(self, op: str) -> None:
+    domain, path, version = self.describe_operation(op)
     logger.debug(
-      "[MssqlProvider] dispatching op=%s domain=%s path=%s v=%d",
-      request.op,
+      "[%s] dispatching op=%s domain=%s path=%s v=%d",
+      self.__class__.__name__,
+      op,
       domain,
       "/".join(path),
       version,
     )
-    handler = get_handler(request.op)
-    spec = handler(request.payload)
-    result = await self._execute_spec(spec)
-    return self._normalize_response(request.op, result)
 
-  async def _execute_spec(self, spec: Any) -> Any:
-    if hasattr(spec, "__await__"):
-      return await spec
-    return spec
+  async def call_handler(
+    self,
+    handler: Callable[[Mapping[str, Any]], Any],
+    payload: Mapping[str, Any],
+  ) -> Any:
+    return await self.await_handler_result(handler(payload))
 
-  def _normalize_response(self, op: str, result: Any) -> DBResponse:
+  async def await_handler_result(self, result: Any) -> Any:
+    if hasattr(result, "__await__"):
+      return await result
+    return result
+
+  def normalize_response(self, op: str, result: Any) -> DBResponse:
     if isinstance(result, DBResponse):
       if not result.op:
         result.attach_op(op)
