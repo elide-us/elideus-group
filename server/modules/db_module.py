@@ -107,8 +107,9 @@ class DbModule(BaseModule):
     except KeyError:
       handler_info = None
 
+    provider = self._provider
     if not handler_info or handler_info.legacy:
-      return await self._provider.run(request)
+      return await provider.run(request)
 
     registry_logger.info(
       "Registry handler resolved",
@@ -116,22 +117,33 @@ class DbModule(BaseModule):
     )
 
     handler = handler_info.load()
-    domain, path, version = parse_db_op(op)
-    provider_module = self._provider.__module__
-    provider_class = self._provider.__class__.__name__
+    provider_module = provider.__module__
+    provider_class = provider.__class__.__name__
     provider_logger = logging.getLogger(provider_module)
-    provider_logger.debug(
-      "%s dispatching op=%s domain=%s path=%s v=%d",
-      f"[{provider_class}]",
-      op,
-      domain,
-      "/".join(path),
-      version,
-    )
+    log_dispatch = getattr(provider, "log_dispatch", None)
+    if callable(log_dispatch):
+      log_dispatch(op)
+    else:
+      domain, path, version = parse_db_op(op)
+      provider_logger.debug(
+        "%s dispatching op=%s domain=%s path=%s v=%d",
+        f"[{provider_class}]",
+        op,
+        domain,
+        "/".join(path),
+        version,
+      )
 
     result = handler(request.payload)
-    if inspect.isawaitable(result):
+    await_handler_result = getattr(provider, "await_handler_result", None)
+    if callable(await_handler_result):
+      result = await await_handler_result(result)
+    elif inspect.isawaitable(result):
       result = await result
+
+    normalize_response = getattr(provider, "normalize_response", None)
+    if callable(normalize_response):
+      return normalize_response(op, result)
     return self._normalize_response(op, result)
 
   def _normalize_response(self, op: str, result: Any) -> DBResponse:
