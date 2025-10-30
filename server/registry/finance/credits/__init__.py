@@ -6,6 +6,7 @@ service and provider implementations agree on the credit update contract.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -13,7 +14,7 @@ from server.registry.types import DBRequest
 from .model import SetCreditsParams
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "SetCreditsParams",
@@ -35,5 +36,11 @@ def set_credits_request(params: SetCreditsParams) -> DBRequest:
   return _request("set", params)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("set", version=1, implementation="set_credits")
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="set", version=1, implementation="set_credits")

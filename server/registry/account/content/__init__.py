@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from server.registry.account import cache, files, profile, public
 
 if TYPE_CHECKING:
-  from server.registry import DomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "cache",
@@ -18,8 +18,8 @@ __all__ = [
 ]
 
 
-def register(domain: "DomainRouter") -> None:
-  cache.register(domain.subdomain("cache"))
-  files.register(domain.subdomain("files"))
-  public.register(domain.subdomain("public"))
-  profile.register(domain.subdomain("profile"))
+def register(router: "RegistryRouter", *, domain: str) -> None:
+  cache.register(router, domain=domain, path=("cache",))
+  files.register(router, domain=domain, path=("files",))
+  public.register(router, domain=domain, path=("public",))
+  profile.register(router, domain=domain, path=("profile",))

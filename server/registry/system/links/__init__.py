@@ -6,6 +6,7 @@ providers, and services share consistent payload shapes for public link data.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -13,7 +14,7 @@ from server.registry.types import DBRequest
 from .model import HomeLink, NavbarRoute, NavbarRoutesParams
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "HomeLink",
@@ -38,6 +39,12 @@ def get_navbar_routes_request(params: NavbarRoutesParams) -> DBRequest:
   return _request("db:system:public_links:get_navbar_routes:1", params)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("get_home_links", version=1)
-  router.add_function("get_navbar_routes", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="get_home_links", version=1)
+  register_op(name="get_navbar_routes", version=1)

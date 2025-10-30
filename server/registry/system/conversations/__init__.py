@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
@@ -15,7 +16,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "find_recent_request",
@@ -124,9 +125,15 @@ def list_recent_request() -> DBRequest:
   return DBRequest(op=_op("list_recent"), payload={})
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("find_recent", version=1)
-  router.add_function("insert", version=1, implementation="insert_conversation")
-  router.add_function("list_by_time", version=1)
-  router.add_function("list_recent", version=1)
-  router.add_function("update_output", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="find_recent", version=1)
+  register_op(name="insert", version=1, implementation="insert_conversation")
+  register_op(name="list_by_time", version=1)
+  register_op(name="list_recent", version=1)
+  register_op(name="update_output", version=1)

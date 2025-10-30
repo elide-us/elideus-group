@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "get_guild_request",
@@ -74,7 +75,13 @@ def list_guilds_request(*, include_inactive: bool = True) -> DBRequest:
   return _request(f"{_DEF_PROVIDER_KEY}:list_guilds:1", params)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("upsert_guild", version=1)
-  router.add_function("get_guild", version=1)
-  router.add_function("list_guilds", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="upsert_guild", version=1)
+  register_op(name="get_guild", version=1)
+  register_op(name="list_guilds", version=1)

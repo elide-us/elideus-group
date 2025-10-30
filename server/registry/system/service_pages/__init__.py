@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -17,7 +18,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "create_service_page_request",
@@ -119,10 +120,16 @@ def delete_service_page_request(*, recid: int) -> DBRequest:
   return DBRequest(op=_op("delete"), payload=payload)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("list", version=1)
-  router.add_function("get", version=1)
-  router.add_function("get_by_route", version=1)
-  router.add_function("create", version=1)
-  router.add_function("update", version=1)
-  router.add_function("delete", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="list", version=1)
+  register_op(name="get", version=1)
+  register_op(name="get_by_route", version=1)
+  register_op(name="create", version=1)
+  register_op(name="update", version=1)
+  register_op(name="delete", version=1)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -14,7 +15,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "delete_persona_request",
@@ -73,8 +74,14 @@ def delete_persona_request(*, recid: int | None = None, name: str | None = None)
   )
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("delete", version=1, implementation="delete_persona")
-  router.add_function("get_by_name", version=1)
-  router.add_function("list", version=1, implementation="list_personas")
-  router.add_function("upsert", version=1, implementation="upsert_persona")
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="delete", version=1, implementation="delete_persona")
+  register_op(name="get_by_name", version=1)
+  register_op(name="list", version=1, implementation="list_personas")
+  register_op(name="upsert", version=1, implementation="upsert_persona")

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any, TYPE_CHECKING
 
 from server.registry.types import DBRequest
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "relink_discord_request",
@@ -109,7 +110,13 @@ def relink_microsoft_request(
   )
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("relink_discord", version=1)
-  router.add_function("relink_google", version=1)
-  router.add_function("relink_microsoft", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="relink_discord", version=1)
+  register_op(name="relink_google", version=1)
+  register_op(name="relink_microsoft", version=1)

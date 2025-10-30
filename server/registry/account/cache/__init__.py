@@ -7,6 +7,7 @@ services and providers while providing eager validation for shared payloads.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any, Dict, Mapping, TYPE_CHECKING
 
 from .model import (
@@ -22,7 +23,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "register",
@@ -126,14 +127,20 @@ def count_rows_request():
   return DBRequest(op="db:account:cache:count_rows:1", payload={})
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("list", version=1)
-  router.add_function("list_public", version=1)
-  router.add_function("list_reported", version=1)
-  router.add_function("replace_user", version=1)
-  router.add_function("upsert", version=1)
-  router.add_function("delete", version=1)
-  router.add_function("delete_folder", version=1)
-  router.add_function("set_public", version=1)
-  router.add_function("set_reported", version=1)
-  router.add_function("count_rows", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="list", version=1)
+  register_op(name="list_public", version=1)
+  register_op(name="list_reported", version=1)
+  register_op(name="replace_user", version=1)
+  register_op(name="upsert", version=1)
+  register_op(name="delete", version=1)
+  register_op(name="delete_folder", version=1)
+  register_op(name="set_public", version=1)
+  register_op(name="set_reported", version=1)
+  register_op(name="count_rows", version=1)

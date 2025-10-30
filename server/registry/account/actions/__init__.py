@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -14,7 +15,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "list_user_actions_request",
@@ -82,7 +83,13 @@ def update_user_action_request(
   return DBRequest(op=_op("update"), payload=params)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("list_by_user", version=1)
-  router.add_function("log", version=1)
-  router.add_function("update", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="list_by_user", version=1)
+  register_op(name="log", version=1)
+  register_op(name="update", version=1)

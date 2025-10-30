@@ -21,11 +21,10 @@ __all__ = [
 
 
 def register(router: "RegistryRouter") -> None:
-  domain = router.domain("account")
-  content.register(domain)
-  accounts.register(domain.subdomain("accounts"))
-  actions.register(domain.subdomain("actions"))
-  enablements.register(domain.subdomain("enablements"))
-  providers.register(domain.subdomain("providers"))
-  oauth.register(domain.subdomain("oauth"))
-  session.register(domain.subdomain("session"))
+  content.register(router, domain="account")
+  accounts.register(router, domain="account", path=("accounts",))
+  actions.register(router, domain="account", path=("actions",))
+  enablements.register(router, domain="account", path=("enablements",))
+  providers.register(router, domain="account", path=("providers",))
+  oauth.register(router, domain="account", path=("oauth",))
+  session.register(router, domain="account", path=("session",))

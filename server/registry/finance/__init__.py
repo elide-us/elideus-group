@@ -16,5 +16,4 @@ __all__ = [
 
 
 def register(router: "RegistryRouter") -> None:
-  domain = router.domain("finance")
-  credits.register(domain.subdomain("credits"))
+  credits.register(router, domain="finance", path=("credits",))

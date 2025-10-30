@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from server.registry.types import DBRequest
@@ -14,7 +15,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "GetProfileParams",
@@ -41,6 +42,12 @@ def get_published_files_request(*, guid: str) -> DBRequest:
   return _request("db:system:public_users:get_published_files:1", params)
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("get_profile", version=1)
-  router.add_function("get_published_files", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="get_profile", version=1)
+  register_op(name="get_published_files", version=1)
