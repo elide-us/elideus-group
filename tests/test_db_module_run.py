@@ -1,10 +1,12 @@
 import asyncio
 import logging
+from textwrap import dedent
 
 from fastapi import FastAPI
 
 from server.modules.db_module import DbModule
 from server.modules.providers import DBRequest, DBResponse
+from server.modules.registry.helpers import account_exists_request
 
 
 class _StubHandlerInfo:
@@ -156,3 +158,55 @@ def test_user_exists_dispatches_exists_handler(monkeypatch):
   request = requests[0]
   assert request.op == "db:account:accounts:exists:1"
   assert request.payload == {"user_guid": "guid-123"}
+
+
+def test_run_uses_registry_account_exists_handler(monkeypatch):
+  app = FastAPI()
+  db = DbModule(app)
+
+  class _PassThroughProvider:
+    def __init__(self):
+      self.log_dispatch_calls = []
+
+    def log_dispatch(self, op):
+      self.log_dispatch_calls.append(op)
+
+  provider = _PassThroughProvider()
+  db._provider = provider
+
+  db_response = DBResponse(
+    op="db:account:accounts:exists:1",
+    rows=[{"exists_flag": 1}],
+    rowcount=1,
+  )
+  run_calls = []
+
+  async def fake_run_json_one(sql, params):
+    run_calls.append((sql, params))
+    return db_response
+
+  monkeypatch.setattr(
+    "server.registry.account.accounts.mssql.run_json_one",
+    fake_run_json_one,
+  )
+
+  request = account_exists_request("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+  async def run_scenario():
+    response = await db.run(request)
+    assert response is db_response
+
+  asyncio.run(run_scenario())
+
+  assert len(run_calls) == 1
+  sql, params = run_calls[0]
+  expected_sql = dedent(
+    """
+    SELECT 1 AS exists_flag
+    FROM account_users
+    WHERE element_guid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+    """
+  ).strip()
+  assert dedent(sql).strip() == expected_sql
+  assert params == ("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",)
