@@ -47,4 +47,4 @@ def account_exists_request(user_guid: str) -> DBRequest:
 
 def register(router: "SubdomainRouter") -> None:
   router.add_function("get_security_profile", version=1)
-  router.add_function("account_exists", version=1)
+  router.add_function("exists", implementation="account_exists", version=1)
