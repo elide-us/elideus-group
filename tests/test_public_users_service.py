@@ -22,8 +22,12 @@ class RPCResponse(BaseModel):
   payload: dict
   version: int = 1
 
+class AuthContext(BaseModel):
+  role_mask: int = 0
+
 models_pkg.RPCRequest = RPCRequest
 models_pkg.RPCResponse = RPCResponse
+models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)

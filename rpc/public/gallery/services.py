@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from fastapi import Request
 from rpc.helpers import unbox_request
