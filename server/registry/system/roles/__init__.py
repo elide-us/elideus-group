@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -13,7 +14,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "add_role_member_request",
@@ -77,11 +78,17 @@ def delete_role_request(params: DeleteRoleParams) -> DBRequest:
   )
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("list", version=1, implementation="list_roles")
-  router.add_function("get_role_members", version=1)
-  router.add_function("get_role_non_members", version=1)
-  router.add_function("add_role_member", version=1)
-  router.add_function("remove_role_member", version=1)
-  router.add_function("upsert_role", version=1)
-  router.add_function("delete_role", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="list", version=1, implementation="list_roles")
+  register_op(name="get_role_members", version=1)
+  register_op(name="get_role_non_members", version=1)
+  register_op(name="add_role_member", version=1)
+  register_op(name="remove_role_member", version=1)
+  register_op(name="upsert_role", version=1)
+  register_op(name="delete_role", version=1)

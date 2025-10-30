@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 from server.registry.types import DBRequest
@@ -16,7 +17,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+  from server.registry import RegistryRouter
 
 __all__ = [
   "get_profile_request",
@@ -71,11 +72,17 @@ def update_if_unedited_request(params: UpdateIfUneditedParams) -> DBRequest:
   return _request("update_if_unedited", params.model_dump(exclude_none=True))
 
 
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("get_profile", version=1)
-  router.add_function("get_roles", version=1)
-  router.add_function("set_display", version=1)
-  router.add_function("set_optin", version=1)
-  router.add_function("set_profile_image", version=1)
-  router.add_function("set_roles", version=1)
-  router.add_function("update_if_unedited", version=1)
+def register(
+  router: "RegistryRouter",
+  *,
+  domain: str,
+  path: tuple[str, ...],
+) -> None:
+  register_op = partial(router.register_function, domain=domain, path=path)
+  register_op(name="get_profile", version=1)
+  register_op(name="get_roles", version=1)
+  register_op(name="set_display", version=1)
+  register_op(name="set_optin", version=1)
+  register_op(name="set_profile_image", version=1)
+  register_op(name="set_roles", version=1)
+  register_op(name="update_if_unedited", version=1)
