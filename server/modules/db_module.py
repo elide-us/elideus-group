@@ -28,6 +28,7 @@ from server.modules.registry.helpers import (
   upsert_cache_item_request,
 )
 from server.helpers.logging import update_logging_level
+from server.registry import get_handler_info, parse_db_op
 
 
 class DbModule(BaseModule):
@@ -98,17 +99,54 @@ class DbModule(BaseModule):
     if not isinstance(request, DBRequest):
       raise TypeError("DbModule.run requires a DBRequest instance")
     op = request.op
-    out = await self._provider.run(request)
-    if isinstance(out, DBResponse):
-      if not out.op:
-        out.attach_op(op)
-      return out
-    if isinstance(out, dict):
-      rows = out.get("rows")
-      rowcount = out.get("rowcount")
-      payload = out.get("payload", rows)
+    provider_name = self.provider
+    registry_logger = logging.getLogger("server.registry")
+    handler_info = None
+    try:
+      handler_info = get_handler_info(op, provider=provider_name, log_resolution=False)
+    except KeyError:
+      handler_info = None
+
+    if not handler_info or handler_info.legacy:
+      return await self._provider.run(request)
+
+    registry_logger.info(
+      "Registry handler resolved",
+      extra={"db_op": op, "db_provider": provider_name},
+    )
+
+    handler = handler_info.load()
+    domain, path, version = parse_db_op(op)
+    provider_module = self._provider.__module__
+    provider_class = self._provider.__class__.__name__
+    provider_logger = logging.getLogger(provider_module)
+    provider_logger.debug(
+      "%s dispatching op=%s domain=%s path=%s v=%d",
+      f"[{provider_class}]",
+      op,
+      domain,
+      "/".join(path),
+      version,
+    )
+
+    result = handler(request.payload)
+    if inspect.isawaitable(result):
+      result = await result
+    return self._normalize_response(op, result)
+
+  def _normalize_response(self, op: str, result: Any) -> DBResponse:
+    if isinstance(result, DBResponse):
+      if not result.op:
+        result.attach_op(op)
+      return result
+    if isinstance(result, dict):
+      rows = result.get("rows")
+      rowcount = result.get("rowcount")
+      payload = result.get("payload", rows)
       return DBResponse(op=op, payload=payload, rowcount=rowcount)
-    raise TypeError(f"Unexpected database response type: {type(out)!r}")
+    if result is None:
+      return DBResponse(op=op, payload=[], rowcount=0)
+    raise TypeError(f"Unexpected database response type: {type(result)!r}")
 
   async def startup(self):
     env: EnvModule = self.app.state.env

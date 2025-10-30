@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
   "DomainRouter",
+  "HandlerInfo",
   "RegistryRouter",
   "SubdomainRouter",
   "get_handler",
+  "get_handler_info",
   "parse_db_op",
 ]
 
@@ -24,6 +26,7 @@ __all__ = [
 class _HandlerSpec:
   module: str
   attribute: str
+  legacy: bool = False
   cached: Callable[[Mapping[str, Any]], Any] | None = None
 
   def load(self) -> Callable[[Mapping[str, Any]], Any]:
@@ -33,24 +36,46 @@ class _HandlerSpec:
     return self.cached
 
 
+@dataclass(slots=True)
+class HandlerInfo:
+  _spec: _HandlerSpec
+
+  @property
+  def legacy(self) -> bool:
+    return self._spec.legacy
+
+  def load(self) -> Callable[[Mapping[str, Any]], Any]:
+    return self._spec.load()
+
+
 class _HandlerRegistry:
   def __init__(self) -> None:
     self._providers: Dict[str, Dict[str, _HandlerSpec]] = {}
 
-  def register(self, provider: str, op: str, *, module: str, attribute: str) -> None:
+  def register(
+    self,
+    provider: str,
+    op: str,
+    *,
+    module: str,
+    attribute: str,
+    legacy: bool = False,
+  ) -> None:
     provider_map = self._providers.setdefault(provider, {})
     if op in provider_map:
       raise ValueError(f"Duplicate handler registration for {op}")
-    provider_map[op] = _HandlerSpec(module=module, attribute=attribute)
+    provider_map[op] = _HandlerSpec(module=module, attribute=attribute, legacy=legacy)
 
-  def get(self, op: str, *, provider: str) -> Callable[[Mapping[str, Any]], Any]:
+  def get_spec(self, op: str, *, provider: str) -> _HandlerSpec:
     try:
-      spec = self._providers[provider][op]
+      return self._providers[provider][op]
     except KeyError as exc:
       raise KeyError(
         f"No handler registered for operation '{op}' with provider '{provider}'"
       ) from exc
-    return spec.load()
+ 
+  def get(self, op: str, *, provider: str) -> Callable[[Mapping[str, Any]], Any]:
+    return self.get_spec(op, provider=provider).load()
 
 
 def parse_db_op(op: str) -> tuple[str, tuple[str, ...], int]:
@@ -105,9 +130,21 @@ class DomainRouter:
     *,
     version: int = 1,
     implementation: str | None = None,
+    legacy: bool = False,
   ) -> None:
-    router = SubdomainRouter(self._registry, self._name, self._components, (), provider=self._provider)
-    router.add_function(name, version=version, implementation=implementation)
+    router = SubdomainRouter(
+      self._registry,
+      self._name,
+      self._components,
+      (),
+      provider=self._provider,
+    )
+    router.add_function(
+      name,
+      version=version,
+      implementation=implementation,
+      legacy=legacy,
+    )
 
 
 class SubdomainRouter:
@@ -145,13 +182,20 @@ class SubdomainRouter:
     version: int = 1,
     implementation: str | None = None,
     provider: str | None = None,
+    legacy: bool = False,
   ) -> None:
     func = implementation or name
     op_segments = ("db", self._domain, *self._op_path, name, str(version))
     op = ":".join(segment for segment in op_segments if segment)
     module = ".".join((__name__, *self._module_components, self._provider))
     attribute = f"{func}_v{version}"
-    self._registry.register(provider or self._provider, op, module=module, attribute=attribute)
+    self._registry.register(
+      provider or self._provider,
+      op,
+      module=module,
+      attribute=attribute,
+      legacy=legacy,
+    )
 
 
 _registry_router = RegistryRouter()
@@ -163,12 +207,9 @@ account.register(_registry_router)
 system.register(_registry_router)
 
 
-def get_handler(op: str, *, provider: str = "mssql") -> Callable[[Mapping[str, Any]], Any]:
+def _lookup_handler_spec(op: str, *, provider: str) -> _HandlerSpec:
   try:
-    if provider == _registry_router.provider:
-      handler = _registry_router.get_handler(op)
-    else:
-      handler = _registry_router._registry.get(op, provider=provider)
+    return _registry_router._registry.get_spec(op, provider=provider)
   except KeyError:
     logger.error(
       "Registry handler resolution failed",
@@ -177,8 +218,26 @@ def get_handler(op: str, *, provider: str = "mssql") -> Callable[[Mapping[str, A
     )
     raise
 
+
+def get_handler(op: str, *, provider: str = "mssql") -> Callable[[Mapping[str, Any]], Any]:
+  spec = _lookup_handler_spec(op, provider=provider)
   logger.info(
     "Registry handler resolved",
     extra={"db_op": op, "db_provider": provider},
   )
-  return handler
+  return spec.load()
+
+
+def get_handler_info(
+  op: str,
+  *,
+  provider: str = "mssql",
+  log_resolution: bool = True,
+) -> HandlerInfo:
+  spec = _lookup_handler_spec(op, provider=provider)
+  if log_resolution:
+    logger.info(
+      "Registry handler resolved",
+      extra={"db_op": op, "db_provider": provider},
+    )
+  return HandlerInfo(_spec=spec)
