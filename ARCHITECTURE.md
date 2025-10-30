@@ -18,8 +18,8 @@ flowchart TD
 * **Client** – User owned frontend or external application.
 * **RPC** – Typed boundary that exposes the public namespace. Only bearer tokens are accepted.
 * **Services** – Business logic invoked by RPC handlers.
-* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts.
-* **Providers** – External systems such as databases and identity services.
+* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts. The `DbModule` now resolves URN-formatted operations using the registry before delegating to a provider, so provider implementations stay focused on connection lifecycles and response helpers.
+* **Providers** – External systems such as databases and identity services. SQL logic remains centralized in `server/registry/.../mssql.py` files, which continue to define the canonical queries for each domain.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
 ## Security Model
