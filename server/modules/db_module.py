@@ -108,7 +108,30 @@ class DbModule(BaseModule):
       handler_info = None
 
     provider = self._provider
-    if not handler_info or handler_info.legacy:
+    fallback_reason = None
+    if not handler_info:
+      fallback_reason = "missing_handler"
+    elif handler_info.legacy:
+      fallback_reason = "legacy_handler"
+
+    if fallback_reason:
+      registry_logger.warning(
+        "Registry handler fallback triggered",
+        extra={
+          "db_op": op,
+          "db_provider": provider_name,
+          "db_fallback_reason": fallback_reason,
+        },
+      )
+      metrics_logger = logging.getLogger("metrics.registry")
+      metrics_logger.info(
+        "db_registry_fallback",
+        extra={
+          "db_op": op,
+          "db_provider": provider_name,
+          "db_fallback_reason": fallback_reason,
+        },
+      )
       return await provider.run(request)
 
     registry_logger.info(

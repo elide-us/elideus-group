@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from fastapi import FastAPI
 
@@ -97,7 +98,7 @@ def test_run_dispatches_registry_handler(monkeypatch):
   asyncio.run(run_scenario())
 
 
-def test_run_falls_back_to_provider_for_legacy_handlers(monkeypatch):
+def test_run_falls_back_to_provider_for_legacy_handlers(monkeypatch, caplog):
   app = FastAPI()
   db = DbModule(app)
   provider = _LegacyProvider()
@@ -120,7 +121,17 @@ def test_run_falls_back_to_provider_for_legacy_handlers(monkeypatch):
     assert response.rows == [{"result": "legacy"}]
     assert response.rowcount == 1
 
-  asyncio.run(run_scenario())
+  with caplog.at_level(logging.WARNING, logger="server.registry"):
+    asyncio.run(run_scenario())
+
+  fallback_logs = [
+    record
+    for record in caplog.records
+    if record.name == "server.registry" and record.levelno == logging.WARNING
+  ]
+  assert any("Registry handler fallback triggered" in record.message for record in fallback_logs)
+  assert any(record.db_op == request.op for record in fallback_logs)
+  assert any(record.db_provider == db.provider for record in fallback_logs)
 
 
 def test_user_exists_dispatches_exists_handler(monkeypatch):
