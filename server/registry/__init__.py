@@ -16,6 +16,7 @@ __all__ = [
   "RegistryRouter",
   "get_handler",
   "get_handler_info",
+  "try_get_handler_info",
   "parse_db_op",
 ]
 
@@ -49,6 +50,12 @@ class HandlerInfo:
 class _HandlerRegistry:
   def __init__(self) -> None:
     self._providers: Dict[str, Dict[str, _HandlerSpec]] = {}
+
+  def try_get_spec(self, op: str, *, provider: str) -> _HandlerSpec | None:
+    provider_map = self._providers.get(provider)
+    if not provider_map:
+      return None
+    return provider_map.get(op)
 
   def register(
     self,
@@ -171,4 +178,15 @@ def get_handler_info(
       "Registry handler resolved",
       extra={"db_op": op, "db_provider": provider},
     )
+  return HandlerInfo(_spec=spec)
+
+
+def try_get_handler_info(
+  op: str,
+  *,
+  provider: str = "mssql",
+) -> HandlerInfo | None:
+  spec = _registry_router._registry.try_get_spec(op, provider=provider)
+  if spec is None:
+    return None
   return HandlerInfo(_spec=spec)

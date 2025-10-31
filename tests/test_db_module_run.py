@@ -160,6 +160,36 @@ def test_user_exists_dispatches_exists_handler(monkeypatch):
   assert request.payload == {"user_guid": "guid-123"}
 
 
+def test_user_exists_falls_back_when_registry_missing(monkeypatch):
+  app = FastAPI()
+  db = DbModule(app)
+
+  async def fake_exists(args):
+    assert args == {"user_guid": "guid-123"}
+    return DBResponse(rows=[{"exists_flag": 1}], rowcount=1)
+
+  def fake_try_get_handler_info(op, *, provider):
+    assert op == "db:account:accounts:exists:1"
+    assert provider == db.provider
+    return None
+
+  async def fake_run(_request):
+    raise AssertionError("DbModule.run should not be called when fallback is used")
+
+  monkeypatch.setattr("server.modules.db_module.try_get_handler_info", fake_try_get_handler_info)
+  monkeypatch.setattr(
+    "server.registry.account.accounts.mssql.account_exists_v1",
+    fake_exists,
+  )
+  monkeypatch.setattr(db, "run", fake_run)
+
+  async def run_scenario():
+    result = await db.user_exists("guid-123")
+    assert result is True
+
+  asyncio.run(run_scenario())
+
+
 def test_run_uses_registry_account_exists_handler(monkeypatch):
   app = FastAPI()
   db = DbModule(app)
