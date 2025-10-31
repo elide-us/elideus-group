@@ -28,7 +28,7 @@ from server.modules.registry.helpers import (
   upsert_cache_item_request,
 )
 from server.helpers.logging import update_logging_level
-from server.registry import get_handler_info, parse_db_op
+from server.registry import get_handler_info, parse_db_op, try_get_handler_info
 
 
 class DbModule(BaseModule):
@@ -261,8 +261,34 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run(account_exists_request(user_guid=user_guid))
+    request = account_exists_request(user_guid=user_guid)
+    provider_name = self.provider or "mssql"
+    handler_info = try_get_handler_info(request.op, provider=provider_name)
+    if not handler_info:
+      logging.getLogger("server.registry").warning(
+        "Registry handler missing for user lookup",
+        extra={"db_op": request.op, "db_provider": provider_name},
+      )
+      return await self._fallback_user_exists(user_guid=user_guid)
+    res = await self.run(request)
     return bool(res.rows)
+
+  async def _fallback_user_exists(self, *, user_guid: str) -> bool:
+    provider_name = self.provider or "mssql"
+    if provider_name != "mssql":
+      logging.getLogger("server.registry").error(
+        "No registry handler for %s and no fallback available", provider_name
+      )
+      return False
+    try:
+      from server.registry.account.accounts.mssql import account_exists_v1
+    except ModuleNotFoundError:
+      logging.getLogger("server.registry").error(
+        "MSSQL account exists handler unavailable"
+      )
+      return False
+    response = await account_exists_v1({"user_guid": user_guid})
+    return bool(response.rows)
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
     params = UpsertCacheItemParams.model_validate(item)
