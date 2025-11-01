@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from server.registry.types import DBRequest
-
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
 
 __all__ = [
   "account_exists_request",
   "get_security_profile_request",
-  "register",
 ]
 
 
@@ -44,14 +39,3 @@ def account_exists_request(user_guid: str) -> DBRequest:
     op="db:account:accounts:exists:1",
     payload={"user_guid": user_guid},
   )
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="get_security_profile", version=1)
-  register_op(name="exists", implementation="account_exists", version=1)

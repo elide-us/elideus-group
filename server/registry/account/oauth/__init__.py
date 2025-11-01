@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from server.registry.types import DBRequest
-
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
 
 __all__ = [
   "relink_discord_request",
   "relink_google_request",
   "relink_microsoft_request",
-  "register",
 ]
 
 
@@ -108,15 +103,3 @@ def relink_microsoft_request(
       reauth_token=reauth_token,
     ),
   )
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="relink_discord", version=1)
-  register_op(name="relink_google", version=1)
-  register_op(name="relink_microsoft", version=1)

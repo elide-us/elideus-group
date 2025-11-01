@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from server.registry.types import DBRequest
 
@@ -14,9 +13,6 @@ from .model import (
   PublicUserProfile,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "GetProfileParams",
   "GetPublishedFilesParams",
@@ -24,7 +20,6 @@ __all__ = [
   "PublicUserProfile",
   "get_profile_request",
   "get_published_files_request",
-  "register",
 ]
 
 
@@ -40,14 +35,3 @@ def get_profile_request(*, guid: str) -> DBRequest:
 def get_published_files_request(*, guid: str) -> DBRequest:
   params: GetPublishedFilesParams = {"guid": guid}
   return _request("db:system:public_users:get_published_files:1", params)
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="get_profile", version=1)
-  register_op(name="get_published_files", version=1)

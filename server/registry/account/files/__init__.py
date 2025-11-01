@@ -1,18 +1,11 @@
-"""Account files registry bindings."""
+"""Account files registry helpers."""
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
-
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
 
 __all__ = [
   "set_gallery_request",
-  "register",
 ]
 
 
@@ -25,13 +18,3 @@ def set_gallery_request(user_guid: str, name: str, gallery: bool) -> DBRequest:
       "gallery": bool(gallery),
     },
   )
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="set_gallery", version=1)

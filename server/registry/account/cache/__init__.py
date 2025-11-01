@@ -7,8 +7,7 @@ services and providers while providing eager validation for shared payloads.
 
 from __future__ import annotations
 
-from functools import partial
-from typing import Any, Dict, Mapping, TYPE_CHECKING
+from typing import Any, Dict, Mapping
 
 from .model import (
   CacheItemKey,
@@ -22,11 +21,7 @@ from .model import (
   normalize_content_cache_item,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
-  "register",
   "delete_cache_folder_request",
   "delete_cache_item_request",
   "set_public_request",
@@ -125,22 +120,3 @@ def set_reported_request(params: SetReportedParams) -> DBRequest:
 def count_rows_request():
   from server.registry.types import DBRequest
   return DBRequest(op="db:account:cache:count_rows:1", payload={})
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="list", version=1)
-  register_op(name="list_public", version=1)
-  register_op(name="list_reported", version=1)
-  register_op(name="replace_user", version=1)
-  register_op(name="upsert", version=1)
-  register_op(name="delete", version=1)
-  register_op(name="delete_folder", version=1)
-  register_op(name="set_public", version=1)
-  register_op(name="set_reported", version=1)
-  register_op(name="count_rows", version=1)

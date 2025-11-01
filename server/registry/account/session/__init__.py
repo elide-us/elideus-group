@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 from .model import (
   CreateSessionParams,
@@ -18,13 +15,9 @@ from .model import (
   UpdateSessionParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "create_session_request",
   "get_rotkey_request",
-  "register",
   "revoke_all_device_tokens_request",
   "revoke_device_token_request",
   "revoke_provider_tokens_request",
@@ -88,22 +81,3 @@ def get_rotkey_request(params: GuidParams) -> DBRequest:
 
 def set_rotkey_request(params: SetRotkeyParams) -> DBRequest:
   return _request("set_rotkey", params.model_dump())
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="create_session", version=1)
-  register_op(name="update_session", version=1)
-  register_op(name="update_device_token", version=1)
-  register_op(name="revoke_device_token", version=1)
-  register_op(name="revoke_all_device_tokens", version=1)
-  register_op(name="revoke_provider_tokens", version=1)
-  register_op(name="get_rotkey", version=1)
-  register_op(name="set_rotkey", version=1)
-  register_op(name="list_snapshots", version=1)
-  register_op(name="get_security_snapshot", version=1)

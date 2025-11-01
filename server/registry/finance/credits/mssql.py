@@ -9,6 +9,7 @@ from server.registry.types import DBResponse
 
 __all__ = [
   "set_credits_v1",
+  "set_v1",
 ]
 
 
@@ -24,3 +25,7 @@ async def set_credits_v1(args: dict[str, Any]) -> DBResponse:
   sql = _build_update_sql()
   params = (args["credits"], args["guid"])
   return await run_exec(sql, params)
+
+
+async def set_v1(args: dict[str, Any]) -> DBResponse:
+  return await set_credits_v1(args)

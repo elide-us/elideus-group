@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from server.registry.types import DBRequest
 
@@ -15,15 +14,11 @@ from .model import (
   UpdateConversationOutputParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "find_recent_request",
   "insert_conversation_request",
   "list_by_time_request",
   "list_recent_request",
-  "register",
   "update_output_request",
   "ConversationRecord",
   "FindRecentConversationParams",
@@ -123,17 +118,3 @@ def list_by_time_request(*, personas_recid: int, start: str, end: str) -> DBRequ
 
 def list_recent_request() -> DBRequest:
   return DBRequest(op=_op("list_recent"), payload={})
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="find_recent", version=1)
-  register_op(name="insert", version=1, implementation="insert_conversation")
-  register_op(name="list_by_time", version=1)
-  register_op(name="list_recent", version=1)
-  register_op(name="update_output", version=1)

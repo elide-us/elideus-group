@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 
 from .model import (
@@ -14,13 +11,9 @@ from .model import (
   UserActionLogRecord,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "list_user_actions_request",
   "log_user_action_request",
-  "register",
   "update_user_action_request",
   "ListUserActionsParams",
   "LogUserActionParams",
@@ -81,15 +74,3 @@ def update_user_action_request(
   if element_notes is not None:
     params["element_notes"] = element_notes
   return DBRequest(op=_op("update"), payload=params)
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="list_by_user", version=1)
-  register_op(name="log", version=1)
-  register_op(name="update", version=1)
