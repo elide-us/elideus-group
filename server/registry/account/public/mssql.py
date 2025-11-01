@@ -8,6 +8,7 @@ from server.registry.providers.mssql import run_json_many
 from server.registry.types import DBResponse
 
 __all__ = [
+  "get_public_files_v1",
   "list_public_v1",
   "list_reported_v1",
 ]
@@ -45,3 +46,7 @@ async def list_reported_v1(_: Dict[str, Any]) -> DBResponse:
     FOR JSON PATH;
   """
   return await run_json_many(sql)
+
+
+async def get_public_files_v1(args: Dict[str, Any]) -> DBResponse:
+  return await list_public_v1(args)

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 from .model import (
   GuidParams,
@@ -16,9 +13,6 @@ from .model import (
   UpdateIfUneditedParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "get_profile_request",
   "get_roles_request",
@@ -27,7 +21,6 @@ __all__ = [
   "set_profile_image_request",
   "set_roles_request",
   "update_if_unedited_request",
-  "register",
   "GuidParams",
   "ProfileRecord",
   "SetDisplayParams",
@@ -70,19 +63,3 @@ def set_roles_request(params: SetRolesParams) -> DBRequest:
 
 def update_if_unedited_request(params: UpdateIfUneditedParams) -> DBRequest:
   return _request("update_if_unedited", params.model_dump(exclude_none=True))
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="get_profile", version=1)
-  register_op(name="get_roles", version=1)
-  register_op(name="set_display", version=1)
-  register_op(name="set_optin", version=1)
-  register_op(name="set_profile_image", version=1)
-  register_op(name="set_roles", version=1)
-  register_op(name="update_if_unedited", version=1)

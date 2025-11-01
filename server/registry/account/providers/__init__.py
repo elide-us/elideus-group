@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 from .model import (
   CreateFromProviderParams,
@@ -17,16 +14,12 @@ from .model import (
   UnlinkProviderParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "create_from_provider_request",
   "get_any_by_provider_identifier_request",
   "get_by_provider_identifier_request",
   "get_user_by_email_request",
   "link_provider_request",
-  "register",
   "set_provider_request",
   "soft_delete_account_request",
   "unlink_provider_request",
@@ -105,21 +98,3 @@ def unlink_last_provider_request(params: UnlinkLastProviderParams) -> DBRequest:
     "db:account:providers:unlink_last_provider:1",
     params.model_dump(),
   )
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="create_from_provider", version=1)
-  register_op(name="get_any_by_provider_identifier", version=1)
-  register_op(name="get_by_provider_identifier", version=1)
-  register_op(name="get_user_by_email", version=1)
-  register_op(name="link_provider", version=1)
-  register_op(name="set_provider", version=1)
-  register_op(name="soft_delete_account", version=1)
-  register_op(name="unlink_provider", version=1)
-  register_op(name="unlink_last_provider", version=1)

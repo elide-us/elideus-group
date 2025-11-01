@@ -9,9 +9,12 @@ from server.registry.types import DBResponse
 
 __all__ = [
   "delete_persona_v1",
+  "delete_v1",
   "get_by_name_v1",
   "list_personas_v1",
+  "list_v1",
   "upsert_persona_v1",
+  "upsert_v1",
 ]
 
 
@@ -127,3 +130,15 @@ async def delete_persona_v1(args: dict[str, Any]) -> DBResponse:
   else:
     raise ValueError("Missing identifier for persona delete")
   return await run_exec(sql, params)
+
+
+async def delete_v1(args: dict[str, Any]) -> DBResponse:
+  return await delete_persona_v1(args)
+
+
+async def list_v1(args: dict[str, Any]) -> DBResponse:
+  return await list_personas_v1(args)
+
+
+async def upsert_v1(args: dict[str, Any]) -> DBResponse:
+  return await upsert_persona_v1(args)

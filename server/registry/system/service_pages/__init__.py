@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 
 from .model import (
@@ -17,16 +14,12 @@ from .model import (
   UpdateServicePageParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "create_service_page_request",
   "delete_service_page_request",
   "get_service_page_by_route_request",
   "get_service_page_request",
   "list_service_pages_request",
-  "register",
   "update_service_page_request",
   "CreateServicePageParams",
   "DeleteServicePageParams",
@@ -118,18 +111,3 @@ def update_service_page_request(
 def delete_service_page_request(*, recid: int) -> DBRequest:
   payload: DeleteServicePageParams = {"recid": recid}
   return DBRequest(op=_op("delete"), payload=payload)
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="list", version=1)
-  register_op(name="get", version=1)
-  register_op(name="get_by_route", version=1)
-  register_op(name="create", version=1)
-  register_op(name="update", version=1)
-  register_op(name="delete", version=1)

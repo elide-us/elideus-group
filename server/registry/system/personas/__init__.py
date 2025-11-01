@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING
-
 from server.registry.types import DBRequest
 
 from .model import (
@@ -14,14 +11,10 @@ from .model import (
   UpsertPersonaParams,
 )
 
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
 __all__ = [
   "delete_persona_request",
   "get_persona_by_name_request",
   "list_personas_request",
-  "register",
   "upsert_persona_request",
   "DeletePersonaParams",
   "PersonaRecord",
@@ -72,16 +65,3 @@ def delete_persona_request(*, recid: int | None = None, name: str | None = None)
       "name": name,
     },
   )
-
-
-def register(
-  router: "RegistryRouter",
-  *,
-  domain: str,
-  path: tuple[str, ...],
-) -> None:
-  register_op = partial(router.register_function, domain=domain, path=path)
-  register_op(name="delete", version=1, implementation="delete_persona")
-  register_op(name="get_by_name", version=1)
-  register_op(name="list", version=1, implementation="list_personas")
-  register_op(name="upsert", version=1, implementation="upsert_persona")

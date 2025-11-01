@@ -10,6 +10,7 @@ from server.registry.types import DBResponse
 __all__ = [
   "find_recent_v1",
   "insert_conversation_v1",
+  "insert_v1",
   "list_by_time_v1",
   "list_recent_v1",
   "update_output_v1",
@@ -52,6 +53,10 @@ async def insert_conversation_v1(args: dict[str, Any]) -> DBResponse:
       tokens,
     ),
   )
+
+
+async def insert_v1(args: dict[str, Any]) -> DBResponse:
+  return await insert_conversation_v1(args)
 
 
 async def find_recent_v1(args: dict[str, Any]) -> DBResponse:

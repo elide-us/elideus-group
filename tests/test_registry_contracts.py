@@ -3,26 +3,45 @@
 from __future__ import annotations
 
 import importlib
+import inspect
+import re
+from pathlib import Path
+
+from server.registry import get_handler_info, parse_db_op, try_get_handler_info
 
 
-def test_registered_ops_align_with_module_paths():
-  registry = importlib.import_module("server.registry")
-  providers = registry._registry_router._registry._providers
-  assert providers, "registry should have providers registered"
+def _iter_provider_operations():
+  base = Path("server/registry")
+  for module_path in base.rglob("mssql.py"):
+    if "providers" in module_path.parts:
+      continue
+    module_name = ".".join(module_path.with_suffix("").parts)
+    module = importlib.import_module(module_name)
+    parts = module_name.split(".")
+    registry_index = parts.index("registry")
+    domain = parts[registry_index + 1]
+    subpath = tuple(parts[registry_index + 2 : -1])
+    for name, func in inspect.getmembers(module, inspect.iscoroutinefunction):
+      match = re.fullmatch(r"(?P<operation>.+)_v(?P<version>\d+)", name)
+      if not match:
+        continue
+      operation = match.group("operation")
+      version = int(match.group("version"))
+      op = ":".join(("db", domain, *subpath, operation, str(version)))
+      yield op, domain, subpath, version, func
 
-  for provider, ops in providers.items():
-    assert ops, f"provider {provider} must register operations"
-    for op, spec in ops.items():
-      domain, path, version = registry.parse_db_op(op)
-      assert version > 0, f"{op} must use a positive version number"
-      module_parts = spec.module.split(".")
-      try:
-        reg_index = module_parts.index("registry")
-      except ValueError:  # pragma: no cover - defensive guard
-        raise AssertionError(f"handler module missing registry segment: {spec.module}")
-      package_parts = module_parts[reg_index + 1 : -1]
-      assert package_parts, f"{op} must live under server.registry.*"
-      assert domain == package_parts[0], f"{op} domain mismatch"
-      expected_path = tuple(package_parts[1:])
-      actual_path = tuple(path[:-1])
-      assert actual_path == expected_path, f"{op} subdomain path mismatch"
+
+def test_provider_modules_align_with_dynamic_resolution():
+  for op, domain, subpath, version, func in _iter_provider_operations():
+    info = try_get_handler_info(op, provider="mssql")
+    if info is None:
+      continue
+    handler = info.load()
+    assert handler is func, f"{op} should resolve to {func.__module__}.{func.__name__}"
+    resolved_domain, path, resolved_version = parse_db_op(op)
+    assert resolved_domain == domain
+    assert resolved_version == version
+    assert tuple(path[:-1]) == subpath
+    assert path[-1] == op.split(":")[-2]
+    info_direct = get_handler_info(op, provider="mssql", log_resolution=False)
+    assert info_direct.load() is handler

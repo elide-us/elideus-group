@@ -10,6 +10,7 @@ from server.registry.types import DBResponse
 
 __all__ = [
   "account_exists_v1",
+  "exists_v1",
   "get_security_profile_v1",
 ]
 
@@ -135,3 +136,7 @@ async def account_exists_v1(args: dict[str, Any]) -> DBResponse:
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   """
   return await run_json_one(sql, (guid,))
+
+
+async def exists_v1(args: dict[str, Any]) -> DBResponse:
+  return await account_exists_v1(args)
