@@ -1,1 +1,0 @@
-"""Public links query handlers."""
