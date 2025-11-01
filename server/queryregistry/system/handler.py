@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from server.registry.models import DBRequest, DBResponse
+from server.queryregistry.models import DBRequest, DBResponse
 
 
 async def handle_system_request(
