@@ -1,1 +1,0 @@
-"""Public vars query handlers."""
