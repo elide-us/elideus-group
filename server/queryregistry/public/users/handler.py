@@ -1,10 +1,16 @@
-"""Public users query handler stubs."""
+"""Public users query handler implementations."""
 
 from __future__ import annotations
 
 from typing import Sequence
 
+from fastapi import HTTPException
+
 from server.queryregistry.models import DBRequest, DBResponse
+
+from . import DISPATCHERS
+
+__all__ = ["handle_users_request"]
 
 
 async def handle_users_request(
@@ -13,6 +19,10 @@ async def handle_users_request(
   *,
   provider: str,
 ) -> DBResponse:
-  """Handle public users query requests."""
-
-  raise NotImplementedError("Public users query handler not implemented yet")
+  if len(path) < 2:
+    raise HTTPException(status_code=404, detail="Unknown public users operation")
+  key = tuple(path[:2])
+  handler = DISPATCHERS.get(key)
+  if handler is None:
+    raise HTTPException(status_code=404, detail="Unknown public users operation")
+  return await handler(request, provider=provider)

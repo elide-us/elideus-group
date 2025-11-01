@@ -1,0 +1,20 @@
+"""Public users query registry service models."""
+
+from __future__ import annotations
+
+from typing import TypedDict
+
+from server.queryregistry.types import CheckStatusCallable
+
+__all__ = [
+  "PublicUsersCheckStatusCallable",
+  "PublicUsersCheckStatusPayload",
+]
+
+
+class PublicUsersCheckStatusPayload(TypedDict):
+  status: str
+  provider: str
+
+
+PublicUsersCheckStatusCallable = CheckStatusCallable
