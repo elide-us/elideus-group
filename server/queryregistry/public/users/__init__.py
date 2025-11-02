@@ -1,1 +1,0 @@
-"""Public users query handlers."""

@@ -1,19 +1,28 @@
-"""Account domain handler stubs."""
+"""Account domain handler implementations."""
 
 from __future__ import annotations
 
 from typing import Sequence
 
+from fastapi import HTTPException
+
 from server.queryregistry.models import DBRequest, DBResponse
+
+from . import DISPATCHERS
+
+__all__ = ["handle_account_request"]
 
 
 async def handle_account_request(
   path: Sequence[str],
   request: DBRequest,
+  *,
   provider: str,
 ) -> DBResponse:
-  """Dispatch account registry requests.
-
-  This stub will be expanded with provider-specific logic.
-  """
-  raise NotImplementedError("Account registry handler not implemented yet")
+  if len(path) < 2:
+    raise HTTPException(status_code=404, detail="Unknown account registry operation")
+  key = tuple(path[:2])
+  handler = DISPATCHERS.get(key)
+  if handler is None:
+    raise HTTPException(status_code=404, detail="Unknown account registry operation")
+  return await handler(request, provider=provider)

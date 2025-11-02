@@ -1,1 +1,0 @@
-"""Public gallery query handlers."""
