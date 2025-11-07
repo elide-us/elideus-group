@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
-from server.queryregistry.types import SubdomainDispatcher
+from typing import Protocol, Sequence
 
-from .services import system_check_status_v1
+from server.queryregistry.models import DBRequest, DBResponse
 
-__all__ = ["DISPATCHERS"]
+from .configuration.handler import handle_configuration_request
 
-DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
-  ("check_status", "1"): system_check_status_v1,
+__all__ = ["HANDLERS"]
+
+class _SubdomainHandler(Protocol):
+  async def __call__(
+    self,
+    path: Sequence[str],
+    request: DBRequest,
+    *,
+    provider: str,
+  ) -> DBResponse: ...
+
+
+HANDLERS: dict[str, _SubdomainHandler] = {
+  "configuration": handle_configuration_request,
 }
