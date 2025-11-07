@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import TypedDict
-
-from server.queryregistry.types import CheckStatusCallable
 
 __all__ = [
   "SystemCheckStatusCallable",
@@ -17,4 +16,4 @@ class SystemCheckStatusPayload(TypedDict):
   provider: str
 
 
-SystemCheckStatusCallable = CheckStatusCallable
+SystemCheckStatusCallable = Callable[[], Awaitable["SystemCheckStatusPayload"]]

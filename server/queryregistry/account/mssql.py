@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from server.queryregistry.types import CheckStatusPayload
+from .models import AccountCheckStatusPayload
 
 __all__ = ["check_status"]
 
 
-async def check_status() -> CheckStatusPayload:
+async def check_status() -> AccountCheckStatusPayload:
   return {"status": "ok", "provider": "mssql"}

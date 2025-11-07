@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from server.queryregistry.models import DBRequest, DBResponse
-from server.queryregistry.types import CheckStatusCallable
 
 from . import mssql
+from .models import AccountCheckStatusCallable
 
 __all__ = ["account_check_status_v1"]
 
-_PROVIDER_DISPATCHERS: dict[str, CheckStatusCallable] = {
+_PROVIDER_DISPATCHERS: dict[str, AccountCheckStatusCallable] = {
   "mssql": mssql.check_status,
 }
 
