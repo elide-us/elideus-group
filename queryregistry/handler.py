@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Awaitable, Callable, Sequence
 
-from server.queryregistry.models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 from . import HANDLERS
 from .helpers import parse_query_request

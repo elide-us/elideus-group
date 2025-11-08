@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from server.queryregistry.models import DBRequest
+from queryregistry.models import DBRequest
 
 
 def parse_query_operation(op: str) -> tuple[str, tuple[str, ...]]:

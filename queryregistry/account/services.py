@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from server.queryregistry.models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
 from .models import AccountCheckStatusCallable

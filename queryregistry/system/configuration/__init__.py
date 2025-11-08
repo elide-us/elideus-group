@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from server.queryregistry.models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 from .services import system_check_status_v1
 
