@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence
 
-from server.queryregistry.models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 from .configuration.handler import handle_configuration_request
 

@@ -10,7 +10,8 @@ flowchart TD
   Client --> RPC
   RPC --> Services
   Services --> Modules
-  Modules --> Providers
+  Modules --> QueryRegistry
+  QueryRegistry --> Providers
   Security --> RPC
   Security --> Services
 ```
@@ -18,8 +19,9 @@ flowchart TD
 * **Client** – User owned frontend or external application.
 * **RPC** – Typed boundary that exposes the public namespace. Only bearer tokens are accepted.
 * **Services** – Business logic invoked by RPC handlers.
-* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts. The `DbModule` now resolves URN-formatted operations using the registry before delegating to a provider, so provider implementations stay focused on connection lifecycles and response helpers.
-* **Providers** – External systems such as databases and identity services. SQL logic remains centralized in `server/registry/.../mssql.py` files, which continue to define the canonical queries for each domain.
+* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts. The `DbModule` now resolves URN-formatted operations using the query registry before delegating to a provider, so provider implementations stay focused on connection lifecycles and response helpers.
+* **Query Registry** – Dedicated translation layer (see `queryregistry/`) that maps URN-formatted operations from the database module to provider-specific handlers. It routes the request to the correct provider implementation and normalizes responses so callers receive a consistent payload regardless of the backing engine.
+* **Providers** – External systems such as databases and identity services. SQL logic remains centralized in the provider directories (for example `server/registry/.../mssql.py` files), but the query registry ensures those implementations expose a uniform shape back to the modules.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
 ## Security Model

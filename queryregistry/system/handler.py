@@ -6,7 +6,7 @@ from typing import Sequence
 
 from fastapi import HTTPException
 
-from server.queryregistry.models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 from . import HANDLERS
 
