@@ -5,6 +5,8 @@ discord.py
 openai
 lumaai
 azure-storage-blob
+azure-identity
+azure-containerregistry
 aiofiles
 aiohttp
 aioodbc
