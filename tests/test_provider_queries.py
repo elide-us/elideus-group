@@ -229,7 +229,7 @@ def test_account_session_list_snapshots_uses_view(monkeypatch):
   handler = get_handler("db:account:session:list_snapshots:1")
   asyncio.run(handler({"guid": guid}))
   sql = captured["sql"].lower()
-  assert "vw_account_user_sessions" in sql
+  assert "vw_user_session_security" in sql
   assert "for json path" in sql
 
 
@@ -247,7 +247,7 @@ def test_account_session_security_snapshot_uses_view(monkeypatch):
   handler = get_handler("db:account:session:get_security_snapshot:1")
   asyncio.run(handler({"guid": guid}))
   sql = captured["sql"].lower()
-  assert "vw_account_user_security" in sql
+  assert "vw_user_session_security" in sql
   assert "order by" in sql
 
 

@@ -37,7 +37,7 @@ async def get_by_name_v1(args: dict[str, Any]) -> DBResponse:
       vp.model_name AS element_model,
       vp.element_created_on,
       vp.element_modified_on
-    FROM vw_personas vp
+    FROM vw_content_personas vp
     JOIN assistant_personas ap ON ap.element_name = vp.persona_name
     WHERE vp.persona_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
@@ -63,7 +63,7 @@ async def list_personas_v1(_: dict[str, Any]) -> DBResponse:
       vp.model_name AS element_model,
       vp.element_created_on,
       vp.element_modified_on
-    FROM vw_personas vp
+    FROM vw_content_personas vp
     JOIN assistant_personas ap ON ap.element_name = vp.persona_name
     ORDER BY vp.persona_name
     FOR JSON PATH;

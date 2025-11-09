@@ -20,7 +20,7 @@ def test_persona_lookup_query_targets_element_name(monkeypatch):
   result = asyncio.run(handler({"name": "stark"}))
 
   sql = captured["sql"]
-  assert "FROM vw_personas vp" in sql
+  assert "FROM vw_content_personas vp" in sql
   assert "JOIN assistant_personas ap ON ap.element_name = vp.persona_name" in sql
   assert "WHERE vp.persona_name = ?" in sql
   assert "FOR JSON PATH" in sql

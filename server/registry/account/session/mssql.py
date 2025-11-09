@@ -247,7 +247,7 @@ async def list_snapshots_v1(params: dict[str, Any]) -> DBResponse:
       aus.element_device_fingerprint,
       aus.element_user_agent,
       aus.element_ip_last_seen
-    FROM vw_account_user_sessions aus
+    FROM vw_user_session_security aus
     WHERE aus.user_guid = ?
     ORDER BY aus.session_created_on DESC, aus.device_created_on DESC
     FOR JSON PATH;
@@ -272,7 +272,7 @@ async def get_security_snapshot_v1(params: dict[str, Any]) -> DBResponse:
       aus.element_device_fingerprint,
       aus.element_user_agent,
       aus.element_ip_last_seen
-    FROM vw_account_user_security aus
+    FROM vw_user_session_security aus
     WHERE aus.user_guid = ?
     ORDER BY aus.element_token_iat DESC
     FOR JSON PATH;
