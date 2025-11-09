@@ -17,11 +17,10 @@ operational tooling.
 
 ## RPC Code Generation
 
-- `generate_rpc_library.py` emits `frontend/src/shared/RpcModels.tsx` with
-  Pydantic models harvested from `rpc/**/models.py`.
-- `generate_rpc_client.py` walks dispatcher maps to build `frontend/src/rpc/*/index.ts`.
-- `generate_rpc_bindings.py` runs both generation steps; execute it whenever
-  URNs, payload models, or service signatures change.
+- `generate_rpc_bindings.py` emits both `frontend/src/shared/RpcModels.tsx`
+  and `frontend/src/rpc/*/index.ts` by harvesting Pydantic models and walking
+  dispatcher maps. Run it whenever URNs, payload models, or service signatures
+  change.
 - Generated files include a banner from `HEADER_COMMENT`. Never edit the outputs
   manually—regenerate instead.
 

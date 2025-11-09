@@ -37,8 +37,7 @@ and payload models.
 - Define request/response models in `models.py` using Pydantic. These models are
   exported to TypeScript via the RPC generation scripts.
 - When adding or changing URNs, update **RPC.md** and regenerate bindings by
-  running `python scripts/generate_rpc_bindings.py` (or the individual
-  `generate_rpc_client.py` / `generate_rpc_library.py` scripts).
+  running `python scripts/generate_rpc_bindings.py`.
 - Version bumps should add a new dispatcher entry instead of mutating the
   existing function in place.
 
