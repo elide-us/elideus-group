@@ -34,7 +34,7 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 # Python build
 # ────────────────────────────────────────────────────────────────────────────────
-FROM python:3.12
+FROM python:3.11
 
 # RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
 
