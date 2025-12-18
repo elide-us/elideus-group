@@ -25,8 +25,8 @@ def _request(op: str, params: NavbarRoutesParams | None = None) -> DBRequest:
 
 
 def get_home_links_request() -> DBRequest:
-  return _request("db:system:public_links:get_home_links:1")
+  return _request("db:system:links:get_home_links:1")
 
 
 def get_navbar_routes_request(params: NavbarRoutesParams) -> DBRequest:
-  return _request("db:system:public_links:get_navbar_routes:1", params)
+  return _request("db:system:links:get_navbar_routes:1", params)
