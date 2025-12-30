@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from queryregistry.models import DBRequest, DBResponse
-
 from .services import system_check_status_v1
+from ..dispatch import SubdomainDispatcher
 
 __all__ = ["DISPATCHERS"]
 
-class _SubdomainDispatcher(Protocol):
-  async def __call__(self, request: DBRequest, *, provider: str) -> DBResponse: ...
-
-
-DISPATCHERS: dict[tuple[str, str], _SubdomainDispatcher] = {
+DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("check_status", "1"): system_check_status_v1,
 }
