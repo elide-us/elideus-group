@@ -1,13 +1,23 @@
 from __future__ import annotations
+from collections.abc import Mapping
+from typing import Any
+
 from fastapi import FastAPI
-from server.registry.system.links import NavbarRoutesParams
-from server.modules.registry.helpers import (
-  get_home_links_request,
-  get_navbar_routes_request,
-)
+from queryregistry import dispatch_query_request
+from queryregistry.models import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+
+
+def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
+  if payload is None:
+    return []
+  if isinstance(payload, list):
+    return [dict(item) for item in payload]
+  if isinstance(payload, Mapping):
+    return [dict(payload)]
+  return [dict(payload)]
 
 class PublicLinksModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -28,12 +38,19 @@ class PublicLinksModule(BaseModule):
 
   async def get_home_links(self):
     assert self.db
-    res = await self.db.run(get_home_links_request())
-    return res.rows
+    res = await dispatch_query_request(
+      DBRequest(op="db:system:links:get_home_links:1"),
+      provider=self.db.provider,
+    )
+    return _normalize_payload(res.payload)
 
   async def get_navbar_routes(self, role_mask: int):
     assert self.db
-    res = await self.db.run(
-      get_navbar_routes_request(NavbarRoutesParams(role_mask=role_mask))
+    res = await dispatch_query_request(
+      DBRequest(
+        op="db:system:links:get_navbar_routes:1",
+        payload={"role_mask": role_mask},
+      ),
+      provider=self.db.provider,
     )
-    return res.rows
+    return _normalize_payload(res.payload)

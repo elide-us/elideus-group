@@ -1,11 +1,8 @@
 from __future__ import annotations
 import asyncio, subprocess
 from fastapi import FastAPI
-from server.modules.registry.helpers import (
-  get_hostname_request,
-  get_repo_request,
-  get_version_request,
-)
+from queryregistry import dispatch_query_request
+from queryregistry.models import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
@@ -46,18 +43,30 @@ class PublicVarsModule(BaseModule):
 
   async def get_version(self) -> str:
     assert self.db
-    res = await self.db.run(get_version_request())
-    return res.rows[0].get("version") if res.rows else ""
+    res = await dispatch_query_request(
+      DBRequest(op="db:system:public_vars:get_version:1"),
+      provider=self.db.provider,
+    )
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("version", "")
 
   async def get_hostname(self) -> str:
     assert self.db
-    res = await self.db.run(get_hostname_request())
-    return res.rows[0].get("hostname") if res.rows else ""
+    res = await dispatch_query_request(
+      DBRequest(op="db:system:public_vars:get_hostname:1"),
+      provider=self.db.provider,
+    )
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("hostname", "")
 
   async def get_repo(self) -> str:
     assert self.db
-    res = await self.db.run(get_repo_request())
-    return res.rows[0].get("repo") if res.rows else ""
+    res = await dispatch_query_request(
+      DBRequest(op="db:system:public_vars:get_repo:1"),
+      provider=self.db.provider,
+    )
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("repo", "")
 
   async def get_ffmpeg_version(self) -> str:
     try:
