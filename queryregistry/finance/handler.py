@@ -8,7 +8,7 @@ from fastapi import HTTPException
 
 from queryregistry.models import DBRequest, DBResponse
 
-from . import DISPATCHERS
+from . import HANDLERS
 
 __all__ = ["handle_finance_request"]
 
@@ -19,10 +19,10 @@ async def handle_finance_request(
   *,
   provider: str,
 ) -> DBResponse:
-  if len(path) < 2:
+  if not path:
     raise HTTPException(status_code=404, detail="Unknown finance registry operation")
-  key = tuple(path[:2])
-  handler = DISPATCHERS.get(key)
+  subdomain = path[0]
+  handler = HANDLERS.get(subdomain)
   if handler is None:
     raise HTTPException(status_code=404, detail="Unknown finance registry operation")
-  return await handler(request, provider=provider)
+  return await handler(path[1:], request, provider=provider)
