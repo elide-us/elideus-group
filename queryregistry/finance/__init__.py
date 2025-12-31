@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from .services import finance_check_status_v1
+from .status.handler import handle_status_request
 
-__all__ = ["DISPATCHERS"]
+__all__ = ["HANDLERS"]
 
-DISPATCHERS = {
-  ("check_status", "1"): finance_check_status_v1,
+HANDLERS = {
+  "status": handle_status_request,
 }
