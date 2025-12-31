@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio, subprocess
 from fastapi import FastAPI
-from queryregistry import dispatch_query_request
+from queryregistry.handler import dispatch_query_request
 from queryregistry.models import DBRequest
 from . import BaseModule
 from .db_module import DbModule
