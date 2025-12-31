@@ -9,6 +9,7 @@ from queryregistry.models import DBRequest, DBResponse
 from .configuration.handler import handle_configuration_request
 from .config.handler import handle_config_request
 from .integrations.handler import handle_integrations_request
+from .links.handler import handle_links_request
 from .models.handler import handle_models_request
 from .personas.handler import handle_personas_request
 from .public_vars.handler import handle_public_vars_request
@@ -32,6 +33,7 @@ HANDLERS: dict[str, _SubdomainHandler] = {
   "configuration": handle_configuration_request,
   "config": handle_config_request,
   "integrations": handle_integrations_request,
+  "links": handle_links_request,
   "models": handle_models_request,
   "personas": handle_personas_request,
   "public_vars": handle_public_vars_request,
