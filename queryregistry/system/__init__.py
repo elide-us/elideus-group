@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, Sequence
-
-from queryregistry.models import DBRequest, DBResponse
+from queryregistry.system.dispatch import SubdomainDispatcher
 
 from .configuration.handler import handle_configuration_request
 from .config.handler import handle_config_request
@@ -19,17 +17,8 @@ from .service_pages.handler import handle_service_pages_request
 
 __all__ = ["HANDLERS"]
 
-class _SubdomainHandler(Protocol):
-  async def __call__(
-    self,
-    path: Sequence[str],
-    request: DBRequest,
-    *,
-    provider: str,
-  ) -> DBResponse: ...
 
-
-HANDLERS: dict[str, _SubdomainHandler] = {
+HANDLERS: dict[str, SubdomainDispatcher] = {
   "configuration": handle_configuration_request,
   "config": handle_config_request,
   "integrations": handle_integrations_request,
