@@ -6,10 +6,19 @@ from typing import Awaitable, Callable, Sequence
 
 from queryregistry.models import DBRequest, DBResponse
 
-from . import HANDLERS
+from .content.handler import handle_content_request
+from .finance.handler import handle_finance_request
+from .identity.handler import handle_identity_request
+from .system.handler import handle_system_request
 from .helpers import parse_query_request
 
 DomainHandler = Callable[[Sequence[str], DBRequest, str], Awaitable[DBResponse]]
+HANDLERS: dict[str, DomainHandler] = {
+  "content": handle_content_request,
+  "finance": handle_finance_request,
+  "identity": handle_identity_request,
+  "system": handle_system_request,
+}
 
 
 async def dispatch_query_request(

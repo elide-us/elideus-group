@@ -8,9 +8,13 @@ from fastapi import HTTPException
 
 from queryregistry.models import DBRequest, DBResponse
 
-from . import HANDLERS
+from .status.handler import handle_status_request
 
 __all__ = ["handle_finance_request"]
+
+HANDLERS = {
+  "status": handle_status_request,
+}
 
 
 async def handle_finance_request(

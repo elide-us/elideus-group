@@ -71,7 +71,7 @@ Examples of currently scaffolded CRUD stubs:
 
 ## Handler entry points
 
-- Root dispatch: `queryregistry/handler.py` → `queryregistry.HANDLERS`
+- Root dispatch: `queryregistry/handler.py` → `queryregistry.handler.HANDLERS`
 - Content: `queryregistry/content/handler.py`
 - Identity: `queryregistry/identity/handler.py`
 - System: `queryregistry/system/handler.py`

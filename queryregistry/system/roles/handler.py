@@ -6,10 +6,11 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-
-from . import DISPATCHERS
+from queryregistry.stubs import build_stub_dispatchers
 
 __all__ = ["handle_roles_request"]
+
+DISPATCHERS = build_stub_dispatchers("system.roles")
 
 
 async def handle_roles_request(

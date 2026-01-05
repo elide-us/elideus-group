@@ -8,9 +8,14 @@ from fastapi import HTTPException
 
 from queryregistry.models import DBRequest, DBResponse
 
-from . import DISPATCHERS
+from .services import system_check_status_v1
+from ..dispatch import SubdomainDispatcher
 
 __all__ = ["handle_configuration_request"]
+
+DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
+  ("check_status", "1"): system_check_status_v1,
+}
 
 
 async def handle_configuration_request(

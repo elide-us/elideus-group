@@ -7,9 +7,15 @@ from typing import Sequence
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
-from . import DISPATCHERS
+from .services import get_home_links_v1, get_navbar_routes_v1
+from ..dispatch import SubdomainDispatcher
 
 __all__ = ["handle_links_request"]
+
+DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
+  ("get_home_links", "1"): get_home_links_v1,
+  ("get_navbar_routes", "1"): get_navbar_routes_v1,
+}
 
 
 async def handle_links_request(

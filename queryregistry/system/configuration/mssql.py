@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..models import SystemCheckStatusPayload
+from queryregistry.system.models import SystemCheckStatusPayload
 
 __all__ = ["check_status"]
 
