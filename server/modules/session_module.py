@@ -8,8 +8,8 @@ from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile import SetProfileImageParams
-from server.registry.account.session import (
+from server.registry.account.profile.model import SetProfileImageParams
+from server.registry.account.session.model import (
   CreateSessionParams,
   GuidParams,
   RevokeDeviceTokenParams,

@@ -14,7 +14,7 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile import GuidParams
+from server.registry.account.profile.model import GuidParams
 from server.modules.registry.helpers import (
   delete_role_request,
   get_roles_request,
@@ -350,4 +350,3 @@ class AuthModule(BaseModule):
 
   async def refresh_user_roles(self, guid: str):
     await self.role_cache.refresh_user_roles(guid)
-

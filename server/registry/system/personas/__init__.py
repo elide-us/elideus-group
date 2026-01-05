@@ -11,16 +11,6 @@ from .model import (
   UpsertPersonaParams,
 )
 
-__all__ = [
-  "delete_persona_request",
-  "get_persona_by_name_request",
-  "list_personas_request",
-  "upsert_persona_request",
-  "DeletePersonaParams",
-  "PersonaRecord",
-  "PersonaSummary",
-  "UpsertPersonaParams",
-]
 
 _OP_PREFIX = "db:system:personas"
 

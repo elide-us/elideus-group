@@ -5,14 +5,6 @@ from __future__ import annotations
 from server.registry.types import DBRequest
 from .model import ConfigKeyParams, UpsertConfigParams
 
-__all__ = [
-  "delete_config_request",
-  "get_config_request",
-  "get_configs_request",
-  "upsert_config_request",
-  "ConfigKeyParams",
-  "UpsertConfigParams",
-]
 
 
 def get_config_request(params: ConfigKeyParams) -> DBRequest:

@@ -7,11 +7,6 @@ from typing import Any
 
 from server.registry.types import DBRequest
 
-__all__ = [
-  "get_guild_request",
-  "list_guilds_request",
-  "upsert_guild_request",
-]
 
 
 _DEF_PROVIDER_KEY = "db:system:discord_guilds"

@@ -5,7 +5,7 @@ from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import FastAPI
-from server.registry.system.config import ConfigKeyParams
+from server.registry.system.config.model import ConfigKeyParams
 from server.modules.registry.helpers import (
   count_rows_request,
   get_config_request,

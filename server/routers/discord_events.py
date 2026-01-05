@@ -4,7 +4,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from discord.ext import commands
-from server.registry.system.config import ConfigKeyParams, get_config_request
+from server.registry.system.config import get_config_request
+from server.registry.system.config.model import ConfigKeyParams
 
 if TYPE_CHECKING:  # pragma: no cover - runtime import cycle guard
   from server.modules.discord_bot_module import DiscordBotModule

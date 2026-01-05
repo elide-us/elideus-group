@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 from fastapi import FastAPI
-from server.registry.system.config import ConfigKeyParams, UpsertConfigParams
+from server.registry.system.config.model import ConfigKeyParams, UpsertConfigParams
 from server.modules.registry.helpers import (
   delete_config_request,
   get_configs_request,
@@ -10,7 +10,7 @@ from server.modules.registry.helpers import (
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from .models import (
+from server.modules.models.system_config import (
   SystemConfigDeleteResult,
   SystemConfigItem,
   SystemConfigList,

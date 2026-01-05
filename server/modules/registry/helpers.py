@@ -91,7 +91,7 @@ from server.registry.system.roles import (
   remove_role_member_request,
   upsert_role_request,
 )
-from server.registry.system.vars import (
+from server.registry.system.public_vars import (
   get_hostname_request,
   get_repo_request,
   get_version_request,

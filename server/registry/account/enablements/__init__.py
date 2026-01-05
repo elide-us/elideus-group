@@ -11,12 +11,6 @@ from .model import (
   UserEnablementsRecord,
 )
 
-__all__ = [
-  "get_user_enablements_request",
-  "upsert_user_enablements_request",
-  "UpsertUserEnablementsParams",
-  "UserEnablementsRecord",
-]
 
 _OP_PREFIX = "db:account:enablements"
 

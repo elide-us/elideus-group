@@ -2,8 +2,8 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile import GuidParams, SetDisplayParams
-from server.registry.finance.credits import SetCreditsParams
+from server.registry.account.profile.model import GuidParams, SetDisplayParams
+from server.registry.finance.credits.model import SetCreditsParams
 from server.modules.registry.helpers import (
   get_profile_request,
   set_credits_request,

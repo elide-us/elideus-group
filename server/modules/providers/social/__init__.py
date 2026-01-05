@@ -8,8 +8,6 @@ from typing import Any, Callable, TYPE_CHECKING
 
 from .. import LifecycleProvider
 
-__all__ = ["SocialInputProvider"]
-
 if TYPE_CHECKING:  # pragma: no cover
   from ...social_input_module import SocialInputModule
 

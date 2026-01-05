@@ -2,8 +2,4 @@
 
 from __future__ import annotations
 
-from . import credits
-
-__all__ = [
-  "credits",
-]
+from . import credits  # noqa: F401

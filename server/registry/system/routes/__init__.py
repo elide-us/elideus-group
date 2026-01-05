@@ -4,11 +4,6 @@ from __future__ import annotations
 
 from server.registry.types import DBRequest
 
-__all__ = [
-  "delete_route_request",
-  "get_routes_request",
-  "upsert_route_request",
-]
 
 
 def get_routes_request() -> DBRequest:

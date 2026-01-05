@@ -10,13 +10,6 @@ from server.registry.types import DBRequest
 
 from .model import HomeLink, NavbarRoute, NavbarRoutesParams
 
-__all__ = [
-  "HomeLink",
-  "NavbarRoute",
-  "NavbarRoutesParams",
-  "get_home_links_request",
-  "get_navbar_routes_request",
-]
 
 
 def _request(op: str, params: NavbarRoutesParams | None = None) -> DBRequest:

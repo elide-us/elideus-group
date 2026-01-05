@@ -11,15 +11,6 @@ from .models import DBRequest
 
 logger = logging.getLogger(__name__)
 
-__all__ = [
-  "HandlerInfo",
-  "get_handler",
-  "get_handler_info",
-  "try_get_handler_info",
-  "parse_db_op",
-]
-
-
 @dataclass(slots=True)
 class HandlerInfo:
   module: str
@@ -45,6 +36,8 @@ def parse_db_op(op: str) -> tuple[str, tuple[str, ...], int]:
     raise ValueError(f"Invalid DB operation version: {op}") from exc
   domain, *path = segments
   return domain, tuple(path), version
+
+
 def _build_handler_info(
   op: str,
   *,

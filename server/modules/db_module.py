@@ -9,7 +9,7 @@ import logging
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
-from .providers import DBRequest, DBResponse
+from server.registry.types import DBRequest, DBResponse
 from server.registry.account.cache.model import (
   CacheItemKey,
   DeleteCacheFolderParams,
@@ -17,7 +17,7 @@ from server.registry.account.cache.model import (
   ReplaceUserCacheParams,
   UpsertCacheItemParams,
 )
-from server.registry.system.config import ConfigKeyParams
+from server.registry.system.config.model import ConfigKeyParams
 from server.modules.registry.helpers import (
   account_exists_request,
   delete_cache_folder_request,
@@ -301,4 +301,3 @@ class DbModule(BaseModule):
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
     params = DeleteCacheFolderParams(user_guid=user_guid, path=path)
     await self.run(delete_cache_folder_request(params))
-

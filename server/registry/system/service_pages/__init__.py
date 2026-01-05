@@ -14,21 +14,6 @@ from .model import (
   UpdateServicePageParams,
 )
 
-__all__ = [
-  "create_service_page_request",
-  "delete_service_page_request",
-  "get_service_page_by_route_request",
-  "get_service_page_request",
-  "list_service_pages_request",
-  "update_service_page_request",
-  "CreateServicePageParams",
-  "DeleteServicePageParams",
-  "GetServicePageByRouteParams",
-  "GetServicePageParams",
-  "ListServicePagesParams",
-  "ServicePageRecord",
-  "UpdateServicePageParams",
-]
 
 _OP_PREFIX = "db:system:service_pages"
 

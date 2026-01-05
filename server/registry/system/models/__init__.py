@@ -9,12 +9,6 @@ from .model import (
   ModelRecord,
 )
 
-__all__ = [
-  "get_model_by_name_request",
-  "list_models_request",
-  "GetModelByNameParams",
-  "ModelRecord",
-]
 
 _OP_PREFIX = "db:system:models"
 
