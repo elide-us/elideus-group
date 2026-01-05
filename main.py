@@ -2,11 +2,13 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from server import lifespan, rpc_router, web_router, configure_root_logging
+from server.helpers.logging import configure_root_logging
+from server.lifespan import lifespan
+from server.routers import rpc_router, web_router
 
 configure_root_logging(4)
 
-app = FastAPI(lifespan=lifespan.lifespan)
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(rpc_router.router, prefix="/rpc")
 app.include_router(web_router.router)
