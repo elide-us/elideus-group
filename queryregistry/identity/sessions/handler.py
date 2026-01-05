@@ -6,10 +6,11 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-
-from . import DISPATCHERS
+from queryregistry.stubs import build_stub_dispatchers
 
 __all__ = ["handle_sessions_request"]
+
+DISPATCHERS = build_stub_dispatchers("identity.sessions")
 
 
 async def handle_sessions_request(

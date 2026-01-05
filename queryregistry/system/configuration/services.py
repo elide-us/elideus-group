@@ -5,7 +5,7 @@ from __future__ import annotations
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from ..models import SystemCheckStatusCallable
+from queryregistry.system.models import SystemCheckStatusCallable
 
 __all__ = ["system_check_status_v1"]
 
