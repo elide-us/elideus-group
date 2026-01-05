@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.system.config import ConfigKeyParams
+from server.registry.system.config.model import ConfigKeyParams
 from server.modules.registry.helpers import (
   delete_persona_request,
   find_recent_request,

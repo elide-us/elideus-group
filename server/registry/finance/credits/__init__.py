@@ -10,10 +10,6 @@ from server.registry.types import DBRequest
 
 from .model import SetCreditsParams
 
-__all__ = [
-  "SetCreditsParams",
-  "set_credits_request",
-]
 
 
 def _request(name: str, params: SetCreditsParams) -> DBRequest:

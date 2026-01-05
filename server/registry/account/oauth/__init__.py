@@ -6,11 +6,6 @@ from typing import Any
 
 from server.registry.types import DBRequest
 
-__all__ = [
-  "relink_discord_request",
-  "relink_google_request",
-  "relink_microsoft_request",
-]
 
 
 def _relink_request(name: str, params: dict[str, Any]) -> DBRequest:

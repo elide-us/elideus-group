@@ -3,7 +3,7 @@ from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.system.roles import (
+from server.registry.system.roles.model import (
   ModifyRoleMemberParams,
   RoleScopeParams,
 )

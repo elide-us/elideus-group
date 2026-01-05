@@ -25,6 +25,8 @@ models_pkg = types.ModuleType('server.models')
 
 modules_pkg = types.ModuleType('server.modules')
 modules_models_pkg = types.ModuleType('server.modules.models')
+modules_models_pkg.__path__ = []
+system_config_models_pkg = types.ModuleType('server.modules.models.system_config')
 
 @dataclass
 class SystemConfigItem:
@@ -62,13 +64,15 @@ models_pkg.RPCRequest = RPCRequest
 models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
 modules_pkg.models = modules_models_pkg
-modules_models_pkg.SystemConfigItem = SystemConfigItem
-modules_models_pkg.SystemConfigList = SystemConfigList
-modules_models_pkg.SystemConfigDeleteResult = SystemConfigDeleteResult
+modules_models_pkg.system_config = system_config_models_pkg
+system_config_models_pkg.SystemConfigItem = SystemConfigItem
+system_config_models_pkg.SystemConfigList = SystemConfigList
+system_config_models_pkg.SystemConfigDeleteResult = SystemConfigDeleteResult
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 sys.modules.setdefault('server.modules', modules_pkg)
 sys.modules.setdefault('server.modules.models', modules_models_pkg)
+sys.modules.setdefault('server.modules.models.system_config', system_config_models_pkg)
 
 import importlib.util
 
@@ -99,16 +103,16 @@ class DummySystemConfigModule:
     self.calls = []
   async def get_configs(self, user_guid, roles):
     self.calls.append(('get_configs', user_guid, roles))
-    from server.modules.models import SystemConfigItem, SystemConfigList
+    from server.modules.models.system_config import SystemConfigItem, SystemConfigList
     item = SystemConfigItem(key='LoggingLevel', value='4')
     return SystemConfigList(items=[item])
   async def upsert_config(self, user_guid, roles, key, value):
     self.calls.append(('upsert_config', key, value))
-    from server.modules.models import SystemConfigItem
+    from server.modules.models.system_config import SystemConfigItem
     return SystemConfigItem(key=key, value=value)
   async def delete_config(self, user_guid, roles, key):
     self.calls.append(('delete_config', key))
-    from server.modules.models import SystemConfigDeleteResult
+    from server.modules.models.system_config import SystemConfigDeleteResult
     return SystemConfigDeleteResult(key=key)
 
 app = FastAPI()

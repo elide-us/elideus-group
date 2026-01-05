@@ -6,11 +6,6 @@ from typing import Any
 
 from server.registry.types import DBRequest
 
-__all__ = [
-  "get_public_files_request",
-  "list_public_request",
-  "list_reported_request",
-]
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:

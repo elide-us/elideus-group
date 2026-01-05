@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from . import BaseModule
 from .db_module import DbModule
-from server.registry.account.profile import (
+from server.registry.account.profile.model import (
   GuidParams,
   ProfileRecord,
   SetDisplayParams,

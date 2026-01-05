@@ -12,20 +12,20 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile import (
+from server.registry.account.profile.model import (
   GuidParams,
   SetProfileImageParams,
   UpdateIfUneditedParams,
 )
-from server.registry.account.session import (
+from server.registry.account.session.model import (
   CreateSessionParams,
   RevokeProviderTokensParams,
   SetRotkeyParams,
   UpdateDeviceTokenParams,
 )
-from server.registry.system.config import ConfigKeyParams
+from server.registry.system.config.model import ConfigKeyParams
 from server.registry.types import DBRequest
-from server.registry.account.providers import (
+from server.registry.account.providers.model import (
   CreateFromProviderParams,
   GetUserByEmailParams,
   LinkProviderParams,
@@ -656,4 +656,3 @@ class OauthModule(BaseModule):
       "user": user,
       "profile": profile,
     }
-

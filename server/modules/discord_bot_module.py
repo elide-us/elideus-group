@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-from server.registry.system.config import ConfigKeyParams
+from server.registry.system.config.model import ConfigKeyParams
 from server.modules.registry.helpers import get_config_request
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
@@ -270,4 +270,3 @@ class DiscordBotModule(BaseModule):
 
 class DiscordModule(DiscordBotModule):
   """Backward-compatible alias for the DiscordBotModule."""
-
