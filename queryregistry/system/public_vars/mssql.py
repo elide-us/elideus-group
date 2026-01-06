@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from server.registry.providers.mssql import run_json_one
+from queryregistry.providers.mssql import run_json_one
 
 from queryregistry.models import DBResponse
 

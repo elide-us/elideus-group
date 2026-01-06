@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from server.registry.providers.mssql import run_json_many
+from queryregistry.providers.mssql import run_json_many
 
 from queryregistry.models import DBResponse
 
