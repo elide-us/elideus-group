@@ -1,5 +1,5 @@
 from __future__ import annotations
-import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
+import subprocess, os, sys, importlib.util, asyncio, argparse
 from pathlib import Path
 from scriptlib import parse_version, next_build
 
@@ -71,6 +71,8 @@ async def update_build_version() -> None:
 
   print(f'Using {source} for build version update in {environment} environment')
 
+  import aioodbc
+
   pool = None
   try:
     pool = await asyncio.wait_for(aioodbc.create_pool(dsn=dsn, autocommit=True), timeout=10)
@@ -131,7 +133,9 @@ def main() -> None:
   ROOT = Path(__file__).resolve().parent.parent
 
   args = _parse_args()
-  if not args.test:
+  if args.test:
+    print('Test flag set; skipping database connectivity checks.')
+  else:
     asyncio.run(update_build_version())
 
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_bindings.py'], cwd=ROOT)
