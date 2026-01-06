@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 from fastapi import FastAPI
 
@@ -11,19 +12,21 @@ def test_user_exists_dispatches_exists_handler(monkeypatch):
 
   requests = []
 
-  async def fake_run(request):
+  async def fake_dispatch(request, *, provider):
     requests.append(request)
-    return DBResponse(op=request.op, rows=[{"result": True}], rowcount=1)
+    return DBResponse(op=request.op, payload={"exists_flag": 1})
 
-  monkeypatch.setattr(db, "run", fake_run)
+  monkeypatch.setattr("server.modules.db_module.dispatch_query_request", fake_dispatch)
+
+  user_guid = str(uuid.uuid4())
 
   async def run_scenario():
-    result = await db.user_exists("guid-123")
+    result = await db.user_exists(user_guid)
     assert result is True
 
   asyncio.run(run_scenario())
 
   assert requests, "DbModule.user_exists should dispatch a DB request"
   request = requests[0]
-  assert request.op == "db:account:accounts:exists:1"
-  assert request.payload == {"user_guid": "guid-123"}
+  assert request.op == "db:identity:accounts:exists:1"
+  assert request.payload == {"user_guid": user_guid}
