@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import UUID
 
-from server.registry.providers.mssql import run_json_one
+from queryregistry.providers.mssql import run_json_one
 
 from queryregistry.models import DBResponse
 
