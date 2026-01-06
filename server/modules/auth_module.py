@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Dict
 
+from queryregistry.handler import dispatch_query_request
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
@@ -18,8 +19,8 @@ from server.registry.account.profile.model import GuidParams
 from server.modules.registry.helpers import (
   delete_role_request,
   get_roles_request,
+  get_identity_security_profile_request,
   get_rotkey_request,
-  get_security_profile_request,
   list_roles_request,
   upsert_role_request,
 )
@@ -331,12 +332,14 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run(
-      get_security_profile_request(discord_id=discord_id),
+    res = await dispatch_query_request(
+      get_identity_security_profile_request(discord_id=discord_id),
+      provider=self.db.provider,
     )
-    if not res.rows:
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    if not payload:
       return "", [], 0
-    row = res.rows[0]
+    row = payload
     guid = row.get("user_guid")
     mask = int(row.get("user_roles", 0) or 0)
     names = self.role_cache.mask_to_names(mask)

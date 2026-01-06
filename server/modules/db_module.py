@@ -6,6 +6,7 @@ import inspect
 from fastapi import FastAPI
 import logging
 
+from queryregistry.handler import dispatch_query_request
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
@@ -19,16 +20,16 @@ from server.registry.account.cache.model import (
 )
 from server.registry.system.config.model import ConfigKeyParams
 from server.modules.registry.helpers import (
-  account_exists_request,
   delete_cache_folder_request,
   delete_cache_item_request,
   get_config_request,
+  identity_account_exists_request,
   list_cache_request,
   replace_user_cache_request,
   upsert_cache_item_request,
 )
 from server.helpers.logging import update_logging_level
-from server.registry import get_handler_info, parse_db_op, try_get_handler_info
+from server.registry import get_handler_info, parse_db_op
 
 
 class DbModule(BaseModule):
@@ -261,17 +262,18 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    request = account_exists_request(user_guid=user_guid)
+    request = identity_account_exists_request(user_guid=user_guid)
     provider_name = self.provider or "mssql"
-    handler_info = try_get_handler_info(request.op, provider=provider_name)
-    if not handler_info:
+    try:
+      res = await dispatch_query_request(request, provider=provider_name)
+    except KeyError:
       logging.getLogger("server.registry").warning(
-        "Registry handler missing for user lookup",
+        "Query registry handler missing for user lookup",
         extra={"db_op": request.op, "db_provider": provider_name},
       )
       return await self._fallback_user_exists(user_guid=user_guid)
-    res = await self.run(request)
-    return bool(res.rows)
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
 
   async def _fallback_user_exists(self, *, user_guid: str) -> bool:
     provider_name = self.provider or "mssql"
@@ -281,14 +283,15 @@ class DbModule(BaseModule):
       )
       return False
     try:
-      from server.registry.account.accounts.mssql import account_exists_v1
+      from queryregistry.identity.accounts.mssql import account_exists
     except ModuleNotFoundError:
       logging.getLogger("server.registry").error(
         "MSSQL account exists handler unavailable"
       )
       return False
-    response = await account_exists_v1({"user_guid": user_guid})
-    return bool(response.rows)
+    response = await account_exists({"user_guid": user_guid})
+    payload = response.payload if isinstance(response.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
 
   async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
     params = UpsertCacheItemParams.model_validate(item)
