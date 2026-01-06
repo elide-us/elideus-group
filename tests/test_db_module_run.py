@@ -3,6 +3,7 @@ import uuid
 
 from fastapi import FastAPI
 
+import server.modules.db_module as db_module
 from server.modules.db_module import DbModule
 from server.modules.providers import DBResponse
 
@@ -16,7 +17,7 @@ def test_user_exists_dispatches_exists_handler(monkeypatch):
     requests.append(request)
     return DBResponse(op=request.op, payload={"exists_flag": 1})
 
-  monkeypatch.setattr("server.modules.db_module.dispatch_query_request", fake_dispatch)
+  monkeypatch.setattr(db_module, "dispatch_query_request", fake_dispatch)
 
   user_guid = str(uuid.uuid4())
 
