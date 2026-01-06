@@ -6,11 +6,15 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+
+from .services import account_exists_v1, read_accounts_v1
 
 __all__ = ["handle_accounts_request"]
 
-DISPATCHERS = build_stub_dispatchers("identity.accounts")
+DISPATCHERS = {
+  ("read", "1"): read_accounts_v1,
+  ("exists", "1"): account_exists_v1,
+}
 
 
 async def handle_accounts_request(
