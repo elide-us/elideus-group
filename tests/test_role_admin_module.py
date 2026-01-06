@@ -1,12 +1,14 @@
 import types, asyncio
 from fastapi import HTTPException
 
+import server.modules.role_admin_module as role_admin_module
 from server.modules.role_admin_module import RoleAdminModule
 
 
 class DummyDb:
   def __init__(self, roles=None):
     self.roles = roles or []
+    self.provider = "mssql"
   async def on_ready(self):
     pass
   async def run(self, op, args=None):
@@ -52,7 +54,16 @@ async def make_module(roles, auth_roles):
   await mod.startup()
   return mod
 
-def test_list_roles_filters_and_sorts():
+def test_list_roles_filters_and_sorts(monkeypatch):
+  async def fake_dispatch(request, *, provider, fallback):
+    return role_admin_module.DBResponse(op=request.op, payload=roles)
+
+  monkeypatch.setattr(
+    role_admin_module,
+    "dispatch_query_request_with_fallback",
+    fake_dispatch,
+  )
+
   roles = [
     {"name": "ROLE_B", "mask": 4, "display": None},
     {"name": "ROLE_REGISTERED", "mask": 1, "display": None},

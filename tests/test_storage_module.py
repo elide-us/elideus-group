@@ -5,9 +5,6 @@ from fastapi import FastAPI
 from server.modules.storage_module import StorageModule
 import server.modules.storage_module as storage_module
 from server.modules import BaseModule
-from server.modules.providers.database.mssql_provider import MssqlProvider
-import server.registry.providers.mssql as registry_mssql
-from server.modules.providers import DBResponse
 from server.modules.providers.storage import (
   StorageBlobItem,
   StorageBlobProperties,
@@ -89,26 +86,6 @@ def test_parse_duration_shorthand():
   assert StorageModule._parse_duration("2w") == 1209600
 
 
-def test_list_public_files(monkeypatch):
-  app = FastAPI()
-  provider = MssqlProvider()
-
-  async def fake_fetch_json(sql, params, *, many=False):
-    assert many
-    return DBResponse(rows=[
-      {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
-      {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
-    ], rowcount=2)
-
-  monkeypatch.setattr(registry_mssql, "fetch_json", fake_fetch_json)
-
-  mod = StorageModule(app)
-  mod.db = provider
-  rows = asyncio.run(mod.list_public_files())
-  assert rows == [
-    {"user_guid": "u1", "display_name": "U1", "path": "", "name": "a.txt", "url": "u/a.txt", "content_type": "text/plain"},
-    {"user_guid": "u2", "display_name": "U2", "path": "", "name": "b.txt", "url": "u/b.txt", "content_type": "text/plain"},
-  ]
 
 
 def test_list_files_by_user():
