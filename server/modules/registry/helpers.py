@@ -88,6 +88,7 @@ from server.registry.system.roles import (
   remove_role_member_request,
   upsert_role_request,
 )
+from server.registry.system.roles.model import ModifyRoleMemberParams, RoleScopeParams
 from server.registry.system.public_vars import (
   get_hostname_request,
   get_repo_request,
@@ -122,17 +123,46 @@ def identity_account_exists_request(user_guid: str) -> QueryDBRequest:
     payload={"user_guid": user_guid},
   )
 
+def list_role_memberships_request(params: RoleScopeParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:identity:role_memberships:list:1",
+    payload=params.model_dump(),
+  )
+
+
+def list_role_non_memberships_request(params: RoleScopeParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:identity:role_memberships:list_non_members:1",
+    payload=params.model_dump(),
+  )
+
+
+def create_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:identity:role_memberships:create:1",
+    payload=params.model_dump(),
+  )
+
+
+def delete_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:identity:role_memberships:delete:1",
+    payload=params.model_dump(),
+  )
+
 
 get_profile_request = _profile_get_profile_request
 
 __all__ = sorted([
   "add_role_member_request",
   "count_rows_request",
+  "create_role_membership_request",
   "create_from_provider_request",
   "create_session_request",
   "delete_cache_folder_request",
   "delete_cache_item_request",
   "delete_config_request",
+  "delete_role_membership_request",
   "delete_persona_request",
   "delete_route_request",
   "delete_role_request",
@@ -164,6 +194,8 @@ __all__ = sorted([
   "list_by_time_request",
   "list_cache_request",
   "list_models_request",
+  "list_role_memberships_request",
+  "list_role_non_memberships_request",
   "list_personas_request",
   "list_public_request",
   "list_reported_request",

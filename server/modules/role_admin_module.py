@@ -1,4 +1,8 @@
+from collections.abc import Mapping
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
+from queryregistry.handler import dispatch_query_request
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
@@ -8,12 +12,22 @@ from server.registry.system.roles.model import (
   RoleScopeParams,
 )
 from server.modules.registry.helpers import (
-  add_role_member_request,
-  get_role_members_request,
-  get_role_non_members_request,
+  create_role_membership_request,
+  delete_role_membership_request,
+  list_role_memberships_request,
+  list_role_non_memberships_request,
   list_roles_request,
-  remove_role_member_request,
 )
+
+
+def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
+  if payload is None:
+    return []
+  if isinstance(payload, list):
+    return [dict(item) for item in payload]
+  if isinstance(payload, Mapping):
+    return [dict(payload)]
+  return [dict(payload)]
 
 
 class RoleAdminModule(BaseModule):
@@ -62,15 +76,22 @@ class RoleAdminModule(BaseModule):
     return roles
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
-    mem_res = await self.db.run(get_role_members_request(RoleScopeParams(role=role)))
-    non_res = await self.db.run(get_role_non_members_request(RoleScopeParams(role=role)))
+    provider_name = self.db.provider or "mssql"
+    mem_res = await dispatch_query_request(
+      list_role_memberships_request(RoleScopeParams(role=role)),
+      provider=provider_name,
+    )
+    non_res = await dispatch_query_request(
+      list_role_non_memberships_request(RoleScopeParams(role=role)),
+      provider=provider_name,
+    )
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
-      for r in mem_res.rows
+      for r in _normalize_payload(mem_res.payload)
     ]
     non_members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
-      for r in non_res.rows
+      for r in _normalize_payload(non_res.payload)
     ]
     return members, non_members
 
@@ -78,7 +99,11 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(add_role_member_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)))
+    provider_name = self.db.provider or "mssql"
+    await dispatch_query_request(
+      create_role_membership_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)),
+      provider=provider_name,
+    )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
@@ -86,7 +111,11 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(remove_role_member_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)))
+    provider_name = self.db.provider or "mssql"
+    await dispatch_query_request(
+      delete_role_membership_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)),
+      provider=provider_name,
+    )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
