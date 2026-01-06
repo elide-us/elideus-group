@@ -7,6 +7,7 @@ from server.modules.role_admin_module import RoleAdminModule
 class DummyDb:
   def __init__(self, roles=None):
     self.roles = roles or []
+    self.provider = "mssql"
   async def on_ready(self):
     pass
   async def run(self, op, args=None):
