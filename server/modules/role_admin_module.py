@@ -3,20 +3,23 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
+from queryregistry.models import DBResponse
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.registry.models import DBRequest
 from server.registry.system.roles.model import (
   ModifyRoleMemberParams,
   RoleScopeParams,
 )
 from server.modules.registry.helpers import (
   create_role_membership_request,
+  dispatch_query_request_with_fallback,
   delete_role_membership_request,
   list_role_memberships_request,
   list_role_non_memberships_request,
-  list_roles_request,
+  list_system_roles_request,
 )
 
 
@@ -28,6 +31,27 @@ def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
   if isinstance(payload, Mapping):
     return [dict(payload)]
   return [dict(payload)]
+
+
+async def _dispatch_role_request(
+  db: DbModule,
+  request,
+  *,
+  fallback_op: str,
+) -> DBResponse:
+  provider_name = db.provider or "mssql"
+
+  async def fallback() -> DBResponse:
+    legacy_response = await db.run(
+      DBRequest(op=fallback_op, payload=request.payload),
+    )
+    return DBResponse(op=request.op, payload=legacy_response.payload)
+
+  return await dispatch_query_request_with_fallback(
+    request,
+    provider=provider_name,
+    fallback=fallback,
+  )
 
 
 class RoleAdminModule(BaseModule):
@@ -59,14 +83,18 @@ class RoleAdminModule(BaseModule):
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def list_roles(self, actor_mask: int | None = None) -> list[dict]:
-    res = await self.db.run(list_roles_request())
+    res = await _dispatch_role_request(
+      self.db,
+      list_system_roles_request(),
+      fallback_op="db:system:roles:list:1",
+    )
     roles = [
       {
         "name": r.get("name", ""),
         "mask": str(r.get("mask", "")),
         "display": r.get("display"),
       }
-      for r in res.rows
+      for r in _normalize_payload(res.payload)
       if r.get("name") != "ROLE_REGISTERED"
     ]
     roles.sort(key=lambda r: int(r.get("mask", 0)))
