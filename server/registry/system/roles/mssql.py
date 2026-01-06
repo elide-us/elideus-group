@@ -105,9 +105,10 @@ async def upsert_role_v1(args: dict[str, Any]) -> DBResponse:
 async def delete_role_v1(args: dict[str, Any]) -> DBResponse:
   name = args["name"]
   sql = """
-    DECLARE @mask BIGINT;
-    SELECT @mask = element_mask FROM system_roles WHERE element_name = ?;
-    UPDATE users_roles SET element_roles = element_roles & ~@mask;
+    UPDATE ur
+    SET element_roles = ur.element_roles & ~sr.element_mask
+    FROM users_roles ur
+    JOIN system_roles sr ON sr.element_name = ?;
     DELETE FROM system_roles WHERE element_name = ?;
   """
   return await run_exec(sql, (name, name))
