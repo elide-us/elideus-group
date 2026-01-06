@@ -1,12 +1,14 @@
 """Authentication module handling login and token workflows."""
 
 import base64, logging, uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
-from typing import Dict
+from typing import Any, Dict
 
 from queryregistry.handler import dispatch_query_request
+from queryregistry.models import DBResponse
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
@@ -16,13 +18,16 @@ from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
 from server.registry.account.profile.model import GuidParams
+from server.registry.models import DBRequest
+from server.registry.system.roles.model import DeleteRoleParams, UpsertRoleParams
 from server.modules.registry.helpers import (
-  delete_role_request,
+  delete_system_role_request,
+  dispatch_query_request_with_fallback,
   get_roles_request,
   get_identity_security_profile_request,
   get_rotkey_request,
-  list_roles_request,
-  upsert_role_request,
+  list_system_roles_request,
+  update_system_role_request,
 )
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
@@ -37,20 +42,51 @@ class RoleCache:
     self.role_registered: int = 0
     self._user_roles: dict[str, tuple[list[str], int]] = {}
 
+  @staticmethod
+  def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
+
+  async def _dispatch_system_role_request(self, request, *, fallback_op: str) -> DBResponse:
+    provider_name = self.db.provider or "mssql"
+
+    async def fallback() -> DBResponse:
+      legacy_response = await self.db.run(
+        DBRequest(op=fallback_op, payload=request.payload),
+      )
+      return DBResponse(op=request.op, payload=legacy_response.payload)
+
+    return await dispatch_query_request_with_fallback(
+      request,
+      provider=provider_name,
+      fallback=fallback,
+    )
+
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
-      result = await self.db.run(list_roles_request())
+      result = await self._dispatch_system_role_request(
+        list_system_roles_request(),
+        fallback_op="db:system:roles:list:1",
+      )
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
-    rows = result.rows
+    rows = self._normalize_payload(result.payload)
     if not rows:
       logging.debug("[RoleCache] No roles returned")
       return
     self.roles.clear()
     for r in rows:
-      self.roles[r["name"]] = int(r["mask"])
+      name = r.get("name")
+      if not name:
+        continue
+      self.roles[name] = int(r.get("mask", 0) or 0)
     self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
     self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
     self._user_roles.clear()
@@ -61,13 +97,19 @@ class RoleCache:
     await self.load_roles()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    await self.db.run(
-      upsert_role_request(name=name, mask=mask, display=display),
+    await self._dispatch_system_role_request(
+      update_system_role_request(
+        UpsertRoleParams(name=name, mask=mask, display=display),
+      ),
+      fallback_op="db:system:roles:upsert_role:1",
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
-    await self.db.run(delete_role_request(name=name))
+    await self._dispatch_system_role_request(
+      delete_system_role_request(DeleteRoleParams(name=name)),
+      fallback_op="db:system:roles:delete_role:1",
+    )
     await self.refresh_role_cache()
 
   def mask_to_names(self, mask: int) -> list[str]:

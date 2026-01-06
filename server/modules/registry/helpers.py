@@ -1,6 +1,11 @@
 """Re-export registry request builders for use within modules."""
 
-from queryregistry.models import DBRequest as QueryDBRequest
+import logging
+from collections.abc import Awaitable, Callable
+
+from fastapi import HTTPException
+from queryregistry.handler import dispatch_query_request
+from queryregistry.models import DBRequest as QueryDBRequest, DBResponse as QueryDBResponse
 from server.registry.account.cache import (
   count_rows_request,
   delete_cache_folder_request,
@@ -81,14 +86,16 @@ from server.registry.system.routes import (
 )
 from server.registry.system.roles import (
   add_role_member_request,
-  delete_role_request,
   get_role_members_request,
   get_role_non_members_request,
-  list_roles_request,
   remove_role_member_request,
-  upsert_role_request,
 )
-from server.registry.system.roles.model import ModifyRoleMemberParams, RoleScopeParams
+from server.registry.system.roles.model import (
+  DeleteRoleParams,
+  ModifyRoleMemberParams,
+  RoleScopeParams,
+  UpsertRoleParams,
+)
 from server.registry.system.public_vars import (
   get_hostname_request,
   get_repo_request,
@@ -123,6 +130,7 @@ def identity_account_exists_request(user_guid: str) -> QueryDBRequest:
     payload={"user_guid": user_guid},
   )
 
+
 def list_role_memberships_request(params: RoleScopeParams) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:role_memberships:list:1",
@@ -151,6 +159,74 @@ def delete_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBReq
   )
 
 
+def list_system_roles_request() -> QueryDBRequest:
+  return QueryDBRequest(op="db:system:roles:list:1", payload={})
+
+
+def create_system_role_request(params: UpsertRoleParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:system:roles:create:1",
+    payload=params.model_dump(),
+  )
+
+
+def update_system_role_request(params: UpsertRoleParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:system:roles:update:1",
+    payload=params.model_dump(),
+  )
+
+
+def delete_system_role_request(params: DeleteRoleParams) -> QueryDBRequest:
+  return QueryDBRequest(
+    op="db:system:roles:delete:1",
+    payload=params.model_dump(),
+  )
+
+
+def _log_registry_fallback(op: str, provider: str, reason: str) -> None:
+  registry_logger = logging.getLogger("server.registry")
+  registry_logger.warning(
+    "Registry handler fallback triggered",
+    extra={
+      "db_op": op,
+      "db_provider": provider,
+      "db_fallback_reason": reason,
+    },
+  )
+  metrics_logger = logging.getLogger("metrics.registry")
+  metrics_logger.info(
+    "db_registry_fallback",
+    extra={
+      "db_op": op,
+      "db_provider": provider,
+      "db_fallback_reason": reason,
+    },
+  )
+
+
+async def dispatch_query_request_with_fallback(
+  request: QueryDBRequest,
+  *,
+  provider: str,
+  fallback: Callable[[], Awaitable[QueryDBResponse]] | None = None,
+) -> QueryDBResponse:
+  try:
+    response = await dispatch_query_request(request, provider=provider)
+  except (KeyError, HTTPException) as exc:
+    if isinstance(exc, HTTPException) and exc.status_code != 404:
+      raise
+    _log_registry_fallback(request.op, provider, "missing_handler")
+    if fallback is None:
+      raise
+    return await fallback()
+  logging.getLogger("server.registry").info(
+    "Registry handler resolved",
+    extra={"db_op": request.op, "db_provider": provider},
+  )
+  return response
+
+
 get_profile_request = _profile_get_profile_request
 
 __all__ = sorted([
@@ -165,7 +241,8 @@ __all__ = sorted([
   "delete_role_membership_request",
   "delete_persona_request",
   "delete_route_request",
-  "delete_role_request",
+  "delete_system_role_request",
+  "dispatch_query_request_with_fallback",
   "find_recent_request",
   "get_any_by_provider_identifier_request",
   "get_by_provider_identifier_request",
@@ -199,7 +276,7 @@ __all__ = sorted([
   "list_personas_request",
   "list_public_request",
   "list_reported_request",
-  "list_roles_request",
+  "list_system_roles_request",
   "relink_discord_request",
   "relink_google_request",
   "relink_microsoft_request",
@@ -207,6 +284,7 @@ __all__ = sorted([
   "replace_user_cache_request",
   "revoke_device_token_request",
   "revoke_provider_tokens_request",
+  "create_system_role_request",
   "set_credits_request",
   "set_display_request",
   "set_gallery_request",
@@ -221,9 +299,9 @@ __all__ = sorted([
   "update_if_unedited_request",
   "update_output_request",
   "update_session_request",
+  "update_system_role_request",
   "upsert_cache_item_request",
   "upsert_config_request",
   "upsert_persona_request",
   "upsert_route_request",
-  "upsert_role_request",
 ])
