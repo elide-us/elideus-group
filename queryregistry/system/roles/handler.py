@@ -6,11 +6,18 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+
+from .services import delete_role_v1, list_roles_v1, upsert_role_v1
+from ..dispatch import SubdomainDispatcher
 
 __all__ = ["handle_roles_request"]
 
-DISPATCHERS = build_stub_dispatchers("system.roles")
+DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
+  ("list", "1"): list_roles_v1,
+  ("create", "1"): upsert_role_v1,
+  ("update", "1"): upsert_role_v1,
+  ("delete", "1"): delete_role_v1,
+}
 
 
 async def handle_roles_request(
