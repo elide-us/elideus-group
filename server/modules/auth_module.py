@@ -17,13 +17,11 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile.model import GuidParams
 from server.registry.models import DBRequest
 from server.registry.system.roles.model import DeleteRoleParams, UpsertRoleParams
 from server.modules.registry.helpers import (
   delete_system_role_request,
   dispatch_query_request_with_fallback,
-  get_roles_request,
   get_identity_security_profile_request,
   get_rotkey_request,
   list_system_roles_request,
@@ -131,9 +129,13 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    params = GuidParams(guid=guid)
-    res = await self.db.run(get_roles_request(params))
-    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+    response = await dispatch_query_request(
+      get_identity_security_profile_request(guid=guid),
+      provider=self.db.provider or "mssql",
+    )
+    rows = self._normalize_payload(response.payload)
+    row = rows[0] if rows else {}
+    mask = int(row.get("user_roles") or row.get("element_roles") or 0)
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
     logging.debug("[RoleCache] Roles for %s: %s (mask=%#018x)", guid, names, mask)
