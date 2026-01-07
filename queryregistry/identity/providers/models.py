@@ -105,6 +105,8 @@ class RelinkProviderRequestPayload(TypedDict, total=False):
   email: str
   display_name: str
   profile_image: str
+  confirm: bool
+  reauth_token: str
 
 
 CreateFromProviderCallable = Callable[[CreateFromProviderRequestPayload], Awaitable[DBResponse]]
