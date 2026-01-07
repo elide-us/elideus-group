@@ -6,11 +6,32 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+
+from .services import (
+  create_from_provider_v1,
+  get_any_by_provider_identifier_v1,
+  get_by_provider_identifier_v1,
+  get_user_by_email_v1,
+  link_provider_v1,
+  relink_provider_v1,
+  set_provider_v1,
+  unlink_last_provider_v1,
+  unlink_provider_v1,
+)
 
 __all__ = ["handle_providers_request"]
 
-DISPATCHERS = build_stub_dispatchers("identity.providers")
+DISPATCHERS = {
+  ("get_by_provider_identifier", "1"): get_by_provider_identifier_v1,
+  ("get_any_by_provider_identifier", "1"): get_any_by_provider_identifier_v1,
+  ("get_user_by_email", "1"): get_user_by_email_v1,
+  ("create_from_provider", "1"): create_from_provider_v1,
+  ("link_provider", "1"): link_provider_v1,
+  ("unlink_provider", "1"): unlink_provider_v1,
+  ("unlink_last_provider", "1"): unlink_last_provider_v1,
+  ("set_provider", "1"): set_provider_v1,
+  ("relink", "1"): relink_provider_v1,
+}
 
 
 async def handle_providers_request(
