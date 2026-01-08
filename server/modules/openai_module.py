@@ -88,7 +88,7 @@ class OpenaiModule(BaseModule):
       await self.discord_output.on_ready()
     self.client = await self.init_openai_client()
     self.app.state.openai = self
-    logging.info("[OpenaiModule] loaded")
+    logging.debug("[OpenaiModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):

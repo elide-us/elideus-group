@@ -101,7 +101,7 @@ class DiscordBotModule(BaseModule):
       if getattr(self.app.state, "discord_bot", None) is self:
         self.app.state.discord_bot = None
       raise
-    logging.info("Discord bot module loaded")
+    logging.debug("Discord bot module loaded")
     self.mark_ready()
 
   async def shutdown(self):

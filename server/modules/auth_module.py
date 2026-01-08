@@ -209,7 +209,7 @@ class AuthModule(BaseModule):
         self.providers["discord"] = provider
         logging.debug("[AuthModule] Discord provider ready")
       await self.role_cache.load_roles()
-      logging.info("Auth module loaded")
+      logging.debug("Auth module loaded")
       self.mark_ready()
     except Exception as e:
       logging.exception("[AuthModule] Failed to load providers: %s", e)

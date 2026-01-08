@@ -19,7 +19,7 @@ class DiscordChatModule(BaseModule):
     if self.discord:
       await self.discord.on_ready()
     self.app.state.discord_chat = self
-    logging.info("[DiscordChatModule] loaded")
+    logging.debug("[DiscordChatModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):

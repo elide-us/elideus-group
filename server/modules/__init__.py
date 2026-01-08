@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from fastapi import FastAPI
 from typing import Type, Dict, List
 from server.helpers.strings import camel_case
-import asyncio, os, importlib
+import asyncio, logging, os, importlib
 
 MODULES_FOLDER = os.path.dirname(__file__)
 
@@ -49,7 +49,14 @@ class ModuleManager:
       self.instances[module_name] = instance
 
   async def startup_all(self):
-    await asyncio.gather(*(mod.startup() for mod in self.instances.values()))
+    async def _startup_module(name: str, module: BaseModule):
+      await module.startup()
+      logging.info("[Module] %s loaded", name)
+
+    await asyncio.gather(*(
+      _startup_module(name, module)
+      for name, module in self.instances.items()
+    ))
 
   async def shutdown_all(self):
     await asyncio.gather(*(mod.shutdown() for mod in self.instances.values()))
