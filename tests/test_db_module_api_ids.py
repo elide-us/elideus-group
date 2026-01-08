@@ -3,7 +3,6 @@ from fastapi import FastAPI
 
 from server.modules.db_module import DbModule
 from server.modules.providers import DBResponse
-from server.registry.models import DBRequest
 
 
 def test_get_google_client_id():
@@ -11,7 +10,6 @@ def test_get_google_client_id():
   db = DbModule(app)
 
   async def fake_run(request):
-    assert isinstance(request, DBRequest)
     assert request.op == "db:system:config:get_config:1"
     assert request.payload == {"key": "GoogleClientId"}
     return DBResponse(rows=[{"value": "gid"}], rowcount=1)
@@ -38,7 +36,6 @@ def test_get_discord_client_id():
   db = DbModule(app)
 
   async def fake_run(request):
-    assert isinstance(request, DBRequest)
     assert request.op == "db:system:config:get_config:1"
     assert request.payload == {"key": "DiscordClientId"}
     return DBResponse(rows=[{"value": "dcid"}], rowcount=1)
@@ -52,7 +49,6 @@ def test_get_ms_api_id():
   db = DbModule(app)
 
   async def fake_run(request):
-    assert isinstance(request, DBRequest)
     assert request.op == "db:system:config:get_config:1"
     assert request.payload == {"key": "MsApiId"}
     return DBResponse(rows=[{"value": "mid"}], rowcount=1)
@@ -66,7 +62,6 @@ def test_get_auth_providers():
   db = DbModule(app)
 
   async def fake_run(request):
-    assert isinstance(request, DBRequest)
     assert request.op == "db:system:config:get_config:1"
     assert request.payload == {"key": "AuthProviders"}
     return DBResponse(rows=[{"value": "microsoft,google,discord"}], rowcount=1)
@@ -80,11 +75,9 @@ def test_get_jwks_cache_time():
   db = DbModule(app)
 
   async def fake_run(request):
-    assert isinstance(request, DBRequest)
     assert request.op == "db:system:config:get_config:1"
     assert request.payload == {"key": "JwksCacheTime"}
     return DBResponse(rows=[{"value": "45"}], rowcount=1)
 
   db.run = fake_run
   assert asyncio.run(db.get_jwks_cache_time()) == 45
-

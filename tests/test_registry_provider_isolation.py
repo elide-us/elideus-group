@@ -11,8 +11,7 @@ from fastapi import FastAPI
 
 from server.modules.db_module import DbModule
 from server.modules.env_module import EnvModule
-from server.modules.providers import DbProviderBase
-from server.registry.types import DBRequest, DBResponse
+from server.modules.providers import DbProviderBase, DBRequest, DBResponse
 
 
 REGISTRY_ROOT = Path("server/registry")

@@ -6,7 +6,22 @@ from types import SimpleNamespace
 import sys
 
 import pytest
-from server.registry.models import DBRequest
+from queryregistry.models import DBRequest
+
+_ORIGINAL_MODULES = {
+  "server": sys.modules.get("server"),
+  "server.modules": sys.modules.get("server.modules"),
+  "server.modules.auth_module": sys.modules.get("server.modules.auth_module"),
+  "server.modules.db_module": sys.modules.get("server.modules.db_module"),
+}
+
+
+def _restore_modules():
+  for name, original in _ORIGINAL_MODULES.items():
+    if original is None:
+      sys.modules.pop(name, None)
+    else:
+      sys.modules[name] = original
 
 # stub rpc package and load required modules
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -81,9 +96,9 @@ class DummyDb:
     assert isinstance(request, DBRequest)
     op = request.op
     self.calls.append(request)
-    if op == "db:system:roles:get_role_members:1":
+    if op == "db:identity:role_memberships:list:1":
       return DBRes(self.members, len(self.members))
-    if op == "db:system:roles:get_role_non_members:1":
+    if op == "db:identity:role_memberships:list_non_members:1":
       return DBRes(self.non_members, len(self.non_members))
     return DBRes()
 
@@ -229,6 +244,12 @@ svc_spec.loader.exec_module(svc_mod)
 
 service_roles_upsert_role_v1 = svc_mod.service_roles_upsert_role_v1
 
+_restore_modules()
+
+
+def teardown_module(module):
+  _restore_modules()
+
 
 def test_get_roles_allows_system_admin():
   async def fake_get(request):
@@ -303,5 +324,3 @@ def test_delete_role_calls_db_and_loads_roles():
     for call in db.calls
   )
   assert auth.role_cache.loaded
-
-

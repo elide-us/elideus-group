@@ -112,18 +112,6 @@ service_routes_module_pkg.ServiceRoutesModule = StubServiceRoutesModule
 modules_pkg.service_routes_module = service_routes_module_pkg
 
 
-registry_pkg = types.ModuleType('server.registry')
-registry_pkg.__path__ = []
-
-registry_system_pkg = types.ModuleType('server.registry.system')
-registry_system_pkg.__path__ = []
-
-sys.modules.setdefault('server.registry', registry_pkg)
-sys.modules.setdefault('server.registry.system', registry_system_pkg)
-
-server_pkg.registry = registry_pkg
-registry_pkg.system = registry_system_pkg
-
 sys.modules.setdefault('server.modules.service_routes_module', service_routes_module_pkg)
 svc_spec = importlib.util.spec_from_file_location(
   'rpc.service.routes.services',

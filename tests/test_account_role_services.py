@@ -1,6 +1,6 @@
 import types, sys, pathlib, asyncio, importlib
 from fastapi import HTTPException
-from server.registry.models import DBRequest
+from queryregistry.models import DBRequest
 
 # stub rpc package and load required modules
 root_path = pathlib.Path(__file__).resolve().parent.parent
@@ -46,9 +46,9 @@ class DummyDb:
     assert isinstance(request, DBRequest)
     op = request.op
     self.calls.append(request)
-    if op == "db:system:roles:get_role_members:1":
+    if op == "db:identity:role_memberships:list:1":
       return DBRes(self.members, len(self.members))
-    if op == "db:system:roles:get_role_non_members:1":
+    if op == "db:identity:role_memberships:list_non_members:1":
       return DBRes(self.non_members, len(self.non_members))
     if op == "db:system:roles:list:1":
       return DBRes(self.roles, len(self.roles))
@@ -126,10 +126,13 @@ class DummyRoleAdmin:
 
   async def get_role_members(self, role):
     mem_res = await self.db.run(
-      DBRequest(op="db:system:roles:get_role_members:1", payload={"role": role})
+      DBRequest(op="db:identity:role_memberships:list:1", payload={"role": role})
     )
     non_res = await self.db.run(
-      DBRequest(op="db:system:roles:get_role_non_members:1", payload={"role": role})
+      DBRequest(
+        op="db:identity:role_memberships:list_non_members:1",
+        payload={"role": role},
+      )
     )
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
@@ -147,7 +150,7 @@ class DummyRoleAdmin:
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       DBRequest(
-        op="db:system:roles:add_role_member:1",
+        op="db:identity:role_memberships:create:1",
         payload={"role": role, "user_guid": user_guid},
       )
     )
@@ -160,7 +163,7 @@ class DummyRoleAdmin:
       self._ensure_can_manage(actor_mask, role_mask)
     await self.db.run(
       DBRequest(
-        op="db:system:roles:remove_role_member:1",
+        op="db:identity:role_memberships:delete:1",
         payload={"role": role, "user_guid": user_guid},
       )
     )
@@ -223,7 +226,7 @@ def test_add_and_remove_member():
   svc_mod.unbox_request = fake_get_add
   resp = asyncio.run(account_role_add_role_member_v1(req))
   assert any(
-    call.op == "db:system:roles:add_role_member:1"
+    call.op == "db:identity:role_memberships:create:1"
     for call in db.calls
   )
   assert resp.payload["members"] == [{"guid": "u1", "displayName": "User 1"}]
@@ -249,7 +252,7 @@ def test_add_and_remove_member():
   svc_mod.unbox_request = fake_get_remove
   resp2 = asyncio.run(account_role_remove_role_member_v1(req))
   assert any(
-    call.op == "db:system:roles:remove_role_member:1"
+    call.op == "db:identity:role_memberships:delete:1"
     for call in db.calls
   )
   assert resp2.payload["members"] == []
