@@ -53,45 +53,6 @@ sys.modules.setdefault("server.modules.db_module", db_module_pkg)
 sys.modules.setdefault("server.modules.profile_module", profile_module_pkg)
 sys.modules.setdefault("server.models", models_pkg)
 
-registry_pkg = types.ModuleType("server.registry")
-registry_pkg.__path__ = [str(root_path / "server/registry")]
-registry_types_pkg = types.ModuleType("server.registry.types")
-registry_types_pkg.__path__ = [str(root_path / "server/registry")]
-
-class DBRequest:
-  def __init__(self, *, op, payload):
-    self.op = op
-    self.payload = dict(payload)
-
-class DBResponse:
-  def __init__(self, *, op="", payload=None, rows=None, rowcount=None):
-    if rows is not None:
-      payload = [dict(row) for row in rows]
-      if rowcount is None:
-        rowcount = len(payload)
-    self.op = op
-    self.payload = [] if payload is None else payload
-    if rowcount is None:
-      rowcount = 0
-    self.rowcount = rowcount
-
-  @property
-  def rows(self):
-    data = self.payload
-    if data is None:
-      return []
-    if isinstance(data, list):
-      return data
-    if isinstance(data, (tuple, set)):
-      return list(data)
-    return [data]
-
-registry_types_pkg.DBRequest = DBRequest
-registry_types_pkg.DBResponse = DBResponse
-registry_pkg.types = registry_types_pkg
-sys.modules.setdefault("server.registry", registry_pkg)
-sys.modules.setdefault("server.registry.types", registry_types_pkg)
-
 auth_module_pkg = types.ModuleType("server.modules.auth_module")
 class AuthModule: ...
 auth_module_pkg.AuthModule = AuthModule

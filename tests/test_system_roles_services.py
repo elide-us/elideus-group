@@ -3,7 +3,23 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
-from server.registry.models import DBRequest
+from queryregistry.models import DBRequest
+
+_ORIGINAL_MODULES = {
+  "server": sys.modules.get("server"),
+  "server.modules": sys.modules.get("server.modules"),
+  "server.modules.db_module": sys.modules.get("server.modules.db_module"),
+  "server.modules.auth_module": sys.modules.get("server.modules.auth_module"),
+  "server.models": sys.modules.get("server.models"),
+}
+
+
+def _restore_modules():
+  for name, original in _ORIGINAL_MODULES.items():
+    if original is None:
+      sys.modules.pop(name, None)
+    else:
+      sys.modules[name] = original
 
 # Stub rpc package
 pkg = types.ModuleType('rpc')
@@ -106,6 +122,8 @@ system_roles_get_roles_v1 = svc.system_roles_get_roles_v1
 system_roles_upsert_role_v1 = svc.system_roles_upsert_role_v1
 system_roles_delete_role_v1 = svc.system_roles_delete_role_v1
 
+_restore_modules()
+
 async def fake_unbox(request: Request):
   body = await request.json()
   op = body.get('op')
@@ -175,6 +193,10 @@ async def rpc_endpoint(request: Request):
   raise AssertionError('unexpected op')
 
 client = TestClient(app)
+
+
+def teardown_module(module):
+  _restore_modules()
 
 def test_get_roles_service():
   resp = client.post('/rpc', json={'op': 'urn:system:roles:get_roles:1'})
