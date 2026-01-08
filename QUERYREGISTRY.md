@@ -77,3 +77,19 @@ Examples of currently scaffolded CRUD stubs:
 - System: `queryregistry/system/handler.py`
 - Finance: `queryregistry/finance/handler.py`
 - Account (legacy): `queryregistry/account/handler.py`
+
+## OAuth provider coverage to reimplement
+
+The legacy OAuth provider tests were removed while migrating to the query
+registry. Reintroduce coverage that exercises the QueryRegistry-backed flows
+end-to-end (RPC → service → module → query registry) once the new mocks are in
+place:
+
+- OAuth login and relink flows for `google`, `microsoft`, and `discord` using
+  `db:identity:providers:relink:1` along with lookup operations for
+  `get_by_provider_identifier` and `get_any_by_provider_identifier`.
+- Email collision handling via `get_user_by_email` before `create_from_provider`.
+- Profile refresh behavior (display name/email updates) after login.
+- Profile image update/clear behavior after login.
+- Microsoft home-account identifier fallback resolution.
+- Google soft-undelete relink behavior.
