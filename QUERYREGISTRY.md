@@ -78,6 +78,21 @@ Examples of currently scaffolded CRUD stubs:
 - Finance: `queryregistry/finance/handler.py`
 - Account (legacy): `queryregistry/account/handler.py`
 
+## Migration notes: links + roles registry cutover
+
+### Old → new handler mapping (with call chains)
+
+| DB op(s) | Old handler | New handler | Call chain |
+| --- | --- | --- | --- |
+| `db:system:links:get_navbar_routes:1` | `server/registry/system/links/mssql.py:get_navbar_routes_v1` | `queryregistry/system/links/mssql.py:get_navbar_routes` | `rpc/public/links/services.py` → `server/modules/public_links_module.py` |
+| `db:system:roles:list:1`, `db:system:roles:update:1`, `db:system:roles:delete:1` | `server/registry/system/roles/mssql.py` | `queryregistry/system/roles/mssql.py` | `server/modules/auth_module.py`, `server/modules/role_admin_module.py` |
+| `db:system:roles:get_role_members:1`, `db:system:roles:get_role_non_members:1`, `db:system:roles:add_role_member:1`, `db:system:roles:remove_role_member:1` | `server/registry/system/roles/mssql.py:get_role_members_v1` / `get_role_non_members_v1` / `add_role_member_v1` / `remove_role_member_v1` | `queryregistry/identity/role_memberships/mssql.py:list_role_members` / `list_role_non_members` / `add_role_member` / `remove_role_member` | `server/modules/role_admin_module.py` via helper builders in `server/modules/registry/helpers.py` |
+
+### Validation reminders
+
+- NavBar route filtering uses `auth_ctx.role_mask` from the RPC layer, and the query registry `get_navbar_routes` handler filters using the `role_mask` supplied in the payload. Keep these data flow assumptions intact when removing the legacy registry modules.
+- This migration assumes the legacy handlers are removed without aliasing or fallback shims once the query registry equivalents are live.
+
 ## OAuth provider coverage to reimplement
 
 The legacy OAuth provider tests were removed while migrating to the query
