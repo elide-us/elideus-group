@@ -3,19 +3,16 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
-from queryregistry.models import DBResponse
+from queryregistry.identity.role_memberships.models import (
+  ModifyRoleMemberPayload,
+  RoleScopePayload,
+)
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.models import DBRequest
-from server.registry.system.roles.model import (
-  ModifyRoleMemberParams,
-  RoleScopeParams,
-)
 from server.modules.registry.helpers import (
   create_role_membership_request,
-  dispatch_query_request_with_fallback,
   delete_role_membership_request,
   list_role_memberships_request,
   list_role_non_memberships_request,
@@ -31,27 +28,6 @@ def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
   if isinstance(payload, Mapping):
     return [dict(payload)]
   return [dict(payload)]
-
-
-async def _dispatch_role_request(
-  db: DbModule,
-  request,
-  *,
-  fallback_op: str,
-) -> DBResponse:
-  provider_name = db.provider or "mssql"
-
-  async def fallback() -> DBResponse:
-    legacy_response = await db.run(
-      DBRequest(op=fallback_op, payload=request.payload),
-    )
-    return DBResponse(op=request.op, payload=legacy_response.payload)
-
-  return await dispatch_query_request_with_fallback(
-    request,
-    provider=provider_name,
-    fallback=fallback,
-  )
 
 
 class RoleAdminModule(BaseModule):
@@ -83,10 +59,9 @@ class RoleAdminModule(BaseModule):
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def list_roles(self, actor_mask: int | None = None) -> list[dict]:
-    res = await _dispatch_role_request(
-      self.db,
+    res = await dispatch_query_request(
       list_system_roles_request(),
-      fallback_op="db:system:roles:list:1",
+      provider=self.db.provider or "mssql",
     )
     roles = [
       {
@@ -105,12 +80,13 @@ class RoleAdminModule(BaseModule):
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
     provider_name = self.db.provider or "mssql"
+    scope: RoleScopePayload = {"role": role}
     mem_res = await dispatch_query_request(
-      list_role_memberships_request(RoleScopeParams(role=role)),
+      list_role_memberships_request(scope),
       provider=provider_name,
     )
     non_res = await dispatch_query_request(
-      list_role_non_memberships_request(RoleScopeParams(role=role)),
+      list_role_non_memberships_request(scope),
       provider=provider_name,
     )
     members = [
@@ -128,8 +104,9 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
+    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
     await dispatch_query_request(
-      create_role_membership_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)),
+      create_role_membership_request(payload),
       provider=provider_name,
     )
     await self.auth.refresh_user_roles(user_guid)
@@ -140,8 +117,9 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
+    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
     await dispatch_query_request(
-      delete_role_membership_request(ModifyRoleMemberParams(role=role, user_guid=user_guid)),
+      delete_role_membership_request(payload),
       provider=provider_name,
     )
     await self.auth.refresh_user_roles(user_guid)
