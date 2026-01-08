@@ -29,7 +29,7 @@ class EnvModule(BaseModule):
       self._getenv("MYSQL_SQL_CONNECTION_STRING", "MISSING_MYSQL_SQL_CONNECTION_STRING")
     self._getenv("AZURE_BLOB_CONNECTION_STRING", "MISSING_ENV_AZURE_BLOB_CONNECTION_STRING")
 
-    logging.info("Environment module loaded")
+    logging.debug("Environment module loaded")
     self.mark_ready()
 
   async def shutdown(self):

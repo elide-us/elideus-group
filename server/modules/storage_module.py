@@ -90,7 +90,7 @@ class StorageModule(BaseModule):
     except Exception as e:
       logging.error("[StorageModule] Failed to load StorageCacheTime: %s", e)
     self._reindex_task = asyncio.create_task(self._reindex_loop())
-    logging.info("Storage module loaded")
+    logging.debug("Storage module loaded")
     self.mark_ready()
 
   async def shutdown(self):
