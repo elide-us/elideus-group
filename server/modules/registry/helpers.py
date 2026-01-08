@@ -5,7 +5,12 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import HTTPException
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.role_memberships.models import (
+  ModifyRoleMemberPayload,
+  RoleScopePayload,
+)
 from queryregistry.models import DBRequest as QueryDBRequest, DBResponse as QueryDBResponse
+from queryregistry.system.roles.models import DeleteRolePayload, UpsertRolePayload
 from server.registry.account.cache import (
   count_rows_request,
   delete_cache_folder_request,
@@ -80,18 +85,6 @@ from server.registry.system.routes import (
   get_routes_request,
   upsert_route_request,
 )
-from server.registry.system.roles import (
-  add_role_member_request,
-  get_role_members_request,
-  get_role_non_members_request,
-  remove_role_member_request,
-)
-from server.registry.system.roles.model import (
-  DeleteRoleParams,
-  ModifyRoleMemberParams,
-  RoleScopeParams,
-  UpsertRoleParams,
-)
 from server.registry.system.public_vars import (
   get_hostname_request,
   get_repo_request,
@@ -127,31 +120,31 @@ def identity_account_exists_request(user_guid: str) -> QueryDBRequest:
   )
 
 
-def list_role_memberships_request(params: RoleScopeParams) -> QueryDBRequest:
+def list_role_memberships_request(params: RoleScopePayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:role_memberships:list:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
-def list_role_non_memberships_request(params: RoleScopeParams) -> QueryDBRequest:
+def list_role_non_memberships_request(params: RoleScopePayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:role_memberships:list_non_members:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
-def create_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBRequest:
+def create_role_membership_request(params: ModifyRoleMemberPayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:role_memberships:create:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
-def delete_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBRequest:
+def delete_role_membership_request(params: ModifyRoleMemberPayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:role_memberships:delete:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
@@ -170,24 +163,24 @@ def get_navbar_routes_request(role_mask: int | None = None) -> QueryDBRequest:
   return QueryDBRequest(op="db:system:links:get_navbar_routes:1", payload=payload)
 
 
-def create_system_role_request(params: UpsertRoleParams) -> QueryDBRequest:
+def create_system_role_request(params: UpsertRolePayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:system:roles:create:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
-def update_system_role_request(params: UpsertRoleParams) -> QueryDBRequest:
+def update_system_role_request(params: UpsertRolePayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:system:roles:update:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
-def delete_system_role_request(params: DeleteRoleParams) -> QueryDBRequest:
+def delete_system_role_request(params: DeleteRolePayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:system:roles:delete:1",
-    payload=params.model_dump(),
+    payload=dict(params),
   )
 
 
@@ -237,7 +230,6 @@ async def dispatch_query_request_with_fallback(
 get_profile_request = _profile_get_profile_request
 
 __all__ = sorted([
-  "add_role_member_request",
   "count_rows_request",
   "create_role_membership_request",
   "create_from_provider_request",
@@ -264,8 +256,6 @@ __all__ = sorted([
   "get_public_user_profile_request",
   "get_published_files_request",
   "get_repo_request",
-  "get_role_members_request",
-  "get_role_non_members_request",
   "get_roles_request",
   "get_rotkey_request",
   "get_routes_request",
@@ -287,7 +277,6 @@ __all__ = sorted([
   "relink_discord_request",
   "relink_google_request",
   "relink_microsoft_request",
-  "remove_role_member_request",
   "replace_user_cache_request",
   "revoke_device_token_request",
   "revoke_provider_tokens_request",

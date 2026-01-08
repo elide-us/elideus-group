@@ -10,7 +10,6 @@ from . import (
   personas,
   public_users,
   public_vars,
-  roles,
   routes,
   service_pages,
 )  # noqa: F401

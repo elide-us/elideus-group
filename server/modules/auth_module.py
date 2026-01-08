@@ -8,7 +8,8 @@ from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Any, Dict
 
 from queryregistry.handler import dispatch_query_request
-from queryregistry.models import DBResponse
+from queryregistry.models import DBRequest as QueryDBRequest, DBResponse
+from queryregistry.system.roles.models import DeleteRolePayload, UpsertRolePayload
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
@@ -17,11 +18,8 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.models import DBRequest
-from server.registry.system.roles.model import DeleteRoleParams, UpsertRoleParams
 from server.modules.registry.helpers import (
   delete_system_role_request,
-  dispatch_query_request_with_fallback,
   get_identity_security_profile_request,
   get_rotkey_request,
   list_system_roles_request,
@@ -50,28 +48,16 @@ class RoleCache:
       return [dict(payload)]
     return [dict(payload)]
 
-  async def _dispatch_system_role_request(self, request, *, fallback_op: str) -> DBResponse:
+  async def _dispatch_system_role_request(self, request: QueryDBRequest) -> DBResponse:
     provider_name = self.db.provider or "mssql"
-
-    async def fallback() -> DBResponse:
-      legacy_response = await self.db.run(
-        DBRequest(op=fallback_op, payload=request.payload),
-      )
-      return DBResponse(op=request.op, payload=legacy_response.payload)
-
-    return await dispatch_query_request_with_fallback(
-      request,
-      provider=provider_name,
-      fallback=fallback,
-    )
+    return await dispatch_query_request(request, provider=provider_name)
 
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
       result = await self._dispatch_system_role_request(
         list_system_roles_request(),
-        fallback_op="db:system:roles:list:1",
-      )
+    )
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
@@ -95,18 +81,16 @@ class RoleCache:
     await self.load_roles()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
+    payload: UpsertRolePayload = {"name": name, "mask": mask, "display": display}
     await self._dispatch_system_role_request(
-      update_system_role_request(
-        UpsertRoleParams(name=name, mask=mask, display=display),
-      ),
-      fallback_op="db:system:roles:upsert_role:1",
+      update_system_role_request(payload),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
+    payload: DeleteRolePayload = {"name": name}
     await self._dispatch_system_role_request(
-      delete_system_role_request(DeleteRoleParams(name=name)),
-      fallback_op="db:system:roles:delete_role:1",
+      delete_system_role_request(payload),
     )
     await self.refresh_role_cache()
 
