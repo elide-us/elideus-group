@@ -59,9 +59,6 @@ const BottomBar = ({ info }: Props): JSX.Element => {
 					contact@elideusgroup.com
 				</Link>
 			</Typography>
-			<Typography variant="body1" sx={{ marginTop: '4px', width: '300px', mx: 'auto' }}>
-				<Link href="/privacy-policy" underline="none" sx={{ display: 'block' }}>Privacy Policy</Link>
-			</Typography>
 	</Box>
 );
 };
