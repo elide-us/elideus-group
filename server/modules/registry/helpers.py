@@ -64,10 +64,6 @@ from server.registry.system.conversations import (
   list_by_time_request,
   update_output_request,
 )
-from server.registry.system.links import (
-  get_home_links_request,
-  get_navbar_routes_request,
-)
 from server.registry.system.models import list_models_request
 from server.registry.system.personas import (
   delete_persona_request,
@@ -161,6 +157,17 @@ def delete_role_membership_request(params: ModifyRoleMemberParams) -> QueryDBReq
 
 def list_system_roles_request() -> QueryDBRequest:
   return QueryDBRequest(op="db:system:roles:list:1", payload={})
+
+
+def get_home_links_request() -> QueryDBRequest:
+  return QueryDBRequest(op="db:system:links:get_home_links:1", payload={})
+
+
+def get_navbar_routes_request(role_mask: int | None = None) -> QueryDBRequest:
+  payload: dict[str, object] = {}
+  if role_mask is not None:
+    payload["role_mask"] = role_mask
+  return QueryDBRequest(op="db:system:links:get_navbar_routes:1", payload=payload)
 
 
 def create_system_role_request(params: UpsertRoleParams) -> QueryDBRequest:
