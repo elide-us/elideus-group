@@ -91,28 +91,6 @@ from server.registry.system.public_vars import (
   get_version_request,
 )
 
-def get_identity_security_profile_request(
-  *,
-  guid: str | None = None,
-  access_token: str | None = None,
-  provider: str | None = None,
-  provider_identifier: str | None = None,
-  discord_id: str | None = None,
-) -> QueryDBRequest:
-  params: dict[str, object] = {}
-  if guid is not None:
-    params["guid"] = guid
-  if access_token is not None:
-    params["access_token"] = access_token
-  if provider is not None:
-    params["provider"] = provider
-  if provider_identifier is not None:
-    params["provider_identifier"] = provider_identifier
-  if discord_id is not None:
-    params["discord_id"] = discord_id
-  return QueryDBRequest(op="db:identity:accounts:read:1", payload=params)
-
-
 def identity_account_exists_request(user_guid: str) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:accounts:exists:1",
@@ -259,7 +237,6 @@ __all__ = sorted([
   "get_roles_request",
   "get_rotkey_request",
   "get_routes_request",
-  "get_identity_security_profile_request",
   "get_user_by_email_request",
   "get_version_request",
   "identity_account_exists_request",
