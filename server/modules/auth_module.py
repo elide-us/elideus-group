@@ -19,6 +19,7 @@ from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.registry.helpers import (
   get_rotkey_request,
 )
+from server.registry.account.session.model import GuidParams
 from server.registry.types import DBRequest, DBResponse
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
@@ -286,7 +287,7 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run(get_rotkey_request(guid=guid))
+    res = await self.db.run(get_rotkey_request(GuidParams(guid=guid)))
     rotkey = res.rows[0].get("rotkey") if res.rows else None
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
