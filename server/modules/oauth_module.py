@@ -5,7 +5,19 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.profiles.models import (
+  GuidParams,
+  SetProfileImageParams,
+  UpdateIfUneditedParams,
+)
+from queryregistry.identity.sessions.models import (
+  CreateSessionParams,
+  RevokeProviderTokensParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
+)
 from queryregistry.models import DBRequest as QueryDBRequest, DBResponse as QueryDBResponse
+from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 
 from server.modules.auth_module import AuthModule
@@ -15,18 +27,6 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile.model import (
-  GuidParams,
-  SetProfileImageParams,
-  UpdateIfUneditedParams,
-)
-from server.registry.account.session.model import (
-  CreateSessionParams,
-  RevokeProviderTokensParams,
-  SetRotkeyParams,
-  UpdateDeviceTokenParams,
-)
-from server.registry.system.config.model import ConfigKeyParams
 from queryregistry.identity.providers import (
   create_from_provider_request,
   get_any_by_provider_identifier_request,

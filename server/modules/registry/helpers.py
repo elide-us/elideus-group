@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import HTTPException
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.accounts.models import AccountExistsRequestPayload
 from queryregistry.identity.role_memberships.models import (
   ModifyRoleMemberPayload,
   RoleScopePayload,
@@ -91,10 +92,10 @@ from server.registry.system.public_vars import (
   get_version_request,
 )
 
-def identity_account_exists_request(user_guid: str) -> QueryDBRequest:
+def identity_account_exists_request(params: AccountExistsRequestPayload) -> QueryDBRequest:
   return QueryDBRequest(
     op="db:identity:accounts:exists:1",
-    payload={"user_guid": user_guid},
+    payload=dict(params),
   )
 
 
