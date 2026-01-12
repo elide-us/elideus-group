@@ -7,6 +7,8 @@ from typing import Any, NotRequired, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from queryregistry.identity.sessions.models import GuidParams
+
 __all__ = [
   "CreateSessionParams",
   "GuidParams",
@@ -26,19 +28,6 @@ __all__ = [
 
 def _normalize_uuid(value: Any) -> str:
   return str(value)
-
-
-class GuidParams(BaseModel):
-  """Generic payload carrying a user guid."""
-
-  model_config = ConfigDict(extra="forbid")
-
-  guid: str
-
-  @field_validator("guid")
-  @classmethod
-  def _normalize_guid(cls, value: Any) -> str:
-    return _normalize_uuid(value)
 
 
 class ListSessionSnapshotsParams(GuidParams):
@@ -184,4 +173,3 @@ class SecuritySnapshotRecord(TypedDict, total=False):
 
 class RevokeAllDeviceTokensParams(GuidParams):
   """Payload revoking every token for a user."""
-
