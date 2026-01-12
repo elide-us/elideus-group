@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from . import BaseModule
+from .auth_module import AuthModule
 from .db_module import DbModule
 from server.registry.account.profile.model import (
   GuidParams,
@@ -15,7 +16,6 @@ from server.registry.account.profile.model import (
 )
 from server.modules.registry.helpers import (
   get_profile_request,
-  get_roles_request,
   set_display_request,
   set_optin_request,
   set_profile_image_request,
@@ -26,14 +26,18 @@ class ProfileModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
+    self.auth: AuthModule | None = None
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
+    self.auth = self.app.state.auth
+    await self.auth.on_ready()
     self.mark_ready()
 
   async def shutdown(self):
     self.db = None
+    self.auth = None
 
   async def get_profile(self, guid: str) -> ProfileRecord | None:
     assert self.db
@@ -52,14 +56,9 @@ class ProfileModule(BaseModule):
     await self.db.run(set_optin_request(params))
 
   async def get_roles(self, guid: str) -> int:
-    assert self.db
-    params = GuidParams(guid=guid)
-    res = await self.db.run(get_roles_request(params))
-    if not res.rows:
-      return 0
-    row = res.rows[0]
-    value = row.get("element_roles") if isinstance(row, dict) else None
-    return int(value or 0)
+    assert self.auth
+    _, mask = await self.auth.get_user_roles(guid)
+    return mask
 
   async def set_profile_image(self, guid: str, provider: str, image_b64: str | None) -> None:
     assert self.db

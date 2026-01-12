@@ -7,8 +7,6 @@ from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Any, Dict
 
-from queryregistry.handler import dispatch_query_request
-from queryregistry.models import DBRequest as QueryDBRequest, DBResponse
 from queryregistry.system.roles.models import DeleteRolePayload, UpsertRolePayload
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
@@ -19,12 +17,9 @@ from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.registry.helpers import (
-  delete_system_role_request,
-  get_identity_security_profile_request,
   get_rotkey_request,
-  list_system_roles_request,
-  update_system_role_request,
 )
+from server.registry.types import DBRequest, DBResponse
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -48,16 +43,17 @@ class RoleCache:
       return [dict(payload)]
     return [dict(payload)]
 
-  async def _dispatch_system_role_request(self, request: QueryDBRequest) -> DBResponse:
-    provider_name = self.db.provider or "mssql"
-    return await dispatch_query_request(request, provider=provider_name)
+  async def _dispatch_system_role_request(self, request: DBRequest) -> DBResponse:
+    if not self.db:
+      raise RuntimeError("RoleCache database module not configured")
+    return await self.db.run(request)
 
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
       result = await self._dispatch_system_role_request(
-        list_system_roles_request(),
-    )
+        DBRequest(op="db:system:roles:list:1", payload={}),
+      )
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
@@ -83,14 +79,14 @@ class RoleCache:
   async def upsert_role(self, name: str, mask: int, display: str | None):
     payload: UpsertRolePayload = {"name": name, "mask": mask, "display": display}
     await self._dispatch_system_role_request(
-      update_system_role_request(payload),
+      DBRequest(op="db:system:roles:update:1", payload=dict(payload)),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
     payload: DeleteRolePayload = {"name": name}
     await self._dispatch_system_role_request(
-      delete_system_role_request(payload),
+      DBRequest(op="db:system:roles:delete:1", payload=dict(payload)),
     )
     await self.refresh_role_cache()
 
@@ -113,11 +109,12 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    response = await dispatch_query_request(
-      get_identity_security_profile_request(guid=guid),
-      provider=self.db.provider or "mssql",
+    if not self.db:
+      raise RuntimeError("RoleCache database module not configured")
+    response = await self.db.run(
+      DBRequest(op="db:identity:accounts:read:1", payload={"guid": guid}),
     )
-    rows = self._normalize_payload(response.payload)
+    rows = self._normalize_payload(response.rows)
     row = rows[0] if rows else {}
     mask = int(row.get("user_roles") or row.get("element_roles") or 0)
     names = self.mask_to_names(mask)
@@ -360,14 +357,13 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await dispatch_query_request(
-      get_identity_security_profile_request(discord_id=discord_id),
-      provider=self.db.provider,
+    res = await self.db.run(
+      DBRequest(op="db:identity:accounts:read:1", payload={"discord_id": discord_id}),
     )
-    payload = res.payload if isinstance(res.payload, dict) else {}
-    if not payload:
+    rows = res.rows
+    if not rows:
       return "", [], 0
-    row = payload
+    row = rows[0]
     guid = row.get("user_guid")
     mask = int(row.get("user_roles", 0) or 0)
     names = self.role_cache.mask_to_names(mask)
