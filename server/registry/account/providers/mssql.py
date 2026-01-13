@@ -20,7 +20,6 @@ __all__ = [
   "get_user_by_email_v1",
   "link_provider_v1",
   "set_provider_v1",
-  "soft_delete_account_v1",
   "unlink_provider_v1",
   "unlink_last_provider_v1",
 ]
@@ -218,16 +217,6 @@ async def unlink_provider_v1(args: dict[str, Any]) -> DBResponse:
   return DBResponse(rows=[{"providers_remaining": cnt}], rowcount=1)
 
 
-async def soft_delete_account_v1(args: dict[str, Any]) -> DBResponse:
-  guid = str(UUID(args["guid"]))
-  sql = """
-    UPDATE account_users
-    SET element_soft_deleted_at = SYSDATETIMEOFFSET()
-    WHERE element_guid = ?;
-  """
-  return await run_exec(sql, (guid,))
-
-
 async def get_user_by_email_v1(args: dict[str, Any]) -> DBResponse:
   email = args["email"]
   sql = """
@@ -255,5 +244,4 @@ async def unlink_last_provider_v1(args: dict[str, Any]) -> DBResponse:
   provider = args["provider"]
   sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
   return await run_exec(sql, (guid, provider))
-
 

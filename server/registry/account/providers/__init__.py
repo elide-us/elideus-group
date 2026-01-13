@@ -9,12 +9,9 @@ from .model import (
   LinkProviderParams,
   ProviderIdentifierParams,
   SetProviderParams,
-  SoftDeleteAccountParams,
   UnlinkLastProviderParams,
   UnlinkProviderParams,
 )
-
-
 
 def _request(op: str, params: dict[str, object]) -> DBRequest:
   return DBRequest(op=op, payload=params)
@@ -58,13 +55,6 @@ def link_provider_request(params: LinkProviderParams) -> DBRequest:
 def set_provider_request(params: SetProviderParams) -> DBRequest:
   return _request(
     "db:account:providers:set_provider:1",
-    params.model_dump(),
-  )
-
-
-def soft_delete_account_request(params: SoftDeleteAccountParams) -> DBRequest:
-  return _request(
-    "db:account:providers:soft_delete_account:1",
     params.model_dump(),
   )
 

@@ -14,6 +14,7 @@ __all__ = [
   "link_provider_request",
   "relink_provider_request",
   "set_provider_request",
+  "soft_delete_account_request",
   "unlink_last_provider_request",
   "unlink_provider_request",
 ]
@@ -156,3 +157,13 @@ def relink_provider_request(
   if reauth_token is not None:
     payload["reauth_token"] = reauth_token
   return DBRequest(op="db:identity:providers:relink:1", payload=payload)
+
+
+def soft_delete_account_request(
+  *,
+  guid: str,
+) -> DBRequest:
+  return DBRequest(
+    op="db:identity:providers:soft_delete_account:1",
+    payload={"guid": guid},
+  )
