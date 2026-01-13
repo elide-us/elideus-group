@@ -25,6 +25,8 @@ __all__ = [
   "RelinkProviderRequestPayload",
   "SetProviderCallable",
   "SetProviderRequestPayload",
+  "SoftDeleteAccountCallable",
+  "SoftDeleteAccountRequestPayload",
   "UnlinkLastProviderCallable",
   "UnlinkLastProviderRequestPayload",
   "UnlinkProviderCallable",
@@ -109,6 +111,10 @@ class RelinkProviderRequestPayload(TypedDict, total=False):
   reauth_token: str
 
 
+class SoftDeleteAccountRequestPayload(TypedDict):
+  guid: str
+
+
 CreateFromProviderCallable = Callable[[CreateFromProviderRequestPayload], Awaitable[DBResponse]]
 GetAnyByProviderIdentifierCallable = Callable[[GetAnyByProviderIdentifierRequestPayload], Awaitable[DBResponse]]
 GetByProviderIdentifierCallable = Callable[[GetByProviderIdentifierRequestPayload], Awaitable[DBResponse]]
@@ -118,3 +124,4 @@ UnlinkProviderCallable = Callable[[UnlinkProviderRequestPayload], Awaitable[DBRe
 UnlinkLastProviderCallable = Callable[[UnlinkLastProviderRequestPayload], Awaitable[DBResponse]]
 SetProviderCallable = Callable[[SetProviderRequestPayload], Awaitable[DBResponse]]
 RelinkProviderCallable = Callable[[RelinkProviderRequestPayload], Awaitable[DBResponse]]
+SoftDeleteAccountCallable = Callable[[SoftDeleteAccountRequestPayload], Awaitable[DBResponse]]

@@ -15,6 +15,7 @@ from .services import (
   link_provider_v1,
   relink_provider_v1,
   set_provider_v1,
+  soft_delete_account_v1,
   unlink_last_provider_v1,
   unlink_provider_v1,
 )
@@ -31,6 +32,7 @@ DISPATCHERS = {
   ("unlink_last_provider", "1"): unlink_last_provider_v1,
   ("set_provider", "1"): set_provider_v1,
   ("relink", "1"): relink_provider_v1,
+  ("soft_delete_account", "1"): soft_delete_account_v1,
 }
 
 

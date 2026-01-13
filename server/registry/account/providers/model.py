@@ -15,7 +15,6 @@ __all__ = [
   "ProviderIdentifierParams",
   "ProviderUnlinkSummary",
   "SetProviderParams",
-  "SoftDeleteAccountParams",
   "UnlinkLastProviderParams",
   "UnlinkProviderParams",
 ]
@@ -82,10 +81,6 @@ class SetProviderParams(_GuidParams):
   """Parameters for setting an account's default provider."""
 
   provider: str
-
-
-class SoftDeleteAccountParams(_GuidParams):
-  """Parameters for soft-deleting an account."""
 
 
 class UnlinkProviderParams(_GuidParams):

@@ -13,6 +13,7 @@ from .models import (
   LinkProviderCallable,
   RelinkProviderCallable,
   SetProviderCallable,
+  SoftDeleteAccountCallable,
   UnlinkLastProviderCallable,
   UnlinkProviderCallable,
 )
@@ -25,6 +26,7 @@ __all__ = [
   "link_provider_v1",
   "relink_provider_v1",
   "set_provider_v1",
+  "soft_delete_account_v1",
   "unlink_last_provider_v1",
   "unlink_provider_v1",
 ]
@@ -63,6 +65,10 @@ _SET_PROVIDER_DISPATCHERS: dict[str, SetProviderCallable] = {
 
 _RELINK_PROVIDER_DISPATCHERS: dict[str, RelinkProviderCallable] = {
   "mssql": mssql.relink_provider,
+}
+
+_SOFT_DELETE_ACCOUNT_DISPATCHERS: dict[str, SoftDeleteAccountCallable] = {
+  "mssql": mssql.soft_delete_account,
 }
 
 
@@ -168,6 +174,18 @@ async def relink_provider_v1(
   provider: str,
 ) -> DBResponse:
   dispatcher = _RELINK_PROVIDER_DISPATCHERS.get(provider)
+  if dispatcher is None:
+    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+  result = await dispatcher(request.payload)
+  return DBResponse(op=request.op, payload=result.payload)
+
+
+async def soft_delete_account_v1(
+  request: DBRequest,
+  *,
+  provider: str,
+) -> DBResponse:
+  dispatcher = _SOFT_DELETE_ACCOUNT_DISPATCHERS.get(provider)
   if dispatcher is None:
     raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
   result = await dispatcher(request.payload)

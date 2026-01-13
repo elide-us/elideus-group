@@ -16,6 +16,7 @@ from .models import (
   LinkProviderRequestPayload,
   RelinkProviderRequestPayload,
   SetProviderRequestPayload,
+  SoftDeleteAccountRequestPayload,
   UnlinkLastProviderRequestPayload,
   UnlinkProviderRequestPayload,
 )
@@ -28,6 +29,7 @@ __all__ = [
   "link_provider",
   "relink_provider",
   "set_provider",
+  "soft_delete_account",
   "unlink_last_provider",
   "unlink_provider",
 ]
@@ -38,6 +40,13 @@ def _normalize_provider_identifier(identifier: str) -> str:
     return str(UUID(identifier))
   except (TypeError, ValueError):
     raise ValueError("provider_identifier must be a valid UUID") from None
+
+
+def _normalize_guid(guid: str) -> str:
+  try:
+    return str(UUID(guid))
+  except (TypeError, ValueError):
+    raise ValueError("guid must be a valid UUID") from None
 
 
 def _normalize_discord_identifier(discord_id: str) -> str:
@@ -305,3 +314,16 @@ async def relink_provider(
     "provider": provider,
     "provider_identifier": identifier,
   })
+
+
+async def soft_delete_account(
+  args: SoftDeleteAccountRequestPayload,
+) -> DBResponse:
+  guid = _normalize_guid(args["guid"])
+  sql = """
+    UPDATE account_users
+    SET element_soft_deleted_at = SYSDATETIMEOFFSET()
+    WHERE element_guid = ?;
+  """
+  response = await run_exec(sql, (guid,))
+  return DBResponse(payload={"rowcount": response.rowcount})
