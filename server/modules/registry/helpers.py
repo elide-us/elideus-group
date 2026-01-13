@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import HTTPException
 from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.accounts.models import AccountExistsRequestPayload
+from queryregistry.identity.providers import relink_provider_request
 from queryregistry.identity.role_memberships.models import (
   ModifyRoleMemberPayload,
   RoleScopePayload,
@@ -24,11 +25,6 @@ from server.registry.account.cache import (
   upsert_cache_item_request,
 )
 from server.registry.account.files import set_gallery_request
-from server.registry.account.oauth import (
-  relink_discord_request,
-  relink_google_request,
-  relink_microsoft_request,
-)
 from server.registry.finance.credits import set_credits_request
 from server.registry.account.profile import (
   get_profile_request as _profile_get_profile_request,
@@ -252,9 +248,7 @@ __all__ = sorted([
   "list_public_request",
   "list_reported_request",
   "list_system_roles_request",
-  "relink_discord_request",
-  "relink_google_request",
-  "relink_microsoft_request",
+  "relink_provider_request",
   "replace_user_cache_request",
   "revoke_device_token_request",
   "revoke_provider_tokens_request",
