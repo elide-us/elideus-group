@@ -10,10 +10,9 @@ from queryregistry.identity.profiles.models import (
   SetProfileImageParams,
   UpdateIfUneditedParams,
 )
-from queryregistry.identity.sessions.models import (
+from server.registry.account.session.model import (
   CreateSessionParams,
   RevokeProviderTokensParams,
-  SetRotkeyParams,
   UpdateDeviceTokenParams,
 )
 from queryregistry.models import DBRequest as QueryDBRequest, DBResponse as QueryDBResponse
@@ -44,7 +43,6 @@ from server.modules.registry.helpers import (
   get_profile_request,
   revoke_provider_tokens_request,
   set_profile_image_request,
-  set_rotkey_request,
   update_device_token_request,
   update_if_unedited_request,
 )
@@ -472,11 +470,6 @@ class OauthModule(BaseModule):
     rotation_token, rot_exp = self.auth.make_rotation_token(user_guid)
     logging.debug(f"[create_session] rotation_token={rotation_token[:40]}")
     now = datetime.now(timezone.utc)
-    await self.db.run(
-      set_rotkey_request(
-        SetRotkeyParams(guid=user_guid, rotkey=rotation_token, iat=now, exp=rot_exp),
-      ),
-    )
     roles, _ = await self.auth.get_user_roles(user_guid)
     session_exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
     placeholder = uuid.uuid4().hex
@@ -486,6 +479,9 @@ class OauthModule(BaseModule):
           access_token=placeholder,
           expires=session_exp,
           fingerprint=fingerprint,
+          rotkey=rotation_token,
+          rotkey_iat=now,
+          rotkey_exp=rot_exp,
           user_guid=user_guid,
           provider=provider,
           user_agent=user_agent,

@@ -7,12 +7,13 @@ from typing import Sequence
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
-from .services import read_sessions_v1
+from .services import get_rotkey_v1, read_sessions_v1
 
 __all__ = ["handle_sessions_request"]
 
 DISPATCHERS = {
   ("read", "1"): read_sessions_v1,
+  ("get_rotkey", "1"): get_rotkey_v1,
 }
 
 

@@ -16,10 +16,9 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from server.modules.registry.helpers import (
-  get_rotkey_request,
-)
-from server.registry.account.session.model import GuidParams
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.sessions import get_rotkey_request
+from queryregistry.identity.sessions.models import RotkeyLookupParams
 from server.registry.types import DBRequest, DBResponse
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
@@ -219,6 +218,16 @@ class AuthModule(BaseModule):
       self.discord.auth_module = None
     logging.info("Auth module shutdown")
 
+  @staticmethod
+  def _normalize_query_payload(payload: Any | None) -> list[dict[str, Any]]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
+
 
   async def handle_auth_login(self, provider: str, id_token: str | None, access_token: str | None):
     logging.debug("[AuthModule] handle_auth_login provider=%s", provider)
@@ -287,8 +296,12 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run(get_rotkey_request(GuidParams(guid=guid)))
-    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    res = await dispatch_query_request(
+      get_rotkey_request(RotkeyLookupParams(guid=guid, device_guid=device_guid)),
+      provider=self.db.provider or "mssql",
+    )
+    rows = self._normalize_query_payload(res.payload)
+    rotkey = rows[0].get("device_rotkey") if rows else None
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
       if not derived_secret:
@@ -331,7 +344,7 @@ class AuthModule(BaseModule):
       if token_time + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY) < datetime.now(timezone.utc):
         logging.error("[AuthModule] Rotation token expired for %s", guid)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Rotation token expired")
-      return {"guid": guid}
+      return {"guid": guid, "issued_at": token_time}
     except Exception:
       logging.error("[AuthModule] Failed to decode rotation token")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")

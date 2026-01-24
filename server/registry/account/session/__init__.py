@@ -54,9 +54,5 @@ def revoke_provider_tokens_request(params: RevokeProviderTokensParams) -> DBRequ
   return _request("revoke_provider_tokens", params.model_dump())
 
 
-def get_rotkey_request(params: GuidParams) -> DBRequest:
-  return _request("get_rotkey", params.model_dump())
-
-
 def set_rotkey_request(params: SetRotkeyParams) -> DBRequest:
   return _request("set_rotkey", params.model_dump())
