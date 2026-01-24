@@ -13,8 +13,11 @@ from queryregistry.models import DBResponse
 __all__ = [
   "CreateSessionParams",
   "GuidParams",
+  "RotkeyLookupParams",
+  "RotkeyRecord",
   "RevokeDeviceTokenParams",
   "RevokeProviderTokensParams",
+  "RotkeyCallable",
   "SecuritySnapshotCallable",
   "SecuritySnapshotRecord",
   "SecuritySnapshotRequestPayload",
@@ -49,6 +52,9 @@ class CreateSessionParams(BaseModel):
   access_token: str
   expires: datetime
   fingerprint: str
+  rotkey: str
+  rotkey_iat: datetime
+  rotkey_exp: datetime
   user_guid: str
   provider: str
   user_agent: str | None = None
@@ -98,16 +104,67 @@ class RevokeProviderTokensParams(GuidParams):
   provider: str
 
 
+class RotkeyLookupParams(GuidParams):
+  """Lookup payload for a device rotation key."""
+
+  device_guid: str | None = None
+  fingerprint: str | None = None
+
+  @field_validator("device_guid")
+  @classmethod
+  def _normalize_device_guid(cls, value: Any | None) -> str | None:
+    if value is None:
+      return None
+    return _normalize_uuid(value)
+
+
 class SetRotkeyParams(GuidParams):
-  """Rotation key payload for a user."""
+  """Rotation key payload for device sessions."""
 
   rotkey: str
   iat: datetime
   exp: datetime
+  device_guid: str | None = None
+
+  @field_validator("device_guid")
+  @classmethod
+  def _normalize_device_guid(cls, value: Any | None) -> str | None:
+    if value is None:
+      return None
+    return _normalize_uuid(value)
 
 
 class SecuritySnapshotRequestPayload(TypedDict):
   guid: str
+
+
+class RotkeyRequestPayload(TypedDict, total=False):
+  guid: str
+  device_guid: str | None
+  fingerprint: str | None
+
+
+class RotkeyRecord(TypedDict, total=False):
+  user_guid: str
+  user_rotkey: str
+  user_rotkey_iat: str
+  user_rotkey_exp: str
+  device_rotkey: str | None
+  device_rotkey_iat: str | None
+  device_rotkey_exp: str | None
+  provider_name: str | None
+  provider_display: str | None
+  session_guid: str | None
+  session_created_on: str | None
+  session_modified_on: str | None
+  device_guid: str | None
+  device_token: str | None
+  device_token_iat: str | None
+  device_token_exp: str | None
+  revoked_at: str | None
+  device_fingerprint: str | None
+  user_agent: str | None
+  ip_last_seen: str | None
 
 
 class SecuritySnapshotRecord(TypedDict, total=False):
@@ -115,6 +172,9 @@ class SecuritySnapshotRecord(TypedDict, total=False):
   element_rotkey: str | None
   element_rotkey_iat: str | None
   element_rotkey_exp: str | None
+  element_device_rotkey: str | None
+  element_device_rotkey_iat: str | None
+  element_device_rotkey_exp: str | None
   session_guid: str | None
   device_guid: str | None
   element_token: str | None
@@ -127,3 +187,4 @@ class SecuritySnapshotRecord(TypedDict, total=False):
 
 
 SecuritySnapshotCallable = Callable[[SecuritySnapshotRequestPayload], Awaitable[DBResponse]]
+RotkeyCallable = Callable[[RotkeyRequestPayload], Awaitable[DBResponse]]

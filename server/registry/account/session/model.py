@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, NotRequired, TypedDict
+from typing import Any, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -16,7 +16,6 @@ __all__ = [
   "RevokeAllDeviceTokensParams",
   "RevokeDeviceTokenParams",
   "RevokeProviderTokensParams",
-  "RotkeyRecord",
   "SecuritySnapshotRecord",
   "SessionCreationResult",
   "SessionSnapshotRecord",
@@ -42,6 +41,9 @@ class CreateSessionParams(BaseModel):
   access_token: str
   expires: datetime
   fingerprint: str
+  rotkey: str
+  rotkey_iat: datetime
+  rotkey_exp: datetime
   user_guid: str
   provider: str
   user_agent: str | None = None
@@ -92,11 +94,19 @@ class RevokeProviderTokensParams(GuidParams):
 
 
 class SetRotkeyParams(GuidParams):
-  """Rotation key payload for a user."""
+  """Rotation key payload for device sessions."""
 
   rotkey: str
   iat: datetime
   exp: datetime
+  device_guid: str | None = None
+
+  @field_validator("device_guid")
+  @classmethod
+  def _normalize_device_guid(cls, value: Any | None) -> str | None:
+    if value is None:
+      return None
+    return _normalize_uuid(value)
 
 
 class SessionCreationResult(TypedDict, total=False):
@@ -104,28 +114,6 @@ class SessionCreationResult(TypedDict, total=False):
 
   session_guid: str
   device_guid: str
-
-
-class RotkeyRecord(TypedDict, total=False):
-  """Rotkey metadata returned from storage."""
-
-  user_guid: str
-  rotkey: str
-  rotkey_iat: str
-  rotkey_exp: str
-  provider_name: str | None
-  provider_display: str | None
-  session_guid: str | None
-  session_created_on: str | None
-  session_modified_on: str | None
-  device_guid: str | None
-  device_token: str | None
-  device_token_iat: str | None
-  device_token_exp: str | None
-  revoked_at: str | None
-  device_fingerprint: str | None
-  user_agent: str | None
-  ip_last_seen: str | None
 
 
 class SessionSnapshotRecord(TypedDict, total=False):
@@ -138,6 +126,9 @@ class SessionSnapshotRecord(TypedDict, total=False):
   element_rotkey: str | None
   element_rotkey_iat: str | None
   element_rotkey_exp: str | None
+  element_device_rotkey: str | None
+  element_device_rotkey_iat: str | None
+  element_device_rotkey_exp: str | None
   session_guid: str | None
   session_created_on: str | None
   session_modified_on: str | None
@@ -160,6 +151,9 @@ class SecuritySnapshotRecord(TypedDict, total=False):
   element_rotkey: str | None
   element_rotkey_iat: str | None
   element_rotkey_exp: str | None
+  element_device_rotkey: str | None
+  element_device_rotkey_iat: str | None
+  element_device_rotkey_exp: str | None
   session_guid: str | None
   device_guid: str | None
   element_token: str | None

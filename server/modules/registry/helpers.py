@@ -47,7 +47,6 @@ from server.registry.account.providers import (
 from server.registry.account.public import get_public_files_request
 from server.registry.account.session import (
   create_session_request,
-  get_rotkey_request,
   revoke_device_token_request,
   revoke_provider_tokens_request,
   set_rotkey_request,
@@ -232,7 +231,6 @@ __all__ = sorted([
   "get_published_files_request",
   "get_repo_request",
   "get_roles_request",
-  "get_rotkey_request",
   "get_routes_request",
   "get_user_by_email_request",
   "get_version_request",

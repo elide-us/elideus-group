@@ -126,12 +126,13 @@ sequenceDiagram
   participant Session as SessionModule
   participant Auth as AuthModule
   participant DB as DbModule
+  participant Query as QueryRegistry
 
   RPC->>Session: refresh_token(rotation_token, fingerprint)
   Session->>Auth: decode_rotation_token(rotation_token)
   Auth-->>Session: GUID from rotation token
-  Session->>DB: run(get_rotkey_request)
-  DB-->>Session: Stored rotation key & provider
+  Session->>Query: dispatch_query_request(get_rotkey_request)
+  Query-->>Session: Stored rotation key & provider
   Session->>Auth: get_user_roles(guid)
   Auth-->>Session: Role names & mask
   Session->>DB: run(create_session_request)
@@ -149,10 +150,10 @@ sequenceDiagram
   participant Session as SessionModule
   participant DbModule as DbModule
   participant DbProvider as DbProviderBase
+  participant Query as QueryRegistry
 
-  Session->>DbModule: run(get_rotkey_request)
-  DbModule->>DbProvider: run(DBRequest)
-  DbProvider-->>DbModule: DBResponse with rotation key
+  Session->>Query: dispatch_query_request(get_rotkey_request)
+  Query-->>Session: DBResponse with rotation key
   Session->>DbModule: run(create_session_request)
   DbModule->>DbProvider: run(DBRequest)
   DbProvider-->>DbModule: Session details
