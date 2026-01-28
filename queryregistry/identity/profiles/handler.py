@@ -6,11 +6,19 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+from .services import (
+  read_profile_v1,
+  update_profile_if_unedited_v1,
+  update_profile_v1,
+)
 
 __all__ = ["handle_profiles_request"]
 
-DISPATCHERS = build_stub_dispatchers("identity.profiles")
+DISPATCHERS = {
+  ("read", "1"): read_profile_v1,
+  ("update", "1"): update_profile_v1,
+  ("update_if_unedited", "1"): update_profile_if_unedited_v1,
+}
 
 
 async def handle_profiles_request(

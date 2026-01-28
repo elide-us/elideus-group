@@ -2,13 +2,11 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from server.registry.account.profile.model import GuidParams, SetDisplayParams
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.profiles import get_profile_request, update_profile_request
+from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
 from server.registry.finance.credits.model import SetCreditsParams
-from server.modules.registry.helpers import (
-  get_profile_request,
-  set_credits_request,
-  set_display_request,
-)
+from server.modules.registry.helpers import set_credits_request
 
 
 class UserAdminModule(BaseModule):
@@ -29,7 +27,10 @@ class UserAdminModule(BaseModule):
 
   async def get_displayname(self, guid: str) -> str:
     params = GuidParams(guid=guid)
-    res = await self.db.run(get_profile_request(params))
+    res = await dispatch_query_request(
+      get_profile_request(params),
+      provider=self.db.provider or "mssql",
+    )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -37,7 +38,10 @@ class UserAdminModule(BaseModule):
 
   async def get_credits(self, guid: str) -> int:
     params = GuidParams(guid=guid)
-    res = await self.db.run(get_profile_request(params))
+    res = await dispatch_query_request(
+      get_profile_request(params),
+      provider=self.db.provider or "mssql",
+    )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -52,5 +56,8 @@ class UserAdminModule(BaseModule):
     )
 
   async def reset_display(self, guid: str) -> None:
-    params = SetDisplayParams(guid=guid, display_name="Default User")
-    await self.db.run(set_display_request(params))
+    params = UpdateProfileParams(guid=guid, display_name="Default User")
+    await dispatch_query_request(
+      update_profile_request(params),
+      provider=self.db.provider or "mssql",
+    )

@@ -13,7 +13,8 @@ from server.modules.auth_module import (
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
-from queryregistry.identity.profiles.models import SetProfileImageParams
+from queryregistry.identity.profiles import update_profile_request
+from queryregistry.identity.profiles.models import UpdateProfileParams
 from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
@@ -28,7 +29,6 @@ from server.registry.types import DBRequest
 from server.modules.registry.helpers import (
   create_session_request,
   revoke_device_token_request,
-  set_profile_image_request,
   set_rotkey_request,
   update_device_token_request,
   update_session_request,
@@ -99,14 +99,15 @@ class SessionModule(BaseModule):
 
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await self.db.run(
-        set_profile_image_request(
-          SetProfileImageParams(
+      await dispatch_query_request(
+        update_profile_request(
+          UpdateProfileParams(
             guid=user["guid"],
             provider=provider,
             image_b64=new_img,
           ),
         ),
+        provider=self.db.provider or "mssql",
       )
       user["profile_image"] = new_img
 

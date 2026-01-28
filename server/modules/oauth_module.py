@@ -5,10 +5,15 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.profiles import (
+  get_profile_request,
+  update_if_unedited_request,
+  update_profile_request,
+)
 from queryregistry.identity.profiles.models import (
   GuidParams,
-  SetProfileImageParams,
   UpdateIfUneditedParams,
+  UpdateProfileParams,
 )
 from server.registry.account.session.model import (
   CreateSessionParams,
@@ -40,11 +45,8 @@ from queryregistry.identity.providers import (
 from server.modules.registry.helpers import (
   create_session_request,
   get_config_request,
-  get_profile_request,
   revoke_provider_tokens_request,
-  set_profile_image_request,
   update_device_token_request,
-  update_if_unedited_request,
 )
 
 
@@ -209,7 +211,7 @@ class OauthModule(BaseModule):
         email=email,
         display_name=display_name,
       )
-      await self.db.run(update_if_unedited_request(params))
+      await self._dispatch_provider_request(update_if_unedited_request(params))
     return original
 
   async def link_user_provider(
@@ -256,7 +258,7 @@ class OauthModule(BaseModule):
     *,
     new_default: str | None = None,
   ) -> dict:
-    res_prof = await self.db.run(
+    res_prof = await self._dispatch_provider_request(
       get_profile_request(GuidParams(guid=user_guid))
     )
     default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
@@ -600,9 +602,9 @@ class OauthModule(BaseModule):
     user_guid = user["guid"]
     new_img = profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await self.db.run(
-        set_profile_image_request(
-          SetProfileImageParams(
+      await self._dispatch_provider_request(
+        update_profile_request(
+          UpdateProfileParams(
             guid=user_guid,
             provider=provider,
             image_b64=new_img,
@@ -616,9 +618,10 @@ class OauthModule(BaseModule):
         email=profile["email"],
         display_name=profile["username"],
       )
-      res_prof = await self.db.run(update_if_unedited_request(params))
-      if res_prof.rows:
-        updated = res_prof.rows[0]
+      res_prof = await self._dispatch_provider_request(update_if_unedited_request(params))
+      rows = self._normalize_query_payload(res_prof.payload)
+      if rows:
+        updated = rows[0]
         if updated.get("display_name"):
           user["display_name"] = updated["display_name"]
         if updated.get("email"):
