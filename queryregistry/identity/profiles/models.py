@@ -2,17 +2,28 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from queryregistry.models import DBResponse
+
 __all__ = [
   "GuidParams",
   "ProfileRecord",
+  "ProfileReadRequestPayload",
+  "ProfileUpdateCallable",
+  "ProfileUpdateIfUneditedCallable",
+  "ProfileUpdateRequestPayload",
+  "ProfileReadCallable",
   "SetDisplayParams",
   "SetOptInParams",
   "SetProfileImageParams",
   "SetRolesParams",
+  "UpdateIfUneditedCallable",
+  "UpdateIfUneditedRequestPayload",
+  "UpdateProfileParams",
   "UpdateIfUneditedParams",
 ]
 
@@ -66,6 +77,15 @@ class UpdateIfUneditedParams(GuidParams):
   email: str | None = None
 
 
+class UpdateProfileParams(GuidParams):
+  """Parameters for updating one or more profile fields."""
+
+  display_name: str | None = None
+  display_email: bool | None = None
+  provider: str | None = None
+  image_b64: str | None = None
+
+
 class ProfileRecord(TypedDict, total=False):
   """Projection returned by profile queries."""
 
@@ -78,3 +98,27 @@ class ProfileRecord(TypedDict, total=False):
   roles: int | None
   element_created_on: str | None
   element_modified_on: str | None
+
+
+class ProfileReadRequestPayload(TypedDict):
+  guid: str
+
+
+class ProfileUpdateRequestPayload(TypedDict, total=False):
+  guid: str
+  display_name: str | None
+  display_email: bool | int | None
+  provider: str | None
+  image_b64: str | None
+
+
+class UpdateIfUneditedRequestPayload(TypedDict, total=False):
+  guid: str
+  display_name: str | None
+  email: str | None
+
+
+ProfileReadCallable = Callable[[ProfileReadRequestPayload], Awaitable[DBResponse]]
+ProfileUpdateCallable = Callable[[ProfileUpdateRequestPayload], Awaitable[DBResponse]]
+UpdateIfUneditedCallable = Callable[[UpdateIfUneditedRequestPayload], Awaitable[DBResponse]]
+ProfileUpdateIfUneditedCallable = UpdateIfUneditedCallable
