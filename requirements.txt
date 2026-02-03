@@ -9,8 +9,8 @@ azure-identity
 azure-containerregistry
 aiofiles
 aiohttp
-aioodbc==0.4.1
-pyodbc==4.0.39
+aioodbc==0.5.0
+pyodbc==5.1.0
 python-dotenv
 asyncpg
 python-jose

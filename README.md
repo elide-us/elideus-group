@@ -48,6 +48,20 @@ Several helper scripts in the `scripts` directory manage the project database an
 Schema dumps now record NVARCHAR field lengths for accurate
 recreation across environments.
 
+The `server` package also exposes a `database_cli` module with callable
+management helpers (connect, reconnect, list tables) for API-level automation.
+
+### ODBC 18 Upgrade Plan
+We are moving to ODBC Driver 18 and Python 3.12 compatible client libraries:
+1. Update `requirements.txt` to newer `aioodbc` and `pyodbc` versions that
+   support Python 3.12 (now pinned to 0.5.0 and 5.1.0).
+2. Ensure the host has **ODBC Driver 18 for SQL Server** installed (Windows,
+   Linux, and container images).
+3. Update `AZURE_SQL_CONNECTION_STRING` to include the Driver 18 name plus
+   encryption defaults (for example: `Driver={ODBC Driver 18 for SQL Server};Encrypt=yes;TrustServerCertificate=no;`).
+4. Validate database operations (connect/list tables/schema tools) against a
+   staging database before running schema dumps.
+
 ### Seeding Personas
 Personas for the assistant are defined in `scripts/data/assistant_personas.json`. Load them into the database with:
 
@@ -73,4 +87,3 @@ The OpenAI module records conversation details whenever `!summarize` is executed
 
 - Outbound Discord messages are buffered through an internal asyncio queue that respects the module's chunking and rate-limiting rules. Use `queue_channel_message` and `queue_user_message` helpers to enqueue work.
 - Successful deliveries update per-channel, per-user, and aggregate throughput metrics. Call `get_throughput_snapshot()` to inspect counters and timestamps for monitoring or diagnostics.
-
