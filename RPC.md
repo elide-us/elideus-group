@@ -10,6 +10,11 @@ Every RPC uses a URN in the form `urn:{domain}:{subsystem}:{function}:{version}`
 
 Each RPC domain has an aligned security role. Other than Auth and Public, all other domains require a bearer token and a security lookup before the function is executed on behalf of the user.
 
+## Frontend Binding Generators
+
+- `python scripts/generate_rpc_bindings.py` regenerates RPC models and `frontend/src/rpc/**/index.ts` accessors.
+- `python scripts/generate_db_namespace.py` regenerates Query Registry models plus DB helper functions in `frontend/src/db/namespace.ts`.
+
 ## Support Domain
 
 All Support domain calls require `ROLE_SUPPORT`.
