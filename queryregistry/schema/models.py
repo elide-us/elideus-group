@@ -1,4 +1,8 @@
-"""Pydantic models mirroring SQL table schemas for registry metadata."""
+"""Pydantic models mirroring SQL table and view schemas for registry metadata.
+
+View models are schema snapshots projected from SQL migration definitions and can
+drift from a live database when migrations are applied out-of-band.
+"""
 
 from __future__ import annotations
 
@@ -31,11 +35,24 @@ __all__ = [
   "UsersRolesTable",
   "UsersSessionsTable",
   "UsersStorageCacheTable",
+  "VwAccountUserProfile",
+  "VwAccountUserSecurity",
+  "VwAccountUserSessions",
+  "VwConversationHistory",
+  "VwPersonas",
+  "VwUserSessionSecurity",
+  "VwUsersStorageCache",
 ]
 
 
 class SQLTableModel(BaseModel):
   """Base configuration for strict table schema payloads."""
+
+  model_config = ConfigDict(extra="forbid")
+
+
+class SQLViewModel(BaseModel):
+  """Base configuration for strict SQL view projection payloads."""
 
   model_config = ConfigDict(extra="forbid")
 
@@ -255,3 +272,120 @@ class SysdiagramsTable(SQLTableModel):
   diagram_id: int
   version: int | None = None
   definition: bytes | None = None
+
+
+class VwAccountUserSessions(SQLViewModel):
+  user_guid: UUID
+  user_roles: int
+  user_created_on: datetime
+  user_modified_on: datetime
+  element_rotkey: str
+  element_rotkey_iat: datetime
+  element_rotkey_exp: datetime
+  session_guid: UUID
+  session_created_on: datetime
+  session_modified_on: datetime
+  device_guid: UUID
+  device_created_on: datetime
+  device_modified_on: datetime
+  element_token: str
+  element_token_iat: datetime
+  element_token_exp: datetime
+  element_revoked_at: datetime | None = None
+  element_device_fingerprint: str | None = None
+  element_user_agent: str | None = None
+  element_ip_last_seen: str | None = None
+  element_device_rotkey: str
+  element_device_rotkey_iat: datetime
+  element_device_rotkey_exp: datetime
+
+
+class VwUserSessionSecurity(SQLViewModel):
+  user_guid: UUID
+  user_roles: int
+  user_created_on: datetime
+  user_modified_on: datetime
+  element_rotkey: str
+  element_rotkey_iat: datetime
+  element_rotkey_exp: datetime
+  session_guid: UUID
+  session_created_on: datetime
+  session_modified_on: datetime
+  device_guid: UUID
+  device_created_on: datetime
+  device_modified_on: datetime
+  element_token: str
+  element_token_iat: datetime
+  element_token_exp: datetime
+  element_revoked_at: datetime | None = None
+  element_device_fingerprint: str | None = None
+  element_user_agent: str | None = None
+  element_ip_last_seen: str | None = None
+  element_device_rotkey: str
+  element_device_rotkey_iat: datetime
+  element_device_rotkey_exp: datetime
+
+
+class VwAccountUserSecurity(SQLViewModel):
+  user_guid: UUID
+  element_rotkey: str
+  element_rotkey_iat: datetime
+  element_rotkey_exp: datetime
+  session_guid: UUID
+  device_guid: UUID
+  element_token: str
+  element_token_iat: datetime
+  element_token_exp: datetime
+  element_revoked_at: datetime | None = None
+  element_device_fingerprint: str | None = None
+  element_user_agent: str | None = None
+  element_ip_last_seen: str | None = None
+  element_device_rotkey: str
+  element_device_rotkey_iat: datetime
+  element_device_rotkey_exp: datetime
+
+
+class VwAccountUserProfile(SQLViewModel):
+  user_guid: UUID
+  email: str
+  display_name: str
+  provider_name: str
+  provider_display: str
+  profile_image_base64: str | None = None
+  opt_in: bool
+  credits: int
+
+
+class VwUsersStorageCache(SQLViewModel):
+  recid: int
+  users_guid: UUID
+  types_recid: int
+  element_path: str
+  element_filename: str
+  element_public: bool
+  element_created_on: datetime
+  element_modified_on: datetime | None = None
+  element_deleted: bool
+  element_mimetype: str
+  element_displaytype: str
+
+
+class VwConversationHistory(SQLViewModel):
+  persona_name: str
+  model_name: str
+  element_token_allowance: int
+  element_tokens_returned: int | None = None
+  element_input: str | None = None
+  element_output: str | None = None
+  element_user_id: str | None = None
+  element_guild_id: str | None = None
+  element_channel_id: str | None = None
+
+
+class VwPersonas(SQLViewModel):
+  persona_name: str
+  model_name: str
+  token_allowance: int
+  system_role_prompt: str
+  element_created_on: datetime
+  element_modified_on: datetime
