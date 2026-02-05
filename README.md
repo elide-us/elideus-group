@@ -43,6 +43,7 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
 - `generate_rpc_bindings.py` generates RPC TypeScript models and client accessors.
+- `generate_db_namespace.py` generates Query Registry TypeScript models and DB namespace helpers at `frontend/src/db/namespace.ts`.
 - `scriptlib.py` handles common RPC namespace generation functions and version helpers.
 - `msdblib.py` handles most of the mssql querying operations.
 Schema dumps now record NVARCHAR field lengths for accurate

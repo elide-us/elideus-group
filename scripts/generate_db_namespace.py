@@ -16,7 +16,7 @@ from scriptlib import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_
 sys.path.insert(0, REPO_ROOT)
 
 QUERY_REGISTRY_ROOT = os.path.join(REPO_ROOT, 'queryregistry')
-FRONTEND_SHARED = os.path.join(REPO_ROOT, 'frontend', 'src', 'shared')
+FRONTEND_DB = os.path.join(REPO_ROOT, 'frontend', 'src', 'db')
 
 
 def db_op_to_func(parts: Iterable[str], op: str, version: str) -> str:
@@ -134,7 +134,7 @@ def find_all_operations() -> list[dict[str, str | list[str]]]:
 def generate_db_namespace_ts(interfaces: list[str], operations: list[dict[str, str | list[str]]]) -> str:
   lines = HEADER_COMMENT + [
     'import axios from "axios";',
-    'import { getFingerprint } from "./fingerprint";',
+    'import { getFingerprint } from "../shared/fingerprint";',
     '',
   ]
 
@@ -167,7 +167,7 @@ def write_namespace_file(
   output_dir: str,
 ) -> None:
   os.makedirs(output_dir, exist_ok=True)
-  out_path = os.path.join(output_dir, 'DbModels.tsx')
+  out_path = os.path.join(output_dir, 'namespace.ts')
   content = generate_db_namespace_ts(interfaces, operations)
   with open(out_path, 'w') as f:
     f.write(content)
@@ -236,7 +236,7 @@ def main() -> None:
   print('✨ Starting Query Registry model extraction and TS generation...')
   interfaces = find_all_interfaces()
   operations = find_all_operations()
-  write_namespace_file(interfaces, operations, FRONTEND_SHARED)
+  write_namespace_file(interfaces, operations, FRONTEND_DB)
   print('\n🏁 Query Registry namespace generation complete.')
 
 
