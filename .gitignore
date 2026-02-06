@@ -138,3 +138,4 @@ dmypy.json
 # Generated RPC bindings
 frontend/src/rpc/
 frontend/src/shared/RpcModels.tsx
+frontend/src/db/namespace.ts

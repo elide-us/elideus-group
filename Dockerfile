@@ -21,6 +21,7 @@ RUN python3 -m venv $VIRTUAL_ENV \
 COPY . .
 
 RUN python3 scripts/generate_rpc_bindings.py
+RUN python3 scripts/generate_db_namespace.py
 
 WORKDIR /app/frontend
 
