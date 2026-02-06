@@ -14,48 +14,8 @@ export interface UpsertConfigParams {
 	key: string;
 	value: string;
 }
-export interface CreateSessionParams {
-	access_token: string;
-	expires: any;
-	fingerprint: string;
-	rotkey: string;
-	rotkey_iat: any;
-	rotkey_exp: any;
-	user_guid: string;
-	provider: string;
-	user_agent: any;
-	ip_address: any;
-}
 export interface GuidParams {
 	guid: string;
-}
-export interface RevokeDeviceTokenParams {
-	access_token: string;
-}
-export interface RevokeProviderTokensParams {
-	guid: string;
-	provider: string;
-}
-export interface RotkeyLookupParams {
-	guid: string;
-	device_guid: any;
-	fingerprint: any;
-}
-export interface SetRotkeyParams {
-	guid: string;
-	rotkey: string;
-	iat: any;
-	exp: any;
-	device_guid: any;
-}
-export interface UpdateDeviceTokenParams {
-	device_guid: string;
-	access_token: string;
-}
-export interface UpdateSessionParams {
-	access_token: string;
-	user_agent: any;
-	ip_address: any;
 }
 export interface SetDisplayParams {
 	guid: string;
@@ -85,6 +45,352 @@ export interface UpdateProfileParams {
 	display_email: any;
 	provider: any;
 	image_b64: any;
+}
+export interface CreateSessionParams {
+	access_token: string;
+	expires: any;
+	fingerprint: string;
+	rotkey: string;
+	rotkey_iat: any;
+	rotkey_exp: any;
+	user_guid: string;
+	provider: string;
+	user_agent: any;
+	ip_address: any;
+}
+export interface RevokeDeviceTokenParams {
+	access_token: string;
+}
+export interface RevokeProviderTokensParams {
+	guid: string;
+	provider: string;
+}
+export interface RotkeyLookupParams {
+	guid: string;
+	device_guid: any;
+	fingerprint: any;
+}
+export interface SetRotkeyParams {
+	guid: string;
+	rotkey: string;
+	iat: any;
+	exp: any;
+	device_guid: any;
+}
+export interface UpdateDeviceTokenParams {
+	device_guid: string;
+	access_token: string;
+}
+export interface UpdateSessionParams {
+	access_token: string;
+	user_agent: any;
+	ip_address: any;
+}
+export interface AccountActionsTable {
+	recid: number;
+	action_label: string;
+	action_description: any;
+}
+export interface AccountUsersTable {
+	recid: number;
+	element_guid: any;
+	element_rotkey: string;
+	element_rotkey_iat: any;
+	element_rotkey_exp: any;
+	element_email: string;
+	element_display: string;
+	providers_recid: any;
+	element_optin: boolean;
+	element_created_on: any;
+	element_modified_on: any;
+}
+export interface AssistantConversationsTable {
+	recid: number;
+	personas_recid: number;
+	element_guild_id: any;
+	element_channel_id: any;
+	element_input: any;
+	element_output: any;
+	element_created_on: any;
+	element_tokens: any;
+	element_user_id: any;
+	models_recid: number;
+}
+export interface AssistantModelsTable {
+	recid: number;
+	element_name: string;
+}
+export interface AssistantPersonasTable {
+	recid: number;
+	element_name: string;
+	element_metadata: any;
+	element_created_on: any;
+	element_modified_on: any;
+	element_tokens: number;
+	element_prompt: string;
+	models_recid: number;
+}
+export interface AuthProvidersTable {
+	recid: number;
+	element_name: string;
+	element_display: string;
+}
+export interface DiscordGuildsTable {
+	recid: number;
+	element_guild_id: string;
+	element_name: string;
+	element_joined_on: any;
+	element_member_count: any;
+	element_owner_id: any;
+	element_region: any;
+	element_left_on: any;
+	element_notes: any;
+}
+export interface FrontendLinksTable {
+	recid: number;
+	element_sequence: number;
+	element_title: any;
+	element_url: any;
+}
+export interface FrontendRoutesTable {
+	recid: number;
+	element_enablement: string;
+	element_roles: number;
+	element_sequence: number;
+	element_path: any;
+	element_name: any;
+	element_icon: any;
+}
+export type SQLTableModel = Record<string, never>;
+export type SQLViewModel = Record<string, never>;
+export interface ServicePagesTable {
+	recid: number;
+	element_route_name: string;
+	element_pageblob: string;
+	element_version: number;
+	element_created_on: any;
+	element_modified_on: any;
+	element_created_by: any;
+	element_modified_by: any;
+	element_is_active: boolean;
+}
+export interface SessionsDevicesTable {
+	element_guid: any;
+	sessions_guid: any;
+	element_token: string;
+	element_token_iat: any;
+	element_token_exp: any;
+	element_device_fingerprint: any;
+	element_user_agent: any;
+	element_ip_last_seen: any;
+	element_revoked_at: any;
+	providers_recid: number;
+	element_created_on: any;
+	element_modified_on: any;
+	element_rotkey: string;
+	element_rotkey_iat: any;
+	element_rotkey_exp: any;
+}
+export interface StorageTypesTable {
+	recid: number;
+	element_mimetype: string;
+	element_displaytype: string;
+}
+export interface SysdiagramsTable {
+	name: string;
+	principal_id: number;
+	diagram_id: number;
+	version: any;
+	definition: any;
+}
+export interface SystemConfigTable {
+	recid: number;
+	element_key: any;
+	element_value: any;
+}
+export interface SystemRolesTable {
+	recid: number;
+	element_mask: number;
+	element_enablement: string;
+	element_name: string;
+	element_display: any;
+}
+export interface UsersActionsLogTable {
+	recid: number;
+	users_guid: any;
+	action_recid: number;
+	element_url: any;
+	element_logged_on: any;
+	element_notes: any;
+}
+export interface UsersAuthTable {
+	recid: number;
+	users_guid: any;
+	providers_recid: number;
+	element_identifier: any;
+	element_linked: boolean;
+	created_on: any;
+	modified_on: any;
+}
+export interface UsersCreditsTable {
+	users_guid: any;
+	element_credits: number;
+	element_reserve: any;
+	created_on: any;
+	modified_on: any;
+}
+export interface UsersEnablementsTable {
+	users_guid: any;
+	element_enablements: string;
+	created_on: any;
+	modified_on: any;
+}
+export interface UsersProfileimgTable {
+	users_guid: any;
+	element_base64: any;
+	providers_recid: number;
+	created_on: any;
+	modified_on: any;
+}
+export interface UsersRolesTable {
+	users_guid: any;
+	element_roles: number;
+	created_on: any;
+	modified_on: any;
+}
+export interface UsersSessionsTable {
+	element_guid: any;
+	users_guid: any;
+	element_created_at: any;
+	element_token: string;
+	element_token_iat: any;
+	element_token_exp: any;
+	element_created_on: any;
+	element_modified_on: any;
+}
+export interface UsersStorageCacheTable {
+	recid: number;
+	users_guid: any;
+	types_recid: number;
+	element_path: string;
+	element_filename: string;
+	element_public: boolean;
+	element_created_on: any;
+	element_modified_on: any;
+	element_deleted: boolean;
+	element_url: any;
+	element_reported: boolean;
+	moderation_recid: any;
+}
+export interface VwAccountUserProfile {
+	user_guid: any;
+	email: string;
+	display_name: string;
+	provider_name: string;
+	provider_display: string;
+	profile_image_base64: any;
+	opt_in: boolean;
+	credits: number;
+}
+export interface VwAccountUserSecurity {
+	user_guid: any;
+	element_rotkey: string;
+	element_rotkey_iat: any;
+	element_rotkey_exp: any;
+	session_guid: any;
+	device_guid: any;
+	element_token: string;
+	element_token_iat: any;
+	element_token_exp: any;
+	element_revoked_at: any;
+	element_device_fingerprint: any;
+	element_user_agent: any;
+	element_ip_last_seen: any;
+	element_device_rotkey: string;
+	element_device_rotkey_iat: any;
+	element_device_rotkey_exp: any;
+}
+export interface VwAccountUserSessions {
+	user_guid: any;
+	user_roles: number;
+	user_created_on: any;
+	user_modified_on: any;
+	element_rotkey: string;
+	element_rotkey_iat: any;
+	element_rotkey_exp: any;
+	session_guid: any;
+	session_created_on: any;
+	session_modified_on: any;
+	device_guid: any;
+	device_created_on: any;
+	device_modified_on: any;
+	element_token: string;
+	element_token_iat: any;
+	element_token_exp: any;
+	element_revoked_at: any;
+	element_device_fingerprint: any;
+	element_user_agent: any;
+	element_ip_last_seen: any;
+	element_device_rotkey: string;
+	element_device_rotkey_iat: any;
+	element_device_rotkey_exp: any;
+}
+export interface VwConversationHistory {
+	persona_name: string;
+	model_name: string;
+	element_token_allowance: number;
+	element_tokens_returned: any;
+	element_input: any;
+	element_output: any;
+	element_user_id: any;
+	element_guild_id: any;
+	element_channel_id: any;
+}
+export interface VwPersonas {
+	persona_name: string;
+	model_name: string;
+	token_allowance: number;
+	system_role_prompt: string;
+	element_created_on: any;
+	element_modified_on: any;
+}
+export interface VwUserSessionSecurity {
+	user_guid: any;
+	user_roles: number;
+	user_created_on: any;
+	user_modified_on: any;
+	element_rotkey: string;
+	element_rotkey_iat: any;
+	element_rotkey_exp: any;
+	session_guid: any;
+	session_created_on: any;
+	session_modified_on: any;
+	device_guid: any;
+	device_created_on: any;
+	device_modified_on: any;
+	element_token: string;
+	element_token_iat: any;
+	element_token_exp: any;
+	element_revoked_at: any;
+	element_device_fingerprint: any;
+	element_user_agent: any;
+	element_ip_last_seen: any;
+	element_device_rotkey: string;
+	element_device_rotkey_iat: any;
+	element_device_rotkey_exp: any;
+}
+export interface VwUsersStorageCache {
+	recid: number;
+	users_guid: any;
+	types_recid: number;
+	element_path: string;
+	element_filename: string;
+	element_public: boolean;
+	element_created_on: any;
+	element_modified_on: any;
+	element_deleted: boolean;
+	element_mimetype: string;
+	element_displaytype: string;
 }
 
 export async function dbCall<T>(op: string, payload: any = null): Promise<T> {

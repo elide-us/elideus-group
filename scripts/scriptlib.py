@@ -81,8 +81,10 @@ def py_to_ts(py_type: Any) -> str:
 
 
 def model_to_ts(model: type[BaseModel]) -> str:
-  lines = [f"export interface {model.__name__} {{"]
   fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
+  if not fields:
+    return f"export type {model.__name__} = Record<string, never>;"
+  lines = [f"export interface {model.__name__} {{"]
   for name, field in fields.items():
     annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
     ts_type = py_to_ts(annotation)
