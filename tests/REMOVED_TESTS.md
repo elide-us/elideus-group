@@ -12,6 +12,9 @@ are resolved.
   - `tests/test_service_roles_services.py`
   - `tests/test_system_roles_services.py`
 - Legacy module tests removed during query registry migration:
+  - `tests/test_auth_session_get_session.py`
+  - `tests/test_auth_session_logout_device.py`
+  - `tests/test_auth_session_refresh_provider.py`
   - `tests/test_auth_module.py`
   - `tests/test_bsky_module.py`
   - `tests/test_database_cli_module.py`
