@@ -11,7 +11,7 @@ from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from server.registry.types import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 
 class BaseProvider(ABC):

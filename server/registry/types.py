@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .models import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 __all__ = ["DBRequest", "DBResponse"]
