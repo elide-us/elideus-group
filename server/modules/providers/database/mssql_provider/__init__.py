@@ -1,20 +1,21 @@
 # providers/database/mssql_provider/__init__.py
 import logging
-from typing import Any, Callable, Mapping
+from typing import Any
+
+from queryregistry.handler import dispatch_query_request
+from queryregistry.helpers import parse_query_operation
+from queryregistry.models import DBRequest, DBResponse
 
 from ... import DbProviderBase
-from server.registry import get_handler as resolve_handler, parse_db_op
-from server.registry.types import DBRequest, DBResponse
 from .logic import init_pool, close_pool
-
-def get_handler(op: str):
-  return resolve_handler(op, provider="mssql")
 
 
 logger = logging.getLogger(__name__)
 
 
 class MssqlProvider(DbProviderBase):
+  provider = "mssql"
+
   async def startup(self) -> None:
     await init_pool(**self.config)
 
@@ -23,15 +24,19 @@ class MssqlProvider(DbProviderBase):
 
   async def _run(self, request: DBRequest) -> DBResponse:
     self.log_dispatch(request.op)
-    handler = self.resolve_handler(request.op)
-    result = await self.call_handler(handler, request.payload)
-    return self.normalize_response(request.op, result)
-
-  def resolve_handler(self, op: str) -> Callable[[Mapping[str, Any]], Any]:
-    return get_handler(op)
+    response = await dispatch_query_request(request, provider=self.provider)
+    return self.normalize_response(request.op, response)
 
   def describe_operation(self, op: str) -> tuple[str, tuple[str, ...], int]:
-    return parse_db_op(op)
+    domain, remainder = parse_query_operation(op)
+    if len(remainder) < 2:
+      raise ValueError(f"Invalid query operation: {op}")
+    *path, version_str = remainder
+    try:
+      version = int(version_str)
+    except ValueError as exc:
+      raise ValueError(f"Invalid query operation version: {op}") from exc
+    return domain, tuple(path), version
 
   def log_dispatch(self, op: str) -> None:
     domain, path, version = self.describe_operation(op)
@@ -43,18 +48,6 @@ class MssqlProvider(DbProviderBase):
       "/".join(path),
       version,
     )
-
-  async def call_handler(
-    self,
-    handler: Callable[[Mapping[str, Any]], Any],
-    payload: Mapping[str, Any],
-  ) -> Any:
-    return await self.await_handler_result(handler(payload))
-
-  async def await_handler_result(self, result: Any) -> Any:
-    if hasattr(result, "__await__"):
-      return await result
-    return result
 
   def normalize_response(self, op: str, result: Any) -> DBResponse:
     if isinstance(result, DBResponse):
@@ -69,4 +62,3 @@ class MssqlProvider(DbProviderBase):
     if result is None:
       return DBResponse(op=op, payload=[], rowcount=0)
     raise TypeError(f"Unexpected MSSQL handler result type: {type(result)!r}")
-
