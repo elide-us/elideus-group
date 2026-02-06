@@ -55,6 +55,10 @@ async def _dispatch_rpc_request(request, rpc_request: RPCRequest, parts: list[st
     response = await handler(remainder, request)
     logging.info(f"RPC completed: {rpc_request.op}")
     return response
+  except HTTPException as exc:
+    status_code = getattr(exc, "status_code", None)
+    logging.info("RPC rejected: %s (status=%s)", rpc_request.op, status_code)
+    raise
   except Exception:
     logging.exception(f"RPC failed: {rpc_request.op}")
     raise
@@ -116,4 +120,3 @@ async def _resolve_auth_context(app, rpc_request: RPCRequest, discord_ctx) -> Au
     raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
 
   return auth_ctx
-

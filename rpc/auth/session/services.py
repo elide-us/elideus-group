@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from rpc.helpers import unbox_request
+from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -41,18 +41,18 @@ async def auth_session_get_token_v1(request: Request):
     "rotation_token",
     rotation_token,
     httponly=True,
-    secure=True,
+    secure=is_secure_request(request),
     samesite="lax",
     expires=rot_exp,
   )
   return response
 
 async def auth_session_refresh_token_v1(request: Request):
-  rotation_token = request.cookies.get("rotation_token")
-  if not rotation_token:
-    raise HTTPException(status_code=401, detail="Missing rotation token")
   rpc_request, _auth_ctx, _ = await unbox_request(request)
   req_payload = rpc_request.payload or {}
+  rotation_token = request.cookies.get("rotation_token") or req_payload.get("rotationToken") or req_payload.get("rotation_token")
+  if not rotation_token:
+    raise HTTPException(status_code=401, detail="Missing rotation token")
   fingerprint = req_payload.get("fingerprint")
   if not fingerprint:
     raise HTTPException(status_code=400, detail="Missing fingerprint")
