@@ -1,8 +1,6 @@
 # providers/database/mssql_provider/__init__.py
 import logging
 from typing import Any
-
-from queryregistry.handler import dispatch_query_request
 from queryregistry.helpers import parse_query_operation
 from queryregistry.models import DBRequest, DBResponse
 
@@ -24,6 +22,8 @@ class MssqlProvider(DbProviderBase):
 
   async def _run(self, request: DBRequest) -> DBResponse:
     self.log_dispatch(request.op)
+    from queryregistry.handler import dispatch_query_request
+
     response = await dispatch_query_request(request, provider=self.provider)
     return self.normalize_response(request.op, response)
 
