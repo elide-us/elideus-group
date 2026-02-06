@@ -6,6 +6,11 @@ are resolved.
 
 - `tests/test_system_config_module.py` (failed during import: missing
   `server.modules.models.system_config`)
+- Database registry tests removed during query registry migration:
+  - `tests/test_account_role_services.py`
+  - `tests/test_auth_session_db_profile.py`
+  - `tests/test_service_roles_services.py`
+  - `tests/test_system_roles_services.py`
 - Legacy module tests removed during query registry migration:
   - `tests/test_auth_module.py`
   - `tests/test_bsky_module.py`
