@@ -64,7 +64,7 @@ async def list_tables(conn) -> list[str]:
   async with conn.cursor() as cur:
     await cur.execute(query)
     rows = await cur.fetchall()
-  return [f\"{row[0]}.{row[1]}\" for row in rows]
+  return [f"{row[0]}.{row[1]}" for row in rows]
 
 
 async def list_table_names(conn) -> list[str]:
