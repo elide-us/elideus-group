@@ -3,10 +3,14 @@ from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI
-from server.registry.types import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.modules.registry.helpers import (
+  dispatch_query_request_with_fallback,
+  get_home_links_request,
+  get_navbar_routes_request,
+)
 
 
 def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
@@ -38,15 +42,16 @@ class PublicLinksModule(BaseModule):
 
   async def get_home_links(self):
     assert self.db
-    res = await self.db.run(DBRequest(op="db:system:links:get_home_links:1"))
-    return _normalize_payload(res.payload)
+    res = await dispatch_query_request_with_fallback(
+      get_home_links_request(),
+      provider=self.db.provider,
+    )
+    return _normalize_payload(res.rows)
 
   async def get_navbar_routes(self, role_mask: int):
     assert self.db
-    res = await self.db.run(
-      DBRequest(
-        op="db:system:links:get_navbar_routes:1",
-        payload={"role_mask": role_mask},
-      )
+    res = await dispatch_query_request_with_fallback(
+      get_navbar_routes_request(role_mask),
+      provider=self.db.provider,
     )
-    return _normalize_payload(res.payload)
+    return _normalize_payload(res.rows)
