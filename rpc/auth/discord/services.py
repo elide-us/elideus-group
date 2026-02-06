@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
-from rpc.helpers import unbox_request
+from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
 from server.modules.oauth_module import OauthModule
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
@@ -58,9 +58,8 @@ async def auth_discord_oauth_login_v1(request: Request):
     "rotation_token",
     rotation_token,
     httponly=True,
-    secure=True,
+    secure=is_secure_request(request),
     samesite="lax",
     expires=rot_exp,
   )
   return response
-
