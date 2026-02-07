@@ -1,12 +1,15 @@
 from __future__ import annotations
 import asyncio, subprocess
 from fastapi import FastAPI
-from queryregistry.handler import dispatch_query_request
-from queryregistry.models import DBRequest
 from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
 from .discord_bot_module import DiscordBotModule
+from .registry.helpers import (
+  get_hostname_request,
+  get_repo_request,
+  get_version_request,
+)
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -43,28 +46,19 @@ class PublicVarsModule(BaseModule):
 
   async def get_version(self) -> str:
     assert self.db
-    res = await dispatch_query_request(
-      DBRequest(op="db:system:public_vars:get_version:1"),
-      provider=self.db.provider,
-    )
+    res = await self.db.run(get_version_request())
     payload = res.payload if isinstance(res.payload, dict) else {}
     return payload.get("version", "")
 
   async def get_hostname(self) -> str:
     assert self.db
-    res = await dispatch_query_request(
-      DBRequest(op="db:system:public_vars:get_hostname:1"),
-      provider=self.db.provider,
-    )
+    res = await self.db.run(get_hostname_request())
     payload = res.payload if isinstance(res.payload, dict) else {}
     return payload.get("hostname", "")
 
   async def get_repo(self) -> str:
     assert self.db
-    res = await dispatch_query_request(
-      DBRequest(op="db:system:public_vars:get_repo:1"),
-      provider=self.db.provider,
-    )
+    res = await self.db.run(get_repo_request())
     payload = res.payload if isinstance(res.payload, dict) else {}
     return payload.get("repo", "")
 
