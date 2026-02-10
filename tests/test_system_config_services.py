@@ -1,4 +1,5 @@
 import types, sys, pathlib
+from dataclasses import dataclass
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
@@ -22,20 +23,56 @@ sys.modules.setdefault('rpc.system.config', rpc_system_config_pkg)
 server_pkg = types.ModuleType('server')
 models_pkg = types.ModuleType('server.models')
 
+modules_pkg = types.ModuleType('server.modules')
+modules_models_pkg = types.ModuleType('server.modules.models')
+modules_models_pkg.__path__ = []
+system_config_models_pkg = types.ModuleType('server.modules.models.system_config')
+
+@dataclass
+class SystemConfigItem:
+  key: str
+  value: str
+
+
+@dataclass
+class SystemConfigList:
+  items: list[SystemConfigItem]
+
+
+@dataclass
+class SystemConfigDeleteResult:
+  key: str
+
 class RPCResponse(BaseModel):
   op: str
   payload: dict
   version: int = 1
+
+
+class RPCRequest(BaseModel):
+  op: str
+  payload: dict | None = None
+  version: int = 1
+
 
 class AuthContext(BaseModel):
   user_guid: str = ''
   roles: list[str] = []
 
 models_pkg.RPCResponse = RPCResponse
+models_pkg.RPCRequest = RPCRequest
 models_pkg.AuthContext = AuthContext
 server_pkg.models = models_pkg
+modules_pkg.models = modules_models_pkg
+modules_models_pkg.system_config = system_config_models_pkg
+system_config_models_pkg.SystemConfigItem = SystemConfigItem
+system_config_models_pkg.SystemConfigList = SystemConfigList
+system_config_models_pkg.SystemConfigDeleteResult = SystemConfigDeleteResult
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
+sys.modules.setdefault('server.modules', modules_pkg)
+sys.modules.setdefault('server.modules.models', modules_models_pkg)
+sys.modules.setdefault('server.modules.models.system_config', system_config_models_pkg)
 
 import importlib.util
 
@@ -66,17 +103,17 @@ class DummySystemConfigModule:
     self.calls = []
   async def get_configs(self, user_guid, roles):
     self.calls.append(('get_configs', user_guid, roles))
-    from rpc.system.config.models import SystemConfigConfigItem1, SystemConfigList1
-    item = SystemConfigConfigItem1(key='LoggingLevel', value='4')
-    return SystemConfigList1(items=[item])
+    from server.modules.models.system_config import SystemConfigItem, SystemConfigList
+    item = SystemConfigItem(key='LoggingLevel', value='4')
+    return SystemConfigList(items=[item])
   async def upsert_config(self, user_guid, roles, key, value):
     self.calls.append(('upsert_config', key, value))
-    from rpc.system.config.models import SystemConfigConfigItem1
-    return SystemConfigConfigItem1(key=key, value=value)
+    from server.modules.models.system_config import SystemConfigItem
+    return SystemConfigItem(key=key, value=value)
   async def delete_config(self, user_guid, roles, key):
     self.calls.append(('delete_config', key))
-    from rpc.system.config.models import SystemConfigDeleteConfig1
-    return SystemConfigDeleteConfig1(key=key)
+    from server.modules.models.system_config import SystemConfigDeleteResult
+    return SystemConfigDeleteResult(key=key)
 
 app = FastAPI()
 mod = DummySystemConfigModule()

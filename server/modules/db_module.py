@@ -6,11 +6,31 @@ import inspect
 from fastapi import FastAPI
 import logging
 
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.accounts.models import AccountExistsRequestPayload
+from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
-from .providers import DBResult
+from server.registry.types import DBRequest, DBResponse
+from server.registry.account.cache.model import (
+  CacheItemKey,
+  DeleteCacheFolderParams,
+  ListCacheParams,
+  ReplaceUserCacheParams,
+  UpsertCacheItemParams,
+)
+from server.modules.registry.helpers import (
+  delete_cache_folder_request,
+  delete_cache_item_request,
+  get_config_request,
+  identity_account_exists_request,
+  list_cache_request,
+  replace_user_cache_request,
+  upsert_cache_item_request,
+)
 from server.helpers.logging import update_logging_level
+from server.registry import get_handler_info, parse_db_op
 
 
 class DbModule(BaseModule):
@@ -27,7 +47,9 @@ class DbModule(BaseModule):
     from the ``DATABASE_PROVIDER`` environment variable. Defaults to ``mssql``.
     """
 
-    provider_name = provider or "mssql"
+    config = dict(cfg)
+    provider_name = provider or config.pop("provider", None) or "mssql"
+    self.provider = provider_name
 
     try:
       module = import_module(f".providers.database.{provider_name}_provider", __package__)
@@ -44,27 +66,135 @@ class DbModule(BaseModule):
     if not provider_cls:
       raise ValueError(f"Provider '{provider_name}' missing DbProviderBase implementation")
 
-    self._provider = provider_cls(**cfg)
+    self._provider = provider_cls(**config)
 
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult:
+  def _resolve_provider_config(self, provider_name: str, env: EnvModule, overrides: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Return configuration for ``provider_name`` using registry helpers."""
+
+    cfg: Dict[str, Any] = {}
+    registry_module = None
+    try:
+      registry_module = import_module(f"server.registry.providers.{provider_name}")
+    except ModuleNotFoundError:
+      registry_module = None
+
+    configure = getattr(registry_module, "configure", None) if registry_module else None
+
+    if callable(configure):
+      provider_cfg = configure(env)  # type: ignore[misc]
+      if provider_cfg is None:
+        provider_cfg = {}
+      if not isinstance(provider_cfg, dict):
+        raise TypeError(
+          f"Registry provider configuration for '{provider_name}' must be a mapping"
+        )
+      cfg.update(provider_cfg)
+    elif provider_name == "mssql" and "dsn" not in cfg:
+      cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
+
+    if overrides:
+      cfg.update(overrides)
+    return cfg
+
+  async def run(self, request: DBRequest) -> DBResponse:
     assert self._provider, "db_module not initialized"
-    out = await self._provider.run(op, args)
-    # normalize to DBResult
-    if isinstance(out, DBResult):
-      return out
-    return DBResult(**out)  # expects {"rows":[...], "rowcount":N}
+    if not isinstance(request, DBRequest):
+      raise TypeError("DbModule.run requires a DBRequest instance")
+    op = request.op
+    provider_name = self.provider
+    registry_logger = logging.getLogger("server.registry")
+    handler_info = None
+    try:
+      handler_info = get_handler_info(op, provider=provider_name, log_resolution=False)
+    except KeyError:
+      handler_info = None
+
+    provider = self._provider
+    fallback_reason = None
+    if not handler_info:
+      fallback_reason = "missing_handler"
+    elif handler_info.legacy:
+      fallback_reason = "legacy_handler"
+
+    if fallback_reason:
+      registry_logger.warning(
+        "Registry handler fallback triggered",
+        extra={
+          "db_op": op,
+          "db_provider": provider_name,
+          "db_fallback_reason": fallback_reason,
+        },
+      )
+      metrics_logger = logging.getLogger("metrics.registry")
+      metrics_logger.info(
+        "db_registry_fallback",
+        extra={
+          "db_op": op,
+          "db_provider": provider_name,
+          "db_fallback_reason": fallback_reason,
+        },
+      )
+      return await provider.run(request)
+
+    registry_logger.info(
+      "Registry handler resolved",
+      extra={"db_op": op, "db_provider": provider_name},
+    )
+
+    handler = handler_info.load()
+    provider_module = provider.__module__
+    provider_class = provider.__class__.__name__
+    provider_logger = logging.getLogger(provider_module)
+    log_dispatch = getattr(provider, "log_dispatch", None)
+    if callable(log_dispatch):
+      log_dispatch(op)
+    else:
+      domain, path, version = parse_db_op(op)
+      provider_logger.debug(
+        "%s dispatching op=%s domain=%s path=%s v=%d",
+        f"[{provider_class}]",
+        op,
+        domain,
+        "/".join(path),
+        version,
+      )
+
+    result = handler(request.payload)
+    await_handler_result = getattr(provider, "await_handler_result", None)
+    if callable(await_handler_result):
+      result = await await_handler_result(result)
+    elif inspect.isawaitable(result):
+      result = await result
+
+    normalize_response = getattr(provider, "normalize_response", None)
+    if callable(normalize_response):
+      return normalize_response(op, result)
+    return self._normalize_response(op, result)
+
+  def _normalize_response(self, op: str, result: Any) -> DBResponse:
+    if isinstance(result, DBResponse):
+      if not result.op:
+        result.attach_op(op)
+      return result
+    if isinstance(result, dict):
+      rows = result.get("rows")
+      rowcount = result.get("rowcount")
+      payload = result.get("payload", rows)
+      return DBResponse(op=op, payload=payload, rowcount=rowcount)
+    if result is None:
+      return DBResponse(op=op, payload=[], rowcount=0)
+    raise TypeError(f"Unexpected database response type: {type(result)!r}")
 
   async def startup(self):
     env: EnvModule = self.app.state.env
     await env.on_ready()
-    self.provider = env.get("DATABASE_PROVIDER")
-    cfg: Dict[str, Any] = {}
-    if self.provider == "mssql":
-      cfg = {"dsn": env.get("AZURE_SQL_CONNECTION_STRING")}
-    await self.init(provider=self.provider, **cfg)
+    provider_name = env.get("DATABASE_PROVIDER") or "mssql"
+    self.provider = provider_name
+    cfg = self._resolve_provider_config(provider_name, env)
+    await self.init(provider=provider_name, **cfg)
     assert self._provider
     await self._provider.startup()
-    res = await self.run("db:system:config:get_config:1", {"key": "LoggingLevel"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="LoggingLevel")))
     val = res.rows[0]["value"] if res.rows else "0"
     try:
       self.logging_level = int(val)
@@ -79,13 +209,13 @@ class DbModule(BaseModule):
       self._provider = None
 
   async def get_ms_api_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "MsApiId"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="MsApiId")))
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
     return res.rows[0]["value"]
 
   async def get_google_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "GoogleClientId"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="GoogleClientId")))
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] GoogleClientId=%s", value)
     if not value:
@@ -102,7 +232,7 @@ class DbModule(BaseModule):
     return value
 
   async def get_discord_client_id(self) -> str:
-    res = await self.run("db:system:config:get_config:1", {"key": "DiscordClientId"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="DiscordClientId")))
     value = res.rows[0]["value"] if res.rows else None
     logging.debug("[DbModule] DiscordClientId=%s", value)
     if not value:
@@ -110,45 +240,69 @@ class DbModule(BaseModule):
     return value
 
   async def get_auth_providers(self) -> list[str]:
-    res = await self.run("db:system:config:get_config:1", {"key": "AuthProviders"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="AuthProviders")))
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: AuthProviders")
     return [p.strip() for p in value.split(',') if p.strip()]
 
   async def get_jwks_cache_time(self) -> int:
-    res = await self.run("db:system:config:get_config:1", {"key": "JwksCacheTime"})
+    res = await self.run(get_config_request(ConfigKeyParams(key="JwksCacheTime")))
     value = res.rows[0]["value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: JwksCacheTime")
     return int(value)
 
   async def list_storage_cache(self, user_guid: str) -> list[Dict[str, Any]]:
-    res = await self.run("db:storage:cache:list:1", {"user_guid": user_guid})
+    params = ListCacheParams(user_guid=user_guid)
+    res = await self.run(list_cache_request(params))
     return res.rows
 
   async def replace_storage_cache(self, user_guid: str, items: list[Dict[str, Any]]):
-    await self.run(
-      "db:storage:cache:replace_user:1",
-      {"user_guid": user_guid, "items": items},
-    )
+    params = ReplaceUserCacheParams(user_guid=user_guid, items=items)
+    await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    res = await self.run("db:users:account:exists:1", {"user_guid": user_guid})
-    return bool(res.rows)
+    params: AccountExistsRequestPayload = {"user_guid": user_guid}
+    request = identity_account_exists_request(params)
+    provider_name = self.provider or "mssql"
+    try:
+      res = await dispatch_query_request(request, provider=provider_name)
+    except KeyError:
+      logging.getLogger("server.registry").warning(
+        "Query registry handler missing for user lookup",
+        extra={"db_op": request.op, "db_provider": provider_name},
+      )
+      return await self._fallback_user_exists(user_guid=user_guid)
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
 
-  async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResult:
-    return await self.run("db:storage:cache:upsert:1", item)
+  async def _fallback_user_exists(self, *, user_guid: str) -> bool:
+    provider_name = self.provider or "mssql"
+    if provider_name != "mssql":
+      logging.getLogger("server.registry").error(
+        "No registry handler for %s and no fallback available", provider_name
+      )
+      return False
+    try:
+      from queryregistry.identity.accounts.mssql import account_exists
+    except ModuleNotFoundError:
+      logging.getLogger("server.registry").error(
+        "MSSQL account exists handler unavailable"
+      )
+      return False
+    response = await account_exists({"user_guid": user_guid})
+    payload = response.payload if isinstance(response.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
+
+  async def upsert_storage_cache(self, item: Dict[str, Any]) -> DBResponse:
+    params = UpsertCacheItemParams.model_validate(item)
+    return await self.run(upsert_cache_item_request(params))
 
   async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
-    await self.run(
-      "db:storage:cache:delete:1",
-      {"user_guid": user_guid, "path": path, "filename": filename},
-    )
+    params = CacheItemKey(user_guid=user_guid, path=path, filename=filename)
+    await self.run(delete_cache_item_request(params))
 
   async def delete_storage_cache_folder(self, user_guid: str, path: str):
-    await self.run(
-      "db:storage:cache:delete_folder:1",
-      {"user_guid": user_guid, "path": path},
-    )
-
+    params = DeleteCacheFolderParams(user_guid=user_guid, path=path)
+    await self.run(delete_cache_folder_request(params))

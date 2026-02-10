@@ -32,70 +32,19 @@ server_pkg.models = models_pkg
 sys.modules.setdefault('server', server_pkg)
 sys.modules.setdefault('server.models', models_pkg)
 
-from rpc.public.vars.services import (
-  public_vars_get_hostname_v1,
-  public_vars_get_version_v1,
-  public_vars_get_versions_v1,
-)
-
-
-class DummyVarsHostnameModule:
-  async def get_hostname(self):
-    return "example.com"
-
-
-class DummyVarsVersionModule:
-  async def get_version(self):
-    return "1.2.3"
-
+from rpc.public.vars.services import public_vars_get_versions_v1
 
 class DummyVarsVersionsModule:
+  def __init__(self):
+    self.masks: list[int] = []
+
   async def get_versions(self, role_mask):
+    self.masks.append(role_mask)
     res = {"hostname": "example.com", "version": "1.2.3", "repo": "https://repo"}
     if role_mask:
       res["ffmpeg_version"] = "ffmpeg 1"
       res["odbc_version"] = "odbc 1"
     return res
-
-
-app = FastAPI()
-app.state.public_vars = DummyVarsHostnameModule()
-
-
-@app.post("/rpc")
-async def rpc_endpoint(request: Request):
-  return await public_vars_get_hostname_v1(request)
-
-
-client = TestClient(app)
-
-
-def test_get_hostname_service():
-  resp = client.post("/rpc", json={"op": "urn:public:vars:get_hostname:1"})
-  assert resp.status_code == 200
-  data = resp.json()
-  assert data["op"] == "urn:public:vars:get_hostname:1"
-  assert data["payload"] == {"hostname": "example.com"}
-
-
-app_version = FastAPI()
-app_version.state.public_vars = DummyVarsVersionModule()
-
-
-@app_version.post("/rpc")
-async def rpc_endpoint_version(request: Request):
-  return await public_vars_get_version_v1(request)
-
-
-client_version = TestClient(app_version)
-
-
-def test_get_version_service():
-  resp = client_version.post("/rpc", json={"op": "urn:public:vars:get_version:1"})
-  assert resp.status_code == 200
-  data = resp.json()
-  assert data["op"] == "urn:public:vars:get_version:1"
-  assert data["payload"] == {"version": "1.2.3"}
 
 
 app_versions = FastAPI()
@@ -104,8 +53,6 @@ app_versions.state.public_vars = DummyVarsVersionsModule()
 
 @app_versions.post("/rpc")
 async def rpc_endpoint_versions(request: Request):
-  request.state.rpc_request = RPCRequest(op="urn:public:vars:get_versions:1")
-  request.state.auth_ctx = AuthContext(role_mask=0)
   return await public_vars_get_versions_v1(request)
 
 
@@ -113,11 +60,12 @@ client_versions = TestClient(app_versions)
 
 
 def test_get_versions_public():
-  resp = client_versions.post("/rpc", json={})
+  resp = client_versions.post("/rpc", json={"op": "urn:public:vars:get_versions:1"})
   assert resp.status_code == 200
   data = resp.json()
   assert data["op"] == "urn:public:vars:get_versions:1"
   assert data["payload"] == {"hostname": "example.com", "version": "1.2.3", "repo": "https://repo"}
+  assert app_versions.state.public_vars.masks == [0]
 
 
 app_versions_admin = FastAPI()
@@ -146,4 +94,5 @@ def test_get_versions_admin():
     "ffmpeg_version": "ffmpeg 1",
     "odbc_version": "odbc 1",
   }
+  assert app_versions_admin.state.public_vars.masks == [1]
 

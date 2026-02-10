@@ -1,24 +1,14 @@
-import logging, uuid
+import logging
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
-from rpc.helpers import unbox_request
+from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
-from server.modules.env_module import EnvModule
-from server.modules.auth_module import AuthModule
-from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from .models import AuthDiscordOauthLogin1, AuthDiscordOauthLoginPayload1
-
-
-def normalize_provider_identifier(pid: str) -> str:
-  try:
-    return str(uuid.UUID(pid))
-  except ValueError:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
 
 
 async def auth_discord_oauth_login_v1(request: Request):
@@ -38,80 +28,23 @@ async def auth_discord_oauth_login_v1(request: Request):
     f"[auth_discord_oauth_login_v1] code={code[:40] if code else None}"
   )
 
-  env: EnvModule = request.app.state.env
-  auth: AuthModule = request.app.state.auth
-  db: DbModule = request.app.state.db
   oauth: OauthModule = request.app.state.oauth
 
-  discord_provider = getattr(auth, "providers", {}).get("discord")
-  if not discord_provider or not getattr(discord_provider, "audience", None):
-    raise HTTPException(status_code=500, detail="Discord OAuth client_id not configured")
-  client_id = getattr(discord_provider, "audience")
-
-  client_secret = env.get("DISCORD_AUTH_SECRET")
-  if not client_secret:
-    raise HTTPException(status_code=500, detail="DISCORD_AUTH_SECRET not configured")
-
-  res_redirect = await db.run("db:system:config:get_config:1", {"key": "Hostname"})
-  if not res_redirect.rows:
-    raise HTTPException(status_code=500, detail="Discord OAuth redirect URI not configured")
-  redirect_uri = res_redirect.rows[0]["value"]
-  logging.debug("[auth_discord_oauth_login_v1] DiscordClientId=%s", client_id)
-  logging.debug("[auth_discord_oauth_login_v1] redirect_uri=%s", redirect_uri)
-
-  id_token, access_token = await oauth.exchange_code_for_tokens(
-    code,
-    client_id,
-    client_secret,
-    redirect_uri,
-    provider=provider,
-  )
-
-  provider_uid, profile, payload = await auth.handle_auth_login(
-    "discord", id_token, access_token
-  )
-  provider_uid = normalize_provider_identifier(provider_uid)
-  logging.debug(
-    f"[auth_discord_oauth_login_v1] provider_uid={provider_uid[:40] if provider_uid else None}"
-  )
-
-  user = await oauth.resolve_user(
-    provider,
-    provider_uid,
-    profile,
-    payload,
-    confirm=confirm,
-    reauth_token=reauth_token,
-  )
-
-  user_guid = user["guid"]
-  new_img = profile.get("profilePicture")
-  if new_img and new_img != user.get("profile_image"):
-    await db.run(
-      "db:users:profile:set_profile_image:1",
-      {"guid": user_guid, "image_b64": new_img, "provider": provider},
-    )
-    user["profile_image"] = new_img
-  if user.get("provider_name") == "discord":
-    res_prof = await db.run(
-      "db:users:profile:update_if_unedited:1",
-      {
-        "guid": user_guid,
-        "email": profile["email"],
-        "display_name": profile["username"],
-      },
-    )
-    if res_prof.rows:
-      updated = res_prof.rows[0]
-      if updated.get("display_name"):
-        user["display_name"] = updated["display_name"]
-      if updated.get("email"):
-        user["email"] = updated["email"]
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token, session_exp, rotation_token, rot_exp = await oauth.create_session(
-    user_guid, provider, fingerprint, user_agent, ip_address
+  result = await oauth.login_provider(
+    provider,
+    code=code,
+    fingerprint=fingerprint,
+    confirm=confirm,
+    reauth_token=reauth_token,
+    user_agent=user_agent,
+    ip_address=ip_address,
   )
+  user = result["user"]
+  session_token = result["session_token"]
+  rotation_token = result["rotation_token"]
+  rot_exp = result["rotation_exp"]
 
   payload = AuthDiscordOauthLogin1(
     sessionToken=session_token,
@@ -125,9 +58,8 @@ async def auth_discord_oauth_login_v1(request: Request):
     "rotation_token",
     rotation_token,
     httponly=True,
-    secure=True,
+    secure=is_secure_request(request),
     samesite="lax",
     expires=rot_exp,
   )
   return response
-

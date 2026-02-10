@@ -1,29 +1,15 @@
-"""System domain registry bindings."""
+"""System domain registry helpers."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from . import assistant, config, discord, public, roles, routes
-
-if TYPE_CHECKING:
-  from server.registry import RegistryRouter
-
-__all__ = [
-  "config",
-  "discord",
-  "public",
-  "register",
-  "roles",
-  "routes",
-]
-
-
-def register(router: "RegistryRouter") -> None:
-  domain = router.domain("system")
-  assistant.register(domain)
-  config.register(domain.subdomain("config"))
-  discord.register(domain)
-  public.register(domain)
-  roles.register(domain.subdomain("roles"))
-  routes.register(domain.subdomain("routes"))
+from . import (
+  config,
+  conversations,
+  guilds,
+  models,
+  personas,
+  public_users,
+  public_vars,
+  routes,
+  service_pages,
+)  # noqa: F401

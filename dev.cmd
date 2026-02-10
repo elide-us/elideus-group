@@ -22,7 +22,7 @@ EXIT /b 1
 
 :GET_LATEST
 ECHO Getting latest from GitHub...
-CALL git pull origin elideus
+CALL git pull origin test
 IF ERRORLEVEL 1 EXIT /b 1
 EXIT /b 0
 
@@ -36,6 +36,8 @@ EXIT /b 0
 
 :GENERATE_LIBS
   python scripts\generate_rpc_bindings.py
+  IF ERRORLEVEL 1 EXIT /b 1
+  python scripts\generate_db_namespace.py
   IF ERRORLEVEL 1 EXIT /b 1
   EXIT /b 0
 

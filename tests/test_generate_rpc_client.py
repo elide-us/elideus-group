@@ -1,7 +1,7 @@
 import os, sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
-from generate_rpc_client import parse_dispatchers, parse_service_models
+from generate_rpc_bindings import parse_dispatchers, parse_service_models
 
 
 def test_parse_dispatchers():

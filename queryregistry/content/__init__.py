@@ -1,0 +1,1 @@
+"""Content query registry namespace."""

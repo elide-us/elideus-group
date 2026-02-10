@@ -1,5 +1,5 @@
 from __future__ import annotations
-import subprocess, os, sys, importlib.util, asyncio, aioodbc, argparse
+import subprocess, os, sys, importlib.util, asyncio, argparse
 from pathlib import Path
 from scriptlib import parse_version, next_build
 
@@ -28,15 +28,55 @@ def _parse_args() -> argparse.Namespace:
   )
   return parser.parse_args()
 
+def _determine_environment() -> str:
+  branch = os.environ.get('GITHUB_REF_NAME', '').strip().lower()
+  if branch == 'test':
+    return 'test'
+  if branch == 'main':
+    return 'prod'
+
+  ref = os.environ.get('GITHUB_REF', '').strip().lower()
+  if ref.endswith('/test'):
+    return 'test'
+  if ref.endswith('/main'):
+    return 'prod'
+
+  return 'prod'
+
+def _resolve_sql_connection_string(environment: str) -> tuple[str | None, str]:
+  attempted = []
+
+  if environment == 'test':
+    dsn = os.environ.get('AZURE_SQL_CONNECTION_STRING_DEV')
+    if dsn:
+      return dsn, 'AZURE_SQL_CONNECTION_STRING_DEV'
+    attempted.append('AZURE_SQL_CONNECTION_STRING_DEV')
+
+  dsn = os.environ.get('AZURE_SQL_CONNECTION_STRING')
+  if dsn:
+    return dsn, 'AZURE_SQL_CONNECTION_STRING'
+  attempted.append('AZURE_SQL_CONNECTION_STRING')
+
+  return None, ' or '.join(attempted)
+
 async def update_build_version() -> None:
   from dotenv import load_dotenv
   load_dotenv()
 
+  environment = _determine_environment()
+  dsn, source = _resolve_sql_connection_string(environment)
+  if not dsn:
+    print(f'{source} not set, skipping build version update')
+    return
+
+  print(f'Using {source} for build version update in {environment} environment')
+
+  import aioodbc
+
   pool = None
   try:
-    dsn = os.environ["AZURE_SQL_CONNECTION_STRING"]
-    pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
-  except Exception as e:
+    pool = await asyncio.wait_for(aioodbc.create_pool(dsn=dsn, autocommit=True), timeout=10)
+  except (asyncio.TimeoutError, Exception) as e:
     print(f'Unable to connect to database: {e}')
     return
 
@@ -93,11 +133,14 @@ def main() -> None:
   ROOT = Path(__file__).resolve().parent.parent
 
   args = _parse_args()
-  if not args.test:
+  if args.test:
+    print('Test flag set; skipping database connectivity checks.')
+  else:
     asyncio.run(update_build_version())
 
   subprocess.check_call([sys.executable, 'scripts/generate_rpc_bindings.py'], cwd=ROOT)
-  
+  subprocess.check_call([sys.executable, 'scripts/generate_db_namespace.py'], cwd=ROOT)
+
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'frontend')
   subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'frontend')
 

@@ -81,8 +81,10 @@ def py_to_ts(py_type: Any) -> str:
 
 
 def model_to_ts(model: type[BaseModel]) -> str:
-  lines = [f"export interface {model.__name__} {{"]
   fields = getattr(model, 'model_fields', None) or getattr(model, '__fields__', {})
+  if not fields:
+    return f"export type {model.__name__} = Record<string, never>;"
+  lines = [f"export interface {model.__name__} {{"]
   for name, field in fields.items():
     annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
     ts_type = py_to_ts(annotation)
@@ -752,16 +754,44 @@ async def dump_data(conn, prefix: str = 'dump_data') -> str:
   print(f'Data dumped to {filename}')
   return filename
 
-async def apply_schema(conn, path: str):
+_GO_PATTERN = re.compile(r"^\s*GO\s*$", flags=re.IGNORECASE | re.MULTILINE)
+
+def _iter_batches(sql: str) -> list[str]:
+  # Split on GO batch separators while preserving semicolons and other text.
+  return [batch for batch in _GO_PATTERN.split(sql) if batch.strip()]
+
+async def apply_schema(conn, path: str, *, use_transaction: bool = False):
   with open(path, 'r') as f:
     sql = f.read()
-  async with conn.cursor() as cur:
-    for stmt in sql.split(';'):
-      stmt = stmt.strip()
-      if not stmt:
-        continue
-      await cur.execute(stmt)
-  print('Schema applied.')
+
+  batches = _iter_batches(sql)
+  autocommit = getattr(conn, 'autocommit', None)
+
+  async def _execute_batches():
+    async with conn.cursor() as cur:
+      for batch in batches:
+        await cur.execute(batch)
+
+  if not use_transaction:
+    await _execute_batches()
+    print('Schema applied.')
+    return
+
+  if autocommit is not None:
+    conn.autocommit = False
+
+  try:
+    await _execute_batches()
+  except Exception:
+    await conn.rollback()
+    if autocommit is not None:
+      conn.autocommit = autocommit
+    raise
+  else:
+    await conn.commit()
+    if autocommit is not None:
+      conn.autocommit = autocommit
+    print('Schema applied.')
 
 async def connect(dbname=None):
   try:

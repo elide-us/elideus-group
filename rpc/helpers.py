@@ -93,3 +93,15 @@ async def unbox_request(request):
     request.state.auth_ctx = auth_ctx
   parts = rpc_request.op.split(':')
   return rpc_request, auth_ctx, parts
+
+
+def is_secure_request(request: Request) -> bool:
+  forwarded_proto = request.headers.get("x-forwarded-proto")
+  if forwarded_proto:
+    proto = forwarded_proto.split(",", 1)[0].strip().lower()
+    if proto:
+      return proto == "https"
+  url = getattr(request, "url", None)
+  if url:
+    return url.scheme == "https"
+  return False

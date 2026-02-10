@@ -1,0 +1,1 @@
+"""Identity query registry namespace."""

@@ -43,7 +43,7 @@ class DiscordOutputModule(BaseModule):
       if register:
         register(self)
     self.app.state.discord_output = self
-    logging.info("[DiscordOutputModule] loaded")
+    logging.debug("[DiscordOutputModule] loaded")
     if not self._worker_task:
       self._worker_task = asyncio.create_task(self._queue_worker(), name="discord-output-worker")
     self.mark_ready()

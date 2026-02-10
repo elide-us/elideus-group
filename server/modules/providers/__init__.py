@@ -5,37 +5,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
-from enum import Enum
 
 import aiohttp
 from fastapi import HTTPException, status
 from jose import jwt
 import logging
 
-from pydantic import BaseModel
-
-__all__ = [
-  "AuthProvider",
-  "BaseProvider",
-  "LifecycleProvider",
-  "AuthProviderBase",
-  "DbProviderBase",
-  "DBResult",
-  "DbRunMode",
-]
-
-
-class DBResult(BaseModel):
-  rows: list[dict] = []
-  rowcount: int = 0
-
-
-class DbRunMode(str, Enum):
-  ROW_ONE = "row_one"
-  ROW_MANY = "row_many"
-  JSON_ONE = "json_one"
-  JSON_MANY = "json_many"
-  EXEC = "exec"
+from queryregistry.models import DBRequest, DBResponse
 
 
 class BaseProvider(ABC):
@@ -65,8 +41,16 @@ class AuthProviderBase(LifecycleProvider):
 
 
 class DbProviderBase(LifecycleProvider):
+  async def run(self, request: DBRequest) -> DBResponse:
+    if not isinstance(request, DBRequest):
+      raise TypeError("DbProviderBase.run requires a DBRequest instance")
+    return await self._run(request)
+
+  async def execute(self, op: str, args: Dict[str, Any]) -> DBResponse:
+    return await self.run(DBRequest(op=op, payload=args))
+
   @abstractmethod
-  async def run(self, op: str, args: Dict[str, Any]) -> DBResult: ...
+  async def _run(self, request: DBRequest) -> DBResponse: ...
 
 
 class AuthProvider(AuthProviderBase):

@@ -5,9 +5,12 @@ discord.py
 openai
 lumaai
 azure-storage-blob
+azure-identity
+azure-containerregistry
 aiofiles
 aiohttp
-aioodbc
+aioodbc==0.5.0
+pyodbc==5.1.0
 python-dotenv
 asyncpg
 python-jose

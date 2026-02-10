@@ -5,6 +5,11 @@ from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
 from .discord_bot_module import DiscordBotModule
+from .registry.helpers import (
+  get_hostname_request,
+  get_repo_request,
+  get_version_request,
+)
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -40,16 +45,22 @@ class PublicVarsModule(BaseModule):
       return result.stdout, result.stderr
 
   async def get_version(self) -> str:
-    res = await self.db.run("db:public:vars:get_version:1", {})
-    return res.rows[0].get("version") if res.rows else ""
+    assert self.db
+    res = await self.db.run(get_version_request())
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("version", "")
 
   async def get_hostname(self) -> str:
-    res = await self.db.run("db:public:vars:get_hostname:1", {})
-    return res.rows[0].get("hostname") if res.rows else ""
+    assert self.db
+    res = await self.db.run(get_hostname_request())
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("hostname", "")
 
   async def get_repo(self) -> str:
-    res = await self.db.run("db:public:vars:get_repo:1", {})
-    return res.rows[0].get("repo") if res.rows else ""
+    assert self.db
+    res = await self.db.run(get_repo_request())
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return payload.get("repo", "")
 
   async def get_ffmpeg_version(self) -> str:
     try:

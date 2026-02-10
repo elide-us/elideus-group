@@ -1,13 +1,38 @@
 from __future__ import annotations
 import logging, uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException
 
 from server.modules import BaseModule
-from server.modules.auth_module import AuthModule, DEFAULT_SESSION_TOKEN_EXPIRY
+from server.modules.auth_module import (
+  AuthModule,
+  DEFAULT_ROTATION_TOKEN_EXPIRY,
+  DEFAULT_SESSION_TOKEN_EXPIRY,
+)
 from server.modules.db_module import DbModule
 from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from queryregistry.identity.profiles import update_profile_request
+from queryregistry.identity.profiles.models import UpdateProfileParams
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.sessions import get_rotkey_request
+from queryregistry.identity.sessions.models import RotkeyLookupParams
+from server.registry.account.session.model import (
+  CreateSessionParams,
+  RevokeDeviceTokenParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
+  UpdateSessionParams,
+)
+from server.registry.types import DBRequest
+from server.modules.registry.helpers import (
+  create_session_request,
+  revoke_device_token_request,
+  set_rotkey_request,
+  update_device_token_request,
+  update_session_request,
+)
 
 
 class SessionModule(BaseModule):
@@ -29,6 +54,16 @@ class SessionModule(BaseModule):
 
   async def shutdown(self):
     pass
+
+  @staticmethod
+  def _normalize_query_payload(payload: object | None) -> list[dict]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
 
   async def issue_token(
     self,
@@ -64,9 +99,15 @@ class SessionModule(BaseModule):
 
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await self.db.run(
-        "urn:users:profile:set_profile_image:1",
-        {"guid": user["guid"], "image_b64": new_img, "provider": provider},
+      await dispatch_query_request(
+        update_profile_request(
+          UpdateProfileParams(
+            guid=user["guid"],
+            provider=provider,
+            image_b64=new_img,
+          ),
+        ),
+        provider=self.db.provider or "mssql",
       )
       user["profile_image"] = new_img
 
@@ -92,27 +133,38 @@ class SessionModule(BaseModule):
   ) -> str:
     data = self.auth.decode_rotation_token(rotation_token)
     user_guid = data["guid"]
-    stored = await self.db.run("db:users:session:get_rotkey:1", {"guid": user_guid})
-    row = stored.rows[0] if stored.rows else None
-    if not row or row.get("rotkey") != rotation_token:
+    issued_at = data.get("issued_at")
+    stored = await dispatch_query_request(
+      get_rotkey_request(RotkeyLookupParams(guid=user_guid, fingerprint=fingerprint)),
+      provider=self.db.provider or "mssql",
+    )
+    rows = self._normalize_query_payload(stored.payload)
+    row = rows[0] if rows else None
+    if not row or row.get("device_rotkey") != rotation_token:
       raise HTTPException(status_code=401, detail="Invalid rotation token")
     provider = row.get("provider_name") or "microsoft"
     roles, _ = await self.auth.get_user_roles(user_guid)
     session_exp = datetime.now(timezone.utc) + timedelta(
       minutes=DEFAULT_SESSION_TOKEN_EXPIRY
     )
+    rotkey_iat = issued_at or datetime.now(timezone.utc)
+    rotkey_exp = rotkey_iat + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY)
     placeholder = uuid.uuid4().hex
     res = await self.db.run(
-      "db:auth:session:create_session:1",
-      {
-        "access_token": placeholder,
-        "expires": session_exp,
-        "fingerprint": fingerprint,
-        "user_agent": user_agent,
-        "ip_address": ip_address,
-        "user_guid": user_guid,
-        "provider": provider,
-      },
+      create_session_request(
+        CreateSessionParams(
+          access_token=placeholder,
+          expires=session_exp,
+          fingerprint=fingerprint,
+          rotkey=rotation_token,
+          rotkey_iat=rotkey_iat,
+          rotkey_exp=rotkey_exp,
+          user_guid=user_guid,
+          provider=provider,
+          user_agent=user_agent,
+          ip_address=ip_address,
+        ),
+      ),
     )
     row2 = res.rows[0] if res.rows else {}
     session_guid = row2.get("session_guid")
@@ -121,23 +173,20 @@ class SessionModule(BaseModule):
       user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp
     )
     await self.db.run(
-      "db:auth:session:update_device_token:1",
-      {"device_guid": device_guid, "access_token": session_token},
+      update_device_token_request(
+        UpdateDeviceTokenParams(device_guid=device_guid, access_token=session_token),
+      ),
     )
     return session_token
 
   async def invalidate_token(self, user_guid: str) -> None:
     now = datetime.now(timezone.utc)
     await self.db.run(
-      "db:users:session:set_rotkey:1",
-      {"guid": user_guid, "rotkey": "", "iat": now, "exp": now},
+      set_rotkey_request(SetRotkeyParams(guid=user_guid, rotkey="", iat=now, exp=now)),
     )
 
   async def logout_device(self, token: str) -> None:
-    await self.db.run(
-      "db:auth:session:revoke_device_token:1",
-      {"access_token": token},
-    )
+    await self.db.run(revoke_device_token_request(RevokeDeviceTokenParams(access_token=token)))
 
   async def get_session(
     self,
@@ -146,7 +195,7 @@ class SessionModule(BaseModule):
     user_agent: str | None,
   ) -> dict:
     res = await self.db.run(
-      "db:auth:session:get_by_access_token:1", {"access_token": token}
+      DBRequest(op="db:account:session:get_by_access_token:1", payload={"access_token": token}),
     )
     session = res.rows[0] if res.rows else None
     if not session:
@@ -166,8 +215,9 @@ class SessionModule(BaseModule):
 
     try:
       await self.db.run(
-        "db:auth:session:update_session:1",
-        {"access_token": token, "ip_address": ip_address, "user_agent": user_agent},
+        update_session_request(
+          UpdateSessionParams(access_token=token, ip_address=ip_address, user_agent=user_agent),
+        ),
       )
     except Exception as e:
       logging.error("[SessionModule.get_session] Failed to update session metadata: %s", e)

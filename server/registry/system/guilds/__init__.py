@@ -3,19 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from server.registry.types import DBRequest
 
-if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
-
-__all__ = [
-  "get_guild_request",
-  "list_guilds_request",
-  "register",
-  "upsert_guild_request",
-]
 
 
 _DEF_PROVIDER_KEY = "db:system:discord_guilds"
@@ -28,7 +19,7 @@ def _normalise_identifier(value: str | int | None) -> str | None:
 
 
 def _request(op: str, params: dict[str, Any] | None = None) -> DBRequest:
-  return DBRequest(op=op, params=params or {})
+  return DBRequest(op=op, payload=params or {})
 
 
 def upsert_guild_request(
@@ -72,9 +63,3 @@ def list_guilds_request(*, include_inactive: bool = True) -> DBRequest:
   if not include_inactive:
     params["include_inactive"] = False
   return _request(f"{_DEF_PROVIDER_KEY}:list_guilds:1", params)
-
-
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("upsert_guild", version=1)
-  router.add_function("get_guild", version=1)
-  router.add_function("list_guilds", version=1)

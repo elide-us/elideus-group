@@ -11,6 +11,9 @@ flowchart TD
   RPC --> Services
   Services --> Modules
   Modules --> Providers
+  Services --> DbModule
+  DbModule --> QueryRegistry
+  QueryRegistry --> Providers
   Security --> RPC
   Security --> Services
 ```
@@ -18,8 +21,9 @@ flowchart TD
 * **Client** – User owned frontend or external application.
 * **RPC** – Typed boundary that exposes the public namespace. Only bearer tokens are accepted.
 * **Services** – Business logic invoked by RPC handlers.
-* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts.
-* **Providers** – External systems such as databases and identity services.
+* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts and, by default, invoke providers directly. The `DbModule` is the exception: it forwards URN-formatted operations to the query registry so data providers stay focused on connection lifecycles and response helpers.
+* **Query Registry** – Dedicated translation layer (see `queryregistry/`) that maps URN-formatted operations from the `DbModule` to provider-specific handlers. It routes the request to the correct provider implementation and normalizes responses so callers receive a consistent payload regardless of the backing engine.
+* **Providers** – External systems such as databases and identity services. SQL logic remains centralized in the provider directories (for example `server/registry/.../mssql.py` files), but the query registry ensures those implementations expose a uniform shape back to the modules.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
 
 ## Security Model
@@ -31,22 +35,25 @@ flags. Bit 63 is unused to avoid the sign bit. High bits define system roles and
 low bits are used for user level flags.
 
 | Bit | Hex Value             | Role Name                 | Notes |
-|----:|----------------------:|---------------------------|------|
-| 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | The configuration of the service, such as API keys |
-| 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | Access to system configuration features |
-| 60  | `0x1000000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Manage security role definitions and user assignments |
-| 59  | `0x0800000000000000`  | `ROLE_DISCORD_ADMIN`      | Manage Discord personas and integrations |
-| 58  | `0x0400000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools |
-| 57  | `0x0200000000000000`  | `ROLE_SUPPORT`            | Access to support utilities |
-| 56  | `0x0100000000000000`  | *(reserved)*              | |
-| ... | ...                   |                           | |
-| 6   | `0x0000000000000040`  | `ROLE_DISCORD_BOT`        | Allows the user to interact with the system via Discord |
-| 5   | `0x0000000000000020`  | `ROLE_LUMAAI_VIDEO`       | Allows the user to generate videos with LumaLabs AI |
-| 4   | `0x0000000000000010`  | `ROLE_OPENAI_TEXT`        | Allows the user to generate text with OpenAI |
-| 3   | `0x0000000000000008`  | `ROLE_OPENAI_TTS`         | Allows the user to generate TTS with OpenAI |
-| 2   | `0x0000000000000004`  | `ROLE_OPENAI_IMAGE`       | Allows the user to generate images with OpenAI |
-| 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain |
-| 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Grants access to profile and provider management |
+|----:|----------------------:|---------------------------|-------|
+| 62  | `0x4000000000000000`  | `ROLE_SERVICE_ADMIN`      | Configure service-wide integrations, keys, and automation. |
+| 61  | `0x2000000000000000`  | `ROLE_SYSTEM_ADMIN`       | Access to system configuration features. |
+| 60  | `0x1000000000000000`  | `ROLE_FINANCE_ADMIN`      | Configure financial parameters; transactional actions are disallowed and any such attempts are explicitly logged and trigger a manual audit. |
+| 59  | `0x0800000000000000`  | `ROLE_ACCOUNT_ADMIN`      | Manage security role definitions and user assignments. |
+| 58  | `0x0400000000000000`  | `ROLE_DISCORD_ADMIN`      | Manage Discord personas and integrations. |
+| 53  | `0x0020000000000000`  | `ROLE_FINANCE_APPR`       | Approve accounting actions as an accounting manager. |
+| 52  | `0x0010000000000000`  | `ROLE_FINANCE_ACCT`       | Perform day-to-day accounting tasks. |
+| 49  | `0x0002000000000000`  | `ROLE_MODERATOR`          | Access to moderation tools. |
+| 48  | `0x0001000000000000`  | `ROLE_SUPPORT`            | Access to support utilities. |
+| 4   | `0x0000000000000010`  | `ROLE_DISCORD_BOT`        | Allow bot-initiated operations from Discord. |
+| 3   | `0x0000000000000008`  | `ROLE_LUMAAI_API`         | Access to LumaAI generation features. |
+| 2   | `0x0000000000000004`  | `ROLE_OPENAI_API`         | Access to OpenAI generation features. |
+| 1   | `0x0000000000000002`  | `ROLE_STORAGE`            | Allows access to the storage domain when explicitly provisioned. |
+| 0   | `0x0000000000000001`  | `ROLE_REGISTERED`         | Baseline access to profile and provider management. |
+
+> **Note:** `ROLE_STORAGE` now uses its own bit so that access to the storage domain
+> requires explicit provisioning. The discrete role name remains in place because
+> RPC namespaces continue to reference it directly.
 
 ### Authentication Domains
 

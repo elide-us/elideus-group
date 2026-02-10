@@ -43,10 +43,25 @@ Several helper scripts in the `scripts` directory manage the project database an
 - `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
     - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
 - `generate_rpc_bindings.py` generates RPC TypeScript models and client accessors.
+- `generate_db_namespace.py` generates Query Registry TypeScript models and DB namespace helpers at `frontend/src/db/namespace.ts`.
 - `scriptlib.py` handles common RPC namespace generation functions and version helpers.
 - `msdblib.py` handles most of the mssql querying operations.
 Schema dumps now record NVARCHAR field lengths for accurate
 recreation across environments.
+
+The `server` package also exposes a `database_cli` module with callable
+management helpers (connect, reconnect, list tables) for API-level automation.
+
+### ODBC 18 Upgrade Plan
+We are moving to ODBC Driver 18 and Python 3.12 compatible client libraries:
+1. Update `requirements.txt` to newer `aioodbc` and `pyodbc` versions that
+   support Python 3.12 (now pinned to 0.5.0 and 5.1.0).
+2. Ensure the host has **ODBC Driver 18 for SQL Server** installed (Windows,
+   Linux, and container images).
+3. Update `AZURE_SQL_CONNECTION_STRING` to include the Driver 18 name plus
+   encryption defaults (for example: `Driver={ODBC Driver 18 for SQL Server};Encrypt=yes;TrustServerCertificate=no;`).
+4. Validate database operations (connect/list tables/schema tools) against a
+   staging database before running schema dumps.
 
 ### Seeding Personas
 Personas for the assistant are defined in `scripts/data/assistant_personas.json`. Load them into the database with:
@@ -64,6 +79,7 @@ Two tables record persona definitions and usage:
 | Table | Purpose |
 | ----- | ------- |
 | `assistant_personas` | Stores persona names, prompts, token limits, and model references. |
+| `discord_guilds` | Tracks Discord guild metadata (name, join timestamps, membership counts, owner IDs, etc.) for registry lookups. |
 | `assistant_conversations` | Logs each interaction including guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps. |
 
 The OpenAI module records conversation details whenever `!summarize` is executed.
@@ -72,4 +88,3 @@ The OpenAI module records conversation details whenever `!summarize` is executed
 
 - Outbound Discord messages are buffered through an internal asyncio queue that respects the module's chunking and rate-limiting rules. Use `queue_channel_message` and `queue_user_message` helpers to enqueue work.
 - Successful deliveries update per-channel, per-user, and aggregate throughput metrics. Call `get_throughput_snapshot()` to inspect counters and timestamps for monitoring or diagnostics.
-

@@ -15,15 +15,28 @@ def main():
 
   for repository in client.list_repository_names():
     print(f"\nChecking repository: {repository}")
-    for manifest in client.list_manifest_properties(repository=repository):
+    manifests = sorted(
+       list(client.list_manifest_properties(repository=repository)),
+       key = lambda m: m.created_on or datetime.datetime.min,
+       reverse = True
+    )
+
+    if not manifests:
+       continue
+
+    newest_digest = manifests[0].digest
+    for manifest in manifests:
       digest = manifest.digest
       created_on = manifest.created_on
       tags = manifest.tags or []
 
+      if digest == newest_digest:
+         print(f"Skipping most recent manifest {repository}@{digest}")
+         continue
       if created_on and created_on < cutoff:
         print(f"  Deleting {repository}@{digest} (created {created_on})")
         client.delete_manifest(repository=repository, tag_or_digest=digest)
-      if not tags:
+      elif not tags:
         print(f"  Deleting untagged manifest {repository}@{digest}")
         try:
           client.delete_manifest(repository=repository, tag_or_digest=digest)

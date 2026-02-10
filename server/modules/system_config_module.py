@@ -1,13 +1,19 @@
 from __future__ import annotations
 import logging
 from fastapi import FastAPI
+from server.registry.system.config.model import ConfigKeyParams, UpsertConfigParams
+from server.modules.registry.helpers import (
+  delete_config_request,
+  get_configs_request,
+  upsert_config_request,
+)
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from rpc.system.config.models import (
-  SystemConfigConfigItem1,
-  SystemConfigDeleteConfig1,
-  SystemConfigList1,
+from server.modules.models.system_config import (
+  SystemConfigDeleteResult,
+  SystemConfigItem,
+  SystemConfigList,
 )
 
 class SystemConfigModule(BaseModule):
@@ -27,11 +33,11 @@ class SystemConfigModule(BaseModule):
   async def shutdown(self):
     self.db = None
 
-  async def get_configs(self, user_guid: str, roles: list[str]) -> SystemConfigList1:
+  async def get_configs(self, user_guid: str, roles: list[str]) -> SystemConfigList:
     logging.debug("[system_config_get_configs_v1] user=%s roles=%s", user_guid, roles)
-    res = await self.db.run("db:system:config:get_configs:1", {})
+    res = await self.db.run(get_configs_request())
     items = [
-      SystemConfigConfigItem1(
+      SystemConfigItem(
         key=row.get("element_key", ""),
         value=row.get("element_value", ""),
       )
@@ -41,9 +47,9 @@ class SystemConfigModule(BaseModule):
       "[system_config_get_configs_v1] returning %d items",
       len(items),
     )
-    return SystemConfigList1(items=items)
+    return SystemConfigList(items=items)
 
-  async def upsert_config(self, user_guid: str, roles: list[str], key: str, value: str) -> SystemConfigConfigItem1:
+  async def upsert_config(self, user_guid: str, roles: list[str], key: str, value: str) -> SystemConfigItem:
     logging.debug(
       "[system_config_upsert_config_v1] user=%s roles=%s payload={'key': %s, 'value': %s}",
       user_guid,
@@ -52,16 +58,15 @@ class SystemConfigModule(BaseModule):
       value,
     )
     await self.db.run(
-      "db:system:config:upsert_config:1",
-      {"key": key, "value": value},
+      upsert_config_request(UpsertConfigParams(key=key, value=value)),
     )
     logging.debug(
       "[system_config_upsert_config_v1] upserted config %s",
       key,
     )
-    return SystemConfigConfigItem1(key=key, value=value)
+    return SystemConfigItem(key=key, value=value)
 
-  async def delete_config(self, user_guid: str, roles: list[str], key: str) -> SystemConfigDeleteConfig1:
+  async def delete_config(self, user_guid: str, roles: list[str], key: str) -> SystemConfigDeleteResult:
     logging.debug(
       "[system_config_delete_config_v1] user=%s roles=%s payload={'key': %s}",
       user_guid,
@@ -69,11 +74,10 @@ class SystemConfigModule(BaseModule):
       key,
     )
     await self.db.run(
-      "db:system:config:delete_config:1",
-      {"key": key},
+      delete_config_request(ConfigKeyParams(key=key)),
     )
     logging.debug(
       "[system_config_delete_config_v1] deleted config %s",
       key,
     )
-    return SystemConfigDeleteConfig1(key=key)
+    return SystemConfigDeleteResult(key=key)

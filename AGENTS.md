@@ -1,93 +1,71 @@
-# AGENT Instructions
+# Repository-wide AGENT Instructions
 
-This document provides concise rules and operational guidance for the Codex CLI code agent. It is focused on coding agent rules; detailed architectural and security design is documented separately in **ARCHITECTURE.md**.
-
----
-
-## Automation and Scripting
-
-* **`dev.cmd`** – Use for build/test actions on Windows.
-* **`run_tests.py`** – Canonical entry point for running tests.
-* **`mssql_cli.py`** and **`scriptlib.py`** – Utilities for schema migrations and maintenance tasks.
-* **Docker builds** – No automated test coverage; modify with caution.
+This document sets the ground rules for any change that spans the repository.
+Component-specific expectations now live beside the code they regulate; see the
+"Component Guides" section below before editing a feature area.
 
 ---
 
-## Coding Standards
+## Orientation
 
-* Python → 2-space indentation.
-* TypeScript → 4-space tabs.
-* Update tests, scripts, and docs with code changes.
-* Run `npm lint` and `npm type-check` for frontend.
-
----
-
-## Database Management
-
-* For data loads, generate a `.sql` file. Human developers will import manually using **SSMS**.
+- Review **ARCHITECTURE.md** for the layer boundaries (RPC → Service → Module →
+  Provider) and the security model.
+- Domain-specific design notes are captured in the markdown files that live next
+  to the related code (for example **RPC.md** and documents under `server/`).
 
 ---
 
-## Testing Details
+## Workflow Guardrails
 
-* Always regenerate RPC bindings before running tests.
-* Frontend: `npm lint`, `npm type-check`, `npm test`.
-* Backend: `pytest` in `/tests`.
-
----
-
-## Tech Stack
-
-* **Node 18 / React / TypeScript** – Frontend.
-* **FastAPI (Python 3.12)** – Backend RPC server.
-* **Docker** – Containerization.
+- Update tests, scripts, and documentation alongside code changes.
+- Database loads must be delivered as `.sql` files—humans run them through
+  **SSMS**.
+- Prefer existing automation helpers when they exist instead of ad-hoc scripts.
+- Docker builds have no automated coverage—plan manual validation when touching
+  the Dockerfile or startup scripts.
 
 ---
 
-## Module and Provider Rules
+## Common Pitfalls to Avoid
 
-* **Modules** = business logic. Implement modules when new functionality is required.
-* **Providers** = interchangeable backends. Implement when multiple providers are possible (e.g., Azure vs. AWS, MSSQL vs. Postgres).
-* Respect layering: **RPC → Service → Module → Provider → Data**.
-
----
-
-## RPC Layer Rules
-
-* Keep RPC thin: expressive, mapping, and security-only.
-* Primary **role security** check occurs at the **domain level** (e.g., `urn:domain`).
-* **Feature enablement** check occurs at the **subdomain level** (e.g., `urn:domain:subdomain`).
-* Business logic must live in services/modules, never in RPC handlers.
+- Do not add aliases when a direct reference is already available.
+- Do not suppress errors; surface them with contextual logging.
+- Do not invent new environment variables without updating configuration docs
+  and module startup code.
 
 ---
 
-## Module Initialization
+## Build & Test Entry Points
 
-* Two-phase startup:
-
-  * **Instantiation**: load all `_module.py` files, attach to `app.state`.
-  * **Startup**: run `startup()` coroutines, await dependencies with `on_ready()`, call `mark_ready()`.
-* Always inherit from `BaseModule`.
-* Always `await on_ready()` before using a module in startup.
-
----
-
-## Solutions To Avoid
-
-* Don’t add aliases when direct references exist.
-* Don’t suppress errors.
-* Don’t invent environment variables.
-* Don’t put business logic in RPC.
-* Don’t bypass modules by calling providers directly.
+- **Unified harness** – run `python scripts/run_tests.py` to execute the
+  standard lint, type-check, and test pipeline shared by local, CI, and YAML
+  automation environments.
+- **Python / FastAPI** – run `pytest` from the `tests/` directory when iterating
+  on backend code; the unified harness calls into this command.
+- **Frontend** – run `npm lint`, `npm type-check`, and `npm test` for focused
+  feedback; these steps are orchestrated automatically by the unified harness.
+- **Tooling** – prefer `python scripts/run_tests.py` over ad-hoc shell
+  sequences. Use `dev.cmd` for Windows workflows that need parity with the
+  harness.
 
 ---
 
-## File Structure
+## Coding Conventions
 
-* `/` – Build automation, config, FastAPI entrypoint.
-* `server/` – Modules, routes, helpers.
-* `rpc/` – RPC handlers and services.
-* `frontend/` – React app.
-* `static/` – Generated frontend. 
-* `tests/` – Unit/process tests. NOT A PYTHON MODULE! 
-* `scripts/` – RPC-to-TS generation, schema, automation. NOT A PYTHON MODULE!
+- Python uses **2-space** indentation.
+- TypeScript uses **4-space tabs**.
+- Keep formatting and lint passes clean before opening a PR.
+
+---
+
+## Component Guides
+
+Consult these scoped instruction files when working in a given area:
+
+- `frontend/AGENTS.md` – React/Vite codebase.
+- `rpc/AGENTS.md` – RPC handlers and services.
+- `server/AGENTS.md` – FastAPI app startup, modules, and providers.
+- `scripts/AGENTS.md` – Automation and RPC binding generation.
+- `tests/AGENTS.md` – Python test suite structure.
+
+Always obey the most specific AGENTS.md covering the files you modify.

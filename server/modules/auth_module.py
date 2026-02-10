@@ -1,11 +1,13 @@
 """Authentication module handling login and token workflows."""
 
 import base64, logging, uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
-from typing import Dict
+from typing import Any, Dict
 
+from queryregistry.system.roles.models import DeleteRolePayload, UpsertRolePayload
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
@@ -14,6 +16,10 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.sessions import get_rotkey_request
+from queryregistry.identity.sessions.models import RotkeyLookupParams
+from server.registry.types import DBRequest, DBResponse
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -27,20 +33,40 @@ class RoleCache:
     self.role_registered: int = 0
     self._user_roles: dict[str, tuple[list[str], int]] = {}
 
+  @staticmethod
+  def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
+
+  async def _dispatch_system_role_request(self, request: DBRequest) -> DBResponse:
+    if not self.db:
+      raise RuntimeError("RoleCache database module not configured")
+    return await self.db.run(request)
+
   async def load_roles(self):
     logging.debug("[RoleCache] Loading roles from database")
     try:
-      result = await self.db.run("db:system:roles:list:1", {})
+      result = await self._dispatch_system_role_request(
+        DBRequest(op="db:system:roles:list:1", payload={}),
+      )
     except Exception as e:
       logging.error("[RoleCache] Failed to load roles: %s", e)
       return
-    rows = result.rows
+    rows = self._normalize_payload(result.payload)
     if not rows:
       logging.debug("[RoleCache] No roles returned")
       return
     self.roles.clear()
     for r in rows:
-      self.roles[r["name"]] = int(r["mask"])
+      name = r.get("name")
+      if not name:
+        continue
+      self.roles[name] = int(r.get("mask", 0) or 0)
     self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
     self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
     self._user_roles.clear()
@@ -51,16 +77,16 @@ class RoleCache:
     await self.load_roles()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    await self.db.run(
-      "db:security:roles:upsert_role:1",
-      {"name": name, "mask": mask, "display": display},
+    payload: UpsertRolePayload = {"name": name, "mask": mask, "display": display}
+    await self._dispatch_system_role_request(
+      DBRequest(op="db:system:roles:update:1", payload=dict(payload)),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
-    await self.db.run(
-      "db:security:roles:delete_role:1",
-      {"name": name},
+    payload: DeleteRolePayload = {"name": name}
+    await self._dispatch_system_role_request(
+      DBRequest(op="db:system:roles:delete:1", payload=dict(payload)),
     )
     await self.refresh_role_cache()
 
@@ -83,8 +109,14 @@ class RoleCache:
       logging.debug("[RoleCache] Returning cached roles for %s", guid)
       return self._user_roles[guid]
     logging.debug("[RoleCache] Fetching roles for %s", guid)
-    res = await self.db.run("db:users:profile:get_roles:1", {"guid": guid})
-    mask = int(res.rows[0].get("element_roles", 0)) if res.rows else 0
+    if not self.db:
+      raise RuntimeError("RoleCache database module not configured")
+    response = await self.db.run(
+      DBRequest(op="db:identity:accounts:read:1", payload={"guid": guid}),
+    )
+    rows = self._normalize_payload(response.rows)
+    row = rows[0] if rows else {}
+    mask = int(row.get("user_roles") or row.get("element_roles") or 0)
     names = self.mask_to_names(mask)
     self._user_roles[guid] = (names, mask)
     logging.debug("[RoleCache] Roles for %s: %s (mask=%#018x)", guid, names, mask)
@@ -174,7 +206,7 @@ class AuthModule(BaseModule):
         self.providers["discord"] = provider
         logging.debug("[AuthModule] Discord provider ready")
       await self.role_cache.load_roles()
-      logging.info("Auth module loaded")
+      logging.debug("Auth module loaded")
       self.mark_ready()
     except Exception as e:
       logging.exception("[AuthModule] Failed to load providers: %s", e)
@@ -185,6 +217,16 @@ class AuthModule(BaseModule):
     if self.discord and getattr(self.discord, "auth_module", None) is self:
       self.discord.auth_module = None
     logging.info("Auth module shutdown")
+
+  @staticmethod
+  def _normalize_query_payload(payload: Any | None) -> list[dict[str, Any]]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
 
 
   async def handle_auth_login(self, provider: str, id_token: str | None, access_token: str | None):
@@ -254,8 +296,12 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await self.db.run("db:users:session:get_rotkey:1", {"guid": guid})
-    rotkey = res.rows[0].get("rotkey") if res.rows else None
+    res = await dispatch_query_request(
+      get_rotkey_request(RotkeyLookupParams(guid=guid, device_guid=device_guid)),
+      provider=self.db.provider or "mssql",
+    )
+    rows = self._normalize_query_payload(res.payload)
+    rotkey = rows[0].get("device_rotkey") if rows else None
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None
     try:
       if not derived_secret:
@@ -298,7 +344,7 @@ class AuthModule(BaseModule):
       if token_time + timedelta(days=DEFAULT_ROTATION_TOKEN_EXPIRY) < datetime.now(timezone.utc):
         logging.error("[AuthModule] Rotation token expired for %s", guid)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Rotation token expired")
-      return {"guid": guid}
+      return {"guid": guid, "issued_at": token_time}
     except Exception:
       logging.error("[AuthModule] Failed to decode rotation token")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
@@ -325,10 +371,13 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run("db:auth:discord:get_security:1", {"discord_id": discord_id})
-    if not res.rows:
+    res = await self.db.run(
+      DBRequest(op="db:identity:accounts:read:1", payload={"discord_id": discord_id}),
+    )
+    rows = res.rows
+    if not rows:
       return "", [], 0
-    row = res.rows[0]
+    row = rows[0]
     guid = row.get("user_guid")
     mask = int(row.get("user_roles", 0) or 0)
     names = self.role_cache.mask_to_names(mask)
@@ -342,4 +391,3 @@ class AuthModule(BaseModule):
 
   async def refresh_user_roles(self, guid: str):
     await self.role_cache.refresh_user_roles(guid)
-

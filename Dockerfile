@@ -21,6 +21,7 @@ RUN python3 -m venv $VIRTUAL_ENV \
 COPY . .
 
 RUN python3 scripts/generate_rpc_bindings.py
+RUN python3 scripts/generate_db_namespace.py
 
 WORKDIR /app/frontend
 
@@ -34,7 +35,7 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 # Python build
 # ────────────────────────────────────────────────────────────────────────────────
-FROM python:3.12
+FROM python:3.11
 
 # RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
 

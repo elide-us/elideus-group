@@ -1,8 +1,33 @@
+from collections.abc import Mapping
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.role_memberships.models import (
+  ModifyRoleMemberPayload,
+  RoleScopePayload,
+)
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.auth_module import AuthModule
 from server.modules.discord_bot_module import DiscordBotModule
+from server.modules.registry.helpers import (
+  create_role_membership_request,
+  delete_role_membership_request,
+  list_role_memberships_request,
+  list_role_non_memberships_request,
+  list_system_roles_request,
+)
+
+
+def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
+  if payload is None:
+    return []
+  if isinstance(payload, list):
+    return [dict(item) for item in payload]
+  if isinstance(payload, Mapping):
+    return [dict(payload)]
+  return [dict(payload)]
 
 
 class RoleAdminModule(BaseModule):
@@ -34,14 +59,17 @@ class RoleAdminModule(BaseModule):
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def list_roles(self, actor_mask: int | None = None) -> list[dict]:
-    res = await self.db.run("db:system:roles:list:1", {})
+    res = await dispatch_query_request(
+      list_system_roles_request(),
+      provider=self.db.provider or "mssql",
+    )
     roles = [
       {
         "name": r.get("name", ""),
         "mask": str(r.get("mask", "")),
         "display": r.get("display"),
       }
-      for r in res.rows
+      for r in _normalize_payload(res.payload)
       if r.get("name") != "ROLE_REGISTERED"
     ]
     roles.sort(key=lambda r: int(r.get("mask", 0)))
@@ -51,15 +79,23 @@ class RoleAdminModule(BaseModule):
     return roles
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
-    mem_res = await self.db.run("db:security:roles:get_role_members:1", {"role": role})
-    non_res = await self.db.run("db:security:roles:get_role_non_members:1", {"role": role})
+    provider_name = self.db.provider or "mssql"
+    scope: RoleScopePayload = {"role": role}
+    mem_res = await dispatch_query_request(
+      list_role_memberships_request(scope),
+      provider=provider_name,
+    )
+    non_res = await dispatch_query_request(
+      list_role_non_memberships_request(scope),
+      provider=provider_name,
+    )
     members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
-      for r in mem_res.rows
+      for r in _normalize_payload(mem_res.payload)
     ]
     non_members = [
       {"guid": r.get("guid", ""), "displayName": r.get("display_name", "")}
-      for r in non_res.rows
+      for r in _normalize_payload(non_res.payload)
     ]
     return members, non_members
 
@@ -67,9 +103,11 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(
-      "db:security:roles:add_role_member:1",
-      {"role": role, "user_guid": user_guid},
+    provider_name = self.db.provider or "mssql"
+    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
+    await dispatch_query_request(
+      create_role_membership_request(payload),
+      provider=provider_name,
     )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
@@ -78,9 +116,11 @@ class RoleAdminModule(BaseModule):
     if actor_mask is not None:
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.db.run(
-      "db:security:roles:remove_role_member:1",
-      {"role": role, "user_guid": user_guid},
+    provider_name = self.db.provider or "mssql"
+    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
+    await dispatch_query_request(
+      delete_role_membership_request(payload),
+      provider=provider_name,
     )
     await self.auth.refresh_user_roles(user_guid)
     return await self.get_role_members(role)

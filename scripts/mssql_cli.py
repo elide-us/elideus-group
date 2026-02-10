@@ -36,9 +36,14 @@ Available commands:
   schema dump [name]                 Dump DB schema to <name>_YYYYMMDD.sql
   schema apply <file>                Execute schema SQL on the database
   dump data [name]                   Dump DB schema and rows to <name>_YYYYMMDD.json
-  update version major               Increment the major version
-  update version minor               Increment the minor version
-  update version patch               Increment the patch version
+  update version major               Increment the major version (exports full schema; author upgrade_<version>.sql for rollout)
+  update version minor               Increment the minor version (exports full schema; author upgrade_<version>.sql for rollout)
+  update version patch               Increment the patch version (exports full schema; author upgrade_<version>.sql for rollout)
+
+After running any "update version" command:
+  1. Review the generated schema export.
+  2. Capture the delta-only steps in scripts/upgrade_<version>.sql.
+  3. Commit both files together for the release.
 """
 
 async def interactive_console(conn):

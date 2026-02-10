@@ -2,6 +2,11 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
+from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.profiles import get_profile_request, update_profile_request
+from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
+from server.registry.finance.credits.model import SetCreditsParams
+from server.modules.registry.helpers import set_credits_request
 
 
 class UserAdminModule(BaseModule):
@@ -21,14 +26,22 @@ class UserAdminModule(BaseModule):
     pass
 
   async def get_displayname(self, guid: str) -> str:
-    res = await self.db.run("db:users:profile:get_profile:1", {"guid": guid})
+    params = GuidParams(guid=guid)
+    res = await dispatch_query_request(
+      get_profile_request(params),
+      provider=self.db.provider or "mssql",
+    )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
     return row.get("display_name", "")
 
   async def get_credits(self, guid: str) -> int:
-    res = await self.db.run("db:users:profile:get_profile:1", {"guid": guid})
+    params = GuidParams(guid=guid)
+    res = await dispatch_query_request(
+      get_profile_request(params),
+      provider=self.db.provider or "mssql",
+    )
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -39,12 +52,12 @@ class UserAdminModule(BaseModule):
 
   async def set_credits(self, guid: str, credits: int) -> None:
     await self.db.run(
-      "db:support:users:set_credits:1",
-      {"guid": guid, "credits": credits},
+      set_credits_request(SetCreditsParams(guid=guid, credits=credits))
     )
 
   async def reset_display(self, guid: str) -> None:
-    await self.db.run(
-      "db:users:profile:set_display:1",
-      {"guid": guid, "display_name": "Default User"},
+    params = UpdateProfileParams(guid=guid, display_name="Default User")
+    await dispatch_query_request(
+      update_profile_request(params),
+      provider=self.db.provider or "mssql",
     )

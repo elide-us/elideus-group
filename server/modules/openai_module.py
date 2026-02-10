@@ -2,12 +2,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Dict, List
 from fastapi import FastAPI
 from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
+from server.registry.system.config.model import ConfigKeyParams
+from server.modules.registry.helpers import (
+  delete_persona_request,
+  find_recent_request,
+  get_config_request,
+  get_persona_by_name_request,
+  insert_conversation_request,
+  list_by_time_request,
+  list_models_request,
+  list_personas_request,
+  update_output_request,
+  upsert_persona_request,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
   from .discord_output_module import DiscordOutputModule
@@ -74,7 +88,7 @@ class OpenaiModule(BaseModule):
       await self.discord_output.on_ready()
     self.client = await self.init_openai_client()
     self.app.state.openai = self
-    logging.info("[OpenaiModule] loaded")
+    logging.debug("[OpenaiModule] loaded")
     self.mark_ready()
 
   async def shutdown(self):
@@ -87,7 +101,7 @@ class OpenaiModule(BaseModule):
 
   async def get_openai_token(self) -> str:
     assert self.db
-    res = await self.db.run("db:system:config:get_config:1", {"key": "OpenAIApiKey"})
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="OpenAIApiKey")))
     if res.rows:
       return res.rows[0].get("value", "")
     return ""
@@ -103,7 +117,7 @@ class OpenaiModule(BaseModule):
     if not self.db:
       return None
     try:
-      res = await self.db.run("db:assistant:personas:get_by_name:1", {"name": name})
+      res = await self.db.run(get_persona_by_name_request(name))
       if res.rows:
         return res.rows[0]
     except Exception:
@@ -133,12 +147,12 @@ class OpenaiModule(BaseModule):
 
   async def list_models(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:models:list:1", {})
+    res = await self.db.run(list_models_request())
     return list(res.rows or [])
 
   async def list_personas(self) -> List[Dict[str, Any]]:
     assert self.db
-    res = await self.db.run("db:assistant:personas:list:1", {})
+    res = await self.db.run(list_personas_request())
     personas: List[Dict[str, Any]] = []
     for row in res.rows or []:
       personas.append({
@@ -167,16 +181,21 @@ class OpenaiModule(BaseModule):
     }
     if not payload["name"]:
       raise ValueError("name required")
-    await self.db.run("db:assistant:personas:upsert:1", payload)
+    await self.db.run(
+      upsert_persona_request(
+        recid=payload["recid"],
+        name=payload["name"],
+        prompt=payload["prompt"],
+        tokens=payload["tokens"],
+        models_recid=payload["models_recid"],
+      )
+    )
 
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
     assert self.db
-    await self.db.run(
-      "db:assistant:personas:delete:1",
-      {"recid": recid, "name": name},
-    )
+    await self.db.run(delete_persona_request(recid=recid, name=name))
 
-  async def _log_conversation_start(
+  async def log_persona_conversation_input(
     self,
     personas_recid: int | None,
     models_recid: int | None,
@@ -189,36 +208,31 @@ class OpenaiModule(BaseModule):
     if not self.db or personas_recid is None or models_recid is None:
       return None
     try:
-      guild_id_str = str(guild_id) if guild_id is not None else None
-      channel_id_str = str(channel_id) if channel_id is not None else None
-      user_id_str = str(user_id) if user_id is not None else None
       existing = await self.db.run(
-        "db:assistant:conversations:find_recent:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-        },
+        find_recent_request(
+          personas_recid=personas_recid,
+          models_recid=models_recid,
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_data=input_data,
+        )
       )
       if existing.rows:
         recid = existing.rows[0].get("recid")
         if recid is not None:
           return recid
       res = await self.db.run(
-        "db:assistant:conversations:insert:1",
-        {
-          "personas_recid": personas_recid,
-          "models_recid": models_recid,
-          "guild_id": guild_id_str,
-          "channel_id": channel_id_str,
-          "user_id": user_id_str,
-          "input_data": input_data,
-          "output_data": "",
-          "tokens": tokens,
-        },
+        insert_conversation_request(
+          personas_recid=personas_recid,
+          models_recid=models_recid,
+          guild_id=guild_id,
+          channel_id=channel_id,
+          user_id=user_id,
+          input_data=input_data,
+          output_data="",
+          tokens=tokens,
+        )
       )
       if res.rows:
         return res.rows[0].get("recid")
@@ -226,7 +240,7 @@ class OpenaiModule(BaseModule):
       logging.exception("[OpenaiModule] insert conversation failed")
     return None
 
-  async def _log_conversation_end(
+  async def finalize_persona_conversation(
     self,
     recid: int,
     output_data: str,
@@ -236,8 +250,7 @@ class OpenaiModule(BaseModule):
       return
     try:
       res = await self.db.run(
-        "db:assistant:conversations:update_output:1",
-        {"recid": recid, "output_data": output_data, "tokens": tokens},
+        update_output_request(recid=recid, output_data=output_data, tokens=tokens)
       )
       if res.rowcount == 0:
         logging.warning(
@@ -246,6 +259,61 @@ class OpenaiModule(BaseModule):
         )
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
+
+  async def get_recent_persona_conversation_history(
+    self,
+    personas_recid: int,
+    *,
+    lookback_days: int = 30,
+    limit: int = 5,
+  ) -> List[Dict[str, str]]:
+    if not self.db:
+      return []
+    if personas_recid is None:
+      return []
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=max(lookback_days, 0))
+    try:
+      res = await self.db.run(
+        list_by_time_request(
+          personas_recid=personas_recid,
+          start=start.isoformat(),
+          end=end.isoformat(),
+        )
+      )
+    except Exception:
+      logging.exception("[OpenaiModule] failed to load persona conversation history")
+      raise
+
+    rows = list(res.rows or [])
+
+    def _parse_timestamp(value: Any) -> datetime:
+      if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+      if isinstance(value, datetime):
+        return value.astimezone(timezone.utc)
+      if isinstance(value, str):
+        candidate = value.replace("Z", "+00:00")
+        try:
+          return datetime.fromisoformat(candidate)
+        except ValueError:
+          pass
+      return datetime.min.replace(tzinfo=timezone.utc)
+
+    rows.sort(key=lambda row: _parse_timestamp(row.get("element_created_on")))
+    if limit and limit > 0:
+      rows = rows[-limit:]
+
+    conversation_history: List[Dict[str, str]] = []
+    for row in rows:
+      user_input = (row.get("element_input") or "").strip()
+      if user_input:
+        conversation_history.append({"role": "user", "content": user_input})
+      assistant_output = (row.get("element_output") or "").strip()
+      if assistant_output:
+        conversation_history.append({"role": "assistant", "content": assistant_output})
+
+    return conversation_history
 
   async def generate_chat(
     self,
@@ -303,7 +371,7 @@ class OpenaiModule(BaseModule):
       resolved_tokens = 64
 
     if persona and personas_recid is not None and models_recid is not None:
-      conv_id = await self._log_conversation_start(
+      conv_id = await self.log_persona_conversation_input(
         personas_recid,
         models_recid,
         guild_id,
@@ -349,7 +417,7 @@ class OpenaiModule(BaseModule):
         "total_tokens": total_tokens,
       }
     if conv_id:
-      await self._log_conversation_end(conv_id, content, total_tokens)
+      await self.finalize_persona_conversation(conv_id, content, total_tokens)
     return result
 
   async def persona_response(

@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from server.registry.types import DBRequest
 
-if TYPE_CHECKING:
-  from server.registry import SubdomainRouter
+from .model import (
+  ConversationRecord,
+  FindRecentConversationParams,
+  InsertConversationParams,
+  ListByTimeParams,
+  UpdateConversationOutputParams,
+)
 
-__all__ = [
-  "find_recent_request",
-  "insert_conversation_request",
-  "list_by_time_request",
-  "list_recent_request",
-  "register",
-  "update_output_request",
-]
 
-_OP_PREFIX = "db:system:assistant_conversations"
+_OP_PREFIX = "db:system:conversations"
 
 
 def _op(name: str) -> str:
@@ -44,7 +41,7 @@ def insert_conversation_request(
 ) -> DBRequest:
   return DBRequest(
     op=_op("insert"),
-    params={
+    payload={
       "personas_recid": personas_recid,
       "models_recid": models_recid,
       "guild_id": _normalize_identifier(guild_id),
@@ -67,7 +64,7 @@ def find_recent_request(
   input_data: str,
   window_seconds: int | None = None,
 ) -> DBRequest:
-  params = {
+  payload = {
     "personas_recid": personas_recid,
     "models_recid": models_recid,
     "guild_id": _normalize_identifier(guild_id),
@@ -76,8 +73,8 @@ def find_recent_request(
     "input_data": input_data,
   }
   if window_seconds is not None:
-    params["window_seconds"] = window_seconds
-  return DBRequest(op=_op("find_recent"), params=params)
+    payload["window_seconds"] = window_seconds
+  return DBRequest(op=_op("find_recent"), payload=payload)
 
 
 def update_output_request(
@@ -88,7 +85,7 @@ def update_output_request(
 ) -> DBRequest:
   return DBRequest(
     op=_op("update_output"),
-    params={
+    payload={
       "recid": recid,
       "output_data": output_data,
       "tokens": tokens,
@@ -99,7 +96,7 @@ def update_output_request(
 def list_by_time_request(*, personas_recid: int, start: str, end: str) -> DBRequest:
   return DBRequest(
     op=_op("list_by_time"),
-    params={
+    payload={
       "personas_recid": personas_recid,
       "start": start,
       "end": end,
@@ -108,12 +105,4 @@ def list_by_time_request(*, personas_recid: int, start: str, end: str) -> DBRequ
 
 
 def list_recent_request() -> DBRequest:
-  return DBRequest(op=_op("list_recent"), params={})
-
-
-def register(router: "SubdomainRouter") -> None:
-  router.add_function("find_recent", version=1)
-  router.add_function("insert", version=1, implementation="insert_conversation")
-  router.add_function("list_by_time", version=1)
-  router.add_function("list_recent", version=1)
-  router.add_function("update_output", version=1)
+  return DBRequest(op=_op("list_recent"), payload={})
