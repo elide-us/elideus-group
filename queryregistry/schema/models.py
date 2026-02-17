@@ -24,7 +24,6 @@ __all__ = [
   "ServicePagesTable",
   "SessionsDevicesTable",
   "StorageTypesTable",
-  "SysdiagramsTable",
   "SystemConfigTable",
   "SystemRolesTable",
   "UsersActionsLogTable",
@@ -264,15 +263,6 @@ class ServicePagesTable(SQLTableModel):
   element_created_by: UUID
   element_modified_by: UUID
   element_is_active: bool
-
-
-class SysdiagramsTable(SQLTableModel):
-  name: str
-  principal_id: int
-  diagram_id: int
-  version: int | None = None
-  definition: bytes | None = None
-
 
 class VwAccountUserSessions(SQLViewModel):
   user_guid: UUID
