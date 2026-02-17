@@ -77,3 +77,13 @@ Foreign-key relationships.
 
 This avoids provider-specific introspection paths and keeps schema generation
 consistent across runtime environments.
+
+## v0.8.0 greenfield deployment
+
+- `scripts/v0.8.0.0_20260217.sql` is the canonical **greenfield** SSMS script.
+- It is intended for blank-database provisioning (not incremental migration).
+- Registry seeds in the script are aligned with the corrected schema model:
+  - all `recid` primary keys use `bigint`,
+  - foreign keys that target those `recid` values also use `bigint`, and
+  - standardized `element_created_on` / `element_modified_on` use
+    `datetimeoffset` defaults with `sysutcdatetime()`.
