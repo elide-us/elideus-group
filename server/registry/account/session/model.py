@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -29,6 +29,19 @@ def _normalize_uuid(value: Any) -> str:
   return str(value)
 
 
+def _ensure_utc_datetime(value: Any) -> datetime:
+  if isinstance(value, str):
+    candidate = value.strip()
+    if candidate.endswith("Z"):
+      candidate = candidate[:-1] + "+00:00"
+    value = datetime.fromisoformat(candidate)
+  if not isinstance(value, datetime):
+    raise TypeError(f"Expected datetime value, received {type(value).__name__}")
+  if value.tzinfo is None:
+    return value.replace(tzinfo=timezone.utc)
+  return value.astimezone(timezone.utc)
+
+
 class ListSessionSnapshotsParams(GuidParams):
   """Parameters used for listing session snapshot rows."""
 
@@ -53,6 +66,11 @@ class CreateSessionParams(BaseModel):
   @classmethod
   def _normalize_user_guid(cls, value: Any) -> str:
     return _normalize_uuid(value)
+
+  @field_validator("expires", "rotkey_iat", "rotkey_exp", mode="before")
+  @classmethod
+  def _normalize_temporal_fields(cls, value: Any) -> datetime:
+    return _ensure_utc_datetime(value)
 
 
 class UpdateSessionParams(BaseModel):
@@ -107,6 +125,11 @@ class SetRotkeyParams(GuidParams):
     if value is None:
       return None
     return _normalize_uuid(value)
+
+  @field_validator("iat", "exp", mode="before")
+  @classmethod
+  def _normalize_temporal_fields(cls, value: Any) -> datetime:
+    return _ensure_utc_datetime(value)
 
 
 class SessionCreationResult(TypedDict, total=False):
