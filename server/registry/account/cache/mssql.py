@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict
 from uuid import UUID
@@ -27,6 +27,16 @@ __all__ = [
   "set_reported_v1",
   "upsert_v1",
 ]
+
+
+def _as_utc(value: Any | None) -> datetime | None:
+  if value is None:
+    return None
+  if not isinstance(value, datetime):
+    raise TypeError(f"Expected datetime value, received {type(value).__name__}")
+  if value.tzinfo is None:
+    return value.replace(tzinfo=timezone.utc)
+  return value.astimezone(timezone.utc)
 
 
 async def _get_storage_type_recid(mimetype: str, *, allow_folder: bool) -> int:
@@ -142,10 +152,11 @@ async def upsert_v1(args: Dict[str, Any]) -> DBResponse:
   filename = args.get("filename", "")
   mimetype = args.get("content_type", "application/octet-stream")
   public = args.get("public", 0)
-  created_on = args.get("created_on")
-  if created_on is None:
-    created_on = datetime.utcnow()
-  modified_on = args.get("modified_on")
+  element_created_on = args.get("element_created_on")
+  if element_created_on is None:
+    element_created_on = datetime.now(timezone.utc)
+  element_created_on = _as_utc(element_created_on)
+  element_modified_on = _as_utc(args.get("element_modified_on"))
   url = args.get("url")
   reported = args.get("reported", 0)
   moderation_recid = args.get("moderation_recid")
@@ -179,8 +190,8 @@ async def upsert_v1(args: Dict[str, Any]) -> DBResponse:
     path,
     filename,
     public,
-    created_on,
-    modified_on,
+    element_created_on,
+    element_modified_on,
     0,
     url,
     reported,

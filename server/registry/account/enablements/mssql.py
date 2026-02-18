@@ -20,8 +20,8 @@ async def get_by_user_v1(params: dict[str, Any]) -> DBResponse:
     SELECT TOP 1
       ue.users_guid,
       ue.element_enablements,
-      ue.created_on,
-      ue.modified_on
+      ue.element_created_on,
+      ue.element_modified_on
     FROM users_enablements ue
     WHERE ue.users_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
@@ -35,7 +35,7 @@ async def upsert_v1(params: dict[str, Any]) -> DBResponse:
   updated = await run_exec(
     """
     UPDATE users_enablements
-    SET element_enablements = ?, modified_on = SYSUTCDATETIME()
+    SET element_enablements = ?, element_modified_on = SYSUTCDATETIME()
     WHERE users_guid = ?;
     """,
     (enablements, guid),

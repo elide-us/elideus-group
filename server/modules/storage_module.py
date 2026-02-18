@@ -221,8 +221,8 @@ class StorageModule(BaseModule):
             "filename": folder_name,
             "content_type": "path/folder",
             "public": 0,
-            "created_on": None,
-            "modified_on": None,
+            "element_created_on": None,
+            "element_modified_on": None,
             "url": None,
             "reported": 0,
             "moderation_recid": None,
@@ -248,8 +248,8 @@ class StorageModule(BaseModule):
             "filename": filename,
             "content_type": "path/folder",
             "public": 0,
-            "created_on": None,
-            "modified_on": None,
+            "element_created_on": None,
+            "element_modified_on": None,
             "url": None,
             "reported": 0,
             "moderation_recid": None,
@@ -279,8 +279,8 @@ class StorageModule(BaseModule):
         "filename": filename,
         "content_type": ct,
         "public": public_val,
-        "created_on": created_on,
-        "modified_on": modified_on,
+        "element_created_on": created_on,
+        "element_modified_on": modified_on,
         "url": url,
         "reported": 0,
         "moderation_recid": None,
@@ -327,8 +327,8 @@ class StorageModule(BaseModule):
       "filename": filename,
       "content_type": file_type,
       "public": kwargs.get("public", 0),
-      "created_on": kwargs.get("created_on"),
-      "modified_on": kwargs.get("modified_on"),
+      "element_created_on": kwargs.get("element_created_on"),
+      "element_modified_on": kwargs.get("element_modified_on"),
       "url": kwargs.get("url"),
       "reported": kwargs.get("reported", 0),
       "moderation_recid": kwargs.get("moderation_recid"),
@@ -463,8 +463,8 @@ class StorageModule(BaseModule):
           "filename": filename,
           "content_type": result.content_type or "application/octet-stream",
           "public": 0,
-          "created_on": result.created_on,
-          "modified_on": result.modified_on,
+          "element_created_on": result.created_on,
+          "element_modified_on": result.modified_on,
           "url": result.url,
           "reported": 0,
           "moderation_recid": None,
@@ -558,8 +558,8 @@ class StorageModule(BaseModule):
         "filename": folder_name,
         "content_type": "path/folder",
         "public": 0,
-        "created_on": None,
-        "modified_on": None,
+        "element_created_on": None,
+        "element_modified_on": None,
         "url": None,
         "reported": 0,
         "moderation_recid": None,
@@ -662,8 +662,8 @@ class StorageModule(BaseModule):
         "filename": dst_filename,
         "content_type": props.content_type or "application/octet-stream",
         "public": 0,
-        "created_on": props.created_on,
-        "modified_on": props.modified_on,
+        "element_created_on": props.created_on,
+        "element_modified_on": props.modified_on,
         "url": result.url,
         "reported": 0,
         "moderation_recid": None,
@@ -707,8 +707,8 @@ class StorageModule(BaseModule):
     ct = cache_entry.get("content_type") or "application/octet-stream"
     if properties and properties.content_type:
       ct = properties.content_type or ct
-    created_on = cache_entry.get("created_on")
-    modified_on = cache_entry.get("modified_on")
+    created_on = cache_entry.get("element_created_on")
+    modified_on = cache_entry.get("element_modified_on")
     if properties:
       created_on = properties.created_on or created_on
       modified_on = properties.modified_on or modified_on
@@ -725,8 +725,8 @@ class StorageModule(BaseModule):
         "filename": new_filename,
         "content_type": ct,
         "public": 1 if cache_entry.get("public") else 0,
-        "created_on": created_on,
-        "modified_on": modified_on,
+        "element_created_on": created_on,
+        "element_modified_on": modified_on,
         "url": url,
         "reported": cache_entry.get("reported", 0),
         "moderation_recid": cache_entry.get("moderation_recid"),

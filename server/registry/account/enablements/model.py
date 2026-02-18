@@ -13,8 +13,8 @@ __all__ = [
 class UserEnablementsRecord(TypedDict, total=False):
   users_guid: str
   element_enablements: str
-  created_on: str
-  modified_on: str
+  element_created_on: str
+  element_modified_on: str
 
 
 class UpsertUserEnablementsParams(TypedDict):
