@@ -3,21 +3,29 @@
 This document defines the canonical type system stored in `system_edt_mappings` for
 cross-provider compatibility in the database CLI/provider abstraction layer.
 
-## Schema Inventory (v0.7.2.0)
+## Schema Inventory (v0.8.0.0)
 
 The following native SQL Server data types are used across all table and view-backed
-objects in `scripts/v0.7.2.0_20250918.sql`:
+objects in `scripts/v0.8.0.0_20260217.sql`:
 
 - `int`
 - `bigint`
 - `bigint identity(1,1)`
 - `bit`
 - `uniqueidentifier`
-- `datetime2`
 - `datetimeoffset`
 - `nvarchar(<n>)`
 - `nvarchar(max)`
 - `varchar(<n>)`
+
+Notes:
+
+- Registry/system temporal metadata columns are canonicalized as
+  `element_created_on` and `element_modified_on`.
+- The storage standard for those `element_*` temporal metadata columns is
+  `datetimeoffset`.
+- `datetime2` is non-default and only retained for non-element or external
+  compatibility cases when it appears in imported/legacy schema edges.
 
 ## `system_edt_mappings` Table Shape
 
@@ -79,7 +87,11 @@ objects in `scripts/v0.7.2.0_20250918.sql`:
 
 ## Alignment with `database_cli`
 
-The current `server/modules/database_cli` implementation lists table metadata via ODBC
-and is intentionally provider-aware at the connector boundary. The EDT table gives that
-layer a canonical normalization target without changing existing introspection logic in
-this phase.
+`system_schema_tables`, `system_schema_columns`, `system_schema_indexes`, and
+`system_schema_foreign_keys` are the source of truth for schema metadata used by
+`database_cli` generation flows. There is no introspection dependency when registry
+tables are populated.
+
+The current `server/modules/database_cli` implementation remains provider-aware at the
+connector boundary; `system_edt_mappings` provides the canonical normalization target
+for cross-provider handling.
