@@ -1,5 +1,32 @@
 # Datetime / Temporal Audit (v0.8.0 Greenfield Alignment)
 
+## Current Canonical Rules (v0.8.0+)
+
+These rules are the active baseline for all new work:
+
+1. **Only use `element_created_on` and `element_modified_on`** for row-level
+   temporal audit columns.
+2. **Use UTC-aware `datetimeoffset` semantics end-to-end** (SQL columns,
+   Python datetimes, and serialized payloads).
+3. **Do not add alias temporal fields** (`created_on` / `modified_on`) for
+   compatibility shims in SQL, models, or response payloads.
+
+## Enforcement Checklist for New SQL / Model Additions
+
+Use this checklist whenever adding or changing SQL statements, typed records, or
+Pydantic models that include temporal audit fields:
+
+- [ ] SQL `SELECT`, `INSERT`, and `UPDATE` statements use
+      `element_created_on` / `element_modified_on` (never bare
+      `created_on` / `modified_on` for database row fields).
+- [ ] SQL temporal columns and defaults are `datetimeoffset` with UTC behavior.
+- [ ] Python datetime construction for DB writes is UTC-aware
+      (`datetime.now(timezone.utc)` or equivalent normalized input).
+- [ ] Datetime inputs are normalized to UTC before parameter binding.
+- [ ] Pydantic/model fields use canonical names (`element_created_on`,
+      `element_modified_on`) without aliases.
+- [ ] ISO datetime parsing accepts `Z` and normalizes to UTC-aware values.
+
 ## Scope
 
 Audited Python source under `server/` for:
@@ -12,7 +39,12 @@ Audited Python source under `server/` for:
 5. Pydantic temporal field handling for timezone-aware UTC values.
 6. Query-registry SQL modules under `server/registry`.
 
-## Findings and Fixes
+## Appendix: historical changes
+
+The following notes capture the remediation work completed during the v0.8.0
+alignment effort.
+
+### Findings and Fixes
 
 ### 1) Datetime construction for database writes
 
