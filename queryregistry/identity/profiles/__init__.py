@@ -4,10 +4,25 @@ from __future__ import annotations
 
 from queryregistry.models import DBRequest
 
-from .models import GuidParams, UpdateIfUneditedParams, UpdateProfileParams
+from .models import (
+  GetPublicProfileParams,
+  GuidParams,
+  SetDisplayParams,
+  SetOptInParams,
+  SetProfileImageParams,
+  SetRolesParams,
+  UpdateIfUneditedParams,
+  UpdateProfileParams,
+)
 
 __all__ = [
+  "get_public_profile_request",
   "get_profile_request",
+  "get_roles_request",
+  "set_display_request",
+  "set_optin_request",
+  "set_profile_image_request",
+  "set_roles_request",
   "update_if_unedited_request",
   "update_profile_request",
 ]
@@ -18,6 +33,28 @@ def get_profile_request(params: GuidParams) -> DBRequest:
     op="db:identity:profiles:read:1",
     payload=params.model_dump(),
   )
+
+
+def get_roles_request(params: GuidParams) -> DBRequest:
+  return DBRequest(op="db:identity:profiles:get_roles:1", payload=params.model_dump())
+
+
+def set_display_request(params: SetDisplayParams) -> DBRequest:
+  return DBRequest(op="db:identity:profiles:set_display:1", payload=params.model_dump())
+
+
+def set_optin_request(params: SetOptInParams) -> DBRequest:
+  payload = params.model_dump()
+  payload["display_email"] = 1 if params.display_email else 0
+  return DBRequest(op="db:identity:profiles:set_optin:1", payload=payload)
+
+
+def set_profile_image_request(params: SetProfileImageParams) -> DBRequest:
+  return DBRequest(op="db:identity:profiles:set_profile_image:1", payload=params.model_dump())
+
+
+def set_roles_request(params: SetRolesParams) -> DBRequest:
+  return DBRequest(op="db:identity:profiles:set_roles:1", payload=params.model_dump())
 
 
 def update_profile_request(params: UpdateProfileParams) -> DBRequest:
@@ -33,4 +70,11 @@ def update_if_unedited_request(params: UpdateIfUneditedParams) -> DBRequest:
   return DBRequest(
     op="db:identity:profiles:update_if_unedited:1",
     payload=params.model_dump(exclude_none=True),
+  )
+
+
+def get_public_profile_request(params: GetPublicProfileParams) -> DBRequest:
+  return DBRequest(
+    op="db:identity:profiles:get_public_profile:1",
+    payload=params.model_dump(),
   )
