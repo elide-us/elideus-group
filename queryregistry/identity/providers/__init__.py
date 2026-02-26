@@ -60,18 +60,18 @@ def create_from_provider_request(
   *,
   provider: str,
   provider_identifier: str,
-  provider_email: str,
-  provider_displayname: str,
-  provider_profile_image: str | None = None,
+  email: str,
+  displayname: str,
+  profile_image: str | None = None,
 ) -> DBRequest:
   payload: dict[str, Any] = {
     "provider": provider,
     "provider_identifier": provider_identifier,
-    "provider_email": provider_email,
-    "provider_displayname": provider_displayname,
+    "email": email,
+    "displayname": displayname,
   }
-  if provider_profile_image is not None:
-    payload["provider_profile_image"] = provider_profile_image
+  if profile_image is not None:
+    payload["profile_image"] = profile_image
   return DBRequest(op="db:identity:providers:create_from_provider:1", payload=payload)
 
 
