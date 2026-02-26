@@ -13,11 +13,15 @@ from queryregistry.models import DBResponse
 __all__ = [
   "CreateSessionParams",
   "GuidParams",
+  "ListSessionSnapshotsParams",
   "RotkeyLookupParams",
   "RotkeyRecord",
+  "RevokeAllDeviceTokensParams",
   "RevokeDeviceTokenParams",
   "RevokeProviderTokensParams",
   "RotkeyCallable",
+  "SessionCreationResult",
+  "SessionSnapshotRecord",
   "SecuritySnapshotCallable",
   "SecuritySnapshotRecord",
   "SecuritySnapshotRequestPayload",
@@ -104,6 +108,14 @@ class RevokeProviderTokensParams(GuidParams):
   provider: str
 
 
+class RevokeAllDeviceTokensParams(GuidParams):
+  """Payload revoking all device tokens for a user."""
+
+
+class ListSessionSnapshotsParams(GuidParams):
+  """Parameters used for listing session snapshot rows."""
+
+
 class RotkeyLookupParams(GuidParams):
   """Lookup payload for a device rotation key."""
 
@@ -177,6 +189,41 @@ class SecuritySnapshotRecord(TypedDict, total=False):
   element_device_rotkey_exp: str | None
   session_guid: str | None
   device_guid: str | None
+  element_token: str | None
+  element_token_iat: str | None
+  element_token_exp: str | None
+  element_revoked_at: str | None
+  element_device_fingerprint: str | None
+  element_user_agent: str | None
+  element_ip_last_seen: str | None
+
+
+class SessionCreationResult(TypedDict, total=False):
+  """Result payload returned after creating a session."""
+
+  session_guid: str
+  device_guid: str
+
+
+class SessionSnapshotRecord(TypedDict, total=False):
+  """Historical session snapshot entry."""
+
+  user_guid: str
+  user_roles: int | None
+  user_created_on: str | None
+  user_modified_on: str | None
+  element_rotkey: str | None
+  element_rotkey_iat: str | None
+  element_rotkey_exp: str | None
+  element_device_rotkey: str | None
+  element_device_rotkey_iat: str | None
+  element_device_rotkey_exp: str | None
+  session_guid: str | None
+  session_created_on: str | None
+  session_modified_on: str | None
+  device_guid: str | None
+  device_created_on: str | None
+  device_modified_on: str | None
   element_token: str | None
   element_token_iat: str | None
   element_token_exp: str | None
