@@ -6,11 +6,16 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+
+from .services import delete_route_v1, get_routes_v1, upsert_route_v1
 
 __all__ = ["handle_routes_request"]
 
-DISPATCHERS = build_stub_dispatchers("system.routes")
+DISPATCHERS = {
+  ("get_routes", "1"): get_routes_v1,
+  ("upsert_route", "1"): upsert_route_v1,
+  ("delete_route", "1"): delete_route_v1,
+}
 
 
 async def handle_routes_request(
