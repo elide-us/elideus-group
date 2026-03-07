@@ -3,21 +3,21 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
-from queryregistry.identity.role_memberships.models import (
-  ModifyRoleMemberPayload,
-  RoleScopePayload,
-)
-from server.modules import BaseModule
-from server.modules.db_module import DbModule
-from server.modules.auth_module import AuthModule
-from server.modules.discord_bot_module import DiscordBotModule
-from server.modules.registry.helpers import (
+from queryregistry.identity.role_memberships import (
   create_role_membership_request,
   delete_role_membership_request,
   list_role_memberships_request,
   list_role_non_memberships_request,
-  list_system_roles_request,
 )
+from queryregistry.identity.role_memberships.models import (
+  ModifyRoleMemberPayload,
+  RoleScopePayload,
+)
+from queryregistry.system.roles import list_system_roles_request
+from server.modules import BaseModule
+from server.modules.db_module import DbModule
+from server.modules.auth_module import AuthModule
+from server.modules.discord_bot_module import DiscordBotModule
 
 
 def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
