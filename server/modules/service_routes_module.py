@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 from fastapi import FastAPI
 
-from server.modules.registry.helpers import (
+from queryregistry.system.routes import (
   delete_route_request,
   get_routes_request,
   upsert_route_request,
 )
+from queryregistry.system.routes.models import RoutePathParams, UpsertRouteParams
 
 from . import BaseModule
 from .auth_module import AuthModule
@@ -83,13 +84,13 @@ class ServiceRoutesModule(BaseModule):
       raise RuntimeError("ServiceRoutesModule not ready")
     mask = self.auth.names_to_mask(route.required_roles)
     await self.db.run(
-      upsert_route_request(
+      upsert_route_request(UpsertRouteParams(
         path=route.path,
         name=route.name,
         icon=route.icon,
         sequence=route.sequence,
         roles=mask,
-      )
+      ))
     )
     logging.debug(
       "[service_routes_upsert_route_v1] upserted route %s",
@@ -111,7 +112,7 @@ class ServiceRoutesModule(BaseModule):
     )
     if not self.db:
       raise RuntimeError("ServiceRoutesModule not ready")
-    await self.db.run(delete_route_request(path))
+    await self.db.run(delete_route_request(RoutePathParams(path=path)))
     logging.debug(
       "[service_routes_delete_route_v1] deleted route %s",
       path,
