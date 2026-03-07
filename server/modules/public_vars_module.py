@@ -5,7 +5,7 @@ from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
 from .discord_bot_module import DiscordBotModule
-from .registry.helpers import (
+from queryregistry.system.public_vars import (
   get_hostname_request,
   get_repo_request,
   get_version_request,
