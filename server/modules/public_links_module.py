@@ -6,8 +6,8 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.modules.registry.helpers import (
-  dispatch_query_request_with_fallback,
+from queryregistry.handler import dispatch_query_request
+from queryregistry.system.links import (
   get_home_links_request,
   get_navbar_routes_request,
 )
@@ -42,7 +42,7 @@ class PublicLinksModule(BaseModule):
 
   async def get_home_links(self):
     assert self.db
-    res = await dispatch_query_request_with_fallback(
+    res = await dispatch_query_request(
       get_home_links_request(),
       provider=self.db.provider,
     )
@@ -50,7 +50,7 @@ class PublicLinksModule(BaseModule):
 
   async def get_navbar_routes(self, role_mask: int):
     assert self.db
-    res = await dispatch_query_request_with_fallback(
+    res = await dispatch_query_request(
       get_navbar_routes_request(role_mask),
       provider=self.db.provider,
     )
