@@ -47,20 +47,23 @@ class PublicVarsModule(BaseModule):
   async def get_version(self) -> str:
     assert self.db
     res = await self.db.run(get_version_request())
-    payload = res.payload if isinstance(res.payload, dict) else {}
-    return payload.get("version", "")
+    if res.rows:
+      return res.rows[0].get("version", "")
+    return ""
 
   async def get_hostname(self) -> str:
     assert self.db
     res = await self.db.run(get_hostname_request())
-    payload = res.payload if isinstance(res.payload, dict) else {}
-    return payload.get("hostname", "")
+    if res.rows:
+      return res.rows[0].get("hostname", "")
+    return ""
 
   async def get_repo(self) -> str:
     assert self.db
     res = await self.db.run(get_repo_request())
-    payload = res.payload if isinstance(res.payload, dict) else {}
-    return payload.get("repo", "")
+    if res.rows:
+      return res.rows[0].get("repo", "")
+    return ""
 
   async def get_ffmpeg_version(self) -> str:
     try:
