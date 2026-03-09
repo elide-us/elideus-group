@@ -9,8 +9,6 @@ operational tooling.
 
 - Scripts are entry points, not importable packages. Keep them side-effect free
   on import—put work behind a `main()` guard.
-- Reuse helpers from `scriptlib.py` for path resolution, version math, and
-  Pydantic→TypeScript translation instead of re-implementing them.
 - Prefer extending existing scripts over adding new ad-hoc utilities.
 
 ---
@@ -28,8 +26,17 @@ operational tooling.
 
 ## Database & Maintenance Utilities
 
-- Use `mssql_cli.py` and helpers in `scriptlib.py` for schema work. Emit SQL to
-  versioned files (e.g., `v0.x.y.z_timestamp.sql`) so humans can apply them via
-  SSMS.
-- `run_tests.py` is the canonical orchestration script for CI-style runs; keep it
-  aligned with the commands listed in the root AGENT guide.
+- `run_cli.py` is the database management REPL entry point. It bootstraps
+  `EnvModule` → `DbModule` → `DatabaseCliModule` and dispatches operations
+  through the reflection `queryregistry` domain.
+- Emit SQL schema changes as versioned files (for example,
+  `v0.x.y.z_timestamp.sql`) so humans can apply them via SSMS.
+- `v0.*.sql` files are historical schema archives and should be treated as
+  immutable records.
+- Active automation utilities in this folder include:
+  - `generate_rpc_bindings.py`
+  - `generate_db_namespace.py`
+  - `run_tests.py`
+  - `cleanup_acr.py`
+- `run_tests.py` is the canonical orchestration script for CI-style runs; keep
+  it aligned with the commands listed in the root AGENT guide.
