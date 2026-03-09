@@ -64,6 +64,18 @@ Foreign-key relationships.
 - `element_created_on` / `element_modified_on` timestamps
 - unique key: `(tables_recid, element_column_name)`
 
+
+### `system_schema_views`
+View definitions captured as executable SQL.
+
+- `recid` bigint primary key
+- `element_name` view name
+- `element_schema` schema name (defaults to `dbo`)
+- `element_definition` full `CREATE VIEW` statement
+- `element_description` optional docs
+- `element_created_on` / `element_modified_on` timestamps
+- unique key: `(element_schema, element_name)`
+
 ## How script generation works
 
 1. Read tables from `system_schema_tables`.
@@ -74,6 +86,7 @@ Foreign-key relationships.
 4. Build PK/identity/default/nullability from column flags.
 5. Emit secondary indexes from `system_schema_indexes`.
 6. Emit relationships from `system_schema_foreign_keys`.
+7. Emit views from `system_schema_views` using stored `element_definition` SQL.
 
 This avoids provider-specific introspection paths and keeps schema generation
 consistent across runtime environments.
