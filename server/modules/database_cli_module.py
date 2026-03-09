@@ -185,11 +185,11 @@ class DatabaseCliModule(BaseModule):
     table_rows = payload.get("tables", [])
     tables: dict[int, dict] = {}
     for row in table_rows:
-      parsed = TableParams(schema=row["element_schema"], name=row["element_name"])
+      parsed = TableParams(table_schema=row["element_schema"], name=row["element_name"])
       table_recid = int(row["recid"])
       tables[table_recid] = {
         "recid": table_recid,
-        "schema": parsed.schema,
+        "schema": parsed.table_schema,
         "name": parsed.name,
         "columns": [],
         "primary_key": None,
@@ -364,7 +364,7 @@ class DatabaseCliModule(BaseModule):
     for table in schema["tables"]:
       key = f"{table['schema']}.{table['name']}"
       res = await self.db.run(
-        dump_table_request(DumpTableParams(schema=table["schema"], name=table["name"]))
+        dump_table_request(DumpTableParams(table_schema=table["schema"], name=table["name"]))
       )
       table_rows = res.payload if isinstance(res.payload, list) else []
       data[key] = table_rows

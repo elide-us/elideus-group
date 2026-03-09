@@ -24,7 +24,7 @@ class TableParams(BaseModel):
 
   model_config = ConfigDict(extra="forbid")
 
-  schema: str
+  table_schema: str
   name: str
 
 
