@@ -116,7 +116,7 @@ class OauthModule(BaseModule):
         status_code=500,
         detail=f"{self._provider_title(provider)} OAuth redirect URI not configured",
       )
-    self._redirect_uri = res.rows[0]["value"]
+    self._redirect_uri = res.rows[0]["element_value"]
     return self._redirect_uri
 
   def _get_provider_client_id(self, provider: str) -> str:

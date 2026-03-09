@@ -130,7 +130,7 @@ class DbModule(BaseModule):
     assert self._provider
     await self._provider.startup()
     res = await self.run(get_config_request(ConfigKeyParams(key="LoggingLevel")))
-    val = res.rows[0]["value"] if res.rows else "0"
+    val = res.rows[0]["element_value"] if res.rows else "0"
     try:
       self.logging_level = int(val)
     except ValueError:
@@ -147,11 +147,11 @@ class DbModule(BaseModule):
     res = await self.run(get_config_request(ConfigKeyParams(key="MsApiId")))
     if not res.rows:
       raise ValueError("Missing config value for key: MsApiId")
-    return res.rows[0]["value"]
+    return res.rows[0]["element_value"]
 
   async def get_google_client_id(self) -> str:
     res = await self.run(get_config_request(ConfigKeyParams(key="GoogleClientId")))
-    value = res.rows[0]["value"] if res.rows else None
+    value = res.rows[0]["element_value"] if res.rows else None
     logging.debug("[DbModule] GoogleClientId=%s", value)
     if not value:
       raise ValueError("Missing config value for key: GoogleClientId")
@@ -168,7 +168,7 @@ class DbModule(BaseModule):
 
   async def get_discord_client_id(self) -> str:
     res = await self.run(get_config_request(ConfigKeyParams(key="DiscordClientId")))
-    value = res.rows[0]["value"] if res.rows else None
+    value = res.rows[0]["element_value"] if res.rows else None
     logging.debug("[DbModule] DiscordClientId=%s", value)
     if not value:
       raise ValueError("Missing config value for key: DiscordClientId")
@@ -176,14 +176,14 @@ class DbModule(BaseModule):
 
   async def get_auth_providers(self) -> list[str]:
     res = await self.run(get_config_request(ConfigKeyParams(key="AuthProviders")))
-    value = res.rows[0]["value"] if res.rows else None
+    value = res.rows[0]["element_value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: AuthProviders")
     return [p.strip() for p in value.split(',') if p.strip()]
 
   async def get_jwks_cache_time(self) -> int:
     res = await self.run(get_config_request(ConfigKeyParams(key="JwksCacheTime")))
-    value = res.rows[0]["value"] if res.rows else None
+    value = res.rows[0]["element_value"] if res.rows else None
     if value is None:
       raise ValueError("Missing config value for key: JwksCacheTime")
     return int(value)

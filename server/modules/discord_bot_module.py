@@ -80,7 +80,7 @@ class DiscordBotModule(BaseModule):
       res = await self.db.run(get_config_request(ConfigKeyParams(key="DiscordSyschan")))
       if not res.rows:
         raise ValueError("Missing config value for key: DiscordSyschan")
-      self.syschan = int(res.rows[0]["value"] or 0)
+      self.syschan = int(res.rows[0]["element_value"] or 0)
       try:
         await self.bot.login(self.secret)
         self._task = asyncio.create_task(self.bot.connect())

@@ -116,7 +116,7 @@ class OpenaiModule(BaseModule):
     assert self.db
     res = await self.db.run(get_config_request(ConfigKeyParams(key="OpenAIApiKey")))
     if res.rows:
-      return res.rows[0].get("value", "")
+      return res.rows[0].get("element_value", "")
     return ""
 
   async def init_openai_client(self) -> AsyncOpenAI | None:

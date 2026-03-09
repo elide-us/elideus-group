@@ -33,5 +33,5 @@ class UpsertConfigParams(BaseModel):
 class ConfigRecord(TypedDict):
   """Record representation returned by configuration queries."""
 
-  key: str
-  value: str
+  element_key: str
+  element_value: str
