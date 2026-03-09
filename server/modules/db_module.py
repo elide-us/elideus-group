@@ -12,23 +12,23 @@ from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 from .env_module import EnvModule
 from .providers import DbProviderBase
-from server.registry.types import DBRequest, DBResponse
-from server.registry.account.cache.model import (
+from queryregistry.models import DBRequest, DBResponse
+from queryregistry.content.cache.models import (
   CacheItemKey,
   DeleteCacheFolderParams,
   ListCacheParams,
   ReplaceUserCacheParams,
   UpsertCacheItemParams,
 )
-from server.modules.registry.helpers import (
+from queryregistry.content.cache import (
   delete_cache_folder_request,
   delete_cache_item_request,
-  get_config_request,
-  identity_account_exists_request,
   list_cache_request,
   replace_user_cache_request,
   upsert_cache_item_request,
 )
+from queryregistry.system.config import get_config_request
+from queryregistry.identity.accounts import account_exists_request
 from server.helpers.logging import update_logging_level
 from server.registry import get_handler_info, parse_db_op
 
@@ -264,7 +264,7 @@ class DbModule(BaseModule):
 
   async def user_exists(self, user_guid: str) -> bool:
     params: AccountExistsRequestPayload = {"user_guid": user_guid}
-    request = identity_account_exists_request(params)
+    request = account_exists_request(params)
     provider_name = self.provider or "mssql"
     try:
       res = await dispatch_query_request(request, provider=provider_name)
