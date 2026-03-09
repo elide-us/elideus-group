@@ -9,9 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
+from queryregistry.reflection.data import (
+  apply_batch_request,
+  dump_table_request,
+  get_version_request,
+  rebuild_indexes_request,
+  update_version_request,
+)
+from queryregistry.reflection.data.models import BatchParams, DumpTableParams, UpdateVersionParams
+from queryregistry.reflection.schema import get_full_schema_request, list_tables_request, list_views_request
+from queryregistry.reflection.schema.models import TableParams
 
 from . import BaseModule
 from .database_cli import mssql_cli
+from .db_module import DbModule
 from .env_module import EnvModule
 
 
@@ -409,10 +420,13 @@ async def rebuild_indexes(conn):
 class DatabaseCliModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
+    self.db: DbModule | None = None
     self._dsn: str | None = None
     self._queryregistry_root = Path(__file__).resolve().parents[2] / "queryregistry"
 
   async def startup(self):
+    self.db = self.app.state.db
+    await self.db.on_ready()
     env: EnvModule = self.app.state.env
     await env.on_ready()
     self._dsn = env.get("AZURE_SQL_CONNECTION_STRING")
@@ -424,6 +438,7 @@ class DatabaseCliModule(BaseModule):
     self.mark_ready()
 
   async def shutdown(self):
+    self.db = None
     self._dsn = None
 
   async def connect(self, dbname: str | None = None):
@@ -444,36 +459,241 @@ class DatabaseCliModule(BaseModule):
     await self.on_ready()
     return await mssql_cli.list_tables(conn)
 
-  async def get_schema_from_registry(self, conn):
+  async def get_schema_from_registry(self, conn=None):
     await self.on_ready()
-    return await get_schema_from_registry(conn)
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+    logging.debug(
+      "[DatabaseCli] reflection schema requests available: %s, %s",
+      list_tables_request().op,
+      list_views_request().op,
+    )
+    res = await self.db.run(get_full_schema_request())
+    payload = res.payload if isinstance(res.payload, dict) else {}
 
-  async def dump_schema_from_registry(self, conn, prefix: str = "schema"):
+    table_rows = payload.get("tables", [])
+    tables: dict[int, dict] = {}
+    for row in table_rows:
+      parsed = TableParams(schema=row["element_schema"], name=row["element_name"])
+      table_recid = int(row["recid"])
+      tables[table_recid] = {
+        "recid": table_recid,
+        "schema": parsed.schema,
+        "name": parsed.name,
+        "columns": [],
+        "primary_key": None,
+        "unique_constraints": [],
+        "check_constraints": [],
+        "foreign_keys": [],
+        "indexes": [],
+      }
+
+    for row in payload.get("columns", []):
+      tables_recid = int(row["tables_recid"])
+      table = tables.get(tables_recid)
+      if not table:
+        continue
+      table["columns"].append(
+        {
+          "name": row["element_name"],
+          "data_type": row["element_mssql_type"],
+          "max_length": row["element_max_length"],
+          "precision": None,
+          "scale": None,
+          "nullable": bool(row["element_nullable"]),
+          "default": row["element_default"],
+          "identity": bool(row["element_is_identity"]),
+          "identity_seed": 1,
+          "identity_increment": 1,
+          "rowguidcol": False,
+          "computed": None,
+          "computed_persisted": False,
+          "collation": None,
+          "is_primary_key": bool(row["element_is_primary_key"]),
+        }
+      )
+
+    for table in tables.values():
+      pk_columns = [_quote(col["name"]) for col in table["columns"] if col["is_primary_key"]]
+      if pk_columns:
+        table["primary_key"] = {
+          "name": f"PK_{table['name']}",
+          "type_desc": "CLUSTERED",
+          "columns": pk_columns,
+        }
+
+    for row in payload.get("indexes", []):
+      tables_recid = int(row["tables_recid"])
+      table = tables.get(tables_recid)
+      if not table:
+        continue
+      key_columns = [_quote(col.strip()) for col in (row["element_columns"] or "").split(",") if col.strip()]
+      table["indexes"].append(
+        {
+          "name": row["element_name"],
+          "is_unique": bool(row["element_is_unique"]),
+          "type_desc": "",
+          "has_filter": False,
+          "filter_definition": None,
+          "key_columns": key_columns,
+          "included_columns": [],
+        }
+      )
+
+    view_rows = payload.get("views", [])
+    views = [
+      {
+        "schema": row["element_schema"],
+        "name": row["element_name"],
+        "definition": row["element_definition"],
+      }
+      for row in view_rows
+    ]
+
+    for row in payload.get("foreign_keys", []):
+      tables_recid = int(row["tables_recid"])
+      table = tables.get(tables_recid)
+      ref_table = tables.get(int(row["referenced_tables_recid"]))
+      if not table or not ref_table:
+        continue
+      source_column = row["element_column_name"]
+      ref_column = row["element_referenced_column"]
+      table["foreign_keys"].append(
+        {
+          "name": f"FK_{table['name']}_{source_column}_{ref_table['name']}",
+          "columns": [_quote(source_column)],
+          "ref_columns": [_quote(ref_column)],
+          "ref_schema": ref_table["schema"],
+          "ref_table": ref_table["name"],
+        }
+      )
+
+    schema_name_to_recid: dict[tuple[str, str], int] = {
+      (table["schema"], table["name"]): recid for recid, table in tables.items()
+    }
+
+    deps: dict[int, set[int]] = {}
+    for recid, table in tables.items():
+      fk_targets: set[int] = set()
+      for fk in table["foreign_keys"]:
+        target_recid = schema_name_to_recid.get((fk["ref_schema"], fk["ref_table"]))
+        if target_recid is None or target_recid == recid:
+          continue
+        fk_targets.add(target_recid)
+      deps[recid] = fk_targets
+
+    ordered: list[int] = []
+    visited: set[int] = set()
+
+    def _visit(recid: int) -> None:
+      if recid in visited:
+        return
+      visited.add(recid)
+      for dep in deps.get(recid, set()):
+        if dep in tables:
+          _visit(dep)
+      ordered.append(recid)
+
+    for recid in tables:
+      _visit(recid)
+
+    return {"tables": [tables[recid] for recid in ordered], "views": views}
+
+  async def dump_schema_from_registry(self, conn=None, prefix: str = "schema"):
     await self.on_ready()
-    return await dump_schema_from_registry(conn, prefix)
+    schema = await self.get_schema_from_registry()
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d")
+    filename = f"{prefix}_{ts}.sql"
+
+    table_stmts: list[str] = []
+    index_stmts: list[str] = []
+    fk_stmts: list[str] = []
+    view_stmts: list[str] = []
+
+    for table in schema["tables"]:
+      table_stmts.append(_build_create_sql(table))
+      for index in table["indexes"]:
+        index_stmts.append(_build_index_sql(table, index))
+      for fk in table["foreign_keys"]:
+        fk_stmts.extend(_build_foreign_key_sql(table, fk))
+
+    for view in schema.get("views", []):
+      definition = view["definition"].strip()
+      if not definition.endswith(";"):
+        definition += ";"
+      view_stmts.append(definition)
+
+    lines: list[str] = ["SET ANSI_NULLS ON;", "SET QUOTED_IDENTIFIER ON;", ""]
+    for section in (table_stmts, index_stmts, fk_stmts, view_stmts):
+      if not section:
+        continue
+      lines.extend(section)
+      lines.append("")
+
+    Path(filename).write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    print(f"Schema dumped to {filename}")
+    return filename
 
   async def dump_schema(self, conn, prefix: str):
     await self.on_ready()
     return await dump_schema_from_registry(conn, prefix)
 
-  async def apply_schema(self, conn, path: str):
+  async def apply_schema(self, conn=None, path: str = ""):
     await self.on_ready()
-    return await apply_schema(conn, path)
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+    sql = Path(path).read_text(encoding="utf-8")
+    batches = _iter_batches(sql)
+    for batch in batches:
+      await self.db.run(apply_batch_request(BatchParams(sql=batch)))
+    print("Schema applied.")
 
-  async def dump_data(self, conn, prefix: str):
+  async def dump_data(self, conn=None, prefix: str = "dump_data"):
     await self.on_ready()
-    return await dump_data(conn, prefix)
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+    schema = await self.get_schema_from_registry()
+    data: dict[str, list[dict]] = {}
+    for table in schema["tables"]:
+      key = f"{table['schema']}.{table['name']}"
+      res = await self.db.run(
+        dump_table_request(DumpTableParams(schema=table["schema"], name=table["name"]))
+      )
+      table_rows = res.payload if isinstance(res.payload, list) else []
+      data[key] = table_rows
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_BACKUP")
+    filename = f"{prefix}_{ts}.json"
+    Path(filename).write_text(
+      json.dumps({"schema": schema, "data": data}, indent=2, default=str),
+      encoding="utf-8",
+    )
+    print(f"Data dumped to {filename}")
+    return filename
 
-  async def update_version(self, conn, part: str):
+  async def update_version(self, conn=None, part: str = ""):
     await self.on_ready()
-    return await update_version(conn, part)
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+    version_res = await self.db.run(get_version_request())
+    version_payload = version_res.payload if isinstance(version_res.payload, dict) else {}
+    current_version = version_payload.get("element_value")
+    if not current_version:
+      raise RuntimeError("Version entry not found in system_config")
+
+    next_version = bump_version(current_version, part)
+    await self.db.run(update_version_request(UpdateVersionParams(version=next_version)))
+    print(f"Updated Version: {current_version} -> {next_version}")
+    return next_version
 
   def commit_and_tag(self, version: str, schema_file: str):
     commit_and_tag(version, schema_file)
 
-  async def rebuild_indexes(self, conn):
+  async def rebuild_indexes(self, conn=None):
     await self.on_ready()
-    return await rebuild_indexes(conn)
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+    await self.db.run(rebuild_indexes_request())
+    print("Reindex complete.")
 
   async def get_database_rpc_namespace(self) -> dict[str, object]:
     operations = self._discover_queryregistry_operations()
