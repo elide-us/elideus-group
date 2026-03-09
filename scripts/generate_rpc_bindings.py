@@ -10,7 +10,7 @@ from typing import Iterable
 
 from pydantic import BaseModel
 
-from scriptlib import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
+from common import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
 
 # Ensure repo root is on sys.path so RPC modules can be imported with package names.
 sys.path.insert(0, REPO_ROOT)
