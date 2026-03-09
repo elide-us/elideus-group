@@ -15,7 +15,7 @@ from queryregistry.identity.profiles.models import (
   UpdateIfUneditedParams,
   UpdateProfileParams,
 )
-from server.registry.account.session.model import (
+from queryregistry.identity.sessions.models import (
   CreateSessionParams,
   RevokeProviderTokensParams,
   UpdateDeviceTokenParams,
@@ -42,12 +42,12 @@ from queryregistry.identity.providers import (
   unlink_last_provider_request,
   unlink_provider_request,
 )
-from server.modules.registry.helpers import (
+from queryregistry.identity.sessions import (
   create_session_request,
-  get_config_request,
   revoke_provider_tokens_request,
   update_device_token_request,
 )
+from queryregistry.system.config import get_config_request
 
 
 class OauthModule(BaseModule):
