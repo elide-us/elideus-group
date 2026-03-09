@@ -7,9 +7,9 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
-  "ColumnParams",
   "ColumnRecord",
   "ForeignKeyRecord",
+  "FullSchemaParams",
   "FullSchemaRecord",
   "IndexRecord",
   "SchemaRecord",
@@ -28,13 +28,10 @@ class TableParams(BaseModel):
   name: str
 
 
-class ColumnParams(BaseModel):
-  """Optional payload for schema-wide column introspection filters."""
+class FullSchemaParams(BaseModel):
+  """Empty payload for full schema introspection."""
 
   model_config = ConfigDict(extra="forbid")
-
-  schema: str | None = None
-  name: str | None = None
 
 
 class TableRecord(TypedDict):
@@ -98,5 +95,8 @@ class SchemaRecord(TypedDict):
 class FullSchemaRecord(TypedDict):
   """Composite schema response payload."""
 
-  tables: list[dict]
-  views: list[dict]
+  tables: list[TableRecord]
+  columns: list[ColumnRecord]
+  indexes: list[IndexRecord]
+  foreign_keys: list[ForeignKeyRecord]
+  views: list[ViewRecord]
