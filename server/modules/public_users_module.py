@@ -1,9 +1,9 @@
 from __future__ import annotations
 from fastapi import FastAPI
-from server.modules.registry.helpers import (
-  get_public_user_profile_request,
-  get_published_files_request,
-)
+from queryregistry.identity.profiles import get_public_profile_request
+from queryregistry.identity.profiles.models import GetPublicProfileParams
+from queryregistry.content.cache import get_published_files_request
+from queryregistry.content.cache.models import GetPublishedFilesParams
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
@@ -27,10 +27,10 @@ class PublicUsersModule(BaseModule):
 
   async def get_profile(self, guid: str):
     assert self.db
-    res = await self.db.run(get_public_user_profile_request(guid=guid))
+    res = await self.db.run(get_public_profile_request(GetPublicProfileParams(guid=guid)))
     return res.rows[0] if res.rows else None
 
   async def get_published_files(self, guid: str):
     assert self.db
-    res = await self.db.run(get_published_files_request(guid=guid))
+    res = await self.db.run(get_published_files_request(GetPublishedFilesParams(guid=guid)))
     return res.rows

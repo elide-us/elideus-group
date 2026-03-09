@@ -22,15 +22,23 @@ from .models import (
 )
 
 __all__ = [
+  "create_from_provider_v1",
   "create_from_provider",
+  "get_any_by_provider_identifier_v1",
   "get_any_by_provider_identifier",
+  "get_by_provider_identifier_v1",
   "get_by_provider_identifier",
+  "get_user_by_email_v1",
   "get_user_by_email",
+  "link_provider_v1",
   "link_provider",
   "relink_provider",
+  "set_provider_v1",
   "set_provider",
   "soft_delete_account",
+  "unlink_last_provider_v1",
   "unlink_last_provider",
+  "unlink_provider_v1",
   "unlink_provider",
 ]
 
@@ -75,6 +83,12 @@ async def _get_auth_provider_recid(provider: str, *, cursor=None) -> int:
 async def get_by_provider_identifier(
   args: GetByProviderIdentifierRequestPayload,
 ) -> DBResponse:
+  return await get_by_provider_identifier_v1(args)
+
+
+async def get_by_provider_identifier_v1(
+  args: GetByProviderIdentifierRequestPayload,
+) -> DBResponse:
   provider = args["provider"]
   identifier = _normalize_provider_identifier(args["provider_identifier"])
   sql = """
@@ -99,6 +113,12 @@ async def get_by_provider_identifier(
 async def get_any_by_provider_identifier(
   args: GetAnyByProviderIdentifierRequestPayload,
 ) -> DBResponse:
+  return await get_any_by_provider_identifier_v1(args)
+
+
+async def get_any_by_provider_identifier_v1(
+  args: GetAnyByProviderIdentifierRequestPayload,
+) -> DBResponse:
   identifier = _normalize_provider_identifier(args["provider_identifier"])
   sql = """
     SELECT TOP 1
@@ -116,6 +136,12 @@ async def get_any_by_provider_identifier(
 async def get_user_by_email(
   args: GetUserByEmailRequestPayload,
 ) -> DBResponse:
+  return await get_user_by_email_v1(args)
+
+
+async def get_user_by_email_v1(
+  args: GetUserByEmailRequestPayload,
+) -> DBResponse:
   email = args["email"]
   sql = """
     SELECT TOP 1
@@ -131,15 +157,21 @@ async def get_user_by_email(
 async def create_from_provider(
   args: CreateFromProviderRequestPayload,
 ) -> DBResponse:
+  return await create_from_provider_v1(args)
+
+
+async def create_from_provider_v1(
+  args: CreateFromProviderRequestPayload,
+) -> DBResponse:
   new_guid = str(uuid4())
   element_rotkey = ""
   element_rotkey_iat = datetime.now(timezone.utc)
   element_rotkey_exp = datetime.now(timezone.utc)
   provider = args["provider"]
   identifier = _normalize_provider_identifier(args["provider_identifier"])
-  provider_email = args["provider_email"]
-  provider_displayname = args["provider_displayname"]
-  provider_profileimg = args.get("provider_profile_image", "")
+  provider_email = args["email"]
+  provider_displayname = args["displayname"]
+  provider_profileimg = args.get("profile_image", "")
 
   ap_recid = await _get_auth_provider_recid(provider)
 
@@ -157,7 +189,7 @@ async def create_from_provider(
       "UPDATE account_users SET providers_recid = ? WHERE element_guid = ?;",
       (ap_recid, existing_guid),
     )
-    return await get_by_provider_identifier({
+    return await get_by_provider_identifier_v1({
       "provider": provider,
       "provider_identifier": identifier,
     })
@@ -187,7 +219,7 @@ async def create_from_provider(
       (new_guid, 1),
     )
 
-  return await get_by_provider_identifier({
+  return await get_by_provider_identifier_v1({
     "provider": provider,
     "provider_identifier": identifier,
   })
@@ -196,7 +228,13 @@ async def create_from_provider(
 async def link_provider(
   args: LinkProviderRequestPayload,
 ) -> DBResponse:
-  guid = _normalize_provider_identifier(args["guid"])
+  return await link_provider_v1(args)
+
+
+async def link_provider_v1(
+  args: LinkProviderRequestPayload,
+) -> DBResponse:
+  guid = _normalize_guid(args["guid"])
   provider = args["provider"]
   identifier = _normalize_provider_identifier(args["provider_identifier"])
   ap_recid = await _get_auth_provider_recid(provider)
@@ -219,7 +257,13 @@ async def link_provider(
 async def unlink_provider(
   args: UnlinkProviderRequestPayload,
 ) -> DBResponse:
-  guid = _normalize_provider_identifier(args["guid"])
+  return await unlink_provider_v1(args)
+
+
+async def unlink_provider_v1(
+  args: UnlinkProviderRequestPayload,
+) -> DBResponse:
+  guid = _normalize_guid(args["guid"])
   provider = args["provider"]
   new_recid = args.get("new_provider_recid")
   async with transaction() as cur:
@@ -272,6 +316,12 @@ async def unlink_provider(
 async def unlink_last_provider(
   args: UnlinkLastProviderRequestPayload,
 ) -> DBResponse:
+  return await unlink_last_provider_v1(args)
+
+
+async def unlink_last_provider_v1(
+  args: UnlinkLastProviderRequestPayload,
+) -> DBResponse:
   guid = args["guid"]
   provider = args["provider"]
   sql = "EXEC auth_unlink_last_provider @guid=?, @provider=?;"
@@ -280,6 +330,12 @@ async def unlink_last_provider(
 
 
 async def set_provider(
+  args: SetProviderRequestPayload,
+) -> DBResponse:
+  return await set_provider_v1(args)
+
+
+async def set_provider_v1(
   args: SetProviderRequestPayload,
 ) -> DBResponse:
   guid = args["guid"]

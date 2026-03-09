@@ -9,18 +9,31 @@ from openai import AsyncOpenAI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from server.registry.system.config.model import ConfigKeyParams
-from server.modules.registry.helpers import (
-  delete_persona_request,
+from queryregistry.system.config import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
+from queryregistry.system.conversations import (
   find_recent_request,
-  get_config_request,
-  get_persona_by_name_request,
   insert_conversation_request,
   list_by_time_request,
-  list_models_request,
-  list_personas_request,
   update_output_request,
+)
+from queryregistry.system.conversations.models import (
+  FindRecentParams,
+  InsertConversationParams,
+  ListByTimeParams,
+  UpdateOutputParams,
+)
+from queryregistry.system.models_registry import list_models_request
+from queryregistry.system.personas import (
+  delete_persona_request,
+  get_persona_by_name_request,
+  list_personas_request,
   upsert_persona_request,
+)
+from queryregistry.system.personas.models import (
+  DeletePersonaParams,
+  PersonaNameParams,
+  UpsertPersonaParams,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -103,7 +116,7 @@ class OpenaiModule(BaseModule):
     assert self.db
     res = await self.db.run(get_config_request(ConfigKeyParams(key="OpenAIApiKey")))
     if res.rows:
-      return res.rows[0].get("value", "")
+      return res.rows[0].get("element_value", "")
     return ""
 
   async def init_openai_client(self) -> AsyncOpenAI | None:
@@ -117,7 +130,7 @@ class OpenaiModule(BaseModule):
     if not self.db:
       return None
     try:
-      res = await self.db.run(get_persona_by_name_request(name))
+      res = await self.db.run(get_persona_by_name_request(PersonaNameParams(name=name)))
       if res.rows:
         return res.rows[0]
     except Exception:
@@ -182,18 +195,18 @@ class OpenaiModule(BaseModule):
     if not payload["name"]:
       raise ValueError("name required")
     await self.db.run(
-      upsert_persona_request(
+      upsert_persona_request(UpsertPersonaParams(
         recid=payload["recid"],
         name=payload["name"],
         prompt=payload["prompt"],
         tokens=payload["tokens"],
         models_recid=payload["models_recid"],
-      )
+      ))
     )
 
   async def delete_persona(self, recid: int | None = None, name: str | None = None) -> None:
     assert self.db
-    await self.db.run(delete_persona_request(recid=recid, name=name))
+    await self.db.run(delete_persona_request(DeletePersonaParams(recid=recid, name=name)))
 
   async def log_persona_conversation_input(
     self,
@@ -209,30 +222,30 @@ class OpenaiModule(BaseModule):
       return None
     try:
       existing = await self.db.run(
-        find_recent_request(
+        find_recent_request(FindRecentParams(
           personas_recid=personas_recid,
           models_recid=models_recid,
-          guild_id=guild_id,
-          channel_id=channel_id,
-          user_id=user_id,
+          guild_id=str(guild_id) if guild_id is not None else None,
+          channel_id=str(channel_id) if channel_id is not None else None,
+          user_id=str(user_id) if user_id is not None else None,
           input_data=input_data,
-        )
+        ))
       )
       if existing.rows:
         recid = existing.rows[0].get("recid")
         if recid is not None:
           return recid
       res = await self.db.run(
-        insert_conversation_request(
+        insert_conversation_request(InsertConversationParams(
           personas_recid=personas_recid,
           models_recid=models_recid,
-          guild_id=guild_id,
-          channel_id=channel_id,
-          user_id=user_id,
+          guild_id=str(guild_id) if guild_id is not None else None,
+          channel_id=str(channel_id) if channel_id is not None else None,
+          user_id=str(user_id) if user_id is not None else None,
           input_data=input_data,
           output_data="",
           tokens=tokens,
-        )
+        ))
       )
       if res.rows:
         return res.rows[0].get("recid")
@@ -250,7 +263,7 @@ class OpenaiModule(BaseModule):
       return
     try:
       res = await self.db.run(
-        update_output_request(recid=recid, output_data=output_data, tokens=tokens)
+        update_output_request(UpdateOutputParams(recid=recid, output_data=output_data, tokens=tokens))
       )
       if res.rowcount == 0:
         logging.warning(
@@ -275,11 +288,11 @@ class OpenaiModule(BaseModule):
     start = end - timedelta(days=max(lookback_days, 0))
     try:
       res = await self.db.run(
-        list_by_time_request(
+        list_by_time_request(ListByTimeParams(
           personas_recid=personas_recid,
           start=start.isoformat(),
           end=end.isoformat(),
-        )
+        ))
       )
     except Exception:
       logging.exception("[OpenaiModule] failed to load persona conversation history")

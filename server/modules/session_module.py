@@ -16,23 +16,23 @@ from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.identity.profiles import update_profile_request
 from queryregistry.identity.profiles.models import UpdateProfileParams
 from queryregistry.handler import dispatch_query_request
-from queryregistry.identity.sessions import get_rotkey_request
-from queryregistry.identity.sessions.models import RotkeyLookupParams
-from server.registry.account.session.model import (
-  CreateSessionParams,
-  RevokeDeviceTokenParams,
-  SetRotkeyParams,
-  UpdateDeviceTokenParams,
-  UpdateSessionParams,
-)
-from server.registry.types import DBRequest
-from server.modules.registry.helpers import (
+from queryregistry.identity.sessions import (
   create_session_request,
+  get_rotkey_request,
   revoke_device_token_request,
   set_rotkey_request,
   update_device_token_request,
   update_session_request,
 )
+from queryregistry.identity.sessions.models import (
+  CreateSessionParams,
+  RotkeyLookupParams,
+  RevokeDeviceTokenParams,
+  SetRotkeyParams,
+  UpdateDeviceTokenParams,
+  UpdateSessionParams,
+)
+from queryregistry.models import DBRequest
 
 
 class SessionModule(BaseModule):

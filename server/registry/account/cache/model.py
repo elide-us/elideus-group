@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Mapping, MutableMapping, Sequence
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 __all__ = [
   "CacheItemKey",
@@ -35,8 +36,8 @@ class ContentCacheItem(BaseModel):
   path: str = ""
   content_type: str = "application/octet-stream"
   public: int = 0
-  created_on: Any | None = None
-  modified_on: Any | None = None
+  element_created_on: datetime | None = None
+  element_modified_on: datetime | None = None
   url: str | None = None
   reported: int = 0
   moderation_recid: Any | None = None
@@ -76,6 +77,24 @@ class ContentCacheItem(BaseModel):
     if default_user_guid and not payload.get("user_guid"):
       payload["user_guid"] = default_user_guid
     return cls.model_validate(payload)
+
+
+  @field_validator("element_created_on", "element_modified_on", mode="before")
+  @classmethod
+  def _normalize_temporal_fields(cls, value: Any) -> datetime | None:
+    if value is None or value == "":
+      return None
+    parsed = value
+    if isinstance(parsed, str):
+      candidate = parsed.strip()
+      if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+      parsed = datetime.fromisoformat(candidate)
+    if not isinstance(parsed, datetime):
+      raise TypeError(f"Temporal field expects datetime-compatible value, got {type(parsed).__name__}")
+    if parsed.tzinfo is None:
+      return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
   def to_payload(self) -> dict[str, Any]:
     return self.model_dump()

@@ -5,8 +5,8 @@ from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.profiles import get_profile_request, update_profile_request
 from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
-from server.registry.finance.credits.model import SetCreditsParams
-from server.modules.registry.helpers import set_credits_request
+from queryregistry.finance.credits.models import SetCreditsParams
+from queryregistry.finance.credits import set_credits_request
 
 
 class UserAdminModule(BaseModule):

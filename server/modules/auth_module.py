@@ -19,7 +19,7 @@ from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
-from server.registry.types import DBRequest, DBResponse
+from queryregistry.models import DBRequest, DBResponse
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days

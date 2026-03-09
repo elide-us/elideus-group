@@ -1,42 +1,60 @@
 # Frontend AGENT Instructions
 
-Guidance for the Vite/React application under `frontend/`.
+Guidance for the Vite + React + TypeScript app under `frontend/`.
 
 ---
 
-## Project Layout
+## What this layer IS
 
-- Place shared, reusable UI pieces in `src/components`. Route-level screens live
-  in `src/pages`.
-- Configuration for runtime services (feature flags, themes) belongs in
-  `src/shared`. Keep RPC adapters in `src/rpc`; those files are generated—do not
-  edit them by hand.
+- A presentation/UI layer for rendering state and collecting user intent.
+- React components, route pages, and composition of generated RPC clients.
 
----
+## What this layer is NOT
 
-## Build & Tooling
-
-- The Vite config (`vite.config.ts`) groups chunks by top-level route prefixes
-  such as `system-*` and `admin-*`. When adding new route groups or changing
-  directory structure, update the `manualChunks` logic to keep bundles stable.
-- Run `npm lint`, `npm type-check`, and `npm test` before submitting changes.
-  Vitest specs live in `frontend/tests`.
+- Not a home for backend business rules.
+- Not a place to hand-maintain API schema bindings.
+- Not a place to mirror query registry dispatch logic.
 
 ---
 
-## UI & State Conventions
+## Key files and directories
 
-- Prefer functional components with hooks. Shared context providers reside in
-  `src/shared`; extend them instead of adding ad-hoc global state.
-- Co-locate component-specific styles with the component. Follow the theme tokens
-  defined in `src/shared/ElideusTheme.tsx` when adding new colors or spacing.
+- `frontend/src/components` – reusable UI building blocks.
+- `frontend/src/pages` – route-level screens.
+- `frontend/src/shared` – shared contexts, theme, and runtime frontend configuration.
+- `frontend/src/rpc` – generated TypeScript RPC bindings (**do not edit manually**).
+- `frontend/vite.config.ts` – chunking/build strategy (route-group chunk mapping).
+
+Adjacent guidance:
+- Root `AGENTS.md` for repository-wide workflow/test expectations.
+- `rpc/AGENTS.md` for backend RPC definitions that drive generated frontend bindings.
+- `queryregistry/AGENTS.md` for canonical server-side query dispatch conventions.
 
 ---
 
-## RPC Integration
+## Component patterns and naming
 
-- Consume backend APIs through the generated helpers in `src/rpc`. If a helper is
-  missing, add the corresponding dispatcher in the RPC layer and rerun
+- Prefer functional components with hooks.
+- Keep components focused/presentational; pass business decisions in via props/hooks.
+- Component naming:
+  - files/components: `PascalCase.tsx` for exported components.
+  - hooks/utilities local to UI: `camelCase.ts`.
+- Co-locate view-specific styles/assets with their components when practical.
+
+---
+
+## RPC and typing workflow
+
+- Use generated clients in `src/rpc`; do not hand-edit generated files.
+- When RPC contracts change, regenerate bindings from Python RPC definitions using
   `python scripts/generate_rpc_bindings.py`.
-- Keep request/response typing in sync with Pydantic models—regenerate bindings
-  rather than editing TypeScript signatures manually.
+- Keep TypeScript types aligned with backend models via regeneration, not manual patching.
+
+---
+
+## Anti-patterns (forbidden)
+
+- Embedding backend/domain business logic in components.
+- Creating frontend-side compatibility shims for deprecated backend operation names.
+- Bypassing generated RPC clients with ad-hoc request shapes when bindings exist.
+- Introducing aliases where direct references already exist.

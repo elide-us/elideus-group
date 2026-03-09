@@ -21,14 +21,17 @@ class ConfigKeyParams(BaseModel):
   key: str
 
 
-class UpsertConfigParams(ConfigKeyParams):
+class UpsertConfigParams(BaseModel):
   """Parameters for inserting or updating a configuration value."""
 
+  model_config = ConfigDict(extra="forbid")
+
+  key: str
   value: str
 
 
-class ConfigRecord(TypedDict, total=False):
+class ConfigRecord(TypedDict):
   """Record representation returned by configuration queries."""
 
-  key: str
-  value: str | None
+  element_key: str
+  element_value: str

@@ -10,8 +10,10 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from queryregistry.models import DBResponse
 
 __all__ = [
+  "GetPublicProfileParams",
   "GuidParams",
   "ProfileRecord",
+  "PublicUserProfile",
   "ProfileReadRequestPayload",
   "ProfileUpdateCallable",
   "ProfileUpdateIfUneditedCallable",
@@ -77,6 +79,10 @@ class UpdateIfUneditedParams(GuidParams):
   email: str | None = None
 
 
+class GetPublicProfileParams(GuidParams):
+  """Parameters for fetching a public profile projection."""
+
+
 class UpdateProfileParams(GuidParams):
   """Parameters for updating one or more profile fields."""
 
@@ -98,6 +104,14 @@ class ProfileRecord(TypedDict, total=False):
   roles: int | None
   element_created_on: str | None
   element_modified_on: str | None
+
+
+class PublicUserProfile(TypedDict, total=False):
+  """Public profile information returned for a user."""
+
+  display_name: str | None
+  email: str | None
+  profile_image: str | None
 
 
 class ProfileReadRequestPayload(TypedDict):

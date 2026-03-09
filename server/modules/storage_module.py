@@ -5,15 +5,16 @@ from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import FastAPI
-from server.registry.system.config.model import ConfigKeyParams
-from server.modules.registry.helpers import (
+from queryregistry.system.config.models import ConfigKeyParams
+from queryregistry.system.config import get_config_request
+from queryregistry.content.cache import (
   count_rows_request,
-  get_config_request,
   list_public_request,
   list_reported_request,
   set_gallery_request,
   set_reported_request,
 )
+from queryregistry.content.cache.models import SetGalleryParams, SetReportedParams
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
@@ -82,7 +83,7 @@ class StorageModule(BaseModule):
 
     try:
       res = await self.db.run(get_config_request(ConfigKeyParams(key="StorageCacheTime")))
-      value = res.rows[0]["value"] if res.rows else "15m"
+      value = res.rows[0]["element_value"] if res.rows else "15m"
       try:
         self.reindex_interval = self._parse_duration(value)
       except Exception:
@@ -127,7 +128,7 @@ class StorageModule(BaseModule):
       logging.error("[StorageModule] Database module unavailable")
       return None
     res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    container_name = res.rows[0]["element_value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
     return container_name
@@ -221,8 +222,8 @@ class StorageModule(BaseModule):
             "filename": folder_name,
             "content_type": "path/folder",
             "public": 0,
-            "created_on": None,
-            "modified_on": None,
+            "element_created_on": None,
+            "element_modified_on": None,
             "url": None,
             "reported": 0,
             "moderation_recid": None,
@@ -248,8 +249,8 @@ class StorageModule(BaseModule):
             "filename": filename,
             "content_type": "path/folder",
             "public": 0,
-            "created_on": None,
-            "modified_on": None,
+            "element_created_on": None,
+            "element_modified_on": None,
             "url": None,
             "reported": 0,
             "moderation_recid": None,
@@ -279,8 +280,8 @@ class StorageModule(BaseModule):
         "filename": filename,
         "content_type": ct,
         "public": public_val,
-        "created_on": created_on,
-        "modified_on": modified_on,
+        "element_created_on": created_on,
+        "element_modified_on": modified_on,
         "url": url,
         "reported": 0,
         "moderation_recid": None,
@@ -327,8 +328,8 @@ class StorageModule(BaseModule):
       "filename": filename,
       "content_type": file_type,
       "public": kwargs.get("public", 0),
-      "created_on": kwargs.get("created_on"),
-      "modified_on": kwargs.get("modified_on"),
+      "element_created_on": kwargs.get("element_created_on"),
+      "element_modified_on": kwargs.get("element_modified_on"),
       "url": kwargs.get("url"),
       "reported": kwargs.get("reported", 0),
       "moderation_recid": kwargs.get("moderation_recid"),
@@ -463,8 +464,8 @@ class StorageModule(BaseModule):
           "filename": filename,
           "content_type": result.content_type or "application/octet-stream",
           "public": 0,
-          "created_on": result.created_on,
-          "modified_on": result.modified_on,
+          "element_created_on": result.created_on,
+          "element_modified_on": result.modified_on,
           "url": result.url,
           "reported": 0,
           "moderation_recid": None,
@@ -518,12 +519,12 @@ class StorageModule(BaseModule):
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
-    await self.db.run(set_gallery_request(user_guid, name, gallery))
+    await self.db.run(set_gallery_request(SetGalleryParams(user_guid=user_guid, name=name, gallery=gallery)))
 
   async def report_file(self, user_guid: str, name: str):
     assert self.db
     path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-    await self.db.run(set_reported_request(user_guid, path=path, filename=filename, reported=True))
+    await self.db.run(set_reported_request(SetReportedParams(user_guid=user_guid, path=path, filename=filename, reported=True)))
 
   async def create_folder(self, user_guid: str, path: str):
     if not self.db:
@@ -558,8 +559,8 @@ class StorageModule(BaseModule):
         "filename": folder_name,
         "content_type": "path/folder",
         "public": 0,
-        "created_on": None,
-        "modified_on": None,
+        "element_created_on": None,
+        "element_modified_on": None,
         "url": None,
         "reported": 0,
         "moderation_recid": None,
@@ -662,8 +663,8 @@ class StorageModule(BaseModule):
         "filename": dst_filename,
         "content_type": props.content_type or "application/octet-stream",
         "public": 0,
-        "created_on": props.created_on,
-        "modified_on": props.modified_on,
+        "element_created_on": props.created_on,
+        "element_modified_on": props.modified_on,
         "url": result.url,
         "reported": 0,
         "moderation_recid": None,
@@ -707,8 +708,8 @@ class StorageModule(BaseModule):
     ct = cache_entry.get("content_type") or "application/octet-stream"
     if properties and properties.content_type:
       ct = properties.content_type or ct
-    created_on = cache_entry.get("created_on")
-    modified_on = cache_entry.get("modified_on")
+    created_on = cache_entry.get("element_created_on")
+    modified_on = cache_entry.get("element_modified_on")
     if properties:
       created_on = properties.created_on or created_on
       modified_on = properties.modified_on or modified_on
@@ -725,8 +726,8 @@ class StorageModule(BaseModule):
         "filename": new_filename,
         "content_type": ct,
         "public": 1 if cache_entry.get("public") else 0,
-        "created_on": created_on,
-        "modified_on": modified_on,
+        "element_created_on": created_on,
+        "element_modified_on": modified_on,
         "url": url,
         "reported": cache_entry.get("reported", 0),
         "moderation_recid": cache_entry.get("moderation_recid"),

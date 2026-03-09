@@ -18,8 +18,8 @@ except ImportError:  # pragma: no cover - non-Windows platforms
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
-from server.registry.system.config.model import ConfigKeyParams
-from server.modules.registry.helpers import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
+from queryregistry.system.config import get_config_request
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers
@@ -80,7 +80,7 @@ class DiscordBotModule(BaseModule):
       res = await self.db.run(get_config_request(ConfigKeyParams(key="DiscordSyschan")))
       if not res.rows:
         raise ValueError("Missing config value for key: DiscordSyschan")
-      self.syschan = int(res.rows[0]["value"] or 0)
+      self.syschan = int(res.rows[0]["element_value"] or 0)
       try:
         await self.bot.login(self.secret)
         self._task = asyncio.create_task(self.bot.connect())

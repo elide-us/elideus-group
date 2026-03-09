@@ -10,21 +10,25 @@ flowchart TD
   Client --> RPC
   RPC --> Services
   Services --> Modules
-  Modules --> Providers
-  Services --> DbModule
+  Modules --> DbModule
   DbModule --> QueryRegistry
   QueryRegistry --> Providers
+  Providers --> QueryRegistry
+  QueryRegistry --> Modules
+  Modules --> Services
   Security --> RPC
   Security --> Services
 ```
 
 * **Client** – User owned frontend or external application.
 * **RPC** – Typed boundary that exposes the public namespace. Only bearer tokens are accepted.
-* **Services** – Business logic invoked by RPC handlers.
-* **Modules** – Internal runtime modules loaded by the server. Modules communicate only through their contracts and, by default, invoke providers directly. The `DbModule` is the exception: it forwards URN-formatted operations to the query registry so data providers stay focused on connection lifecycles and response helpers.
-* **Query Registry** – Dedicated translation layer (see `queryregistry/`) that maps URN-formatted operations from the `DbModule` to provider-specific handlers. It routes the request to the correct provider implementation and normalizes responses so callers receive a consistent payload regardless of the backing engine.
-* **Providers** – External systems such as databases and identity services. SQL logic remains centralized in the provider directories (for example `server/registry/.../mssql.py` files), but the query registry ensures those implementations expose a uniform shape back to the modules.
+* **Services** – RPC-facing orchestration that validates/request-shapes and delegates application rules to modules.
+* **Modules** – Internal runtime modules loaded by the server and the **application/business logic layer**. Modules make decisions, orchestrate workflows, and enforce application rules. For data access, modules call the `DbModule`/query registry path rather than embedding provider-specific SQL.
+* **Query Registry** – Canonical **data-access translation layer** (see `queryregistry/`) that accepts typed requests from modules, maps URN-formatted operations to provider-specific SQL handlers, and returns normalized typed responses. It contains no business logic, conditional workflows, or application rules.
+* **Providers** – Connection/transport adapters for external systems such as databases and identity services. Providers own pooling, connectivity, and execution mechanics while queryregistry owns data-access translation and modules own business logic.
 * **Security** – Cross cutting layer enforcing authentication, authorization, and privacy rules. Data marked internal never leaves the server.
+
+Layer responsibility rule: **Modules (business logic) → QueryRegistry (data-access translation) → Providers (connection/transport execution)**. Logic flows down this chain; data and results flow back up.
 
 ## Security Model
 

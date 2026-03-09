@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from atproto import AsyncClient as AsyncBskyClient, client_utils
 from fastapi import FastAPI
 
-from server.registry.system.config.model import ConfigKeyParams
-from server.modules.registry.helpers import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
+from queryregistry.system.config import get_config_request
 from . import BaseModule
 from .db_module import DbModule
 
@@ -48,7 +48,7 @@ class BskyModule(BaseModule):
     res = await self.db.run(get_config_request(ConfigKeyParams(key=key)))
     if not res.rows:
       return ""
-    return res.rows[0].get("value") or ""
+    return res.rows[0].get("element_value") or ""
 
   async def _ensure_credentials(self):
     if not self.db:

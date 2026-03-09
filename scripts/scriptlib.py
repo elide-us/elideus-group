@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, importlib.util, types, json, dotenv, re
+import os, importlib.util, types, json, dotenv, re, logging
 from typing import Any, Union, get_origin, get_args
 from pydantic import BaseModel
 from pathlib import Path
@@ -35,6 +35,17 @@ HEADER_COMMENT = [
   "// ================================================",
   "",
 ]
+
+logger = logging.getLogger(__name__)
+
+APPLICATION_TABLE_SCHEMAS = {'dbo'}
+EXCLUDED_SYSTEM_TABLES = {'sysdiagrams'}
+EXCLUDED_TABLE_PREFIXES = ('sys',)
+ODBC_UNSUPPORTED_TYPE_NAMES = {
+  'IMAGE',
+  'TEXT',
+  'NTEXT',
+}
 
 
 def camel_case(name: str) -> str:
@@ -167,10 +178,31 @@ async def list_tables(conn):
                 TABLE_NAME AS table_name
            FROM INFORMATION_SCHEMA.TABLES
           WHERE TABLE_TYPE='BASE TABLE'
-            AND TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'sys')
+            AND TABLE_SCHEMA IN ({schemas})
+            AND TABLE_NAME NOT IN ({excluded})
           ORDER BY TABLE_SCHEMA, TABLE_NAME"""
+      .format(
+        schemas=', '.join('?' for _ in APPLICATION_TABLE_SCHEMAS),
+        excluded=', '.join('?' for _ in EXCLUDED_SYSTEM_TABLES),
+      ),
+      (*APPLICATION_TABLE_SCHEMAS, *EXCLUDED_SYSTEM_TABLES),
     )
-    return await _fetch_dicts(cur)
+    tables = await _fetch_dicts(cur)
+    return [
+      table
+      for table in tables
+      if not table['table_name'].lower().startswith(EXCLUDED_TABLE_PREFIXES)
+    ]
+
+def _unsupported_column_reason(col: dict) -> str | None:
+  dtype = (col.get('data_type') or '').upper()
+  if dtype in ODBC_UNSUPPORTED_TYPE_NAMES:
+    return f"type {dtype}"
+
+  if dtype == 'VARBINARY' and col.get('max_length') == -1:
+    return 'type VARBINARY(MAX)'
+
+  return None
 
 async def list_views(conn):
   async with conn.cursor() as cur:
@@ -243,7 +275,29 @@ def _group_key_columns(rows: list[dict]) -> list[str]:
   return ordered
 
 async def _table_schema(conn, schema: str, table: str):
-  raw_columns = await list_columns(conn, schema, table)
+  try:
+    raw_columns = await list_columns(conn, schema, table)
+  except Exception as exc:
+    logger.warning(
+      "Skipping table %s.%s due to ODBC metadata introspection error: %s",
+      schema,
+      table,
+      exc,
+    )
+    return None
+
+  for col in raw_columns:
+    unsupported_reason = _unsupported_column_reason(col)
+    if unsupported_reason:
+      logger.warning(
+        "Skipping table %s.%s: column %s uses %s which is incompatible with ODBC schema introspection.",
+        schema,
+        table,
+        col['column_name'],
+        unsupported_reason,
+      )
+      return None
+
   columns: list[dict] = []
   for col in raw_columns:
     columns.append(
@@ -490,6 +544,8 @@ async def get_schema(conn):
     name = t['table_name']
     key = f"{schema}.{name}"
     info = await _table_schema(conn, schema, name)
+    if info is None:
+      continue
     schemas[key] = info
     deps[key] = {
       f"{fk['ref_schema']}.{fk['ref_table']}" for fk in info['foreign_keys']
