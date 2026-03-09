@@ -29,7 +29,7 @@ async def list_tables_v1(_: Mapping[str, Any]) -> DBResponse:
 
 
 async def list_columns_v1(args: Mapping[str, Any]) -> DBResponse:
-  schema_name = args["schema"]
+  schema_name = args["table_schema"]
   table_name = args["name"]
   sql = """
     SELECT c.tables_recid, c.element_name, c.element_nullable, c.element_default,
@@ -46,7 +46,7 @@ async def list_columns_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def list_indexes_v1(args: Mapping[str, Any]) -> DBResponse:
-  schema_name = args["schema"]
+  schema_name = args["table_schema"]
   table_name = args["name"]
   sql = """
     SELECT i.tables_recid, i.element_name, i.element_columns, i.element_is_unique
@@ -60,7 +60,7 @@ async def list_indexes_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def list_foreign_keys_v1(args: Mapping[str, Any]) -> DBResponse:
-  schema_name = args["schema"]
+  schema_name = args["table_schema"]
   table_name = args["name"]
   sql = """
     SELECT fk.tables_recid, fk.element_column_name, fk.referenced_tables_recid,

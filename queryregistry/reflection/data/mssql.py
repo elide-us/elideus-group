@@ -38,7 +38,7 @@ async def update_version_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def dump_table_v1(args: Mapping[str, Any]) -> DBResponse:
-  schema_name = _quote_ident(args["schema"])
+  schema_name = _quote_ident(args["table_schema"])
   table_name = _quote_ident(args["name"])
   sql = f"SELECT * FROM {schema_name}.{table_name} FOR JSON PATH;"
   return await run_json_many(sql)
