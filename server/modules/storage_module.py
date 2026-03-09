@@ -5,15 +5,16 @@ from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 from fastapi import FastAPI
-from server.registry.system.config.model import ConfigKeyParams
-from server.modules.registry.helpers import (
+from queryregistry.system.config.models import ConfigKeyParams
+from queryregistry.system.config import get_config_request
+from queryregistry.content.cache import (
   count_rows_request,
-  get_config_request,
   list_public_request,
   list_reported_request,
   set_gallery_request,
   set_reported_request,
 )
+from queryregistry.content.cache.models import SetGalleryParams, SetReportedParams
 from . import BaseModule
 from .env_module import EnvModule
 from .db_module import DbModule
@@ -518,12 +519,12 @@ class StorageModule(BaseModule):
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
-    await self.db.run(set_gallery_request(user_guid, name, gallery))
+    await self.db.run(set_gallery_request(SetGalleryParams(user_guid=user_guid, name=name, gallery=gallery)))
 
   async def report_file(self, user_guid: str, name: str):
     assert self.db
     path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
-    await self.db.run(set_reported_request(user_guid, path=path, filename=filename, reported=True))
+    await self.db.run(set_reported_request(SetReportedParams(user_guid=user_guid, path=path, filename=filename, reported=True)))
 
   async def create_folder(self, user_guid: str, path: str):
     if not self.db:
