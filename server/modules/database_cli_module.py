@@ -55,7 +55,8 @@ def _format_data_type(col: dict) -> str:
 
 def _format_column(col: dict) -> str:
   parts = [_quote(col["name"]), _format_data_type(col)]
-  if col.get("identity"):
+  raw_data_type = (col.get("data_type") or "").lower()
+  if col.get("identity") and "identity" not in raw_data_type:
     parts.append("IDENTITY(1, 1)")
   parts.append("NULL" if col.get("nullable", True) else "NOT NULL")
   if col.get("default"):
@@ -219,8 +220,36 @@ async def get_schema_from_registry(conn) -> dict[str, list[dict]]:
       }
     )
 
-  ordered_tables = sorted(tables.values(), key=lambda item: (item["schema"], item["name"]))
-  return {"tables": ordered_tables, "views": []}
+  schema_name_to_recid: dict[tuple[str, str], int] = {
+    (table["schema"], table["name"]): recid for recid, table in tables.items()
+  }
+
+  deps: dict[int, set[int]] = {}
+  for recid, table in tables.items():
+    fk_targets: set[int] = set()
+    for fk in table["foreign_keys"]:
+      target_recid = schema_name_to_recid.get((fk["ref_schema"], fk["ref_table"]))
+      if target_recid is None or target_recid == recid:
+        continue
+      fk_targets.add(target_recid)
+    deps[recid] = fk_targets
+
+  ordered: list[int] = []
+  visited: set[int] = set()
+
+  def _visit(recid: int) -> None:
+    if recid in visited:
+      return
+    visited.add(recid)
+    for dep in deps.get(recid, set()):
+      if dep in tables:
+        _visit(dep)
+    ordered.append(recid)
+
+  for recid in tables:
+    _visit(recid)
+
+  return {"tables": [tables[recid] for recid in ordered], "views": []}
 
 
 async def dump_schema_from_registry(conn, prefix: str = "schema") -> str:
@@ -330,8 +359,13 @@ async def dump_data(conn, prefix: str = "dump_data") -> str:
     key = f"{table['schema']}.{table['name']}"
     async with conn.cursor() as cur:
       await cur.execute(f"SELECT * FROM {table_name} FOR JSON PATH")
-      row = await cur.fetchone()
-      data[key] = json.loads(row[0]) if row and row[0] else []
+      parts: list[str] = []
+      while True:
+        row = await cur.fetchone()
+        if not row or not row[0]:
+          break
+        parts.append(row[0])
+      data[key] = json.loads("".join(parts)) if parts else []
   ts = datetime.now(timezone.utc).strftime("%Y%m%d_BACKUP")
   filename = f"{prefix}_{ts}.json"
   Path(filename).write_text(
