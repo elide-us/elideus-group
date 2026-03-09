@@ -8,7 +8,7 @@ from typing import Any
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from .models import ColumnParams, TableParams
+from .models import FullSchemaParams, TableParams
 
 __all__ = [
   "get_full_schema_v1",
@@ -37,7 +37,8 @@ def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _D
 
 
 async def list_tables_v1(request: DBRequest, *, provider: str) -> DBResponse:
-  result = await _select_dispatcher(provider, _LIST_TABLES_DISPATCHERS)(request.payload)
+  params = FullSchemaParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _LIST_TABLES_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 
@@ -60,11 +61,12 @@ async def list_foreign_keys_v1(request: DBRequest, *, provider: str) -> DBRespon
 
 
 async def list_views_v1(request: DBRequest, *, provider: str) -> DBResponse:
-  result = await _select_dispatcher(provider, _LIST_VIEWS_DISPATCHERS)(request.payload)
+  params = FullSchemaParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _LIST_VIEWS_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 
 async def get_full_schema_v1(request: DBRequest, *, provider: str) -> DBResponse:
-  params = ColumnParams.model_validate(request.payload)
+  params = FullSchemaParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _GET_FULL_SCHEMA_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from queryregistry.models import DBRequest
 
-from .models import ColumnParams, TableParams
+from .models import TableParams
 
 __all__ = [
   "get_full_schema_request",
@@ -36,6 +36,5 @@ def list_views_request() -> DBRequest:
   return DBRequest(op="db:reflection:schema:list_views:1", payload={})
 
 
-def get_full_schema_request(params: ColumnParams | None = None) -> DBRequest:
-  payload = {} if params is None else params.model_dump()
-  return DBRequest(op="db:reflection:schema:get_full_schema:1", payload=payload)
+def get_full_schema_request() -> DBRequest:
+  return DBRequest(op="db:reflection:schema:get_full_schema:1", payload={})
