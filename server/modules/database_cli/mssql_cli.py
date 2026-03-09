@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
 
 
 def _rewrite_dsn_database(dsn: str, dbname: str) -> str:
@@ -55,11 +54,9 @@ async def reconnect(conn, *, dsn: str | None, dbname: str):
 
 async def list_tables(conn) -> list[str]:
   query = (
-    "SELECT TABLE_SCHEMA, TABLE_NAME "
-    "FROM INFORMATION_SCHEMA.TABLES "
-    "WHERE TABLE_TYPE='BASE TABLE' "
-    "AND TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'sys') "
-    "ORDER BY TABLE_SCHEMA, TABLE_NAME"
+    "SELECT element_schema, element_name "
+    "FROM system_schema_tables "
+    "ORDER BY element_schema, element_name"
   )
   async with conn.cursor() as cur:
     await cur.execute(query)
