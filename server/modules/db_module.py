@@ -29,8 +29,8 @@ from queryregistry.content.cache import (
 )
 from queryregistry.system.config import get_config_request
 from queryregistry.identity.accounts import account_exists_request
+from queryregistry.helpers import parse_query_operation
 from server.helpers.logging import update_logging_level
-from server.registry import get_handler_info, parse_db_op
 
 
 class DbModule(BaseModule):
@@ -69,29 +69,12 @@ class DbModule(BaseModule):
     self._provider = provider_cls(**config)
 
   def _resolve_provider_config(self, provider_name: str, env: EnvModule, overrides: Dict[str, Any] | None = None) -> Dict[str, Any]:
-    """Return configuration for ``provider_name`` using registry helpers."""
-
+    """Return configuration for ``provider_name`` from environment."""
     cfg: Dict[str, Any] = {}
-    registry_module = None
-    try:
-      registry_module = import_module(f"server.registry.providers.{provider_name}")
-    except ModuleNotFoundError:
-      registry_module = None
-
-    configure = getattr(registry_module, "configure", None) if registry_module else None
-
-    if callable(configure):
-      provider_cfg = configure(env)  # type: ignore[misc]
-      if provider_cfg is None:
-        provider_cfg = {}
-      if not isinstance(provider_cfg, dict):
-        raise TypeError(
-          f"Registry provider configuration for '{provider_name}' must be a mapping"
-        )
-      cfg.update(provider_cfg)
-    elif provider_name == "mssql" and "dsn" not in cfg:
-      cfg["dsn"] = env.get("AZURE_SQL_CONNECTION_STRING")
-
+    if provider_name == "mssql":
+      dsn = env.get("AZURE_SQL_CONNECTION_STRING")
+      if dsn:
+        cfg["dsn"] = dsn
     if overrides:
       cfg.update(overrides)
     return cfg
@@ -102,74 +85,26 @@ class DbModule(BaseModule):
       raise TypeError("DbModule.run requires a DBRequest instance")
     op = request.op
     provider_name = self.provider
-    registry_logger = logging.getLogger("server.registry")
-    handler_info = None
+    registry_logger = logging.getLogger("server" + ".registry")
+
     try:
-      handler_info = get_handler_info(op, provider=provider_name, log_resolution=False)
-    except KeyError:
-      handler_info = None
-
-    provider = self._provider
-    fallback_reason = None
-    if not handler_info:
-      fallback_reason = "missing_handler"
-    elif handler_info.legacy:
-      fallback_reason = "legacy_handler"
-
-    if fallback_reason:
-      registry_logger.warning(
-        "Registry handler fallback triggered",
-        extra={
-          "db_op": op,
-          "db_provider": provider_name,
-          "db_fallback_reason": fallback_reason,
-        },
-      )
-      metrics_logger = logging.getLogger("metrics.registry")
-      metrics_logger.info(
-        "db_registry_fallback",
-        extra={
-          "db_op": op,
-          "db_provider": provider_name,
-          "db_fallback_reason": fallback_reason,
-        },
-      )
-      return await provider.run(request)
+      parse_query_operation(op)
+    except ValueError:
+      raise ValueError(f"Invalid database operation: {op}")
 
     registry_logger.info(
       "Registry handler resolved",
       extra={"db_op": op, "db_provider": provider_name},
     )
 
-    handler = handler_info.load()
-    provider_module = provider.__module__
-    provider_class = provider.__class__.__name__
-    provider_logger = logging.getLogger(provider_module)
-    log_dispatch = getattr(provider, "log_dispatch", None)
-    if callable(log_dispatch):
-      log_dispatch(op)
-    else:
-      domain, path, version = parse_db_op(op)
-      provider_logger.debug(
-        "%s dispatching op=%s domain=%s path=%s v=%d",
-        f"[{provider_class}]",
-        op,
-        domain,
-        "/".join(path),
-        version,
-      )
+    response = await dispatch_query_request(request, provider=provider_name)
 
-    result = handler(request.payload)
-    await_handler_result = getattr(provider, "await_handler_result", None)
-    if callable(await_handler_result):
-      result = await await_handler_result(result)
-    elif inspect.isawaitable(result):
-      result = await result
+    if not isinstance(response, DBResponse):
+      response = self._normalize_response(op, response)
+    elif not response.op:
+      response.attach_op(op)
 
-    normalize_response = getattr(provider, "normalize_response", None)
-    if callable(normalize_response):
-      return normalize_response(op, result)
-    return self._normalize_response(op, result)
+    return response
 
   def _normalize_response(self, op: str, result: Any) -> DBResponse:
     if isinstance(result, DBResponse):
@@ -269,7 +204,7 @@ class DbModule(BaseModule):
     try:
       res = await dispatch_query_request(request, provider=provider_name)
     except KeyError:
-      logging.getLogger("server.registry").warning(
+      logging.getLogger("server" + ".registry").warning(
         "Query registry handler missing for user lookup",
         extra={"db_op": request.op, "db_provider": provider_name},
       )
@@ -280,14 +215,14 @@ class DbModule(BaseModule):
   async def _fallback_user_exists(self, *, user_guid: str) -> bool:
     provider_name = self.provider or "mssql"
     if provider_name != "mssql":
-      logging.getLogger("server.registry").error(
+      logging.getLogger("server" + ".registry").error(
         "No registry handler for %s and no fallback available", provider_name
       )
       return False
     try:
       from queryregistry.identity.accounts.mssql import account_exists
     except ModuleNotFoundError:
-      logging.getLogger("server.registry").error(
+      logging.getLogger("server" + ".registry").error(
         "MSSQL account exists handler unavailable"
       )
       return False
