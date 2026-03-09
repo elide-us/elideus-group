@@ -39,30 +39,3 @@ async def connect(*, dsn: str | None, dbname: str | None = None):
   conn = await aioodbc.connect(dsn=dsn, autocommit=True)
   logging.info("[DatabaseCli] Connected to database")
   return conn
-
-
-async def reconnect(conn, *, dsn: str | None, dbname: str):
-  if conn:
-    try:
-      await conn.close()
-      logging.info("[DatabaseCli] Closed existing connection")
-    except Exception:
-      logging.exception("[DatabaseCli] Failed to close existing connection")
-      raise
-  return await connect(dsn=dsn, dbname=dbname)
-
-
-async def list_tables(conn) -> list[str]:
-  query = (
-    "SELECT element_schema, element_name "
-    "FROM system_schema_tables "
-    "ORDER BY element_schema, element_name"
-  )
-  async with conn.cursor() as cur:
-    await cur.execute(query)
-    rows = await cur.fetchall()
-  return [f"{row[0]}.{row[1]}" for row in rows]
-
-
-async def list_table_names(conn) -> list[str]:
-  return await list_tables(conn)
