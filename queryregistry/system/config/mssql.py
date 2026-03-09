@@ -20,7 +20,7 @@ __all__ = [
 async def get_config_v1(args: Mapping[str, Any]) -> DBResponse:
   key = args["key"]
   sql = """
-    SELECT element_value AS value
+    SELECT element_value
     FROM system_config
     WHERE element_key = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
@@ -30,7 +30,7 @@ async def get_config_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def get_configs_v1(_: Mapping[str, Any]) -> DBResponse:
   sql = """
-    SELECT element_key AS [key], element_value AS value
+    SELECT element_key, element_value
     FROM system_config
     ORDER BY element_key
     FOR JSON PATH;

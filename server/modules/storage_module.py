@@ -83,7 +83,7 @@ class StorageModule(BaseModule):
 
     try:
       res = await self.db.run(get_config_request(ConfigKeyParams(key="StorageCacheTime")))
-      value = res.rows[0]["value"] if res.rows else "15m"
+      value = res.rows[0]["element_value"] if res.rows else "15m"
       try:
         self.reindex_interval = self._parse_duration(value)
       except Exception:
@@ -128,7 +128,7 @@ class StorageModule(BaseModule):
       logging.error("[StorageModule] Database module unavailable")
       return None
     res = await self.db.run(get_config_request(ConfigKeyParams(key="AzureBlobContainerName")))
-    container_name = res.rows[0]["value"] if res.rows else None
+    container_name = res.rows[0]["element_value"] if res.rows else None
     if not container_name:
       logging.error("[StorageModule] AzureBlobContainerName missing")
     return container_name

@@ -48,7 +48,7 @@ class BskyModule(BaseModule):
     res = await self.db.run(get_config_request(ConfigKeyParams(key=key)))
     if not res.rows:
       return ""
-    return res.rows[0].get("value") or ""
+    return res.rows[0].get("element_value") or ""
 
   async def _ensure_credentials(self):
     if not self.db:
