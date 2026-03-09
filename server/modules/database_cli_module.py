@@ -204,6 +204,23 @@ async def get_schema_from_registry(conn) -> dict[str, list[dict]]:
     )
     fk_rows = await cur.fetchall()
 
+  async with conn.cursor() as cur:
+    await cur.execute(
+      "SELECT element_schema, element_name, element_definition "
+      "FROM system_schema_views "
+      "ORDER BY element_schema, element_name"
+    )
+    view_rows = await cur.fetchall()
+
+  views = [
+    {
+      "schema": row[0],
+      "name": row[1],
+      "definition": row[2],
+    }
+    for row in view_rows
+  ]
+
   for row in fk_rows:
     tables_recid, source_column, ref_tables_recid, ref_column = row
     table = tables.get(int(tables_recid))
@@ -249,7 +266,7 @@ async def get_schema_from_registry(conn) -> dict[str, list[dict]]:
   for recid in tables:
     _visit(recid)
 
-  return {"tables": [tables[recid] for recid in ordered], "views": []}
+  return {"tables": [tables[recid] for recid in ordered], "views": views}
 
 
 async def dump_schema_from_registry(conn, prefix: str = "schema") -> str:
@@ -260,6 +277,7 @@ async def dump_schema_from_registry(conn, prefix: str = "schema") -> str:
   table_stmts: list[str] = []
   index_stmts: list[str] = []
   fk_stmts: list[str] = []
+  view_stmts: list[str] = []
 
   for table in schema["tables"]:
     table_stmts.append(_build_create_sql(table))
@@ -268,8 +286,14 @@ async def dump_schema_from_registry(conn, prefix: str = "schema") -> str:
     for fk in table["foreign_keys"]:
       fk_stmts.extend(_build_foreign_key_sql(table, fk))
 
+  for view in schema.get("views", []):
+    definition = view["definition"].strip()
+    if not definition.endswith(";"):
+      definition += ";"
+    view_stmts.append(definition)
+
   lines: list[str] = ["SET ANSI_NULLS ON;", "SET QUOTED_IDENTIFIER ON;", ""]
-  for section in (table_stmts, index_stmts, fk_stmts):
+  for section in (table_stmts, index_stmts, fk_stmts, view_stmts):
     if not section:
       continue
     lines.extend(section)
