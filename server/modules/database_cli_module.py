@@ -7,6 +7,7 @@ import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from queryregistry.reflection.data import (
@@ -132,8 +133,9 @@ def bump_version(version: str, part: str) -> str:
   return f"v{major}.{minor}.{patch}.{build}"
 
 
-def commit_and_tag(version: str, schema_file: str):
-  subprocess.check_call(f"git add {schema_file}", shell=True)
+def commit_and_tag(version: str, files: list[str]):
+  for file in files:
+    subprocess.check_call(f"git add {file}", shell=True)
   subprocess.check_call(f'git commit -m "Exported DB schema for {version}"', shell=True)
   subprocess.check_call(f"git tag {version}", shell=True)
   current_branch = subprocess.check_output(
@@ -148,6 +150,17 @@ _GO_PATTERN = re.compile(r"^\s*GO\s*$", flags=re.IGNORECASE | re.MULTILINE)
 
 def _iter_batches(sql: str) -> list[str]:
   return [batch for batch in _GO_PATTERN.split(sql) if batch.strip()]
+
+
+def _sql_literal(value: Any) -> str:
+  if value is None:
+    return "NULL"
+  if isinstance(value, bool):
+    return "1" if value else "0"
+  if isinstance(value, (int, float)):
+    return str(value)
+  text = str(value).replace("'", "''")
+  return f"'{text}'"
 
 
 class DatabaseCliModule(BaseModule):
@@ -221,6 +234,7 @@ class DatabaseCliModule(BaseModule):
           "computed_persisted": False,
           "collation": None,
           "is_primary_key": bool(row["element_is_primary_key"]),
+          "ordinal": int(row.get("element_ordinal") or 0),
         }
       )
 
@@ -345,6 +359,194 @@ class DatabaseCliModule(BaseModule):
     print(f"Schema dumped to {filename}")
     return filename
 
+  async def dump_seed_from_registry(self, prefix: str = "seed"):
+    await self.on_ready()
+    if not self.db:
+      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
+
+    schema = await self.get_schema_from_registry()
+    edt_res = await self.db.run(
+      dump_table_request(DumpTableParams(table_schema="dbo", name="system_edt_mappings"))
+    )
+    views_res = await self.db.run(
+      dump_table_request(DumpTableParams(table_schema="dbo", name="system_schema_views"))
+    )
+    edt_rows = edt_res.payload if isinstance(edt_res.payload, list) else []
+    view_rows = views_res.payload if isinstance(views_res.payload, list) else []
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d")
+    filename = f"{prefix}_{ts}.sql"
+
+    tables = schema.get("tables", [])
+    table_lookup = {(table["schema"], table["name"]): table for table in tables}
+
+    table_insert_values: list[str] = []
+    column_insert_values: list[str] = []
+    index_insert_values: list[str] = []
+    fk_insert_values: list[str] = []
+
+    for table in tables:
+      table_insert_values.append(
+        f"({_sql_literal(table['name'])}, {_sql_literal(table['schema'])})"
+      )
+
+      columns = sorted(table.get("columns", []), key=lambda row: int(row.get("ordinal", 0)))
+      for ordinal, column in enumerate(columns, start=1):
+        data_type = str(column.get("data_type") or "")
+        edt_name = data_type.split("(", 1)[0].strip().upper()
+        table_recid_sql = (
+          "(SELECT recid FROM system_schema_tables "
+          f"WHERE element_name = {_sql_literal(table['name'])} "
+          f"AND element_schema = {_sql_literal(table['schema'])})"
+        )
+        edt_recid_sql = (
+          "(SELECT recid FROM system_edt_mappings "
+          f"WHERE element_name = {_sql_literal(edt_name)})"
+        )
+        column_insert_values.append(
+          "("
+          f"{table_recid_sql}, "
+          f"{edt_recid_sql}, "
+          f"{_sql_literal(column.get('name'))}, "
+          f"{_sql_literal(ordinal)}, "
+          f"{_sql_literal(bool(column.get('nullable', True)))}, "
+          f"{_sql_literal(column.get('default'))}, "
+          f"{_sql_literal(column.get('max_length'))}, "
+          f"{_sql_literal(bool(column.get('is_primary_key', False)))}, "
+          f"{_sql_literal(bool(column.get('identity', False)))}"
+          ")"
+        )
+
+      for index in table.get("indexes", []):
+        table_recid_sql = (
+          "(SELECT recid FROM system_schema_tables "
+          f"WHERE element_name = {_sql_literal(table['name'])} "
+          f"AND element_schema = {_sql_literal(table['schema'])})"
+        )
+        element_columns = ", ".join(col.strip("[]") for col in index.get("key_columns", []))
+        index_insert_values.append(
+          "("
+          f"{table_recid_sql}, "
+          f"{_sql_literal(index.get('name'))}, "
+          f"{_sql_literal(element_columns)}, "
+          f"{_sql_literal(bool(index.get('is_unique', False)))}"
+          ")"
+        )
+
+      for fk in table.get("foreign_keys", []):
+        ref_table = table_lookup.get((fk.get("ref_schema"), fk.get("ref_table")))
+        if not ref_table:
+          continue
+        table_recid_sql = (
+          "(SELECT recid FROM system_schema_tables "
+          f"WHERE element_name = {_sql_literal(table['name'])} "
+          f"AND element_schema = {_sql_literal(table['schema'])})"
+        )
+        ref_table_recid_sql = (
+          "(SELECT recid FROM system_schema_tables "
+          f"WHERE element_name = {_sql_literal(ref_table['name'])} "
+          f"AND element_schema = {_sql_literal(ref_table['schema'])})"
+        )
+        fk_insert_values.append(
+          "("
+          f"{table_recid_sql}, "
+          f"{_sql_literal((fk.get('columns') or [''])[0].strip('[]'))}, "
+          f"{ref_table_recid_sql}, "
+          f"{_sql_literal((fk.get('ref_columns') or [''])[0].strip('[]'))}"
+          ")"
+        )
+
+    lines: list[str] = ["SET NOCOUNT ON;", ""]
+
+    if edt_rows:
+      edt_values = []
+      for row in edt_rows:
+        edt_values.append(
+          "("
+          f"{_sql_literal(row.get('element_name'))}, "
+          f"{_sql_literal(row.get('element_mssql_type'))}, "
+          f"{_sql_literal(row.get('element_postgresql_type'))}, "
+          f"{_sql_literal(row.get('element_mysql_type'))}, "
+          f"{_sql_literal(row.get('element_python_type'))}, "
+          f"{_sql_literal(row.get('element_odbc_type_code'))}, "
+          f"{_sql_literal(row.get('element_max_length'))}, "
+          f"{_sql_literal(row.get('element_notes'))}"
+          ")"
+        )
+      lines.extend(
+        [
+          "INSERT INTO system_edt_mappings (",
+          "  element_name, element_mssql_type, element_postgresql_type, element_mysql_type,",
+          "  element_python_type, element_odbc_type_code, element_max_length, element_notes",
+          ") VALUES",
+          "  " + ",\n  ".join(edt_values) + ";",
+          "",
+        ]
+      )
+
+    if table_insert_values:
+      lines.extend(
+        [
+          "INSERT INTO system_schema_tables (element_name, element_schema) VALUES",
+          "  " + ",\n  ".join(table_insert_values) + ";",
+          "",
+        ]
+      )
+
+    if column_insert_values:
+      lines.extend(
+        [
+          "INSERT INTO system_schema_columns (",
+          "  tables_recid, edt_recid, element_name, element_ordinal, element_nullable,",
+          "  element_default, element_max_length, element_is_primary_key, element_is_identity",
+          ") VALUES",
+          "  " + ",\n  ".join(column_insert_values) + ";",
+          "",
+        ]
+      )
+
+    if index_insert_values:
+      lines.extend(
+        [
+          "INSERT INTO system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique) VALUES",
+          "  " + ",\n  ".join(index_insert_values) + ";",
+          "",
+        ]
+      )
+
+    if fk_insert_values:
+      lines.extend(
+        [
+          "INSERT INTO system_schema_foreign_keys (",
+          "  tables_recid, element_column_name, referenced_tables_recid, element_referenced_column",
+          ") VALUES",
+          "  " + ",\n  ".join(fk_insert_values) + ";",
+          "",
+        ]
+      )
+
+    if view_rows:
+      view_values = []
+      for row in view_rows:
+        view_values.append(
+          "("
+          f"{_sql_literal(row.get('element_name'))}, "
+          f"{_sql_literal(row.get('element_schema'))}, "
+          f"{_sql_literal(row.get('element_definition'))}"
+          ")"
+        )
+      lines.extend(
+        [
+          "INSERT INTO system_schema_views (element_name, element_schema, element_definition) VALUES",
+          "  " + ",\n  ".join(view_values) + ";",
+          "",
+        ]
+      )
+
+    Path(filename).write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    print(f"Seed dumped to {filename}")
+    return filename
+
   async def apply_schema(self, path: str = ""):
     await self.on_ready()
     if not self.db:
@@ -392,8 +594,8 @@ class DatabaseCliModule(BaseModule):
     print(f"Updated Version: {current_version} -> {next_version}")
     return next_version
 
-  def commit_and_tag(self, version: str, schema_file: str):
-    commit_and_tag(version, schema_file)
+  def commit_and_tag(self, version: str, files: list[str]):
+    commit_and_tag(version, files)
 
   async def rebuild_indexes(self):
     await self.on_ready()

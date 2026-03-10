@@ -22,6 +22,7 @@ Available commands:
   schema dump [name]
   schema apply <file>
   dump data [name]
+  seed dump [name]
   update version major|minor|patch
   index all
   exit, quit
@@ -145,6 +146,15 @@ def run_repl():
           logging.exception("[DatabaseCli] Failed to dump data")
         continue
 
+
+      if parts[:2] == ["seed", "dump"]:
+        prefix = parts[2] if len(parts) > 2 else "seed"
+        try:
+          loop.run_until_complete(cli_mod.dump_seed_from_registry(prefix))
+        except Exception as e:
+          print(f"Error: {e}")
+          logging.exception("[DatabaseCli] Failed to dump seed")
+        continue
       if parts[:2] == ["index", "all"]:
         try:
           loop.run_until_complete(cli_mod.rebuild_indexes())
@@ -161,7 +171,8 @@ def run_repl():
         try:
           new_version = loop.run_until_complete(cli_mod.update_version(parts[2]))
           schema_file = loop.run_until_complete(cli_mod.dump_schema_from_registry(new_version))
-          cli_mod.commit_and_tag(new_version, schema_file)
+          seed_file = loop.run_until_complete(cli_mod.dump_seed_from_registry(new_version + "_seed"))
+          cli_mod.commit_and_tag(new_version, [schema_file, seed_file])
         except Exception as e:
           print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to update version")
