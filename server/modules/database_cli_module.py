@@ -373,6 +373,11 @@ class DatabaseCliModule(BaseModule):
     )
     edt_rows = edt_res.payload if isinstance(edt_res.payload, list) else []
     view_rows = views_res.payload if isinstance(views_res.payload, list) else []
+    edt_name_by_mssql_type = {
+      str(row.get("element_mssql_type") or ""): str(row.get("element_name") or "")
+      for row in edt_rows
+      if row.get("element_mssql_type") and row.get("element_name")
+    }
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d")
     filename = f"{prefix}_{ts}.sql"
@@ -393,7 +398,9 @@ class DatabaseCliModule(BaseModule):
       columns = sorted(table.get("columns", []), key=lambda row: int(row.get("ordinal", 0)))
       for ordinal, column in enumerate(columns, start=1):
         data_type = str(column.get("data_type") or "")
-        edt_name = data_type.split("(", 1)[0].strip().upper()
+        edt_name = edt_name_by_mssql_type.get(data_type)
+        if not edt_name:
+          edt_name = data_type.split("(", 1)[0].strip().upper()
         table_recid_sql = (
           "(SELECT recid FROM system_schema_tables "
           f"WHERE element_name = {_sql_literal(table['name'])} "
