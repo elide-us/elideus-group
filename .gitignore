@@ -3,6 +3,7 @@
 .vscode/
 *_BACKUP.json
 __ignore
+.venv311
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -9,6 +9,7 @@ from queryregistry.models import DBRequest, DBResponse
 from .content.handler import handle_content_request
 from .finance.handler import handle_finance_request
 from .identity.handler import handle_identity_request
+from .reflection.handler import handle_reflection_request
 from .system.handler import handle_system_request
 from .helpers import parse_query_request
 
@@ -17,6 +18,7 @@ HANDLERS: dict[str, DomainHandler] = {
   "content": handle_content_request,
   "finance": handle_finance_request,
   "identity": handle_identity_request,
+  "reflection": handle_reflection_request,
   "system": handle_system_request,
 }
 

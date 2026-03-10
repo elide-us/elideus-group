@@ -1,7 +1,12 @@
 from __future__ import annotations
 import subprocess, os, sys, importlib.util, asyncio, argparse
 from pathlib import Path
-from scriptlib import parse_version, next_build
+
+
+def _parse_version(ver: str) -> tuple[int, int, int, int]:
+  ver = ver.lstrip('v')
+  major, minor, patch, build = [int(p) for p in ver.split('.')]
+  return major, minor, patch, build
 
 def _unpack_version(ver: str) -> tuple[int, int, int, int]:
   ver = ver.lstrip('v')
@@ -101,8 +106,8 @@ async def update_build_version() -> None:
         if not last_version:
           last_version = current_version
 
-        current_major, current_minor, current_patch, _ = parse_version(current_version)
-        build = next_build(current_version, last_version)
+        current_major, current_minor, current_patch, _ = _parse_version(current_version)
+        build = _next_build(current_version, last_version)
 
         new_version = f"v{current_major}.{current_minor}.{current_patch}.{build}"
         print(f'Updating build version: {current_version} -> {new_version}')
