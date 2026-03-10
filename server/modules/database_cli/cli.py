@@ -87,7 +87,12 @@ def run_repl():
   app = None
   cli_mod = None
   try:
-    app, cli_mod = loop.run_until_complete(_bootstrap())
+    try:
+      app, cli_mod = loop.run_until_complete(_bootstrap())
+    except Exception as e:
+      print(f"Error: {e}")
+      logging.exception("[DatabaseCli] Failed during bootstrap")
+      return
     while True:
       try:
         raw = input(_prompt())
@@ -109,7 +114,8 @@ def run_repl():
         try:
           tables = loop.run_until_complete(cli_mod.list_tables())
           print("\n".join(tables) if tables else "No tables found.")
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to list tables")
         continue
 
@@ -117,14 +123,16 @@ def run_repl():
         prefix = parts[2] if len(parts) > 2 else "schema"
         try:
           loop.run_until_complete(cli_mod.dump_schema_from_registry(prefix))
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to dump schema")
         continue
 
       if parts[:2] == ["schema", "apply"] and len(parts) > 2:
         try:
           loop.run_until_complete(cli_mod.apply_schema(parts[2]))
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to apply schema")
         continue
 
@@ -132,14 +140,16 @@ def run_repl():
         prefix = parts[2] if len(parts) > 2 else "dump_data"
         try:
           loop.run_until_complete(cli_mod.dump_data(prefix))
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to dump data")
         continue
 
       if parts[:2] == ["index", "all"]:
         try:
           loop.run_until_complete(cli_mod.rebuild_indexes())
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to rebuild indexes")
         continue
 
@@ -152,7 +162,8 @@ def run_repl():
           new_version = loop.run_until_complete(cli_mod.update_version(parts[2]))
           schema_file = loop.run_until_complete(cli_mod.dump_schema_from_registry(new_version))
           cli_mod.commit_and_tag(new_version, schema_file)
-        except Exception:
+        except Exception as e:
+          print(f"Error: {e}")
           logging.exception("[DatabaseCli] Failed to update version")
         continue
 
@@ -172,19 +183,22 @@ def run_repl():
               print(cur.rowcount)
 
         loop.run_until_complete(_run_sql())
-      except Exception:
+      except Exception as e:
+        print(f"Error: {e}")
         logging.exception("[DatabaseCli] Raw SQL failed")
   finally:
     if raw_conn:
       try:
         loop.run_until_complete(raw_conn.close())
-      except Exception:
+      except Exception as e:
+        print(f"Error: {e}")
         logging.exception("[DatabaseCli] Failed to close connection")
       else:
         logging.info("[DatabaseCli] Connection closed")
     if app:
       try:
         loop.run_until_complete(_shutdown(app))
-      except Exception:
+      except Exception as e:
+        print(f"Error: {e}")
         logging.exception("[DatabaseCli] Failed to shutdown modules")
     loop.close()
