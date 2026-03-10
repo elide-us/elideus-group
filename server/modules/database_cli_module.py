@@ -208,11 +208,11 @@ class DatabaseCliModule(BaseModule):
         {
           "name": row["element_name"],
           "data_type": row["element_mssql_type"],
-          "max_length": row["element_max_length"],
+          "max_length": row.get("element_max_length"),
           "precision": None,
           "scale": None,
           "nullable": bool(row["element_nullable"]),
-          "default": row["element_default"],
+          "default": row.get("element_default"),
           "identity": bool(row["element_is_identity"]),
           "identity_seed": 1,
           "identity_increment": 1,
@@ -238,7 +238,7 @@ class DatabaseCliModule(BaseModule):
       table = tables.get(tables_recid)
       if not table:
         continue
-      key_columns = [_quote(col.strip()) for col in (row["element_columns"] or "").split(",") if col.strip()]
+      key_columns = [_quote(col.strip()) for col in (row.get("element_columns") or "").split(",") if col.strip()]
       table["indexes"].append(
         {
           "name": row["element_name"],
@@ -256,7 +256,7 @@ class DatabaseCliModule(BaseModule):
       {
         "schema": row["element_schema"],
         "name": row["element_name"],
-        "definition": row["element_definition"],
+        "definition": row.get("element_definition", ""),
       }
       for row in view_rows
     ]
