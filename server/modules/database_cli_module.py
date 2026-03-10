@@ -185,7 +185,7 @@ class DatabaseCliModule(BaseModule):
     if not self.db:
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
     res = await self.db.run(list_tables_request())
-    rows = res.payload if isinstance(res.payload, list) else []
+    rows = res.rows
     return [f"{row['element_schema']}.{row['element_name']}" for row in rows]
 
   async def get_schema_from_registry(self):
@@ -193,7 +193,7 @@ class DatabaseCliModule(BaseModule):
     if not self.db:
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
     res = await self.db.run(get_full_schema_request())
-    payload = res.payload if isinstance(res.payload, dict) else {}
+    payload = res.rows[0] if res.rows else {}
 
     table_rows = payload.get("tables", [])
     tables: dict[int, dict] = {}
@@ -371,8 +371,8 @@ class DatabaseCliModule(BaseModule):
     views_res = await self.db.run(
       dump_table_request(DumpTableParams(table_schema="dbo", name="system_schema_views"))
     )
-    edt_rows = edt_res.payload if isinstance(edt_res.payload, list) else []
-    view_rows = views_res.payload if isinstance(views_res.payload, list) else []
+    edt_rows = edt_res.rows
+    view_rows = views_res.rows
     edt_name_by_mssql_type = {
       str(row.get("element_mssql_type") or ""): str(row.get("element_name") or "")
       for row in edt_rows
@@ -575,7 +575,7 @@ class DatabaseCliModule(BaseModule):
       res = await self.db.run(
         dump_table_request(DumpTableParams(table_schema=table["schema"], name=table["name"]))
       )
-      table_rows = res.payload if isinstance(res.payload, list) else []
+      table_rows = res.rows
       data[key] = table_rows
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_BACKUP")
     filename = f"{prefix}_{ts}.json"
@@ -591,7 +591,7 @@ class DatabaseCliModule(BaseModule):
     if not self.db:
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
     version_res = await self.db.run(get_version_request())
-    version_payload = version_res.payload if isinstance(version_res.payload, dict) else {}
+    version_payload = version_res.rows[0] if version_res.rows else {}
     current_version = version_payload.get("element_value")
     if not current_version:
       raise RuntimeError("Version entry not found in system_config")
