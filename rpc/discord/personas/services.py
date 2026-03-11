@@ -49,7 +49,13 @@ async def discord_personas_get_models_v1(request: Request):
   module: OpenaiModule = request.app.state.openai
   await module.on_ready()
   rows = await module.list_models()
-  models = [DiscordPersonasModelItem1(**row) for row in rows]
+  models = [
+    DiscordPersonasModelItem1(
+      recid=row.get("recid", 0),
+      name=row.get("element_name", row.get("name", "")),
+    )
+    for row in rows
+  ]
   payload = DiscordPersonasModels1(models=models)
   logging.debug(
     "[discord_personas_get_models_v1] returning %d models",
