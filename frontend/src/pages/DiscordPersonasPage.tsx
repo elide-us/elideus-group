@@ -11,6 +11,7 @@ import {
         IconButton,
         TextField,
         MenuItem,
+        Checkbox,
 } from "@mui/material";
 import { Delete, Add } from "@mui/icons-material";
 import PageTitle from "../components/PageTitle";
@@ -39,6 +40,7 @@ const DiscordPersonasPage = (): JSX.Element => {
                 prompt: "",
                 tokens: 0,
                 models_recid: 0,
+                is_active: true,
         });
         const [forbidden, setForbidden] = useState(false);
 
@@ -99,6 +101,7 @@ const DiscordPersonasPage = (): JSX.Element => {
                         prompt: next.prompt,
                         tokens: next.tokens,
                         models_recid: next.models_recid,
+                        is_active: next.is_active,
                 });
                 void load();
         };
@@ -120,6 +123,7 @@ const DiscordPersonasPage = (): JSX.Element => {
                         prompt: newPersona.prompt,
                         tokens: newPersona.tokens,
                         models_recid: newPersona.models_recid,
+                        is_active: newPersona.is_active,
                 });
                 setNewPersona({
                         recid: null,
@@ -127,6 +131,7 @@ const DiscordPersonasPage = (): JSX.Element => {
                         prompt: "",
                         tokens: 0,
                         models_recid: models.length ? models[0].recid : 0,
+                        is_active: true,
                 });
                 void load();
         };
@@ -139,33 +144,37 @@ const DiscordPersonasPage = (): JSX.Element => {
                                 <TableHead>
                                         <TableRow>
                                                 <ColumnHeader sx={{ width: "15%" }}>Persona</ColumnHeader>
-                                                <ColumnHeader sx={{ width: "15%" }}>Model</ColumnHeader>
+                                                <ColumnHeader sx={{ width: "8%" }}>Active</ColumnHeader>
+                                                <ColumnHeader sx={{ width: "12%" }}>Model</ColumnHeader>
                                                 <ColumnHeader sx={{ width: "10%" }}>Tokens</ColumnHeader>
-                                                <ColumnHeader sx={{ width: "55%" }}>Prompt</ColumnHeader>
+                                                <ColumnHeader sx={{ width: "50%" }}>Prompt</ColumnHeader>
                                                 <ColumnHeader sx={{ width: "5%" }} />
                                         </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                        {personas.map((persona, idx) => (
-                                                <TableRow key={`${persona.name}-${persona.recid ?? idx}`}>
-                                                        <TableCell sx={{ width: "15%" }}>
-                                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                                                        {persona.name}
-                                                                </Typography>
+                                        {personas.map((persona, index) => (
+                                                <TableRow key={persona.recid ?? `persona-${index}`}>
+                                                        <TableCell sx={{ width: "15%" }}>{persona.name}</TableCell>
+                                                        <TableCell sx={{ width: "8%" }}>
+                                                                <Checkbox
+                                                                        checked={Boolean(persona.is_active)}
+                                                                        onChange={(e) =>
+                                                                                void updatePersona(index, {
+                                                                                        is_active: e.target.checked,
+                                                                                })
+                                                                        }
+                                                                />
                                                         </TableCell>
-                                                        <TableCell sx={{ width: "15%" }}>
+                                                        <TableCell sx={{ width: "12%" }}>
                                                                 <TextField
                                                                         select
                                                                         sx={{ width: "95%" }}
                                                                         value={persona.models_recid}
-                                                                        onChange={(e) => {
-                                                                                const value = Number(e.target.value);
-                                                                                const modelName = models.find((m) => m.recid === value)?.name ?? persona.model;
-                                                                                void updatePersona(idx, {
-                                                                                        models_recid: value,
-                                                                                        model: modelName,
-                                                                                });
-                                                                        }}
+                                                                        onChange={(e) =>
+                                                                                void updatePersona(index, {
+                                                                                        models_recid: Number(e.target.value),
+                                                                                })
+                                                                        }
                                                                 >
                                                                         {models.map((model) => (
                                                                                 <MenuItem key={model.recid} value={model.recid}>
@@ -177,14 +186,18 @@ const DiscordPersonasPage = (): JSX.Element => {
                                                         <TableCell sx={{ width: "10%" }}>
                                                                 <EditBox
                                                                         value={persona.tokens}
-                                                                        onCommit={(val) => updatePersona(idx, { tokens: Number(val) })}
+                                                                        onCommit={(value) =>
+                                                                                void updatePersona(index, { tokens: Number(value) })
+                                                                        }
                                                                         width="80px"
                                                                 />
                                                         </TableCell>
-                                                        <TableCell sx={{ width: "55%" }}>
+                                                        <TableCell sx={{ width: "50%" }}>
                                                                 <EditBox
                                                                         value={persona.prompt}
-                                                                        onCommit={(val) => updatePersona(idx, { prompt: String(val) })}
+                                                                        onCommit={(value) =>
+                                                                                void updatePersona(index, { prompt: String(value) })
+                                                                        }
                                                                         width="100%"
                                                                 />
                                                         </TableCell>
@@ -209,7 +222,18 @@ const DiscordPersonasPage = (): JSX.Element => {
                                                                 }
                                                         />
                                                 </TableCell>
-                                                <TableCell sx={{ width: "15%" }}>
+                                                <TableCell sx={{ width: "8%" }}>
+                                                        <Checkbox
+                                                                checked={Boolean(newPersona.is_active)}
+                                                                onChange={(e) =>
+                                                                        setNewPersona({
+                                                                                ...newPersona,
+                                                                                is_active: e.target.checked,
+                                                                        })
+                                                                }
+                                                        />
+                                                </TableCell>
+                                                <TableCell sx={{ width: "12%" }}>
                                                         <TextField
                                                                 select
                                                                 sx={{ width: "95%" }}
@@ -241,7 +265,7 @@ const DiscordPersonasPage = (): JSX.Element => {
                                                                 }
                                                         />
                                                 </TableCell>
-                                                <TableCell sx={{ width: "55%" }}>
+                                                <TableCell sx={{ width: "50%" }}>
                                                         <TextField
                                                                 sx={{ width: "100%" }}
                                                                 value={newPersona.prompt}

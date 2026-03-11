@@ -177,6 +177,7 @@ class OpenaiModule(BaseModule):
           int(row.get("models_recid")) if row.get("models_recid") is not None else None
         ),
         "model": row.get("model"),
+        "is_active": bool(row.get("is_active", row.get("element_is_active", True))),
       })
     return personas
 
@@ -191,6 +192,7 @@ class OpenaiModule(BaseModule):
       "prompt": persona.get("prompt", ""),
       "tokens": int(persona.get("tokens", 0) or 0),
       "models_recid": int(model_recid),
+      "is_active": bool(persona.get("is_active", True)),
     }
     if not payload["name"]:
       raise ValueError("name required")
@@ -201,6 +203,7 @@ class OpenaiModule(BaseModule):
         prompt=payload["prompt"],
         tokens=payload["tokens"],
         models_recid=payload["models_recid"],
+        is_active=payload["is_active"],
       ))
     )
 
