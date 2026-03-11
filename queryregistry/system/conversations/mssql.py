@@ -31,6 +31,7 @@ async def insert_conversation_v1(args: Mapping[str, Any]) -> DBResponse:
   output_data = args.get("output_data")
   tokens = args.get("tokens")
   sql = """
+    SET NOCOUNT ON;
     INSERT INTO assistant_conversations (
       personas_recid,
       models_recid,
@@ -63,6 +64,7 @@ async def insert_conversation_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def insert_message_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
     INSERT INTO assistant_conversations (
       personas_recid,
       models_recid,
