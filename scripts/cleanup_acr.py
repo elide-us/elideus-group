@@ -1,3 +1,27 @@
+"""Cleanup old container images from Azure Container Registry.
+
+Prerequisites:
+  1. Install the Azure Developer CLI:
+       winget install microsoft.azd
+
+  2. Authenticate to Azure:
+       azd auth login
+
+  3. Ensure your account has permissions to the container registry
+     (AcrDelete role on the registry resource).
+
+Usage:
+  python scripts/cleanup_acr.py
+
+The script connects to the ACR using DefaultAzureCredential, which
+will use the credentials from 'azd auth login' (or az cli, environment
+variables, managed identity, etc. in standard precedence order).
+
+Images older than CLEANUP_DAYS (default: 2) are deleted, except for
+the most recent manifest in each repository which is always preserved.
+Untagged manifests are also cleaned up.
+"""
+
 import datetime
 from azure.identity import DefaultAzureCredential
 from azure.containerregistry import ContainerRegistryClient
@@ -8,12 +32,30 @@ CLEANUP_DAYS = 2
 
 def main():
   login_server = ACR_LOGIN_SERVER
-  credential = DefaultAzureCredential()
-  client = ContainerRegistryClient(endpoint=login_server, credential=credential)
+
+  try:
+    credential = DefaultAzureCredential()
+    client = ContainerRegistryClient(endpoint=login_server, credential=credential)
+    repositories = list(client.list_repository_names())
+  except Exception as e:
+    print(f"Authentication failed: {e}")
+    print()
+    print("To fix this, set up your Azure credentials:")
+    print()
+    print("  1. Install the Azure Developer CLI:")
+    print("       winget install microsoft.azd")
+    print()
+    print("  2. Authenticate to Azure:")
+    print("       azd auth login")
+    print()
+    print("  3. Ensure your account has the AcrDelete role on the registry.")
+    print()
+    print(f"  Registry: {login_server}")
+    return
 
   cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=CLEANUP_DAYS)
 
-  for repository in client.list_repository_names():
+  for repository in repositories:
     print(f"\nChecking repository: {repository}")
     manifests = sorted(
        list(client.list_manifest_properties(repository=repository)),
