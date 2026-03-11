@@ -19,11 +19,11 @@ __all__ = [
 async def get_routes_v1(_: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      element_path AS path,
-      element_name AS name,
-      element_icon AS icon,
-      element_sequence AS sequence,
-      element_roles AS roles
+      element_path,
+      element_name,
+      element_icon,
+      element_sequence,
+      element_roles
     FROM frontend_routes
     ORDER BY element_sequence
     FOR JSON PATH;

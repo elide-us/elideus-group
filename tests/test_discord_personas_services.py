@@ -138,6 +138,7 @@ def test_get_personas_service():
         'tokens': 512,
         'models_recid': 2,
         'model': 'gpt-4',
+        'is_active': True,
       }
     ]
   }
@@ -164,6 +165,7 @@ def test_upsert_and_delete_persona_service():
     'prompt': 'updated prompt',
     'tokens': 1024,
     'models_recid': 2,
+    'is_active': True,
   }
   resp = client.post(
     '/rpc',
