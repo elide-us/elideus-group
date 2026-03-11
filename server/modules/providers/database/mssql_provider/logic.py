@@ -5,13 +5,41 @@ from typing import Callable, Optional
 
 _pool: aioodbc.pool.Pool | None = None
 
+
+def _parse_dsn_info(dsn: str) -> dict[str, str]:
+  """Extract server and database from a DSN connection string."""
+  info: dict[str, str] = {}
+  for part in dsn.split(";"):
+    part = part.strip()
+    if not part or "=" not in part:
+      continue
+    key, _, value = part.partition("=")
+    key_upper = key.strip().upper()
+    if key_upper == "SERVER":
+      info["server"] = value.strip()
+    elif key_upper in ("DATABASE", "INITIAL CATALOG"):
+      info["database"] = value.strip()
+    elif key_upper == "DRIVER":
+      info["driver"] = value.strip()
+  return info
+
+
 async def init_pool(*, dsn: str | None = None, **cfg):
-    global _pool
-    if not dsn:
-        # allow explicit pieces if you pass them later
-        raise RuntimeError("MSSQL DSN is required")
-    _pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
-    logging.info("MSSQL ODBC Connection Pool Created")
+  global _pool
+  if not dsn:
+    raise RuntimeError("MSSQL DSN is required")
+  info = _parse_dsn_info(dsn)
+  server = info.get("server", "unknown")
+  database = info.get("database", "unknown")
+  driver = info.get("driver", "unknown")
+  _pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
+  logging.info(
+    "MSSQL ODBC Connection Pool Created: server=%s database=%s driver=%s",
+    server,
+    database,
+    driver,
+  )
+  print(f"Connected to {database} on {server} ({driver})")
 
 async def close_pool():
   global _pool
