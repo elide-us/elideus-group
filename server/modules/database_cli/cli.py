@@ -18,6 +18,7 @@ from . import mssql_cli
 HELP_TEXT = """\
 Available commands:
   help
+  reconnect
   list tables
   schema dump [name]
   schema apply <file>
@@ -110,6 +111,23 @@ def run_repl():
         continue
       if parts in (["exit"], ["quit"]):
         break
+
+      if parts == ["reconnect"]:
+        try:
+          if app:
+            loop.run_until_complete(_shutdown(app))
+          if raw_conn:
+            try:
+              loop.run_until_complete(raw_conn.close())
+            except Exception:
+              pass
+            raw_conn = None
+          app, cli_mod = loop.run_until_complete(_bootstrap())
+          print("Reconnected.")
+        except Exception as e:
+          print(f"Reconnect failed: {e}")
+          logging.exception("[DatabaseCli] Reconnect failed")
+        continue
 
       if parts[:2] == ["list", "tables"]:
         try:
