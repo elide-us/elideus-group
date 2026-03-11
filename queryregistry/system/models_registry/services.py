@@ -8,17 +8,21 @@ from typing import Any
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from .models import ModelNameParams
+from .models import DeleteModelParams, ModelNameParams, UpsertModelParams
 
 __all__ = [
+  "delete_v1",
   "get_by_name_v1",
   "list_v1",
+  "upsert_v1",
 ]
 
 _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
 
 _LIST_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_v1}
 _GET_BY_NAME_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_by_name_v1}
+_UPSERT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_v1}
+_DELETE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_v1}
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -36,4 +40,16 @@ async def list_v1(request: DBRequest, *, provider: str) -> DBResponse:
 async def get_by_name_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = ModelNameParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _GET_BY_NAME_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def upsert_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = UpsertModelParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _UPSERT_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def delete_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = DeleteModelParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _DELETE_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
