@@ -18,7 +18,7 @@ async def handle_discord_request(parts: list[str], request: Request) -> RPCRespo
   auth: AuthModule = request.app.state.auth
   role_name = REQUIRED_ROLES.get(subdomain)
   required_mask = auth.roles.get(role_name, 0) if role_name else 0
-  if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
+  if required_mask and not await auth.user_has_role(auth_ctx.user_guid, required_mask):
     detail = FORBIDDEN_DETAILS.get(subdomain, 'Forbidden')
     raise HTTPException(status_code=403, detail=detail)
   return await handler(parts[1:], request)
