@@ -21,3 +21,8 @@ class DiscordGuildsList1(BaseModel):
 class DiscordGuildsUpdateCredits1(BaseModel):
   guild_id: str
   credits: int
+
+
+class DiscordGuildsSyncResult1(BaseModel):
+  synced: int
+  guilds: list[DiscordGuildsGuildItem1]
