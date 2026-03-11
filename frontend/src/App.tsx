@@ -13,6 +13,7 @@ const ServiceRoutesPage = lazy(() => import("./pages/service/ServiceRoutesPage")
 const ServiceRolesPage = lazy(() => import("./pages/service/ServiceRolesPage"));
 const FileManager = lazy(() => import("./pages/FileManager"));
 const DiscordPersonasPage = lazy(() => import("./pages/DiscordPersonasPage"));
+const DiscordGuildsPage = lazy(() => import("./pages/DiscordGuildsPage"));
 const SystemConfigPage = lazy(() => import("./pages/system/SystemConfigPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
@@ -55,6 +56,7 @@ function App(): JSX.Element {
                                                                         path="/discord-personas"
                                                                         element={<DiscordPersonasPage />}
                                                                 />
+                                                                <Route path="/discord-guilds" element={<DiscordGuildsPage />} />
                                                                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                                                 <Route path="/terms-of-service" element={<TermsOfService />} />
                                                                 <Route path="/profile/:guid" element={<PublicProfile />} />
