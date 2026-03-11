@@ -45,7 +45,7 @@ export const iconMap: Record<string, ElementType> = {
     money: MoneyIcon,
     acct: AccountantIcon,
     appr: ApproverIcon,
-    typescriptguilds: GuildsIcon,
+    guilds: GuildsIcon,
     models: ModelsIcon,
 };
 
