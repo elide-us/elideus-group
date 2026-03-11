@@ -182,6 +182,20 @@ class DiscordInputProvider(SocialInputProvider):
       if not data.get("success"):
         message = data.get("ack_message") or "Failed to send summary. Please try again later."
         await self._queue_channel_notice(ctx, message, reason=data.get("reason") or "delivery_failed")
+
+      try:
+        from queryregistry.discord.channels import bump_activity_request
+        from queryregistry.discord.channels.models import BumpChannelActivityParams
+        db = getattr(self.discord.app.state, "db", None)
+        if db:
+          await db.run(
+            bump_activity_request(
+              BumpChannelActivityParams(channel_id=str(getattr(ctx.channel, "id", 0)))
+            )
+          )
+      except Exception:
+        pass
+
       elapsed = time.perf_counter() - start
       logging.info(
         "[DiscordInputProvider] summarize",
