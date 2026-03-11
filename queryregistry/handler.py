@@ -7,6 +7,7 @@ from typing import Awaitable, Callable, Sequence
 from queryregistry.models import DBRequest, DBResponse
 
 from .content.handler import handle_content_request
+from .discord.handler import handle_discord_request
 from .finance.handler import handle_finance_request
 from .identity.handler import handle_identity_request
 from .reflection.handler import handle_reflection_request
@@ -16,6 +17,7 @@ from .helpers import parse_query_request
 DomainHandler = Callable[[Sequence[str], DBRequest, str], Awaitable[DBResponse]]
 HANDLERS: dict[str, DomainHandler] = {
   "content": handle_content_request,
+  "discord": handle_discord_request,
   "finance": handle_finance_request,
   "identity": handle_identity_request,
   "reflection": handle_reflection_request,
