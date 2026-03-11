@@ -17,10 +17,10 @@ HANDLERS: dict[str, callable] = {
 }
 
 
-REQUIRED_ROLES: dict[str, str] = {
+REQUIRED_ROLES: dict[str, str | None] = {
   "bsky": "ROLE_DISCORD_BOT",
   "chat": "ROLE_DISCORD_BOT",
-  "command": "ROLE_DISCORD_BOT",
+  "command": None,
   "personas": "ROLE_DISCORD_ADMIN",
 }
 
