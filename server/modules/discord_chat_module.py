@@ -1,12 +1,15 @@
 """Discord chat utilities module."""
 
 import logging, time, discord, uuid
+from queryregistry.discord.channels import bump_activity_request
+from queryregistry.discord.channels.models import BumpChannelActivityParams
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI
 from typing import Any, Dict, List
 
 from . import BaseModule
 from .discord_bot_module import DiscordBotModule
+from .db_module import DbModule
 
 
 class DiscordChatModule(BaseModule):
@@ -24,6 +27,34 @@ class DiscordChatModule(BaseModule):
 
   async def shutdown(self):
     logging.info("[DiscordChatModule] shutdown")
+
+  def _generate_thread_id(self, guild_id: int | None, channel_id: int | None) -> str:
+    """Generate a thread ID for a persona conversation session.
+
+    Format: discord:{guild_id}:{channel_id}:{session_uuid}
+    Each command invocation starts a new thread to group the
+    user message and assistant response together.
+    """
+    g = str(guild_id) if guild_id is not None else "0"
+    c = str(channel_id) if channel_id is not None else "0"
+    return f"discord:{g}:{c}:{uuid.uuid4().hex[:12]}"
+
+  async def _bump_channel_activity(self, metadata: dict) -> None:
+    if not metadata.get("channel_id"):
+      return
+    try:
+      db: DbModule = getattr(self.app.state, "db", None)
+      if db:
+        await db.run(
+          bump_activity_request(BumpChannelActivityParams(
+            channel_id=str(metadata["channel_id"]),
+          ))
+        )
+    except Exception:
+      logging.debug(
+        "[DiscordChatModule] channel activity bump failed (channel may not be registered)",
+        extra={"channel_id": metadata.get("channel_id")},
+      )
 
   async def fetch_channel_history_backwards(self, guild_id: int, channel_id: int, hours: int, max_messages: int = 5000) -> dict:
     assert self.discord and self.discord.bot
@@ -564,6 +595,7 @@ class DiscordChatModule(BaseModule):
     persona_details: Dict[str, Any] | None = None,
     conversation_history: List[Dict[str, Any]] | None = None,
     channel_history: List[Dict[str, Any]] | None = None,
+    stored_context: List[Dict[str, Any]] | None = None,
     model: str | None = None,
     max_tokens: int | None = None,
     conversation_reference: int | None = None,
@@ -647,6 +679,17 @@ class DiscordChatModule(BaseModule):
     channel_text = _format_channel(channel_history)
     if channel_text:
       context_sections.append("Recent channel activity:\n" + channel_text)
+    stored_context = stored_context or []
+    if stored_context:
+      stored_parts: List[str] = []
+      for msg in stored_context[-15:]:
+        r = msg.get("role") or "user"
+        c = msg.get("content") or ""
+        if c:
+          stored_parts.append(f"{r}: {c}")
+      stored_text = "\n".join(stored_parts)
+      if stored_text:
+        context_sections.append("Recent stored conversation context:\n" + stored_text)
     prompt_context = "\n\n".join(context_sections)
 
     system_prompt = persona_details.get("prompt") or ""
@@ -793,23 +836,30 @@ class DiscordChatModule(BaseModule):
     }
     context = await self._persona_parse_and_dispatch(command_text, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_fetch_persona(context, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_fetch_conversation(context, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_fetch_channel_history(context, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_insert_conversation_input(context, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_generate_response(context, metadata)
     if not context.get("success", True):
+      await self._bump_channel_activity(metadata)
       return self._finalize_persona_context(context, success=False)
     context = await self._persona_deliver_response(context, metadata)
+    await self._bump_channel_activity(metadata)
     return self._finalize_persona_context(context, success=context.get("success", True))
 
   async def _persona_parse_and_dispatch(self, command_text: str, metadata: dict) -> dict:
@@ -865,6 +915,18 @@ class DiscordChatModule(BaseModule):
     context["reason"] = response.get("reason", context.get("reason"))
     if response.get("ack_message"):
       context["ack_message"] = response.get("ack_message")
+    openai = getattr(self.app.state, "openai", None)
+    if openai and metadata.get("guild_id") and metadata.get("channel_id"):
+      try:
+        stored_context = await openai.get_channel_context(
+          metadata["guild_id"],
+          metadata["channel_id"],
+          limit=20,
+        )
+        if stored_context:
+          context["stored_channel_context"] = stored_context
+      except Exception:
+        logging.exception("[DiscordChatModule] failed to fetch stored channel context")
     return context
 
   async def _persona_fetch_channel_history(self, context: dict, metadata: dict) -> dict:
@@ -900,6 +962,24 @@ class DiscordChatModule(BaseModule):
     context["reason"] = response.get("reason", context.get("reason"))
     if response.get("ack_message"):
       context["ack_message"] = response.get("ack_message")
+    thread_id = self._generate_thread_id(
+      metadata.get("guild_id"),
+      metadata.get("channel_id"),
+    )
+    context["thread_id"] = thread_id
+
+    openai = getattr(self.app.state, "openai", None)
+    if openai and context.get("personas_recid") and context.get("models_recid"):
+      await openai.log_message(
+        personas_recid=context["personas_recid"],
+        models_recid=context["models_recid"],
+        role="user",
+        content=context.get("message", ""),
+        guild_id=metadata.get("guild_id"),
+        channel_id=metadata.get("channel_id"),
+        user_id=metadata.get("user_id"),
+        thread_id=thread_id,
+      )
     return context
 
   async def _persona_generate_response(self, context: dict, metadata: dict) -> dict:
@@ -909,6 +989,7 @@ class DiscordChatModule(BaseModule):
       persona_details=context.get("persona_details"),
       conversation_history=context.get("conversation_history", []),
       channel_history=context.get("channel_history", []),
+      stored_context=context.get("stored_channel_context", []),
       model=context.get("model"),
       max_tokens=context.get("max_tokens"),
       conversation_reference=context.get("conversation_reference"),
@@ -924,6 +1005,26 @@ class DiscordChatModule(BaseModule):
     context["reason"] = response.get("reason", context.get("reason"))
     if response.get("ack_message"):
       context["ack_message"] = response.get("ack_message")
+
+    openai = getattr(self.app.state, "openai", None)
+    if context.get("success") and context.get("thread_id"):
+      response_text = ""
+      resp = context.get("response")
+      if isinstance(resp, dict):
+        response_text = resp.get("text") or resp.get("content") or ""
+      elif isinstance(resp, str):
+        response_text = resp
+      if response_text and openai:
+        await openai.log_message(
+          personas_recid=context.get("personas_recid", 0),
+          models_recid=context.get("models_recid", 0),
+          role="assistant",
+          content=response_text,
+          guild_id=metadata.get("guild_id"),
+          channel_id=metadata.get("channel_id"),
+          user_id=metadata.get("user_id"),
+          thread_id=context["thread_id"],
+        )
     return context
 
   async def _persona_deliver_response(self, context: dict, metadata: dict) -> dict:
