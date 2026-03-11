@@ -34,6 +34,7 @@ async def get_by_name_v1(args: Mapping[str, Any]) -> DBResponse:
       vp.model_name AS model_name,
       vp.model_name AS model,
       vp.model_name AS element_model,
+      ap.element_is_active AS is_active,
       vp.element_created_on,
       vp.element_modified_on
     FROM vw_content_personas vp
@@ -60,6 +61,7 @@ async def list_personas_v1(_: Mapping[str, Any]) -> DBResponse:
       vp.model_name AS model_name,
       vp.model_name AS model,
       vp.model_name AS element_model,
+      ap.element_is_active AS is_active,
       vp.element_created_on,
       vp.element_modified_on
     FROM vw_content_personas vp
@@ -76,6 +78,7 @@ async def upsert_persona_v1(args: Mapping[str, Any]) -> DBResponse:
   prompt = args["prompt"]
   tokens = int(args["tokens"])
   models_recid = int(args["models_recid"])
+  is_active = bool(args.get("is_active", True))
   if recid is not None:
     rc = await run_exec(
       """
@@ -84,10 +87,11 @@ async def upsert_persona_v1(args: Mapping[str, Any]) -> DBResponse:
             element_prompt = ?,
             element_tokens = ?,
             models_recid = ?,
+            element_is_active = ?,
             element_modified_on = SYSUTCDATETIME()
         WHERE recid = ?;
       """,
-      (name, prompt, tokens, models_recid, recid),
+      (name, prompt, tokens, models_recid, is_active, recid),
     )
     if rc.rowcount:
       return rc
@@ -97,10 +101,11 @@ async def upsert_persona_v1(args: Mapping[str, Any]) -> DBResponse:
       SET element_prompt = ?,
           element_tokens = ?,
           models_recid = ?,
+          element_is_active = ?,
           element_modified_on = SYSUTCDATETIME()
       WHERE element_name = ?;
     """,
-    (prompt, tokens, models_recid, name),
+    (prompt, tokens, models_recid, is_active, name),
   )
   if rc.rowcount:
     return rc
@@ -110,10 +115,11 @@ async def upsert_persona_v1(args: Mapping[str, Any]) -> DBResponse:
         element_name,
         element_prompt,
         element_tokens,
-        models_recid
-      ) VALUES (?, ?, ?, ?);
+        models_recid,
+        element_is_active
+      ) VALUES (?, ?, ?, ?, ?);
     """,
-    (name, prompt, tokens, models_recid),
+    (name, prompt, tokens, models_recid, is_active),
   )
 
 

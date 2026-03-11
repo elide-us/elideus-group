@@ -7,20 +7,23 @@ administration flows (``ROLE_DISCORD_ADMIN``).
 from .bsky.handler import handle_bsky_request
 from .chat.handler import handle_chat_request
 from .command.handler import handle_command_request
+from .guilds.handler import handle_guilds_request
 from .personas.handler import handle_personas_request
 
 HANDLERS: dict[str, callable] = {
   "bsky": handle_bsky_request,
   "chat": handle_chat_request,
   "command": handle_command_request,
+  "guilds": handle_guilds_request,
   "personas": handle_personas_request,
 }
 
 
-REQUIRED_ROLES: dict[str, str] = {
+REQUIRED_ROLES: dict[str, str | None] = {
   "bsky": "ROLE_DISCORD_BOT",
   "chat": "ROLE_DISCORD_BOT",
-  "command": "ROLE_DISCORD_BOT",
+  "command": None,
+  "guilds": "ROLE_DISCORD_ADMIN",
   "personas": "ROLE_DISCORD_ADMIN",
 }
 
@@ -29,5 +32,6 @@ FORBIDDEN_DETAILS: dict[str, str] = {
   "bsky": 'You must have the Discord bot role assigned to use this bot.',
   "chat": 'You must have the Discord bot role assigned to use this bot.',
   "command": 'You must have the Discord bot role assigned to use this bot.',
+  "guilds": 'Forbidden',
   "personas": 'Forbidden',
 }

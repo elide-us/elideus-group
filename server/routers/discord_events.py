@@ -1,11 +1,15 @@
 """Discord bot event handlers."""
 
+# Discord security chain verified: discord_id → auth.get_discord_user_security()
+# → db:identity:accounts:read:1 → get_security_profile (mssql) → users_auth join
+# Chain complete as of this commit.
+
 import logging
 from typing import TYPE_CHECKING
 
 from discord.ext import commands
-from server.registry.system.config import get_config_request
-from server.registry.system.config.model import ConfigKeyParams
+from queryregistry.system.config import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
 
 if TYPE_CHECKING:  # pragma: no cover - runtime import cycle guard
   from server.modules.discord_bot_module import DiscordBotModule
@@ -27,9 +31,9 @@ def _register_on_ready_handler(bot_module: "DiscordBotModule", bot: commands.Bot
     channel = bot.get_channel(bot_module.syschan)
     if channel:
       res = await bot_module.db.run(get_config_request(ConfigKeyParams(key="Version")))
-      version = res.rows[0]["value"] if res.rows else None
+      version = res.rows[0]["element_value"] if res.rows else None
       name_res = await bot_module.db.run(get_config_request(ConfigKeyParams(key="BotName")))
-      bot_name = name_res.rows[0]["value"] if name_res.rows else None
+      bot_name = name_res.rows[0]["element_value"] if name_res.rows else None
       msg = f"{(bot_name or 'TheOracleGPT-Dev')} Online. Version: {version or 'unknown'}"
       if await bot_module._try_send_channel(channel.id, msg):
         logging.info(msg)

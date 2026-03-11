@@ -14,13 +14,19 @@ from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.conversations import (
   find_recent_request,
   insert_conversation_request,
+  insert_message_request,
   list_by_time_request,
+  list_channel_messages_request,
+  list_thread_request,
   update_output_request,
 )
 from queryregistry.system.conversations.models import (
   FindRecentParams,
   InsertConversationParams,
+  InsertMessageParams,
   ListByTimeParams,
+  ListChannelMessagesParams,
+  ListThreadParams,
   UpdateOutputParams,
 )
 from queryregistry.system.models_registry import list_models_request
@@ -177,6 +183,7 @@ class OpenaiModule(BaseModule):
           int(row.get("models_recid")) if row.get("models_recid") is not None else None
         ),
         "model": row.get("model"),
+        "is_active": bool(row.get("is_active", row.get("element_is_active", True))),
       })
     return personas
 
@@ -191,6 +198,7 @@ class OpenaiModule(BaseModule):
       "prompt": persona.get("prompt", ""),
       "tokens": int(persona.get("tokens", 0) or 0),
       "models_recid": int(model_recid),
+      "is_active": bool(persona.get("is_active", True)),
     }
     if not payload["name"]:
       raise ValueError("name required")
@@ -201,6 +209,7 @@ class OpenaiModule(BaseModule):
         prompt=payload["prompt"],
         tokens=payload["tokens"],
         models_recid=payload["models_recid"],
+        is_active=payload["is_active"],
       ))
     )
 
@@ -272,6 +281,102 @@ class OpenaiModule(BaseModule):
         )
     except Exception:
       logging.exception("[OpenaiModule] update conversation failed")
+
+  async def log_message(
+    self,
+    *,
+    personas_recid: int,
+    models_recid: int,
+    role: str,
+    content: str,
+    guild_id: int | str | None = None,
+    channel_id: int | str | None = None,
+    user_id: int | str | None = None,
+    users_guid: str | None = None,
+    thread_id: str | None = None,
+    tokens: int | None = None,
+  ) -> int | None:
+    """Insert a single message row using the new message-per-row schema."""
+    if not self.db:
+      return None
+    try:
+      res = await self.db.run(
+        insert_message_request(InsertMessageParams(
+          personas_recid=personas_recid,
+          models_recid=models_recid,
+          role=role,
+          content=content,
+          guild_id=str(guild_id) if guild_id is not None else None,
+          channel_id=str(channel_id) if channel_id is not None else None,
+          user_id=str(user_id) if user_id is not None else None,
+          users_guid=users_guid,
+          thread_id=thread_id,
+          tokens=tokens,
+        ))
+      )
+      if res.rows:
+        return res.rows[0].get("recid")
+    except Exception:
+      logging.exception("[OpenaiModule] insert message failed")
+    return None
+
+  async def get_thread_history(
+    self,
+    thread_id: str,
+    *,
+    limit: int = 20,
+  ) -> List[Dict[str, str]]:
+    """Retrieve message history for a thread, formatted for OpenAI messages."""
+    if not self.db or not thread_id:
+      return []
+    try:
+      res = await self.db.run(
+        list_thread_request(ListThreadParams(thread_id=thread_id))
+      )
+    except Exception:
+      logging.exception("[OpenaiModule] failed to load thread history")
+      return []
+    rows = list(res.rows or [])
+    if limit and limit > 0:
+      rows = rows[-limit:]
+    messages: List[Dict[str, str]] = []
+    for row in rows:
+      role = (row.get("element_role") or "user").strip()
+      content = (row.get("element_content") or "").strip()
+      if content:
+        messages.append({"role": role, "content": content})
+    return messages
+
+  async def get_channel_context(
+    self,
+    guild_id: int | str,
+    channel_id: int | str,
+    *,
+    limit: int = 30,
+  ) -> List[Dict[str, str]]:
+    """Retrieve recent stored messages from a guild+channel for context."""
+    if not self.db:
+      return []
+    try:
+      res = await self.db.run(
+        list_channel_messages_request(ListChannelMessagesParams(
+          guild_id=str(guild_id),
+          channel_id=str(channel_id),
+          limit=limit,
+        ))
+      )
+    except Exception:
+      logging.exception("[OpenaiModule] failed to load channel context")
+      return []
+    rows = list(res.rows or [])
+    rows.reverse()
+    messages: List[Dict[str, str]] = []
+    for row in rows:
+      role = (row.get("element_role") or "user").strip()
+      content = (row.get("element_content") or "").strip()
+      if content:
+        messages.append({"role": role, "content": content})
+    return messages
 
   async def get_recent_persona_conversation_history(
     self,

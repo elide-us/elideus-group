@@ -31,6 +31,7 @@ class UpsertPersonaParams(BaseModel):
   prompt: str
   tokens: int
   models_recid: int
+  is_active: bool = True
   recid: int | None = None
 
 

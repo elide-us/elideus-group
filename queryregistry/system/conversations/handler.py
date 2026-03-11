@@ -10,8 +10,11 @@ from queryregistry.models import DBRequest, DBResponse
 from .services import (
   find_recent_v1,
   insert_conversation_v1,
+  insert_message_v1,
   list_by_time_v1,
+  list_channel_messages_v1,
   list_recent_v1,
+  list_thread_v1,
   update_output_v1,
 )
 from ..dispatch import SubdomainDispatcher
@@ -21,8 +24,11 @@ __all__ = ["handle_conversations_request"]
 DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("insert", "1"): insert_conversation_v1,
   ("find_recent", "1"): find_recent_v1,
+  ("insert_message", "1"): insert_message_v1,
   ("update_output", "1"): update_output_v1,
   ("list_by_time", "1"): list_by_time_v1,
+  ("list_thread", "1"): list_thread_v1,
+  ("list_channel_messages", "1"): list_channel_messages_v1,
   ("list_recent", "1"): list_recent_v1,
 }
 

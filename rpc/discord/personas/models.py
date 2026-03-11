@@ -19,6 +19,7 @@ class DiscordPersonasPersonaItem1(BaseModel):
   tokens: int
   models_recid: int
   model: Optional[str] = None
+  is_active: bool = True
 
 
 class DiscordPersonasList1(BaseModel):
@@ -31,6 +32,7 @@ class DiscordPersonasUpsertPersona1(BaseModel):
   prompt: str
   tokens: int
   models_recid: int
+  is_active: bool = True
 
 
 class DiscordPersonasDeletePersona1(BaseModel):

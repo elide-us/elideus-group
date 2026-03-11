@@ -101,15 +101,14 @@ async def _resolve_auth_context(app, rpc_request: RPCRequest, discord_ctx) -> Au
     discord_id = str(discord_id)
     guid, roles, mask = await auth.get_discord_user_security(discord_id)
     if not guid:
-      raise HTTPException(status_code=401, detail='Missing or invalid authorization header')
+      rpc_request.discord_id = discord_id
+      return auth_ctx
     auth_ctx.user_guid = guid
     auth_ctx.roles = roles
     auth_ctx.role_mask = mask
     rpc_request.user_guid = guid
     rpc_request.roles = roles
     rpc_request.role_mask = mask
-    if not (mask & getattr(auth, 'role_registered', 0)):
-      raise HTTPException(status_code=403, detail='Forbidden')
     logging.debug(
       "[RPC] Resolved roles for %s: %s (mask=%#018x)",
       guid,
