@@ -12,8 +12,11 @@ from queryregistry.models import DBResponse
 __all__ = [
   "find_recent_v1",
   "insert_conversation_v1",
+  "insert_message_v1",
   "list_by_time_v1",
+  "list_channel_messages_v1",
   "list_recent_v1",
+  "list_thread_v1",
   "update_output_v1",
 ]
 
@@ -55,6 +58,41 @@ async def insert_conversation_v1(args: Mapping[str, Any]) -> DBResponse:
     ),
   )
 
+
+
+
+async def insert_message_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    INSERT INTO assistant_conversations (
+      personas_recid,
+      models_recid,
+      element_guild_id,
+      element_channel_id,
+      element_user_id,
+      users_guid,
+      element_role,
+      element_content,
+      element_thread_id,
+      element_tokens
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    SELECT SCOPE_IDENTITY() AS recid
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return await run_json_one(
+    sql,
+    (
+      args["personas_recid"],
+      args["models_recid"],
+      args.get("guild_id"),
+      args.get("channel_id"),
+      args.get("user_id"),
+      args.get("users_guid"),
+      args["role"],
+      args["content"],
+      args.get("thread_id"),
+      args.get("tokens"),
+    ),
+  )
 
 async def find_recent_v1(args: Mapping[str, Any]) -> DBResponse:
   personas_recid = args["personas_recid"]
@@ -155,3 +193,31 @@ async def list_recent_v1(_: Mapping[str, Any]) -> DBResponse:
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql)
+
+
+async def list_thread_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT recid, personas_recid, models_recid, element_guild_id, element_channel_id,
+           element_user_id, users_guid, element_role, element_content,
+           element_thread_id, element_tokens, element_created_on
+    FROM assistant_conversations
+    WHERE element_thread_id = ?
+    ORDER BY element_created_on ASC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args["thread_id"],))
+
+
+async def list_channel_messages_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT TOP (?)
+           recid, personas_recid, element_role, element_content,
+           element_user_id, users_guid, element_thread_id,
+           element_tokens, element_created_on
+    FROM assistant_conversations
+    WHERE element_guild_id = ? AND element_channel_id = ?
+      AND element_content IS NOT NULL
+    ORDER BY element_created_on DESC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args.get("limit", 50), args["guild_id"], args["channel_id"]))

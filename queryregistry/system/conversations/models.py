@@ -10,7 +10,10 @@ __all__ = [
   "ConversationRecord",
   "FindRecentParams",
   "InsertConversationParams",
+  "InsertMessageParams",
   "ListByTimeParams",
+  "ListChannelMessagesParams",
+  "ListThreadParams",
   "UpdateOutputParams",
 ]
 
@@ -38,6 +41,37 @@ class FindRecentParams(BaseModel):
   channel_id: str | None = None
   user_id: str | None = None
   window_seconds: int = 300
+
+
+
+
+class InsertMessageParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  personas_recid: int
+  models_recid: int
+  role: str
+  content: str
+  guild_id: str | None = None
+  channel_id: str | None = None
+  user_id: str | None = None
+  users_guid: str | None = None
+  thread_id: str | None = None
+  tokens: int | None = None
+
+
+class ListThreadParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  thread_id: str
+
+
+class ListChannelMessagesParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  guild_id: str
+  channel_id: str
+  limit: int = 50
 
 
 class UpdateOutputParams(BaseModel):
