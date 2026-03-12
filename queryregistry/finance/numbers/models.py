@@ -36,6 +36,8 @@ class UpsertNumberParams(BaseModel):
   last_number: int = 1000
   allocation_size: int = 10
   reset_policy: str = "Never"
+  pattern: str | None = None
+  display_format: str | None = None
 
 
 class DeleteNumberParams(BaseModel):
@@ -58,6 +60,8 @@ class NumberRecord(TypedDict):
   element_last_number: int
   element_allocation_size: int
   element_reset_policy: str
+  element_pattern: str | None
+  element_display_format: str | None
   element_created_on: str
   element_modified_on: str
   account_name: str | None
