@@ -16,6 +16,7 @@ const DiscordPersonasPage = lazy(() => import("./pages/DiscordPersonasPage"));
 const DiscordGuildsPage = lazy(() => import("./pages/DiscordGuildsPage"));
 const SystemConfigPage = lazy(() => import("./pages/system/SystemConfigPage"));
 const SystemModelsPage = lazy(() => import("./pages/system/SystemModelsPage"));
+const SystemConversationsPage = lazy(() => import("./pages/system/SystemConversationsPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
 const AccountUserPanel = lazy(() => import("./pages/AccountUserPanel"));
@@ -49,6 +50,7 @@ function App(): JSX.Element {
                                                                 <Route path="/service-routes" element={<ServiceRoutesPage />} />
                                                                 <Route path="/system-config" element={<SystemConfigPage />} />
                                                                 <Route path="/system-models" element={<SystemModelsPage />} />
+                                                                <Route path="/system-conversations" element={<SystemConversationsPage />} />
                                                                 <Route path="/service-roles" element={<ServiceRolesPage />} />
 								<Route path="/account-roles" element={<AccountRolesPage />} />
 								<Route path="/account-users" element={<AccountUsersPage />} />
