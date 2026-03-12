@@ -17,7 +17,7 @@ class EnvModule(BaseModule):
     self._getenv("JWT_SECRET", "MISSING_ENV_JWT_SECRET")
     self._getenv("GOOGLE_AUTH_SECRET", "MISSING_ENV_GOOGLE_AUTH_SECRET")
     self._getenv("DATABASE_PROVIDER", "MISSING_DATABASE_PROVIDER")
-    self._genenv("AZURE_BILLING_CLIENT_SECRET", "MISSING_AZURE_BILLING_CLIENT_SECRET")
+    self._getenv("AZURE_BILLING_CLIENT_SECRET", "MISSING_AZURE_BILLING_CLIENT_SECRET")
     provider = self._env["DATABASE_PROVIDER"]
     if not provider:
       logging.error("No DB provider!")
