@@ -555,34 +555,9 @@ class DiscordChatModule(BaseModule):
         "reason": "persona_not_configured",
         "ack_message": "Persona chat is currently unavailable.",
       }
-    try:
-      recid = await openai.log_persona_conversation_input(
-        personas_recid,
-        models_recid,
-        guild_id,
-        channel_id,
-        user_id,
-        message_text,
-        None,
-      )
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] failed to insert persona conversation input",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "conversation_log_failed",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
     return {
       "success": True,
-      "conversation_reference": recid,
+      "conversation_reference": None,
       "personas_recid": personas_recid,
       "models_recid": models_recid,
     }
@@ -737,28 +712,6 @@ class DiscordChatModule(BaseModule):
     total_tokens = None
     if isinstance(usage, dict):
       total_tokens = usage.get("total_tokens")
-
-    conversation_ref = conversation_reference
-    if conversation_ref is not None:
-      try:
-        conversation_id = int(conversation_ref)
-      except (TypeError, ValueError):
-        logging.warning(
-          "[DiscordChatModule] invalid conversation reference",
-          extra={"conversation_reference": conversation_ref},
-        )
-      else:
-        try:
-          await openai.finalize_persona_conversation(
-            conversation_id,
-            content or "",
-            total_tokens,
-          )
-        except Exception:
-          logging.exception(
-            "[DiscordChatModule] failed to update persona conversation output",
-            extra={"conversation_reference": conversation_ref},
-          )
 
     return {
       "success": True,
