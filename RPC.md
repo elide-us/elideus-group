@@ -278,3 +278,15 @@ Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 !summarize 24
 ```
 Summarize the last 24 hours of messages in the current channel and send the result as a DM.
+
+## Finance Domain
+
+All Finance domain calls require `ROLE_FINANCE_ADMIN`.
+
+### `staging`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range. |
+| `urn:finance:staging:list_imports:1` | List finance staging import batches. |
+| `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |
