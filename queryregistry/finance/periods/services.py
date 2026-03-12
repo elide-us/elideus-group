@@ -44,18 +44,6 @@ def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _D
   return dispatcher
 
 
-def _fiscal_year_has_feb_29(fy_start: date) -> bool:
-  fy_end = fy_start + timedelta(days=364)
-  for year in {fy_start.year, fy_end.year}:
-    try:
-      feb29 = date(year, 2, 29)
-    except ValueError:
-      continue
-    if fy_start <= feb29 <= fy_end:
-      return True
-  return False
-
-
 async def list_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = ListPeriodsParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _LIST_DISPATCHERS)(params.model_dump())
@@ -92,15 +80,12 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
   if fy_start.weekday() != 6:
     raise ValueError("Fiscal year start_date must be a Sunday")
 
-  is_leap = _fiscal_year_has_feb_29(fy_start)
   periods: list[dict[str, Any]] = []
   cursor = fy_start
 
   for quarter in range(1, 5):
-    for month in range(1, 5):
-      days = 28 if month <= 3 else 7
-      if is_leap and quarter == 1 and month == 4:
-        days = 8
+    for month in range(1, 4):
+      days = 28
       period_start = cursor
       period_end = cursor + timedelta(days=days - 1)
 
@@ -108,14 +93,14 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
         {
           "guid": str(uuid.uuid4()),
           "year": params.fiscal_year,
-          "period_number": (quarter - 1) * 5 + month,
+          "period_number": (quarter - 1) * 4 + month,
           "period_name": f"Q{quarter}M{month}",
           "start_date": period_start.isoformat(),
           "end_date": period_end.isoformat(),
           "days_in_period": days,
           "quarter_number": quarter,
           "has_closing_week": False,
-          "is_leap_adjustment": is_leap and quarter == 1 and month == 4,
+          "is_leap_adjustment": False,
           "anchor_event": None,
           "close_type": 0,
           "status": 1,
@@ -123,15 +108,17 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
       )
       cursor = period_end + timedelta(days=1)
 
+    mc_start = cursor
+    mc_end = mc_start + timedelta(days=6)
     periods.append(
       {
         "guid": str(uuid.uuid4()),
         "year": params.fiscal_year,
-        "period_number": (quarter - 1) * 5 + 5,
+        "period_number": quarter * 4,
         "period_name": f"Q{quarter}MC",
-        "start_date": (cursor - timedelta(days=7)).isoformat(),
-        "end_date": (cursor - timedelta(days=1)).isoformat(),
-        "days_in_period": 0,
+        "start_date": mc_start.isoformat(),
+        "end_date": mc_end.isoformat(),
+        "days_in_period": 7,
         "quarter_number": quarter,
         "has_closing_week": True,
         "is_leap_adjustment": False,
@@ -140,6 +127,9 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
         "status": 1,
       }
     )
+    cursor = mc_end + timedelta(days=1)
+
+  assert cursor == fy_start + timedelta(days=364)
 
   upsert_dispatcher = _select_dispatcher(provider, _UPSERT_DISPATCHERS)
   for period in periods:
