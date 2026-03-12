@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import {
     Box,
     Button,
@@ -32,7 +32,7 @@ import type {
 } from "../../shared/RpcModels";
 
 interface TabPanelProps {
-    children?: React.ReactNode;
+    children?: ReactNode;
     value: number;
     index: number;
 }
@@ -76,7 +76,7 @@ const SystemConversationsPage = (): JSX.Element => {
         }
     };
 
-    const loadBrowse = async (nextOffset: number = offset, nextLimit: number = limit): Promise<void> => {
+    const loadBrowse = useCallback(async (nextOffset: number = offset, nextLimit: number = limit): Promise<void> => {
         try {
             const res = await fetchListConversations({ limit: nextLimit, offset: nextOffset });
             setRows(res.conversations || []);
@@ -86,7 +86,7 @@ const SystemConversationsPage = (): JSX.Element => {
                 setForbidden(true);
             }
         }
-    };
+    }, [offset, limit]);
 
     const loadThread = async (target: string = threadId): Promise<void> => {
         if (!target.trim()) return;
@@ -104,7 +104,7 @@ const SystemConversationsPage = (): JSX.Element => {
     useEffect(() => {
         void loadStats();
         void loadBrowse(0, limit);
-    }, []);
+    }, [loadBrowse, limit]);
 
     if (forbidden) {
         return (
