@@ -12,22 +12,16 @@ from .discord_bot_module import DiscordBotModule
 from queryregistry.system.config import get_config_request
 from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.conversations import (
-  find_recent_request,
-  insert_conversation_request,
   insert_message_request,
   list_by_time_request,
   list_channel_messages_request,
   list_thread_request,
-  update_output_request,
 )
 from queryregistry.system.conversations.models import (
-  FindRecentParams,
-  InsertConversationParams,
   InsertMessageParams,
   ListByTimeParams,
   ListChannelMessagesParams,
   ListThreadParams,
-  UpdateOutputParams,
 )
 from queryregistry.system.models_registry import list_models_request
 from queryregistry.system.personas import (
@@ -217,71 +211,6 @@ class OpenaiModule(BaseModule):
     assert self.db
     await self.db.run(delete_persona_request(DeletePersonaParams(recid=recid, name=name)))
 
-  async def log_persona_conversation_input(
-    self,
-    personas_recid: int | None,
-    models_recid: int | None,
-    guild_id: int | None,
-    channel_id: int | None,
-    user_id: int | None,
-    input_data: str,
-    tokens: int | None,
-  ) -> int | None:
-    if not self.db or personas_recid is None or models_recid is None:
-      return None
-    try:
-      existing = await self.db.run(
-        find_recent_request(FindRecentParams(
-          personas_recid=personas_recid,
-          models_recid=models_recid,
-          guild_id=str(guild_id) if guild_id is not None else None,
-          channel_id=str(channel_id) if channel_id is not None else None,
-          user_id=str(user_id) if user_id is not None else None,
-          input_data=input_data,
-        ))
-      )
-      if existing.rows:
-        recid = existing.rows[0].get("recid")
-        if recid is not None:
-          return recid
-      res = await self.db.run(
-        insert_conversation_request(InsertConversationParams(
-          personas_recid=personas_recid,
-          models_recid=models_recid,
-          guild_id=str(guild_id) if guild_id is not None else None,
-          channel_id=str(channel_id) if channel_id is not None else None,
-          user_id=str(user_id) if user_id is not None else None,
-          input_data=input_data,
-          output_data="",
-          tokens=tokens,
-        ))
-      )
-      if res.rows:
-        return res.rows[0].get("recid")
-    except Exception:
-      logging.exception("[OpenaiModule] insert conversation failed")
-    return None
-
-  async def finalize_persona_conversation(
-    self,
-    recid: int,
-    output_data: str,
-    tokens: int | None,
-  ):
-    if not self.db:
-      return
-    try:
-      res = await self.db.run(
-        update_output_request(UpdateOutputParams(recid=recid, output_data=output_data, tokens=tokens))
-      )
-      if res.rowcount == 0:
-        logging.warning(
-          "[OpenaiModule] conversation update affected 0 rows (recid=%s)",
-          recid,
-        )
-    except Exception:
-      logging.exception("[OpenaiModule] update conversation failed")
-
   async def log_message(
     self,
     *,
@@ -454,9 +383,6 @@ class OpenaiModule(BaseModule):
       logging.warning("[OpenaiModule] client not initialized")
       return {"content": ""}
 
-    conv_id = None
-    personas_recid = None
-    models_recid = None
     resolved_model = (model or "").strip() or "gpt-4o-mini"
     resolved_tokens = max_tokens
     resolved_prompt = system_prompt or ""
@@ -473,8 +399,6 @@ class OpenaiModule(BaseModule):
           )
           resolved_persona_details = None
       if resolved_persona_details:
-        personas_recid = resolved_persona_details.get("recid")
-        models_recid = resolved_persona_details.get("models_recid")
         persona_model = resolved_persona_details.get("model")
         if persona_model:
           resolved_model = persona_model
@@ -487,17 +411,6 @@ class OpenaiModule(BaseModule):
 
     if resolved_tokens is None:
       resolved_tokens = 64
-
-    if persona and personas_recid is not None and models_recid is not None:
-      conv_id = await self.log_persona_conversation_input(
-        personas_recid,
-        models_recid,
-        guild_id,
-        channel_id,
-        user_id,
-        input_log or (user_prompt or ""),
-        token_count,
-      )
 
     messages: List[Dict[str, str]] = []
     if resolved_prompt:
@@ -534,8 +447,6 @@ class OpenaiModule(BaseModule):
         "completion_tokens": getattr(usage, "completion_tokens", None),
         "total_tokens": total_tokens,
       }
-    if conv_id:
-      await self.finalize_persona_conversation(conv_id, content, total_tokens)
     return result
 
   async def persona_response(
