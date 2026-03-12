@@ -28,6 +28,7 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
       element_anchor_event,
       element_close_type,
       element_status,
+      numbers_recid,
       element_created_on,
       element_modified_on
     FROM finance_periods
@@ -53,6 +54,7 @@ async def list_by_year_v1(args: Mapping[str, Any]) -> DBResponse:
       element_anchor_event,
       element_close_type,
       element_status,
+      numbers_recid,
       element_created_on,
       element_modified_on
     FROM finance_periods
@@ -79,6 +81,7 @@ async def get_v1(args: Mapping[str, Any]) -> DBResponse:
       element_anchor_event,
       element_close_type,
       element_status,
+      numbers_recid,
       element_created_on,
       element_modified_on
     FROM finance_periods
@@ -105,7 +108,8 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
         ? AS element_is_leap_adjustment,
         ? AS element_anchor_event,
         ? AS element_close_type,
-        ? AS element_status
+        ? AS element_status,
+        ? AS numbers_recid
     ) AS source
     ON target.element_year = source.element_year
       AND target.element_period_number = source.element_period_number
@@ -121,6 +125,7 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
         target.element_anchor_event = source.element_anchor_event,
         target.element_close_type = source.element_close_type,
         target.element_status = source.element_status,
+        target.numbers_recid = source.numbers_recid,
         target.element_modified_on = SYSUTCDATETIME()
     WHEN NOT MATCHED THEN
       INSERT (
@@ -137,6 +142,7 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
         element_anchor_event,
         element_close_type,
         element_status,
+        numbers_recid,
         element_created_on,
         element_modified_on
       )
@@ -154,6 +160,7 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
         source.element_anchor_event,
         source.element_close_type,
         source.element_status,
+        source.numbers_recid,
         SYSUTCDATETIME(),
         SYSUTCDATETIME()
       )
@@ -171,6 +178,7 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_anchor_event,
       inserted.element_close_type,
       inserted.element_status,
+      inserted.numbers_recid,
       inserted.element_created_on,
       inserted.element_modified_on
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
@@ -189,6 +197,7 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
     args.get("anchor_event"),
     args["close_type"],
     args["status"],
+    args.get("numbers_recid"),
   )
   return await run_json_one(sql, params)
 
