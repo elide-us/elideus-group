@@ -7,10 +7,14 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "ConversationStatsParams",
   "ConversationRecord",
+  "DeleteByThreadParams",
+  "DeleteByTimestampParams",
   "FindRecentParams",
   "InsertConversationParams",
   "InsertMessageParams",
+  "ListConversationSummaryParams",
   "ListByTimeParams",
   "ListChannelMessagesParams",
   "ListThreadParams",
@@ -88,6 +92,29 @@ class ListByTimeParams(BaseModel):
   personas_recid: int
   start: str
   end: str
+
+
+class ListConversationSummaryParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  limit: int = 100
+  offset: int = 0
+
+
+class DeleteByThreadParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  thread_id: str
+
+
+class DeleteByTimestampParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  before: str
+
+
+class ConversationStatsParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
 
 
 class ConversationRecord(TypedDict):
