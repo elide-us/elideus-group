@@ -41,6 +41,10 @@ class RPCRequest(BaseModel):
     default=0,
     description="Bitmask representing user roles",
   )
+  discord_id: Optional[str] = Field(
+    default=None,
+    description="Discord snowflake ID stashed for unregistered user flows",
+  )
 
 
 """
