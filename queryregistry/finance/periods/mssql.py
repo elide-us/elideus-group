@@ -32,7 +32,7 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
       element_created_on,
       element_modified_on
     FROM finance_periods
-    ORDER BY element_year DESC, element_period_number ASC
+    ORDER BY element_year ASC, element_period_number ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql)
