@@ -30,6 +30,20 @@ def _to_element_column_name(field_name: str) -> str:
 
 async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    DECLARE @inserted TABLE (
+      recid bigint,
+      element_source nvarchar(max),
+      element_scope nvarchar(max),
+      element_metric nvarchar(max),
+      element_period_start date,
+      element_period_end date,
+      element_status int,
+      element_row_count int,
+      element_error nvarchar(max),
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset
+    );
+
     INSERT INTO finance_staging_imports (
       element_source,
       element_scope,
@@ -42,8 +56,24 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       element_created_on,
       element_modified_on
     )
-    OUTPUT inserted.*
+    OUTPUT
+      inserted.recid,
+      inserted.element_source,
+      inserted.element_scope,
+      inserted.element_metric,
+      inserted.element_period_start,
+      inserted.element_period_end,
+      inserted.element_status,
+      inserted.element_row_count,
+      inserted.element_error,
+      inserted.element_created_on,
+      inserted.element_modified_on
+    INTO @inserted
     VALUES (?, ?, ?, ?, ?, 0, 0, NULL, SYSUTCDATETIME(), SYSUTCDATETIME());
+
+    SELECT *
+    FROM @inserted
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
     args["source"],
@@ -100,16 +130,16 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
       recid,
-      element_source,
-      element_scope,
-      element_metric,
-      element_period_start,
-      element_period_end,
-      element_status,
-      element_row_count,
-      element_error,
-      element_created_on,
-      element_modified_on
+      element_source AS source,
+      element_scope AS scope,
+      element_metric AS metric,
+      element_period_start AS period_start,
+      element_period_end AS period_end,
+      element_status AS status,
+      element_row_count AS row_count,
+      element_error AS error,
+      element_created_on AS created_on,
+      element_modified_on AS modified_on
     FROM finance_staging_imports
     ORDER BY recid DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
