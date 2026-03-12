@@ -555,34 +555,9 @@ class DiscordChatModule(BaseModule):
         "reason": "persona_not_configured",
         "ack_message": "Persona chat is currently unavailable.",
       }
-    try:
-      recid = await openai.log_persona_conversation_input(
-        personas_recid,
-        models_recid,
-        guild_id,
-        channel_id,
-        user_id,
-        message_text,
-        None,
-      )
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] failed to insert persona conversation input",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "conversation_log_failed",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
     return {
       "success": True,
-      "conversation_reference": recid,
+      "conversation_reference": None,
       "personas_recid": personas_recid,
       "models_recid": models_recid,
     }
@@ -691,6 +666,19 @@ class DiscordChatModule(BaseModule):
       if stored_text:
         context_sections.append("Recent stored conversation context:\n" + stored_text)
     prompt_context = "\n\n".join(context_sections)
+    logging.info(
+      "[DiscordChatModule] context assembled for persona response",
+      extra={
+        "persona": persona_name,
+        "guild_id": guild_id,
+        "channel_id": channel_id,
+        "conversation_history_count": len(conversation_history),
+        "channel_history_count": len(channel_history),
+        "stored_context_count": len(stored_context),
+        "context_sections_count": len(context_sections),
+        "prompt_context_length": len(prompt_context),
+      },
+    )
 
     system_prompt = persona_details.get("prompt") or ""
 
@@ -737,28 +725,6 @@ class DiscordChatModule(BaseModule):
     total_tokens = None
     if isinstance(usage, dict):
       total_tokens = usage.get("total_tokens")
-
-    conversation_ref = conversation_reference
-    if conversation_ref is not None:
-      try:
-        conversation_id = int(conversation_ref)
-      except (TypeError, ValueError):
-        logging.warning(
-          "[DiscordChatModule] invalid conversation reference",
-          extra={"conversation_reference": conversation_ref},
-        )
-      else:
-        try:
-          await openai.finalize_persona_conversation(
-            conversation_id,
-            content or "",
-            total_tokens,
-          )
-        except Exception:
-          logging.exception(
-            "[DiscordChatModule] failed to update persona conversation output",
-            extra={"conversation_reference": conversation_ref},
-          )
 
     return {
       "success": True,
@@ -899,22 +865,7 @@ class DiscordChatModule(BaseModule):
     return context
 
   async def _persona_fetch_conversation(self, context: dict, metadata: dict) -> dict:
-    response = await self.get_conversation_history(
-      context.get("persona"),
-      guild_id=metadata.get("guild_id"),
-      channel_id=metadata.get("channel_id"),
-      user_id=metadata.get("user_id"),
-      limit=20,
-    )
-    context["conversation_history"] = response.get("conversation_history") or []
-    if response.get("personas_recid") is not None:
-      context["personas_recid"] = response.get("personas_recid")
-    if response.get("models_recid") is not None:
-      context["models_recid"] = response.get("models_recid")
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
+    context["conversation_history"] = []
     openai = getattr(self.app.state, "openai", None)
     if openai and metadata.get("guild_id") and metadata.get("channel_id"):
       try:

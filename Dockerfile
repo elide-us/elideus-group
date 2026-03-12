@@ -1,11 +1,11 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # Frontend build
 # ────────────────────────────────────────────────────────────────────────────────
-FROM node:18 AS builder
+FROM node:20 AS builder
 
 # Download and install Node 18
 RUN apt-get update && apt-get install -y curl python3 python3-pip python3-venv
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
 WORKDIR /app
 
 COPY requirements.txt ./
@@ -35,7 +35,7 @@ RUN npm run build
 # ────────────────────────────────────────────────────────────────────────────────
 # Python build
 # ────────────────────────────────────────────────────────────────────────────────
-FROM python:3.11
+FROM python:3.12-bookworm
 
 # RUN apt-get update && apt-get install -y ffmpeg libodbc2 unixodbc
 

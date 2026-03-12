@@ -8,12 +8,16 @@ from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
 from .services import (
+  delete_before_timestamp_v1,
+  delete_by_thread_v1,
   find_recent_v1,
+  get_stats_v1,
   insert_conversation_v1,
   insert_message_v1,
   list_by_time_v1,
   list_channel_messages_v1,
   list_recent_v1,
+  list_summary_v1,
   list_thread_v1,
   update_output_v1,
 )
@@ -30,6 +34,10 @@ DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("list_thread", "1"): list_thread_v1,
   ("list_channel_messages", "1"): list_channel_messages_v1,
   ("list_recent", "1"): list_recent_v1,
+  ("list_summary", "1"): list_summary_v1,
+  ("get_stats", "1"): get_stats_v1,
+  ("delete_by_thread", "1"): delete_by_thread_v1,
+  ("delete_before_timestamp", "1"): delete_before_timestamp_v1,
 }
 
 

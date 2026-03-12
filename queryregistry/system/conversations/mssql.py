@@ -16,7 +16,11 @@ __all__ = [
   "list_by_time_v1",
   "list_channel_messages_v1",
   "list_recent_v1",
+  "list_summary_v1",
   "list_thread_v1",
+  "get_stats_v1",
+  "delete_by_thread_v1",
+  "delete_before_timestamp_v1",
   "update_output_v1",
 ]
 
@@ -31,6 +35,7 @@ async def insert_conversation_v1(args: Mapping[str, Any]) -> DBResponse:
   output_data = args.get("output_data")
   tokens = args.get("tokens")
   sql = """
+    SET NOCOUNT ON;
     INSERT INTO assistant_conversations (
       personas_recid,
       models_recid,
@@ -63,6 +68,7 @@ async def insert_conversation_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def insert_message_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
     INSERT INTO assistant_conversations (
       personas_recid,
       models_recid,
@@ -175,6 +181,63 @@ async def list_by_time_v1(args: Mapping[str, Any]) -> DBResponse:
   """
   return await run_json_many(sql, (personas_recid, start, end))
 
+
+
+
+async def list_summary_v1(args: Mapping[str, Any]) -> DBResponse:
+  """List conversations with pagination, newest first, with persona name."""
+  limit = int(args.get("limit", 100))
+  offset = int(args.get("offset", 0))
+  sql = """
+    SELECT
+      c.recid,
+      c.personas_recid,
+      c.models_recid,
+      c.element_guild_id,
+      c.element_channel_id,
+      c.element_user_id,
+      c.element_role,
+      c.element_thread_id,
+      LEFT(COALESCE(c.element_content, c.element_input, ''), 120) AS element_preview,
+      c.element_tokens,
+      c.element_created_on,
+      ap.element_name AS persona_name
+    FROM assistant_conversations c
+    LEFT JOIN assistant_personas ap ON ap.recid = c.personas_recid
+    ORDER BY c.element_created_on DESC
+    OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (offset, limit))
+
+
+async def get_stats_v1(_: Mapping[str, Any]) -> DBResponse:
+  """Get conversation statistics."""
+  sql = """
+    SELECT
+      COUNT(*) AS total_rows,
+      COUNT(DISTINCT element_thread_id) AS total_threads,
+      MIN(element_created_on) AS oldest_entry,
+      MAX(element_created_on) AS newest_entry,
+      SUM(ISNULL(element_tokens, 0)) AS total_tokens
+    FROM assistant_conversations
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  """
+  return await run_json_one(sql)
+
+
+async def delete_by_thread_v1(args: Mapping[str, Any]) -> DBResponse:
+  """Delete all messages in a thread."""
+  thread_id = args["thread_id"]
+  sql = "DELETE FROM assistant_conversations WHERE element_thread_id = ?;"
+  return await run_exec(sql, (thread_id,))
+
+
+async def delete_before_timestamp_v1(args: Mapping[str, Any]) -> DBResponse:
+  """Delete all conversations before a given timestamp."""
+  before = args["before"]
+  sql = "DELETE FROM assistant_conversations WHERE element_created_on < ?;"
+  return await run_exec(sql, (before,))
 
 async def list_recent_v1(_: Mapping[str, Any]) -> DBResponse:
   sql = """

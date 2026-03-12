@@ -19,6 +19,8 @@ import {
     Money as MoneyIcon,
     AccountBalance as AccountantIcon,
     AccountBalanceWallet as ApproverIcon,
+    Hail as GuildsIcon,
+    Grain as ModelsIcon,
 } from '@mui/icons-material';
 
 export const iconMap: Record<string, ElementType> = {
@@ -43,6 +45,8 @@ export const iconMap: Record<string, ElementType> = {
     money: MoneyIcon,
     acct: AccountantIcon,
     appr: ApproverIcon,
+    guilds: GuildsIcon,
+    models: ModelsIcon,
 };
 
 export const defaultIcon = AdjustIcon;
