@@ -49,6 +49,7 @@ class UpsertPeriodParams(BaseModel):
   anchor_event: str | None = None
   close_type: int = 0
   status: int = 1
+  numbers_recid: int | None = None
 
 
 class DeletePeriodParams(BaseModel):
@@ -78,5 +79,6 @@ class PeriodRecord(TypedDict):
   element_anchor_event: str | None
   element_close_type: int
   element_status: int
+  numbers_recid: int | None
   element_created_on: str
   element_modified_on: str
