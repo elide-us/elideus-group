@@ -30,7 +30,7 @@ def _handle_datetimeoffset(dto_value):
 
 async def _on_connection_created(conn):
   """Register custom type converters on new pool connections."""
-  await conn.add_output_converter(-155, _handle_datetimeoffset)
+  conn.add_output_converter(-155, _handle_datetimeoffset)
 
 
 def _parse_dsn_info(dsn: str) -> dict[str, str]:
