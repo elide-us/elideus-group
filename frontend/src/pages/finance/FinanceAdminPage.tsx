@@ -64,6 +64,20 @@ type FinanceDimension = {
 	status: number;
 };
 
+type StagingImport = {
+	recid: number;
+	source: string;
+	scope: string | null;
+	metric: string;
+	period_start: string;
+	period_end: string;
+	row_count: number;
+	status: number;
+	error: string | null;
+	created_on: string;
+	modified_on: string;
+};
+
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 0, label: "Asset" },
 	{ value: 1, label: "Liability" },
@@ -109,6 +123,12 @@ const FinanceAdminPage = (): JSX.Element => {
 		description: "",
 		status: 1,
 	});
+	const [importStartDate, setImportStartDate] = useState("");
+	const [importEndDate, setImportEndDate] = useState("");
+	const [importing, setImporting] = useState(false);
+	const [imports, setImports] = useState<StagingImport[]>([]);
+	const [selectedImport, setSelectedImport] = useState<number | null>(null);
+	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
 
 	const loadPeriods = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ periods: FinancePeriod[] }>("urn:finance:periods:list:1");
@@ -130,6 +150,11 @@ const FinanceAdminPage = (): JSX.Element => {
 		setDimensions(res.dimensions || []);
 	}, []);
 
+	const loadImports = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
+		setImports(res.imports || []);
+	}, []);
+
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
 			await Promise.all([loadPeriods(), loadAccounts(), loadNumbers(), loadDimensions()]);
@@ -146,6 +171,13 @@ const FinanceAdminPage = (): JSX.Element => {
 	useEffect(() => {
 		void loadAll();
 	}, [loadAll]);
+
+	useEffect(() => {
+		if (tab !== 4) {
+			return;
+		}
+		void loadImports();
+	}, [tab, loadImports]);
 
 	if (forbidden) {
 		return (
@@ -164,6 +196,7 @@ const FinanceAdminPage = (): JSX.Element => {
 				<Tab label="Chart of Accounts" />
 				<Tab label="Number Sequences" />
 				<Tab label="Financial Dimensions" />
+				<Tab label="Billing Import" />
 			</Tabs>
 
 			{tab === 0 && (
@@ -378,6 +411,120 @@ const FinanceAdminPage = (): JSX.Element => {
 							))}
 						</TableBody>
 					</Table>
+				</Stack>
+			)}
+
+			{tab === 4 && (
+				<Stack spacing={2} sx={{ mt: 2 }}>
+					<Paper sx={{ p: 2 }}>
+						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+							<TextField
+								label="Start Date (YYYY-MM-DD)"
+								value={importStartDate}
+								onChange={(e) => setImportStartDate(e.target.value)}
+							/>
+							<TextField
+								label="End Date (YYYY-MM-DD)"
+								value={importEndDate}
+								onChange={(e) => setImportEndDate(e.target.value)}
+							/>
+							<Button
+								variant="contained"
+								disabled={importing}
+								onClick={async () => {
+									setImporting(true);
+									try {
+										await rpcCall("urn:finance:staging:import:1", {
+											period_start: importStartDate,
+											period_end: importEndDate,
+										});
+										await loadImports();
+									} finally {
+										setImporting(false);
+									}
+								}}
+							>
+								{importing ? "Importing..." : "Import"}
+							</Button>
+						</Stack>
+					</Paper>
+
+					<Table size="small">
+						<TableHead>
+							<TableRow>
+								<TableCell>RecId</TableCell>
+								<TableCell>Source</TableCell>
+								<TableCell>Metric</TableCell>
+								<TableCell>Period Start</TableCell>
+								<TableCell>Period End</TableCell>
+								<TableCell>Rows</TableCell>
+								<TableCell>Status</TableCell>
+								<TableCell>Error</TableCell>
+								<TableCell>Created On</TableCell>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{imports.map((row) => (
+								<TableRow
+									hover
+									key={row.recid}
+									selected={selectedImport === row.recid}
+									sx={{ cursor: "pointer" }}
+									onClick={async () => {
+										setSelectedImport(row.recid);
+										const details = await rpcCall<Record<string, any>[]>("urn:finance:staging:list_details:1", {
+											imports_recid: row.recid,
+										});
+										setImportDetails(details || []);
+									}}
+								>
+									<TableCell>{row.recid}</TableCell>
+									<TableCell>{row.source}</TableCell>
+									<TableCell>{row.metric}</TableCell>
+									<TableCell>{row.period_start}</TableCell>
+									<TableCell>{row.period_end}</TableCell>
+									<TableCell>{row.row_count}</TableCell>
+									<TableCell>{row.status === 0 ? "Pending" : row.status === 1 ? "Completed" : row.status === 2 ? "Failed" : row.status}</TableCell>
+									<TableCell>{row.error ? `${row.error.slice(0, 80)}${row.error.length > 80 ? "..." : ""}` : ""}</TableCell>
+									<TableCell>{row.created_on}</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+
+					{selectedImport !== null && (
+						<Stack spacing={1}>
+							<Typography variant="h6">
+								Import #{selectedImport} — {imports.find((row) => row.recid === selectedImport)?.row_count || 0} rows
+							</Typography>
+							<Table size="small">
+								<TableHead>
+									<TableRow>
+										<TableCell>Date</TableCell>
+										<TableCell>Subscription</TableCell>
+										<TableCell>Resource Group</TableCell>
+										<TableCell>Meter Category</TableCell>
+										<TableCell>Quantity</TableCell>
+										<TableCell>Cost</TableCell>
+										<TableCell>Currency</TableCell>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{importDetails.slice(0, 50).map((detail, index) => (
+										<TableRow key={`${selectedImport}-${index}`}>
+											<TableCell>{detail.element_Date}</TableCell>
+											<TableCell>{detail.element_SubscriptionName}</TableCell>
+											<TableCell>{detail.element_ResourceGroup}</TableCell>
+											<TableCell>{detail.element_MeterCategory}</TableCell>
+											<TableCell>{detail.element_Quantity}</TableCell>
+											<TableCell>{detail.element_CostInBillingCurrency}</TableCell>
+											<TableCell>{detail.element_BillingCurrency}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</Stack>
+					)}
 				</Stack>
 			)}
 		</Box>
