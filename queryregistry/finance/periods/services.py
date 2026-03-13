@@ -9,6 +9,10 @@ import uuid
 
 from queryregistry.models import DBRequest, DBResponse
 
+from queryregistry.finance.numbers.models import GetByPrefixAndAccountNumberParams, UpsertNumberParams
+from queryregistry.finance.numbers.services import get_by_prefix_account_v1 as get_number_by_prefix_account_v1
+from queryregistry.finance.numbers.services import upsert_v1 as upsert_number_v1
+
 from . import mssql
 from .models import (
   DeletePeriodParams,
@@ -35,6 +39,8 @@ _LIST_BY_YEAR_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_by_year
 _GET_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_v1}
 _UPSERT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_v1}
 _DELETE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_v1}
+
+_FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -80,6 +86,37 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
   if fy_start.weekday() != 6:
     raise ValueError("Fiscal year start_date must be a Sunday")
 
+  lookup_request = DBRequest(
+    op="db:finance:numbers:get_by_prefix_account:1",
+    payload=GetByPrefixAndAccountNumberParams(
+      prefix="FP",
+      account_number=str(params.fiscal_year),
+    ).model_dump(),
+  )
+  number_result = await get_number_by_prefix_account_v1(lookup_request, provider=provider)
+
+  number_payload = number_result.payload if isinstance(number_result.payload, dict) else None
+  if number_payload and number_payload.get("recid") is not None:
+    numbers_recid = int(number_payload["recid"])
+  else:
+    upsert_request = DBRequest(
+      op="db:finance:numbers:upsert:1",
+      payload=UpsertNumberParams(
+        accounts_guid=_FISCAL_PERIODS_ACCOUNTS_GUID,
+        prefix="FP",
+        account_number=str(params.fiscal_year),
+        last_number=0,
+        allocation_size=1,
+        reset_policy="Never",
+        display_format=f"FY{params.fiscal_year}",
+      ).model_dump(),
+    )
+    upsert_result = await upsert_number_v1(upsert_request, provider=provider)
+    upsert_payload = upsert_result.payload if isinstance(upsert_result.payload, dict) else None
+    if not upsert_payload or upsert_payload.get("recid") is None:
+      raise ValueError(f"Failed to create number sequence for fiscal year {params.fiscal_year}")
+    numbers_recid = int(upsert_payload["recid"])
+
   periods: list[dict[str, Any]] = []
   cursor = fy_start
 
@@ -104,6 +141,7 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
           "anchor_event": None,
           "close_type": 0,
           "status": 1,
+          "numbers_recid": numbers_recid,
         }
       )
       cursor = period_end + timedelta(days=1)
@@ -125,6 +163,7 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
         "anchor_event": "period_close",
         "close_type": 0,
         "status": 1,
+        "numbers_recid": numbers_recid,
       }
     )
     cursor = mc_end + timedelta(days=1)

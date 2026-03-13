@@ -16,6 +16,7 @@ class FinancePeriodsItem1(BaseModel):
   close_type: int = 0
   status: int = 1
   numbers_recid: int | None = None
+  element_display_format: str | None = None
 
 
 class FinancePeriodsList1(BaseModel):
@@ -32,6 +33,7 @@ class FinancePeriodsGet1(BaseModel):
 
 class FinancePeriodsUpsert1(FinancePeriodsItem1):
   numbers_recid: int | None = None
+  element_display_format: str | None = None
 
 
 class FinancePeriodsDelete1(BaseModel):

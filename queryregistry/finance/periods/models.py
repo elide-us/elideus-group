@@ -80,5 +80,6 @@ class PeriodRecord(TypedDict):
   element_close_type: int
   element_status: int
   numbers_recid: int | None
+  element_display_format: str | None
   element_created_on: str
   element_modified_on: str

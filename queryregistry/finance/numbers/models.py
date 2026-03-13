@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 __all__ = [
   "DeleteNumberParams",
+  "GetByPrefixAndAccountNumberParams",
   "GetNumberParams",
   "ListNumbersParams",
   "NextNumberParams",
@@ -24,6 +25,13 @@ class GetNumberParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   recid: int
+
+
+class GetByPrefixAndAccountNumberParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  prefix: str
+  account_number: str
 
 
 class UpsertNumberParams(BaseModel):
