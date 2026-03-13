@@ -6,6 +6,7 @@ from queryregistry.models import DBRequest
 
 from .models import (
   DeleteNumberParams,
+  GetByPrefixAndAccountNumberParams,
   GetNumberParams,
   ListNumbersParams,
   NextNumberParams,
@@ -14,6 +15,7 @@ from .models import (
 
 __all__ = [
   "delete_number_request",
+  "get_by_prefix_account_number_request",
   "get_number_request",
   "list_numbers_request",
   "next_number_request",
@@ -24,6 +26,11 @@ __all__ = [
 def list_numbers_request(params: ListNumbersParams) -> DBRequest:
   return DBRequest(op="db:finance:numbers:list:1", payload=params.model_dump())
 
+
+
+
+def get_by_prefix_account_number_request(params: GetByPrefixAndAccountNumberParams) -> DBRequest:
+  return DBRequest(op="db:finance:numbers:get_by_prefix_account:1", payload=params.model_dump())
 
 def get_number_request(params: GetNumberParams) -> DBRequest:
   return DBRequest(op="db:finance:numbers:get:1", payload=params.model_dump())
