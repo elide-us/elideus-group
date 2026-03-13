@@ -12,6 +12,9 @@ __all__ = [
   "AccountExistsPayload",
   "AccountExistsRequestPayload",
   "AccountsReadCallable",
+  "DiscordSecurityCallable",
+  "DiscordSecurityPayload",
+  "DiscordSecurityRequestPayload",
   "SecurityProfilePayload",
   "SecurityProfileRequestPayload",
 ]
@@ -63,6 +66,17 @@ class SecurityProfilePayload(TypedDict, total=False):
   extra: dict[str, Any]
 
 
+
+
+class DiscordSecurityRequestPayload(TypedDict):
+  discord_id: str
+
+
+class DiscordSecurityPayload(TypedDict, total=False):
+  user_guid: str
+  user_roles: int
+
+
 class AccountExistsRequestPayload(TypedDict):
   user_guid: str
 
@@ -73,3 +87,4 @@ class AccountExistsPayload(TypedDict):
 
 AccountsReadCallable = Callable[[SecurityProfileRequestPayload], Awaitable[DBResponse]]
 AccountExistsCallable = Callable[[AccountExistsRequestPayload], Awaitable[DBResponse]]
+DiscordSecurityCallable = Callable[[DiscordSecurityRequestPayload], Awaitable[DBResponse]]
