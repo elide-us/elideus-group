@@ -16,9 +16,12 @@ def test_list_imports_v1_maps_element_columns_to_rpc_shape(monkeypatch):
   asyncio.run(mssql.list_imports_v1({}))
 
   sql = captured['sql']
-  assert 'element_source AS source' in sql
-  assert 'element_metric AS metric' in sql
-  assert 'element_period_start AS period_start' in sql
+  assert 'element_source' in sql
+  assert 'AS source' not in sql
+  assert 'element_metric' in sql
+  assert 'AS metric' not in sql
+  assert 'element_period_start' in sql
+  assert 'AS period_start' not in sql
   assert captured['params'] == ()
 
 
