@@ -7,13 +7,14 @@ from typing import Sequence
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
-from .services import account_exists_v1, read_accounts_v1
+from .services import account_exists_v1, read_accounts_v1, read_discord_security_v1
 
 __all__ = ["handle_accounts_request"]
 
 DISPATCHERS = {
   ("read", "1"): read_accounts_v1,
   ("exists", "1"): account_exists_v1,
+  ("read_by_discord", "1"): read_discord_security_v1,
 }
 
 
