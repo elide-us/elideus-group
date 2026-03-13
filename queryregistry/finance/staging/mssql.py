@@ -30,6 +30,8 @@ def _to_element_column_name(field_name: str) -> str:
 
 async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
     DECLARE @inserted TABLE (
       recid bigint,
       element_source nvarchar(max),
@@ -130,16 +132,16 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
       recid,
-      element_source AS source,
-      element_scope AS scope,
-      element_metric AS metric,
-      element_period_start AS period_start,
-      element_period_end AS period_end,
-      element_status AS status,
-      element_row_count AS row_count,
-      element_error AS error,
-      element_created_on AS created_on,
-      element_modified_on AS modified_on
+      element_source,
+      element_scope,
+      element_metric,
+      element_period_start,
+      element_period_end,
+      element_status,
+      element_row_count,
+      element_error,
+      element_created_on,
+      element_modified_on
     FROM finance_staging_imports
     ORDER BY recid DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
