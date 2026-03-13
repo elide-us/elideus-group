@@ -66,16 +66,16 @@ type FinanceDimension = {
 
 type StagingImport = {
 	recid: number;
-	source: string;
-	scope: string | null;
-	metric: string;
-	period_start: string;
-	period_end: string;
-	row_count: number;
-	status: number;
-	error: string | null;
-	created_on: string;
-	modified_on: string;
+	element_source: string;
+	element_scope: string | null;
+	element_metric: string;
+	element_period_start: string;
+	element_period_end: string;
+	element_row_count: number;
+	element_status: number;
+	element_error: string | null;
+	element_created_on: string;
+	element_modified_on: string;
 };
 
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
@@ -479,14 +479,14 @@ const FinanceAdminPage = (): JSX.Element => {
 									}}
 								>
 									<TableCell>{row.recid}</TableCell>
-									<TableCell>{row.source}</TableCell>
-									<TableCell>{row.metric}</TableCell>
-									<TableCell>{row.period_start}</TableCell>
-									<TableCell>{row.period_end}</TableCell>
-									<TableCell>{row.row_count}</TableCell>
-									<TableCell>{row.status === 0 ? "Pending" : row.status === 1 ? "Completed" : row.status === 2 ? "Failed" : row.status}</TableCell>
-									<TableCell>{row.error ? `${row.error.slice(0, 80)}${row.error.length > 80 ? "..." : ""}` : ""}</TableCell>
-									<TableCell>{row.created_on}</TableCell>
+									<TableCell>{row.element_source}</TableCell>
+									<TableCell>{row.element_metric}</TableCell>
+									<TableCell>{row.element_period_start}</TableCell>
+									<TableCell>{row.element_period_end}</TableCell>
+									<TableCell>{row.element_row_count}</TableCell>
+									<TableCell>{row.element_status === 0 ? "Pending" : row.element_status === 1 ? "Completed" : row.element_status === 2 ? "Failed" : row.element_status}</TableCell>
+									<TableCell>{row.element_error ? `${row.element_error.slice(0, 80)}${row.element_error.length > 80 ? "..." : ""}` : ""}</TableCell>
+									<TableCell>{row.element_created_on}</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
@@ -495,7 +495,7 @@ const FinanceAdminPage = (): JSX.Element => {
 					{selectedImport !== null && (
 						<Stack spacing={1}>
 							<Typography variant="h6">
-								Import #{selectedImport} — {imports.find((row) => row.recid === selectedImport)?.row_count || 0} rows
+								Import #{selectedImport} — {imports.find((row) => row.recid === selectedImport)?.element_row_count || 0} rows
 							</Typography>
 							<Table size="small">
 								<TableHead>
