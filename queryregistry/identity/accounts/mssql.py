@@ -73,7 +73,7 @@ def _normalize_provider_identifier(identifier: str) -> str:
 def _normalize_discord_identifier(discord_id: str) -> str:
   from uuid import NAMESPACE_URL, uuid5
 
-  return str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{discord_id}"))))
+  return str(UUID(str(uuid5(NAMESPACE_URL, str(discord_id)))))
 
 
 def _unique(sequence: Iterable[str]) -> list[str]:
