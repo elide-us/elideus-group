@@ -92,10 +92,7 @@ class DbModule(BaseModule):
     except ValueError:
       raise ValueError(f"Invalid database operation: {op}")
 
-    registry_logger.info(
-      "Registry handler resolved",
-      extra={"db_op": op, "db_provider": provider_name},
-    )
+    registry_logger.info("DB completed: %s", op)
 
     response = await dispatch_query_request(request, provider=provider_name)
 
