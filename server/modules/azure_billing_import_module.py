@@ -234,6 +234,7 @@ class AzureBillingImportModule(BaseModule):
               f"({blob_response.status}): {response_text}",
             )
           csv_text = await blob_response.text()
+          csv_text = csv_text.lstrip("\ufeff")
 
       csv_reader = csv.DictReader(io.StringIO(csv_text))
       batch: list[dict[str, object]] = []
