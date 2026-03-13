@@ -371,14 +371,16 @@ class AuthModule(BaseModule):
     return self.role_cache.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    res = await self.db.run(
-      DBRequest(op="db:identity:accounts:read:1", payload={"discord_id": discord_id}),
-    )
+    from queryregistry.identity.accounts import read_by_discord_request
+
+    res = await self.db.run(read_by_discord_request(discord_id))
     rows = res.rows
     if not rows:
       return "", [], 0
     row = rows[0]
     guid = row.get("user_guid")
+    if not guid:
+      return "", [], 0
     mask = int(row.get("user_roles", 0) or 0)
     names = self.role_cache.mask_to_names(mask)
     return guid, names, mask
