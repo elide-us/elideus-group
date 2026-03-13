@@ -8,7 +8,7 @@ from typing import Any
 from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
-__all__ = ["delete_v1", "get_v1", "list_v1", "next_number_v1", "upsert_v1"]
+__all__ = ["delete_v1", "get_by_prefix_and_account_v1", "get_v1", "list_v1", "next_number_v1", "upsert_v1"]
 
 
 async def list_v1(args: Mapping[str, Any]) -> DBResponse:
@@ -35,6 +35,22 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
   """
   return await run_json_many(sql)
 
+
+
+
+async def get_by_prefix_and_account_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT TOP 1
+      recid,
+      element_prefix,
+      element_account_number,
+      element_display_format
+    FROM finance_numbers
+    WHERE element_prefix = ?
+      AND element_account_number = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (args["prefix"], args["account_number"]))
 
 async def get_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
@@ -77,7 +93,11 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
     ) AS source
     ON (
       (source.recid IS NOT NULL AND target.recid = source.recid)
-      OR (source.recid IS NULL AND target.accounts_guid = source.accounts_guid)
+      OR (
+        source.recid IS NULL
+        AND target.element_prefix = source.element_prefix
+        AND target.element_account_number = source.element_account_number
+      )
     )
     WHEN MATCHED THEN
       UPDATE SET

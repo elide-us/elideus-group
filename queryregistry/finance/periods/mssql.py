@@ -15,24 +15,26 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
   del args
   sql = """
     SELECT
-      element_guid,
-      element_year,
-      element_period_number,
-      element_period_name,
-      element_start_date,
-      element_end_date,
-      element_days_in_period,
-      element_quarter_number,
-      element_has_closing_week,
-      element_is_leap_adjustment,
-      element_anchor_event,
-      element_close_type,
-      element_status,
-      numbers_recid,
-      element_created_on,
-      element_modified_on
-    FROM finance_periods
-    ORDER BY element_year ASC, element_period_number ASC
+      fp.element_guid,
+      fp.element_year,
+      fp.element_period_number,
+      fp.element_period_name,
+      fp.element_start_date,
+      fp.element_end_date,
+      fp.element_days_in_period,
+      fp.element_quarter_number,
+      fp.element_has_closing_week,
+      fp.element_is_leap_adjustment,
+      fp.element_anchor_event,
+      fp.element_close_type,
+      fp.element_status,
+      fp.numbers_recid,
+      fn.element_display_format,
+      fp.element_created_on,
+      fp.element_modified_on
+    FROM finance_periods fp
+    LEFT JOIN finance_numbers fn ON fn.recid = fp.numbers_recid
+    ORDER BY fp.element_year ASC, fp.element_period_number ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql)
@@ -41,25 +43,27 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
 async def list_by_year_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      element_guid,
-      element_year,
-      element_period_number,
-      element_period_name,
-      element_start_date,
-      element_end_date,
-      element_days_in_period,
-      element_quarter_number,
-      element_has_closing_week,
-      element_is_leap_adjustment,
-      element_anchor_event,
-      element_close_type,
-      element_status,
-      numbers_recid,
-      element_created_on,
-      element_modified_on
-    FROM finance_periods
-    WHERE element_year = ?
-    ORDER BY element_period_number ASC
+      fp.element_guid,
+      fp.element_year,
+      fp.element_period_number,
+      fp.element_period_name,
+      fp.element_start_date,
+      fp.element_end_date,
+      fp.element_days_in_period,
+      fp.element_quarter_number,
+      fp.element_has_closing_week,
+      fp.element_is_leap_adjustment,
+      fp.element_anchor_event,
+      fp.element_close_type,
+      fp.element_status,
+      fp.numbers_recid,
+      fn.element_display_format,
+      fp.element_created_on,
+      fp.element_modified_on
+    FROM finance_periods fp
+    LEFT JOIN finance_numbers fn ON fn.recid = fp.numbers_recid
+    WHERE fp.element_year = ?
+    ORDER BY fp.element_period_number ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["year"],))
@@ -68,24 +72,26 @@ async def list_by_year_v1(args: Mapping[str, Any]) -> DBResponse:
 async def get_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      element_guid,
-      element_year,
-      element_period_number,
-      element_period_name,
-      element_start_date,
-      element_end_date,
-      element_days_in_period,
-      element_quarter_number,
-      element_has_closing_week,
-      element_is_leap_adjustment,
-      element_anchor_event,
-      element_close_type,
-      element_status,
-      numbers_recid,
-      element_created_on,
-      element_modified_on
-    FROM finance_periods
-    WHERE element_guid = ?
+      fp.element_guid,
+      fp.element_year,
+      fp.element_period_number,
+      fp.element_period_name,
+      fp.element_start_date,
+      fp.element_end_date,
+      fp.element_days_in_period,
+      fp.element_quarter_number,
+      fp.element_has_closing_week,
+      fp.element_is_leap_adjustment,
+      fp.element_anchor_event,
+      fp.element_close_type,
+      fp.element_status,
+      fp.numbers_recid,
+      fn.element_display_format,
+      fp.element_created_on,
+      fp.element_modified_on
+    FROM finance_periods fp
+    LEFT JOIN finance_numbers fn ON fn.recid = fp.numbers_recid
+    WHERE fp.element_guid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["guid"],))

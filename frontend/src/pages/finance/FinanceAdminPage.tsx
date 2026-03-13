@@ -32,7 +32,8 @@ type FinancePeriod = {
 	quarter_number: number;
 	has_closing_week: boolean;
 	status: number;
-	is_leap_adjustment: boolean;
+	numbers_recid: number | null;
+	element_display_format: string | null;
 };
 
 type FinanceAccount = {
@@ -238,20 +239,22 @@ const FinanceAdminPage = (): JSX.Element => {
 								<TableCell>Days</TableCell>
 								<TableCell>Close</TableCell>
 								<TableCell>Status</TableCell>
-								<TableCell>Leap</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
 							{periods.map((item) => (
 								<TableRow key={item.guid || `${item.year}-${item.period_number}`}>
-									<TableCell>{item.period_name}</TableCell>
+									<TableCell>
+										{item.element_display_format
+											? `${item.element_display_format}-${item.period_name}`
+											: item.period_name}
+									</TableCell>
 									<TableCell>{item.quarter_number}</TableCell>
 									<TableCell>{item.start_date}</TableCell>
 									<TableCell>{item.end_date}</TableCell>
 									<TableCell>{item.days_in_period}</TableCell>
 									<TableCell>{item.has_closing_week ? "Yes" : "No"}</TableCell>
 									<TableCell>{item.status}</TableCell>
-									<TableCell>{item.is_leap_adjustment ? "Yes" : "No"}</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
