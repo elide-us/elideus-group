@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 from mcp.server.fastmcp import Context, FastMCP
@@ -21,6 +21,9 @@ from queryregistry.handler import dispatch_query_request
 from queryregistry.models import DBRequest
 from queryregistry.providers.mssql import run_json_many
 from rpc import HANDLERS as RPC_HANDLERS
+
+if TYPE_CHECKING:
+  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 _MCP_TOKEN = os.environ.get("MCP_AGENT_TOKEN", "")
 _ALLOWED_VIEWS = frozenset({
@@ -38,6 +41,7 @@ _ALLOWED_VIEWS = frozenset({
 })
 
 mcp = FastMCP("oracle_rpc_mcp")
+session_manager: StreamableHTTPSessionManager | None = None
 _TOOL_ANNOTATIONS = ToolAnnotations(
   readOnlyHint=True,
   destructiveHint=False,
@@ -191,27 +195,20 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> list[str]:
 
 def get_mcp_app() -> Starlette | None:
   """Return the MCP ASGI app wrapped with auth middleware, or None if unconfigured."""
+  global session_manager
   if not _MCP_TOKEN:
     logging.info("[MCP] skipped (MCP_AGENT_TOKEN not set)")
     return None
 
-  from contextlib import asynccontextmanager
-  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager as _Manager
 
-  session_manager = StreamableHTTPSessionManager(
+  session_manager = _Manager(
     app=mcp._mcp_server,
     json_response=True,
     stateless=True,
   )
 
-  @asynccontextmanager
-  async def mcp_lifespan(app: Any):
-    async with session_manager.run():
-      logging.info("[MCP] server mounted at /mcp")
-      yield
-
   mcp_inner = Starlette(
-    lifespan=mcp_lifespan,
     routes=[
       Mount("/mcp", app=session_manager.handle_request),
     ],
@@ -219,4 +216,5 @@ def get_mcp_app() -> Starlette | None:
 
   app = Starlette(middleware=[Middleware(MCPAuthMiddleware)])
   app.mount("/", mcp_inner)
+  logging.info("[MCP] app built, waiting for lifespan init")
   return app
