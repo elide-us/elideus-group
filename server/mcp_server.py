@@ -307,7 +307,8 @@ async def oracle_query_info_schema(
     sql += f" WHERE {_quote_ident(filter_column)} = ?"
     params = (filter_value,)
   sql += " FOR JSON PATH;"
-  return await run_json_many(sql, params)
+  response = await run_json_many(sql, params)
+  return response.rows if hasattr(response, "rows") else response
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
