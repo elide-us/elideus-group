@@ -32,6 +32,42 @@ Layer responsibility rule: **Modules (business logic) → QueryRegistry (data-ac
 
 ## Security Model
 
+## MCP Server (Schema Discovery)
+
+The application hosts an MCP (Model Context Protocol) server at `/mcp` that
+provides read-only access to the database reflection domain and
+INFORMATION_SCHEMA. This endpoint is designed for LLM agents (Claude, Codex)
+to discover the database schema and query registry structure for prompt
+planning.
+
+### Authentication
+
+The MCP endpoint requires a bearer token matching the `MCP_AGENT_TOKEN`
+environment variable. This token is linked to a dedicated API user account
+in `account_api_tokens`. The MCP server validates the token via ASGI
+middleware — requests without a valid bearer token receive HTTP 401.
+
+### Available Tools
+
+All tools are read-only and idempotent.
+
+| Tool | Description |
+|------|-------------|
+| `oracle_list_tables` | List all tables from the reflection schema catalog |
+| `oracle_describe_table` | Columns, indexes, and foreign keys for a table |
+| `oracle_list_views` | List all views with definitions |
+| `oracle_get_full_schema` | Complete schema dump |
+| `oracle_get_schema_version` | Current schema version from system_config |
+| `oracle_dump_table` | Export table rows as JSON (with row limit) |
+| `oracle_query_info_schema` | Query INFORMATION_SCHEMA views (whitelisted) |
+| `oracle_list_domains` | Enumerate query registry domains/subdomains/ops |
+| `oracle_list_rpc_endpoints` | List RPC domain handler names |
+
+### Transport
+
+Streamable HTTP transport mounted at `/mcp` on the existing FastAPI server.
+Runs in-process sharing the same database connection pool.
+
 ### Role Bit Assignments
 
 This project uses a signed 64‑bit integer to represent security roles and user feature
@@ -146,4 +182,3 @@ and the appropriate role:
 The RPC layer decrypts the bearer token to extract the user's GUID, builds an
 `RPCRequest`, validates roles, credits, and entitlements, and then dispatches the
 operation if authorized.
-
