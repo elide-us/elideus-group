@@ -331,7 +331,7 @@ def get_mcp_app() -> Starlette | None:
 
   mcp_inner = Starlette(
     routes=[
-      Mount("/mcp", app=session_manager.handle_request),
+      Mount("/", app=session_manager.handle_request),
     ],
   )
 
