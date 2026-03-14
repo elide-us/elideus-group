@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextvars
 import importlib
 import logging
 import os
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
@@ -16,6 +18,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.routing import Mount
 
+from queryregistry.finance.credits import set_credits_request
+from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.handler import HANDLERS as QR_HANDLERS
 from queryregistry.handler import dispatch_query_request
 from queryregistry.models import DBRequest
@@ -26,6 +30,9 @@ if TYPE_CHECKING:
   from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 _MCP_TOKEN = os.environ.get("MCP_AGENT_TOKEN", "")
+_hostname = os.environ.get("MCP_HOSTNAME", "localhost")
+_gateway_resolver: Callable[[], Any] | None = None
+_AUTH_CONTEXT: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar("mcp_auth", default=None)
 _ALLOWED_VIEWS = frozenset({
   "TABLES",
   "COLUMNS",
@@ -50,16 +57,118 @@ _TOOL_ANNOTATIONS = ToolAnnotations(
 )
 
 
+def set_gateway_resolver(resolver: Callable[[], Any] | None) -> None:
+  global _gateway_resolver
+  _gateway_resolver = resolver
+
+
+def _get_gateway() -> Any:
+  if _gateway_resolver is None:
+    raise RuntimeError("MCP gateway resolver is not configured")
+  gateway = _gateway_resolver()
+  if gateway is None:
+    raise RuntimeError("MCP gateway is unavailable")
+  global _hostname
+  hostname = getattr(gateway, "hostname", None)
+  if hostname:
+    _hostname = str(hostname)
+  return gateway
+
+
 class MCPAuthMiddleware(BaseHTTPMiddleware):
-  """Simple bearer-token gate for the mounted MCP app."""
+  """Bearer-token gate: static token OR MCP OAuth JWT."""
 
   async def dispatch(self, request: Any, call_next: Any) -> JSONResponse | Any:
     if not _MCP_TOKEN:
       return JSONResponse({"error": "MCP not configured"}, status_code=503)
+
     auth = request.headers.get("authorization", "")
-    if not auth.startswith("Bearer ") or auth[7:] != _MCP_TOKEN:
-      return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    return await call_next(request)
+    if not auth.startswith("Bearer "):
+      return JSONResponse(
+        {"error": "Unauthorized"},
+        status_code=401,
+        headers={
+          "WWW-Authenticate": f'Bearer resource_metadata="https://{_hostname}/.well-known/oauth-protected-resource"'
+        },
+      )
+
+    token = auth[7:]
+
+    if token == _MCP_TOKEN:
+      request.state.mcp_auth = {
+        "type": "static",
+        "scopes": {
+          "mcp:schema:read",
+          "mcp:data:read",
+          "mcp:rpc:list",
+          "mcp:schema:write",
+          "mcp:data:write",
+          "mcp:rpc:execute",
+          "mcp:admin",
+        },
+        "user_guid": None,
+        "client_id": None,
+      }
+      token_handle = _AUTH_CONTEXT.set(request.state.mcp_auth)
+      try:
+        return await call_next(request)
+      finally:
+        _AUTH_CONTEXT.reset(token_handle)
+
+    try:
+      gateway = _get_gateway()
+      claims = await gateway.validate_access_token(token)
+      request.state.mcp_auth = {
+        "type": "oauth",
+        "scopes": set(str(claims.get("scopes", "")).split()),
+        "user_guid": claims.get("sub"),
+        "client_id": claims.get("client_id"),
+      }
+      token_handle = _AUTH_CONTEXT.set(request.state.mcp_auth)
+      try:
+        return await call_next(request)
+      finally:
+        _AUTH_CONTEXT.reset(token_handle)
+    except Exception:
+      return JSONResponse(
+        {"error": "Unauthorized"},
+        status_code=401,
+        headers={
+          "WWW-Authenticate": f'Bearer resource_metadata="https://{_hostname}/.well-known/oauth-protected-resource"'
+        },
+      )
+
+
+def _check_scope(ctx: Context, required_scope: str) -> dict[str, Any]:
+  """Check scope authorization from middleware-injected auth state."""
+  mcp_auth = None
+  request_context = getattr(ctx, "request_context", None)
+  request = getattr(request_context, "request", None) if request_context else None
+  if request is not None:
+    mcp_auth = getattr(request.state, "mcp_auth", None)
+  if mcp_auth is None:
+    mcp_auth = _AUTH_CONTEXT.get()
+  if mcp_auth is None:
+    raise HTTPException(status_code=401, detail="Not authenticated")
+  if required_scope not in mcp_auth["scopes"]:
+    raise HTTPException(status_code=403, detail=f"Scope '{required_scope}' required")
+  return mcp_auth
+
+
+async def _consume_credit(auth: dict[str, Any], *, cost: int) -> None:
+  if cost <= 0 or auth.get("type") != "oauth":
+    return
+  gateway = _get_gateway()
+  client_id = auth.get("client_id")
+  if not client_id:
+    raise HTTPException(status_code=401, detail="OAuth client binding is missing")
+  client = await gateway.get_client(str(client_id))
+  if not client:
+    raise HTTPException(status_code=401, detail="OAuth client is invalid")
+  user_guid, credits = await gateway.resolve_agent_credits(int(client["recid"]))
+  if credits < cost:
+    raise HTTPException(status_code=402, detail="Insufficient credits")
+  await gateway.db.run(set_credits_request(SetCreditsParams(guid=user_guid, credits=credits - cost)))
 
 
 def _quote_ident(identifier: str) -> str:
@@ -72,10 +181,10 @@ def _extract_payload(response: Any) -> Any:
   return response
 
 
-
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_tables(ctx: Context) -> Any:
   """List tables exposed by the reflection schema registry."""
+  _check_scope(ctx, "mcp:schema:read")
   response = await dispatch_query_request(DBRequest(op="db:reflection:schema:list_tables:1", payload={}))
   return _extract_payload(response)
 
@@ -87,6 +196,7 @@ async def oracle_describe_table(
   table_schema: str = "dbo",
 ) -> dict[str, Any]:
   """Describe a table by returning columns, indexes, and foreign keys."""
+  _check_scope(ctx, "mcp:schema:read")
   payload = {"table_schema": table_schema, "name": table_name}
   columns = await dispatch_query_request(DBRequest(op="db:reflection:schema:list_columns:1", payload=payload))
   indexes = await dispatch_query_request(DBRequest(op="db:reflection:schema:list_indexes:1", payload=payload))
@@ -101,6 +211,7 @@ async def oracle_describe_table(
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_views(ctx: Context) -> Any:
   """List database views from reflection schema metadata."""
+  _check_scope(ctx, "mcp:schema:read")
   response = await dispatch_query_request(DBRequest(op="db:reflection:schema:list_views:1", payload={}))
   return _extract_payload(response)
 
@@ -108,6 +219,7 @@ async def oracle_list_views(ctx: Context) -> Any:
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_get_full_schema(ctx: Context) -> Any:
   """Return the full reflection schema snapshot payload."""
+  _check_scope(ctx, "mcp:schema:read")
   response = await dispatch_query_request(DBRequest(op="db:reflection:schema:get_full_schema:1", payload={}))
   return _extract_payload(response)
 
@@ -115,6 +227,7 @@ async def oracle_get_full_schema(ctx: Context) -> Any:
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_get_schema_version(ctx: Context) -> Any:
   """Return the current schema version from reflection data metadata."""
+  _check_scope(ctx, "mcp:data:read")
   response = await dispatch_query_request(DBRequest(op="db:reflection:data:get_version:1", payload={}))
   return _extract_payload(response)
 
@@ -127,6 +240,8 @@ async def oracle_dump_table(
   max_rows: int = 100,
 ) -> dict[str, Any]:
   """Dump table rows from reflection data and return a bounded result set."""
+  auth = _check_scope(ctx, "mcp:data:read")
+  await _consume_credit(auth, cost=1)
   bounded_max_rows = max(0, min(max_rows, 1000))
   response = await dispatch_query_request(
     DBRequest(op="db:reflection:data:dump_table:1", payload={"table_schema": table_schema, "name": table_name})
@@ -150,6 +265,8 @@ async def oracle_query_info_schema(
   filter_value: str | None = None,
 ) -> Any:
   """Query whitelisted INFORMATION_SCHEMA views with optional equality filter."""
+  auth = _check_scope(ctx, "mcp:data:read")
+  await _consume_credit(auth, cost=1)
   if view_name not in _ALLOWED_VIEWS:
     raise HTTPException(status_code=400, detail=f"Unsupported INFORMATION_SCHEMA view: {view_name}")
 
@@ -165,6 +282,7 @@ async def oracle_query_info_schema(
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_domains(ctx: Context) -> dict[str, Any]:
   """Enumerate query registry domains, subdomains, and operation versions."""
+  _check_scope(ctx, "mcp:rpc:list")
   results: dict[str, Any] = {}
   for domain, domain_handler in QR_HANDLERS.items():
     try:
@@ -190,6 +308,7 @@ async def oracle_list_domains(ctx: Context) -> dict[str, Any]:
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_endpoints(ctx: Context) -> list[str]:
   """List available top-level RPC domains."""
+  _check_scope(ctx, "mcp:rpc:list")
   return sorted(RPC_HANDLERS.keys())
 
 
