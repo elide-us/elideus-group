@@ -14,6 +14,7 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.routing import Mount
 
 from queryregistry.handler import HANDLERS as QR_HANDLERS
 from queryregistry.handler import dispatch_query_request
@@ -189,12 +190,33 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> list[str]:
 
 
 def get_mcp_app() -> Starlette | None:
-  """Return the MCP ASGI app wrapped with auth middleware."""
+  """Return the MCP ASGI app wrapped with auth middleware, or None if unconfigured."""
   if not _MCP_TOKEN:
     logging.info("[MCP] skipped (MCP_AGENT_TOKEN not set)")
     return None
-  mcp_asgi = mcp.streamable_http_app()
+
+  from contextlib import asynccontextmanager
+  from mcp.server.streamable_http import StreamableHTTPSessionManager
+
+  session_manager = StreamableHTTPSessionManager(
+    app=mcp._mcp_server,
+    json_response=True,
+    stateless=True,
+  )
+
+  @asynccontextmanager
+  async def mcp_lifespan(app: Any):
+    async with session_manager.run():
+      logging.info("[MCP] server mounted at /mcp")
+      yield
+
+  mcp_inner = Starlette(
+    lifespan=mcp_lifespan,
+    routes=[
+      Mount("/mcp", app=session_manager.handle_request),
+    ],
+  )
+
   app = Starlette(middleware=[Middleware(MCPAuthMiddleware)])
-  app.mount("/", mcp_asgi)
-  logging.info("[MCP] server mounted at /mcp")
+  app.mount("/", mcp_inner)
   return app
