@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 from typing import Any
 
@@ -190,8 +191,10 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> list[str]:
 def get_mcp_app() -> Starlette | None:
   """Return the MCP ASGI app wrapped with auth middleware."""
   if not _MCP_TOKEN:
+    logging.info("[MCP] skipped (MCP_AGENT_TOKEN not set)")
     return None
   mcp_asgi = mcp.streamable_http_app()
   app = Starlette(middleware=[Middleware(MCPAuthMiddleware)])
   app.mount("/", mcp_asgi)
+  logging.info("[MCP] server mounted at /mcp")
   return app
