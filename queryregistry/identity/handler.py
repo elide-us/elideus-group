@@ -10,6 +10,7 @@ from queryregistry.models import DBRequest, DBResponse
 
 from .accounts.handler import handle_accounts_request
 from .audit.handler import handle_audit_request
+from .mcp_agents.handler import handle_mcp_agents_request
 from .profiles.handler import handle_profiles_request
 from .providers.handler import handle_providers_request
 from .role_memberships.handler import handle_role_memberships_request
@@ -20,6 +21,7 @@ __all__ = ["handle_identity_request"]
 HANDLERS = {
   "accounts": handle_accounts_request,
   "audit": handle_audit_request,
+  "mcp_agents": handle_mcp_agents_request,
   "profiles": handle_profiles_request,
   "providers": handle_providers_request,
   "role_memberships": handle_role_memberships_request,
