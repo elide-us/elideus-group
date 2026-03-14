@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -273,12 +275,17 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
   flow_payload = _decode_flow_state(request, flow)
   hostname = request.app.state.mcp_gateway.hostname
   callback = _callback_uri(hostname, provider)
+  provider_code_verifier = secrets.token_urlsafe(32)
+  provider_code_challenge = base64.urlsafe_b64encode(
+    hashlib.sha256(provider_code_verifier.encode("utf-8")).digest()
+  ).decode("utf-8").rstrip("=")
   state_payload = _sign_flow_state(
     request,
     {
       "provider": provider,
       "flow": flow_payload,
       "nonce": base64.urlsafe_b64encode(os.urandom(12)).decode("utf-8").rstrip("="),
+      "provider_code_verifier": provider_code_verifier,
     },
   )
 
@@ -288,6 +295,8 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
     "redirect_uri": callback,
     "scope": _PROVIDER_SCOPES[provider],
     "state": state_payload,
+    "code_challenge": provider_code_challenge,
+    "code_challenge_method": "S256",
   }
   if provider == "google":
     params["access_type"] = "offline"
@@ -297,8 +306,18 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
 
 
 @router.get("/oauth/callback/{provider}")
-async def get_oauth_provider_callback(request: Request, provider: str, code: str | None = None, state: str | None = None):
+async def get_oauth_provider_callback(
+  request: Request,
+  provider: str,
+  code: str | None = None,
+  state: str | None = None,
+  error: str | None = None,
+  error_description: str | None = None,
+):
   provider = provider.lower()
+  if error:
+    detail = error_description or error
+    raise HTTPException(status_code=400, detail=f"Provider authentication failed: {detail}")
   if not state or not code:
     raise HTTPException(status_code=400, detail="Missing code or state")
   callback_state = _decode_flow_state(request, state)
@@ -310,13 +329,16 @@ async def get_oauth_provider_callback(request: Request, provider: str, code: str
     raise HTTPException(status_code=400, detail="Authorization flow is invalid")
 
   gateway = request.app.state.mcp_gateway
+  hostname = gateway.hostname
   redirect_uri = _callback_uri(hostname, provider)
+  provider_code_verifier = callback_state.get("provider_code_verifier")
   id_token, access_token = await gateway.oauth.exchange_code_for_tokens(
     code=code,
     client_id=_provider_client_id(gateway, provider),
     client_secret=_provider_secret(gateway, provider),
     redirect_uri=redirect_uri,
     provider=provider,
+    code_verifier=provider_code_verifier,
   )
   provider_uid, profile, payload = await gateway.auth.handle_auth_login(provider, id_token, access_token)
   provider_uid = gateway.oauth.normalize_provider_identifier(provider_uid)
