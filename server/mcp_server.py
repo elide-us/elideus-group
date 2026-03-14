@@ -196,7 +196,7 @@ def get_mcp_app() -> Starlette | None:
     return None
 
   from contextlib import asynccontextmanager
-  from mcp.server.streamable_http import StreamableHTTPSessionManager
+  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
   session_manager = StreamableHTTPSessionManager(
     app=mcp._mcp_server,
