@@ -329,13 +329,12 @@ def get_mcp_app() -> Starlette | None:
     stateless=True,
   )
 
-  mcp_inner = Starlette(
+  app = Starlette(
     routes=[
       Mount("/", app=session_manager.handle_request),
     ],
+    middleware=[Middleware(MCPAuthMiddleware)],
+    redirect_slashes=False,
   )
-
-  app = Starlette(middleware=[Middleware(MCPAuthMiddleware)])
-  app.mount("/", mcp_inner)
   logging.info("[MCP] app built, waiting for lifespan init")
   return app
