@@ -335,6 +335,7 @@ class OauthModule(BaseModule):
     client_secret: str,
     redirect_uri: str,
     provider: str = "google",
+    code_verifier: str | None = None,
   ) -> tuple[str | None, str]:
     """Exchange an authorization code for tokens.
 
@@ -361,6 +362,8 @@ class OauthModule(BaseModule):
       "redirect_uri": redirect_uri,
       "grant_type": "authorization_code",
     }
+    if code_verifier:
+      data["code_verifier"] = code_verifier
     logging.debug(
       "[exchange_code_for_tokens] data=%s",
       {k: v for k, v in data.items() if k != "client_secret"},
