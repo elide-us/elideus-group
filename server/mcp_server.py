@@ -118,6 +118,7 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
     try:
       gateway = _get_gateway()
       claims = await gateway.validate_access_token(token)
+      logging.info("[MCP Auth] JWT validated: sub=%s client_id=%s scopes=%s", claims.get("sub"), claims.get("client_id"), claims.get("scopes"))
       request.state.mcp_auth = {
         "type": "oauth",
         "scopes": set(str(claims.get("scopes", "")).split()),
@@ -129,7 +130,8 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
       finally:
         _AUTH_CONTEXT.reset(token_handle)
-    except Exception:
+    except Exception as exc:
+      logging.error("[MCP Auth] JWT validation failed: %s", exc, exc_info=True)
       return JSONResponse(
         {"error": "Unauthorized"},
         status_code=401,
