@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -323,6 +324,7 @@ async def get_oauth_provider_callback(
   callback_state = _decode_flow_state(request, state)
   if callback_state.get("provider") != provider:
     raise HTTPException(status_code=400, detail="Provider state mismatch")
+  logging.info("[MCP OAuth] Provider callback received: provider=%s", provider)
 
   flow = callback_state.get("flow")
   if not isinstance(flow, dict):
@@ -340,9 +342,20 @@ async def get_oauth_provider_callback(
     provider=provider,
     code_verifier=provider_code_verifier,
   )
+  logging.info(
+    "[MCP OAuth] Provider %s token exchange complete for flow client_id=%s",
+    provider,
+    flow.get("client_id"),
+  )
   provider_uid, profile, payload = await gateway.auth.handle_auth_login(provider, id_token, access_token)
+  logging.info(
+    "[MCP OAuth] Authenticated user: %s via %s",
+    profile.get("email") or profile.get("username"),
+    provider,
+  )
   provider_uid = gateway.oauth.normalize_provider_identifier(provider_uid)
   user = await gateway.oauth.resolve_user(provider, provider_uid, profile, payload)
+  logging.info("[MCP OAuth] Resolved user guid=%s, recid=%s", user.get("guid"), user.get("recid"))
   user_guid = str(user.get("guid") or "")
   if not user_guid or not await gateway.check_user_mcp_role(user_guid):
     raise HTTPException(status_code=403, detail="User is not authorized for MCP access")
@@ -353,6 +366,23 @@ async def get_oauth_provider_callback(
     raise HTTPException(status_code=400, detail="Unknown OAuth client")
 
   users_recid = user.get("recid")
+  if users_recid is None:
+    user_guid_val = user.get("guid") or user.get("user_guid") or user.get("element_guid")
+    if user_guid_val:
+      from queryregistry.models import DBRequest
+
+      lookup = await gateway.db.run(
+        DBRequest(op="db:identity:accounts:read:1", payload={"guid": str(user_guid_val)})
+      )
+      if lookup.rows:
+        users_recid = lookup.rows[0].get("recid")
+  if users_recid is None:
+    users_recid = client.get("users_recid")
+  logging.info(
+    "[MCP OAuth] Resolved users_recid=%s for client '%s'",
+    users_recid,
+    client.get("element_client_name"),
+  )
   if users_recid is None:
     raise HTTPException(status_code=400, detail="User account record is missing")
 
@@ -371,6 +401,12 @@ async def get_oauth_provider_callback(
   params = {"code": auth_code}
   if final_state is not None:
     params["state"] = final_state
+
+  logging.info(
+    "[MCP OAuth] Authorization code issued for client '%s', redirecting to %s",
+    client.get("element_client_name"),
+    final_redirect_uri,
+  )
 
   return RedirectResponse(f"{final_redirect_uri}?{urlencode(params)}", status_code=302)
 
