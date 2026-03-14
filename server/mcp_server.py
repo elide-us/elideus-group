@@ -12,11 +12,9 @@ from typing import TYPE_CHECKING, Any
 from fastapi import HTTPException
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
-from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.routing import Mount
+from starlette.types import Receive, Scope, Send
 
 from queryregistry.finance.credits import set_credits_request
 from queryregistry.finance.credits.models import SetCreditsParams
@@ -75,70 +73,101 @@ def _get_gateway() -> Any:
   return gateway
 
 
-class MCPAuthMiddleware(BaseHTTPMiddleware):
-  """Bearer-token gate: static token OR MCP OAuth JWT."""
+def _auth_challenge_headers() -> dict[str, str]:
+  return {
+    "WWW-Authenticate": f'Bearer resource_metadata="https://{_hostname}/.well-known/oauth-protected-resource"'
+  }
 
-  async def dispatch(self, request: Any, call_next: Any) -> JSONResponse | Any:
-    if not _MCP_TOKEN:
-      return JSONResponse({"error": "MCP not configured"}, status_code=503)
 
-    auth = request.headers.get("authorization", "")
-    if not auth.startswith("Bearer "):
-      return JSONResponse(
-        {"error": "Unauthorized"},
-        status_code=401,
-        headers={
-          "WWW-Authenticate": f'Bearer resource_metadata="https://{_hostname}/.well-known/oauth-protected-resource"'
-        },
-      )
+async def mcp_auth_check(scope: Scope, receive: Receive, send: Send) -> dict[str, Any] | None:
+  """Validate MCP auth from bearer token or JWT; send 401 when invalid."""
+  if not _MCP_TOKEN:
+    response = JSONResponse({"error": "MCP not configured"}, status_code=503)
+    await response(scope, receive, send)
+    return None
 
-    token = auth[7:]
+  request = Request(scope, receive)
+  auth = request.headers.get("authorization", "")
+  if not auth.startswith("Bearer "):
+    response = JSONResponse(
+      {"error": "Unauthorized"},
+      status_code=401,
+      headers=_auth_challenge_headers(),
+    )
+    await response(scope, receive, send)
+    return None
 
-    if token == _MCP_TOKEN:
-      request.state.mcp_auth = {
-        "type": "static",
-        "scopes": {
-          "mcp:schema:read",
-          "mcp:data:read",
-          "mcp:rpc:list",
-          "mcp:schema:write",
-          "mcp:data:write",
-          "mcp:rpc:execute",
-          "mcp:admin",
-        },
-        "user_guid": None,
-        "client_id": None,
-      }
-      token_handle = _AUTH_CONTEXT.set(request.state.mcp_auth)
-      try:
-        return await call_next(request)
-      finally:
-        _AUTH_CONTEXT.reset(token_handle)
+  token = auth[7:]
+  if token == _MCP_TOKEN:
+    return {
+      "type": "static",
+      "scopes": {
+        "mcp:schema:read",
+        "mcp:data:read",
+        "mcp:rpc:list",
+        "mcp:schema:write",
+        "mcp:data:write",
+        "mcp:rpc:execute",
+        "mcp:admin",
+      },
+      "user_guid": None,
+      "client_id": None,
+    }
 
-    try:
-      gateway = _get_gateway()
-      claims = await gateway.validate_access_token(token)
-      logging.info("[MCP Auth] JWT validated: sub=%s client_id=%s scopes=%s", claims.get("sub"), claims.get("client_id"), claims.get("scopes"))
-      request.state.mcp_auth = {
-        "type": "oauth",
-        "scopes": set(str(claims.get("scopes", "")).split()),
-        "user_guid": claims.get("sub"),
-        "client_id": claims.get("client_id"),
-      }
-      token_handle = _AUTH_CONTEXT.set(request.state.mcp_auth)
-      try:
-        return await call_next(request)
-      finally:
-        _AUTH_CONTEXT.reset(token_handle)
-    except Exception as exc:
-      logging.error("[MCP Auth] JWT validation failed: %s", exc, exc_info=True)
-      return JSONResponse(
-        {"error": "Unauthorized"},
-        status_code=401,
-        headers={
-          "WWW-Authenticate": f'Bearer resource_metadata="https://{_hostname}/.well-known/oauth-protected-resource"'
-        },
-      )
+  try:
+    gateway = _get_gateway()
+    claims = await gateway.validate_access_token(token)
+    logging.info("[MCP Auth] JWT validated: sub=%s client_id=%s scopes=%s", claims.get("sub"), claims.get("client_id"), claims.get("scopes"))
+    return {
+      "type": "oauth",
+      "scopes": set(str(claims.get("scopes", "")).split()),
+      "user_guid": claims.get("sub"),
+      "client_id": claims.get("client_id"),
+    }
+  except Exception as exc:
+    logging.error("[MCP Auth] JWT validation failed: %s", exc, exc_info=True)
+    response = JSONResponse(
+      {"error": "Unauthorized"},
+      status_code=401,
+      headers=_auth_challenge_headers(),
+    )
+    await response(scope, receive, send)
+    return None
+
+
+async def mcp_asgi_handler(scope: Scope, receive: Receive, send: Send) -> None:
+  """Authenticate and delegate to the MCP session manager ASGI handler."""
+  if session_manager is None:
+    response = JSONResponse({"error": "MCP not configured"}, status_code=503)
+    await response(scope, receive, send)
+    return
+
+  auth = await mcp_auth_check(scope, receive, send)
+  if auth is None:
+    return
+
+  token_handle = _AUTH_CONTEXT.set(auth)
+  try:
+    await session_manager.handle_request(scope, receive, send)
+  finally:
+    _AUTH_CONTEXT.reset(token_handle)
+
+
+def init_session_manager() -> None:
+  """Create the MCP session manager when MCP is configured."""
+  global session_manager
+  if not _MCP_TOKEN:
+    logging.info("[MCP] skipped (MCP_AGENT_TOKEN not set)")
+    return
+
+  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager as _Manager
+
+  session_manager = _Manager(
+    app=mcp._mcp_server,
+    json_response=True,
+    stateless=True,
+  )
+  logging.info("[MCP] session manager built, waiting for lifespan init")
 
 
 def _check_scope(ctx: Context, required_scope: str) -> dict[str, Any]:
@@ -312,29 +341,3 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> list[str]:
   """List available top-level RPC domains."""
   _check_scope(ctx, "mcp:rpc:list")
   return sorted(RPC_HANDLERS.keys())
-
-
-def get_mcp_app() -> Starlette | None:
-  """Return the MCP ASGI app wrapped with auth middleware, or None if unconfigured."""
-  global session_manager
-  if not _MCP_TOKEN:
-    logging.info("[MCP] skipped (MCP_AGENT_TOKEN not set)")
-    return None
-
-  from mcp.server.streamable_http_manager import StreamableHTTPSessionManager as _Manager
-
-  session_manager = _Manager(
-    app=mcp._mcp_server,
-    json_response=True,
-    stateless=True,
-  )
-
-  app = Starlette(
-    routes=[
-      Mount("/", app=session_manager.handle_request),
-    ],
-    middleware=[Middleware(MCPAuthMiddleware)],
-    redirect_slashes=False,
-  )
-  logging.info("[MCP] app built, waiting for lifespan init")
-  return app
