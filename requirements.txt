@@ -2,8 +2,9 @@ fastapi
 gunicorn
 uvicorn
 discord.py
-openai
 lumaai
+mcp
+openai
 azure-storage-blob
 azure-identity
 azure-containerregistry
