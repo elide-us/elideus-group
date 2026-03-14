@@ -13,11 +13,11 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(rpc_router.router, prefix="/rpc")
 app.include_router(oauth_router.router)
-app.include_router(web_router.router)
 set_gateway_resolver(lambda: app.state.mcp_gateway)
 _mcp_app = get_mcp_app()
 if _mcp_app is not None:
   app.mount("/mcp", _mcp_app)
+app.include_router(web_router.router)
 
 @app.get("/")
 async def get_root():
