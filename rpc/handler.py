@@ -20,6 +20,7 @@ async def dispatch_rpc_op(
   payload: dict | None = None,
   *,
   discord_ctx=None,
+  auth_ctx: AuthContext | None = None,
   headers: dict | None = None,
 ) -> RPCResponse:
   rpc_request = RPCRequest(op=op, payload=payload)
@@ -28,7 +29,13 @@ async def dispatch_rpc_op(
     raise HTTPException(status_code=400, detail='Invalid URN prefix')
 
   normalized_ctx = _normalize_discord_ctx(discord_ctx)
-  auth_ctx = await _resolve_auth_context(app, rpc_request, normalized_ctx)
+  if auth_ctx is None:
+    auth_ctx = await _resolve_auth_context(app, rpc_request, normalized_ctx)
+  elif auth_ctx.user_guid:
+    # Pre-resolved auth context from an input shim — stamp onto the request
+    rpc_request.user_guid = auth_ctx.user_guid
+    rpc_request.roles = auth_ctx.roles
+    rpc_request.role_mask = auth_ctx.role_mask
 
   state = SimpleNamespace(rpc_request=rpc_request, auth_ctx=auth_ctx)
   if normalized_ctx:
