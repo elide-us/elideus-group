@@ -199,6 +199,24 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:service:routes:delete_route:1` | Delete a route definition.           |
 
+### `reflection` (planned)
+
+Schema introspection operations for LLM agents and tooling. Currently served
+directly by TheOracleMCP tools bypassing RPC; will be migrated to proper RPC
+operations under `ROLE_SERVICE_ADMIN`.
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:reflection:list_tables:1` | List tables from the reflection schema catalog. |
+| `urn:service:reflection:describe_table:1` | Return columns, indexes, and foreign keys for a table. |
+| `urn:service:reflection:list_views:1` | List database views with definitions. |
+| `urn:service:reflection:get_full_schema:1` | Return the complete reflection schema snapshot. |
+| `urn:service:reflection:get_schema_version:1` | Return the current schema version. |
+| `urn:service:reflection:dump_table:1` | Export table rows as JSON with a configurable row limit. |
+| `urn:service:reflection:query_info_schema:1` | Query whitelisted INFORMATION_SCHEMA views. |
+| `urn:service:reflection:list_domains:1` | Enumerate QueryRegistry domains, subdomains, and operations. |
+| `urn:service:reflection:list_rpc_endpoints:1` | List available top-level RPC domain handler names. |
+
 ## Account Domain
 
 All Account domain calls require `ROLE_ACCOUNT_ADMIN`.

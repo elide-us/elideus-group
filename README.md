@@ -1,90 +1,150 @@
-## TheOracleGPT - RPC Version
-Welcome to TheOracleGPT web site repository! We're just getting started, but feel free to follow along!
+## TheOracleRPC
 
-The following links are for the original site that we're rebuilding and check out Patreon for our project blogs!
-* Original TheOracleGPT: https://github.com/elide-us/TheOracle
-* Live (Original) Site: https://elideusgroup.com
-* Patreon: https://patreon.com/Elideus
-* Live (Rebuild) Site: https://elideus-group.azurewebsites.net
+AI-powered content generation platform. Template-driven image generation,
+text-to-speech, video generation, social media distribution, and creative
+workspace management — all behind a typed RPC boundary with OAuth
+authentication and role-based access control.
 
-### TheOracleGPT - Tech Stack
-We'll update this section as we move through the rebuild.
-- Azure Web App (Container/Linux B1)
-- Azure Container Registry
-- GitHub Actions CI/CD Integration
-- Python, Node, React, TypeScript, Docker, Vite, ESLint, Vitest, Pytest
-- OAuth2 Microsoft Identity
-- MSSQL (Azure SQL)
-- Discord Bot TheOracleGPT-dev
+Built on FastAPI, Azure SQL, and React. Deployed to Azure via GitHub Actions.
+Connected to LLM agents via TheOracleMCP.
 
-These items were previously implemented and are on the rebuild roadmap.
-- OpenAI, LumaAI, BlueSky Social
-- OAuth for Google, Discord, Apple
+**Production:** https://elideusgroup.com
+**Test:** https://elideus-group-test.azurewebsites.net
+**Repository:** https://github.com/elide-us/elideus-group
+**Patreon:** https://patreon.com/Elideus
 
-### Technical Details
-- Docker buildx creates a WSGI compliant container that Azure Web App can run.
-- The project contains a startup.sh which will be executed by the environment on activation.
-- The project contains a dev.cmd script that supports `generate`, `start`, `fast`, and `test` subcommands for local development on Windows.
-- Environment variables are configured in .env for local work, but are set up as environment variables on the web app.
-- The database provider can be selected with the `DATABASE_PROVIDER` environment variable. The architecture supports multiple providers; currently only `mssql` is implemented.
-- You must configure Always On and enable SCM Basic Auth Publishing Credentials for GitHub Actions.
-- Deploy the Azure Web App Container Quickstart configuration.
-- Use Deployment Center to configure CI/CD from GitHub Actions post deploy, target build-ready repo.
+### Tech Stack
 
-### Pull Request Testing
-GitHub Actions run both the Node and Python test suites whenever a pull request targets the `main` branch. The workflow is defined in `.github/workflows/pr-tests.yml`.
+| Layer | Technology |
+|-------|------------|
+| Runtime | Python 3.12, FastAPI, Uvicorn |
+| Frontend | React, TypeScript, Vite |
+| Database | Azure SQL (MSSQL), ODBC 18, aioodbc/pyodbc |
+| Infrastructure | Azure Web App (Container/Linux), Azure Container Registry, GitHub Actions CI/CD |
+| Authentication | OAuth 2.0/2.1 — Microsoft Entra, Google, Discord (Apple planned) |
+| AI Services | OpenAI (chat completion, image generation, TTS), LumaAI (video generation) |
+| Social | Discord bot, Bluesky bridge, TikTok (planned) |
+| Agent Access | TheOracleMCP — Model Context Protocol server for LLM tooling |
+| Storage | Azure Blob Storage (with provider abstraction for S3, CDN, local) |
 
-### AI Usage Details
-We are building this site primarily using [Codex](https://chatgpt.com/codex). This is the OpenAI coding agent that integrates directly into your repository. It features agentified access to a full suite of command line build and editing tools.
+### Core Features
 
-### CLI Utilities
-Several helper scripts in the `scripts` directory manage the project database and data entities:
-- `mssql_cli.py` provides similar features for Azure SQL using the `AZURE_SQL_CONNECTION_STRING` environment variable.
-- `run_tests.py` executes various test, generate, and update operations for build automation. It increments the build version directly in the Azure SQL database.
-    - Requires `DATABASE_PROVIDER` and the `AZURE_SQL_CONNECTION_STRING` environment variable for MSSQL.
-- `generate_rpc_bindings.py` generates RPC TypeScript models and client accessors.
-- `generate_db_namespace.py` generates Query Registry TypeScript models and DB namespace helpers at `frontend/src/db/namespace.ts`.
-- `scriptlib.py` handles common RPC namespace generation functions and version helpers.
-- `msdblib.py` handles most of the mssql querying operations.
-Schema dumps now record NVARCHAR field lengths for accurate
-recreation across environments.
+- **Template-driven image generation** — composable prompt templates with
+  selectable style keys, tone, palette, lighting, composition, and subject
+  parameters. Templates are stored server-side; the frontend is a selector
+  over server-provided options.
+- **Text-to-speech** — voice synthesis via OpenAI TTS with configurable voice
+  and model parameters.
+- **Video generation** — LumaAI integration with callback-based async
+  pipeline, automatic download and storage.
+- **Creative workspace** — per-user file storage with upload, download,
+  folder management, gallery publishing, and moderation queue.
+- **Social distribution** — post generated content to Discord channels,
+  Bluesky feeds, and TikTok (planned). Additional platforms (X, Meta) are
+  medium-term targets.
+- **Discord bot** — command-driven interface for chat summarization, persona
+  conversations, user registration, and credit management.
+- **TheOracleMCP** — LLM agents (Claude, Codex) connect via Model Context
+  Protocol for schema discovery, database introspection, and platform
+  interaction.
+- **Credit system** — per-user credit tracking with charge-per-operation for
+  AI service calls.
 
-The `server` package also exposes a `database_cli` module with callable
-management helpers (connect, reconnect, list tables) for API-level automation.
+### Architecture
 
-### ODBC 18 Upgrade Plan
-We are moving to ODBC Driver 18 and Python 3.12 compatible client libraries:
-1. Update `requirements.txt` to newer `aioodbc` and `pyodbc` versions that
-   support Python 3.12 (now pinned to 0.5.0 and 5.1.0).
-2. Ensure the host has **ODBC Driver 18 for SQL Server** installed (Windows,
-   Linux, and container images).
-3. Update `AZURE_SQL_CONNECTION_STRING` to include the Driver 18 name plus
-   encryption defaults (for example: `Driver={ODBC Driver 18 for SQL Server};Encrypt=yes;TrustServerCertificate=no;`).
-4. Validate database operations (connect/list tables/schema tools) against a
-   staging database before running schema dumps.
+TheOracleRPC follows a strict layered architecture with contract enforcement
+at every boundary:
 
-### Seeding Personas
-Personas for the assistant are defined in `scripts/data/assistant_personas.json`. Load them into the database with:
-
-```bash
-python scripts/seed_personas.py
+```
+Clients / Input Surfaces
+    ↓
+RPC Layer (security gate — authentication, authorization, entitlements)
+    ↓
+Modules (application and business logic)
+    ↓
+Providers (storage, database, external APIs)
+    ↓
+Data Sources (structured responses back up the chain)
 ```
 
-When updating personas, modify the JSON file to keep the source data in sync.
+**Clients** are pure presentation layers with zero business logic — the React
+frontend, Discord bot, TheOracleMCP, and any future input surface all send
+typed RPC requests and render responses. See **INPUT_SHIMS.md**.
 
-### Conversation Logging
+**RPC** is the typed public boundary. Every operation is URN-addressed
+(`urn:domain:subsystem:operation:version`). The RPC layer validates bearer
+tokens, checks role bitmasks, and enforces entitlements before dispatching.
 
-Two tables record persona definitions and usage:
+**Modules** are the application. All business logic, workflow orchestration,
+and decision-making lives here. Modules are loaded at startup by the
+`ModuleManager` and communicate through well-defined interfaces.
 
-| Table | Purpose |
-| ----- | ------- |
-| `assistant_personas` | Stores persona names, prompts, token limits, and model references. |
-| `discord_guilds` | Tracks Discord guild metadata (name, join timestamps, membership counts, owner IDs, etc.) for registry lookups. |
-| `assistant_conversations` | Logs each interaction including guild/channel/user IDs, model reference, token counts, input text, output text, and timestamps. |
+**Providers** are the abstraction layer for external services. The same
+interface can be implemented across platforms — Azure SQL vs PostgreSQL for
+databases, Azure Blob vs S3 vs local disk for storage, OpenAI vs other LLMs
+for chat completion. The database provider is the most complex because each
+engine requires unique query syntax and system operations; the QueryRegistry
+(`queryregistry/`) handles this translation. But the provider pattern applies
+equally to storage, AI services, identity providers, and any other external
+dependency.
 
-The OpenAI module records conversation details whenever `!summarize` is executed.
+See **ARCHITECTURE.md** for the full security model, role bit assignments, and
+authentication workflows.
 
-### Discord Output Module
+### Security
 
-- Outbound Discord messages are buffered through an internal asyncio queue that respects the module's chunking and rate-limiting rules. Use `queue_channel_message` and `queue_user_message` helpers to enqueue work.
-- Successful deliveries update per-channel, per-user, and aggregate throughput metrics. Call `get_throughput_snapshot()` to inspect counters and timestamps for monitoring or diagnostics.
+64-bit signed integer bitmask (63 usable bits) for role-based access control.
+OAuth bearer tokens flow through every request. Anonymous access is limited to
+`public.*` and `auth.*` RPC namespaces. All other namespaces require a valid
+session and the appropriate role bits. See **ARCHITECTURE.md** for the role
+table.
+
+### Database
+
+Azure SQL (MSSQL) is the production database provider. The QueryRegistry
+architecture supports multiple providers; currently only MSSQL is implemented.
+
+Conventions: `datetimeoffset(7)` with `SYSUTCDATETIME()` defaults for all
+datetime columns, `bigint IDENTITY(1,1)` primary keys, ten canonical Extended
+Data Types (EDTs), and a self-describing schema via the `reflection`
+QueryRegistry domain. The EDT mapping table lives in the database itself,
+seeded by deployment scripts, enabling future cross-provider support
+(PostgreSQL, MySQL) without application code changes.
+
+### Code Generation
+
+RPC bindings and database namespace helpers are auto-generated from the Python
+source:
+
+- `python scripts/generate_rpc_bindings.py` — TypeScript RPC models and typed client accessors.
+- `python scripts/generate_db_namespace.py` — TypeScript QueryRegistry namespace helpers.
+
+Generated files are marked `DO NOT MODIFY - GENERATED`.
+
+### Build & Deployment
+
+All code changes are authored through Codex and deployed via GitHub Actions
+CI/CD. The unified test harness validates the full stack:
+
+```bash
+python scripts/run_tests.py
+```
+
+This runs RPC binding generation, DB namespace generation, frontend
+lint/type-check/test, and backend pytest in sequence.
+
+Docker multi-stage build: builder stage runs generators and frontend build,
+runtime stage copies artifacts and starts Uvicorn. See **BUILD.md**.
+
+### AI Development Workflow
+
+TheOracleRPC is built using Claude (architecture, planning, Codex prompt
+generation) and Codex (code execution against the repository). All changes go
+through human review. The MCP integration (TheOracleMCP) enables Claude to
+introspect the live database schema and QueryRegistry structure during planning
+sessions.
+
+### Pull Request Testing
+
+GitHub Actions run both Node and Python test suites on PRs targeting `main`.
+Workflow: `.github/workflows/pr-tests.yml`.
