@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from queryregistry.models import DBRequest, DBResponse
 
+from .batch_jobs.handler import handle_batch_jobs_request
 from .config.handler import handle_config_request
 from .conversations.handler import handle_conversations_request
 from .configuration.handler import handle_configuration_request
@@ -23,6 +24,7 @@ from .service_pages.handler import handle_service_pages_request
 __all__ = ["handle_system_request"]
 
 HANDLERS = {
+  "batch_jobs": handle_batch_jobs_request,
   "configuration": handle_configuration_request,
   "config": handle_config_request,
   "conversations": handle_conversations_request,
