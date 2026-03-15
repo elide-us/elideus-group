@@ -5,24 +5,22 @@ from __future__ import annotations
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from .models import AccountExistsCallable, AccountsReadCallable, DiscordSecurityCallable
-
 __all__ = [
   "account_exists_v1",
   "read_accounts_v1",
   "read_discord_security_v1",
 ]
 
-_READ_DISPATCHERS: dict[str, AccountsReadCallable] = {
+_READ_DISPATCHERS = {
   "mssql": mssql.get_security_profile,
 }
 
-_EXISTS_DISPATCHERS: dict[str, AccountExistsCallable] = {
+_EXISTS_DISPATCHERS = {
   "mssql": mssql.account_exists,
 }
 
 
-_DISCORD_SECURITY_DISPATCHERS: dict[str, DiscordSecurityCallable] = {
+_DISCORD_SECURITY_DISPATCHERS = {
   "mssql": mssql.get_by_discord_id,
 }
 

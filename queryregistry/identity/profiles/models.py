@@ -2,29 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from queryregistry.models import DBResponse
 
 __all__ = [
   "GetPublicProfileParams",
   "GuidParams",
   "ProfileRecord",
   "PublicUserProfile",
-  "ProfileReadRequestPayload",
-  "ProfileUpdateCallable",
-  "ProfileUpdateIfUneditedCallable",
-  "ProfileUpdateRequestPayload",
-  "ProfileReadCallable",
   "SetDisplayParams",
   "SetOptInParams",
   "SetProfileImageParams",
   "SetRolesParams",
-  "UpdateIfUneditedCallable",
-  "UpdateIfUneditedRequestPayload",
   "UpdateProfileParams",
   "UpdateIfUneditedParams",
 ]
@@ -114,25 +105,3 @@ class PublicUserProfile(TypedDict, total=False):
   profile_image: str | None
 
 
-class ProfileReadRequestPayload(TypedDict):
-  guid: str
-
-
-class ProfileUpdateRequestPayload(TypedDict, total=False):
-  guid: str
-  display_name: str | None
-  display_email: bool | int | None
-  provider: str | None
-  image_b64: str | None
-
-
-class UpdateIfUneditedRequestPayload(TypedDict, total=False):
-  guid: str
-  display_name: str | None
-  email: str | None
-
-
-ProfileReadCallable = Callable[[ProfileReadRequestPayload], Awaitable[DBResponse]]
-ProfileUpdateCallable = Callable[[ProfileUpdateRequestPayload], Awaitable[DBResponse]]
-UpdateIfUneditedCallable = Callable[[UpdateIfUneditedRequestPayload], Awaitable[DBResponse]]
-ProfileUpdateIfUneditedCallable = UpdateIfUneditedCallable

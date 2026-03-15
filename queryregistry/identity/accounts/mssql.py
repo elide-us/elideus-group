@@ -2,19 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 from uuid import UUID
 
 from queryregistry.providers.mssql import run_json_one
 
 from queryregistry.models import DBResponse
-
-from .models import (
-  AccountExistsRequestPayload,
-  DiscordSecurityRequestPayload,
-  SecurityProfileRequestPayload,
-)
 
 __all__ = [
   "account_exists",
@@ -91,7 +85,7 @@ def _unique(sequence: Iterable[str]) -> list[str]:
   return items
 
 
-async def get_security_profile(params: SecurityProfileRequestPayload) -> DBResponse:
+async def get_security_profile(params: Mapping[str, Any]) -> DBResponse:
   """Return an operation that fetches security metadata for a user context."""
 
   filters: list[str] = []
@@ -136,7 +130,7 @@ async def get_security_profile(params: SecurityProfileRequestPayload) -> DBRespo
   return DBResponse(payload=response.payload)
 
 
-async def account_exists(args: AccountExistsRequestPayload) -> DBResponse:
+async def account_exists(args: Mapping[str, Any]) -> DBResponse:
   guid = str(UUID(args["user_guid"]))
   sql = """
     SELECT 1 AS exists_flag
@@ -148,7 +142,7 @@ async def account_exists(args: AccountExistsRequestPayload) -> DBResponse:
   return DBResponse(payload=response.payload)
 
 
-async def get_by_discord_id(params: DiscordSecurityRequestPayload) -> DBResponse:
+async def get_by_discord_id(params: Mapping[str, Any]) -> DBResponse:
   """Look up a user's GUID and role mask by Discord numeric ID.
 
   The Discord auth provider stores identifiers as

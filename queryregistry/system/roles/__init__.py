@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from queryregistry.models import DBRequest
 
-from .models import DeleteRolePayload, UpsertRolePayload
+from .models import DeleteRoleParams, UpsertRoleParams
 
 __all__ = [
   "create_system_role_request",
@@ -18,22 +18,22 @@ def list_system_roles_request() -> DBRequest:
   return DBRequest(op="db:system:roles:list:1", payload={})
 
 
-def create_system_role_request(params: UpsertRolePayload) -> DBRequest:
+def create_system_role_request(params: UpsertRoleParams) -> DBRequest:
   return DBRequest(
     op="db:system:roles:create:1",
-    payload=dict(params),
+    payload=params.model_dump(),
   )
 
 
-def update_system_role_request(params: UpsertRolePayload) -> DBRequest:
+def update_system_role_request(params: UpsertRoleParams) -> DBRequest:
   return DBRequest(
     op="db:system:roles:update:1",
-    payload=dict(params),
+    payload=params.model_dump(),
   )
 
 
-def delete_system_role_request(params: DeleteRolePayload) -> DBRequest:
+def delete_system_role_request(params: DeleteRoleParams) -> DBRequest:
   return DBRequest(
     op="db:system:roles:delete:1",
-    payload=dict(params),
+    payload=params.model_dump(),
   )
