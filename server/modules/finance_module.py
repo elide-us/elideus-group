@@ -3,7 +3,8 @@ from __future__ import annotations
 import calendar
 import logging
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import FastAPI
@@ -68,9 +69,36 @@ from queryregistry.finance.periods.models import (
   ListPeriodsParams,
   UpsertPeriodParams,
 )
+from queryregistry.finance.journal_lines import (
+  create_lines_batch_request,
+  delete_lines_by_journal_request,
+  list_lines_by_journal_request,
+)
+from queryregistry.finance.journal_lines.models import (
+  CreateLineParams,
+  CreateLinesBatchParams,
+  DeleteLinesByJournalParams,
+  ListLinesByJournalParams,
+)
+from queryregistry.finance.journals import (
+  create_journal_request,
+  get_by_posting_key_request,
+  get_journal_request,
+  list_journals_request,
+  update_journal_status_request,
+)
+from queryregistry.finance.journals.models import (
+  CreateJournalParams,
+  GetByPostingKeyParams,
+  GetJournalParams,
+  ListJournalsParams,
+  UpdateJournalStatusParams,
+)
 
 
 _FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
+_FIVE_PLACES = Decimal("0.00001")
+_FOUR_PLACES = Decimal("0.0001")
 
 
 class FinanceModule(BaseModule):
@@ -141,6 +169,56 @@ class FinanceModule(BaseModule):
       "description": row.get("element_description"),
       "status": row.get("element_status"),
     }
+
+  def _map_journal(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "name": row.get("element_name"),
+      "description": row.get("element_description"),
+      "posting_key": row.get("element_posting_key"),
+      "source_type": row.get("element_source_type"),
+      "source_id": row.get("element_source_id"),
+      "periods_guid": row.get("periods_guid"),
+      "ledgers_recid": row.get("ledgers_recid"),
+      "numbers_recid": row.get("numbers_recid"),
+      "status": row.get("element_status"),
+      "posted_by": row.get("element_posted_by"),
+      "posted_on": row.get("element_posted_on"),
+      "reversed_by": row.get("element_reversed_by"),
+      "reversal_of": row.get("element_reversal_of"),
+    }
+
+  def _map_journal_line(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "journals_recid": row.get("journals_recid"),
+      "line_number": row.get("element_line_number"),
+      "accounts_guid": row.get("accounts_guid"),
+      "debit": row.get("element_debit"),
+      "credit": row.get("element_credit"),
+      "description": row.get("element_description"),
+      "dimension_recids": row.get("dimension_recids", []),
+    }
+
+  @staticmethod
+  def _to_decimal(value: Any) -> Decimal:
+    """Parse a value to Decimal. Accepts str, int, float, Decimal."""
+    if isinstance(value, Decimal):
+      return value
+    try:
+      return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+      return Decimal("0")
+
+  @staticmethod
+  def _quantize_4dp(value: Decimal) -> Decimal:
+    """Quantize to 4 decimal places, half-up, per precision policy."""
+    return value.quantize(_FOUR_PLACES, rounding=ROUND_HALF_UP)
+
+  @staticmethod
+  def _quantize_5dp(value: Decimal) -> Decimal:
+    """Quantize to 5 decimal places for storage."""
+    return value.quantize(_FIVE_PLACES, rounding=ROUND_HALF_UP)
 
   async def list_periods(self) -> list[dict[str, Any]]:
     assert self.db
@@ -358,3 +436,216 @@ class FinanceModule(BaseModule):
     assert self.db
     await self.db.run(delete_dimension_request(DeleteDimensionParams(recid=recid)))
     return {"recid": recid}
+
+  async def list_journals(
+    self,
+    status: int | None = None,
+    periods_guid: str | None = None,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_journals_request(ListJournalsParams(status=status, periods_guid=periods_guid)))
+    return [self._map_journal(row) for row in res.rows]
+
+  async def get_journal(self, recid: int) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(get_journal_request(GetJournalParams(recid=recid)))
+    if not res.rows:
+      return None
+    return self._map_journal(dict(res.rows[0]))
+
+  async def get_journal_lines(self, journals_recid: int) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_lines_by_journal_request(ListLinesByJournalParams(journals_recid=journals_recid)))
+    return [self._map_journal_line(row) for row in res.rows]
+
+  async def delete_journal_lines(self, journals_recid: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(delete_lines_by_journal_request(DeleteLinesByJournalParams(journals_recid=journals_recid)))
+    return {"journals_recid": journals_recid}
+
+  async def create_journal(
+    self,
+    *,
+    name: str,
+    description: str | None = None,
+    posting_key: str | None = None,
+    source_type: str | None = None,
+    source_id: str | None = None,
+    periods_guid: str | None = None,
+    ledgers_recid: int | None = None,
+    lines: list[dict[str, Any]],
+    post: bool = False,
+    posted_by: str | None = None,
+  ) -> dict[str, Any]:
+    assert self.db
+
+    if posting_key:
+      existing = await self.db.run(get_by_posting_key_request(GetByPostingKeyParams(posting_key=posting_key)))
+      if existing.rows:
+        logging.debug("[FinanceModule] create_journal idempotency hit for posting_key=%s", posting_key)
+        return self._map_journal(dict(existing.rows[0]))
+
+    if periods_guid and post:
+      period = await self.get_period(periods_guid)
+      if not period:
+        raise ValueError("Period not found")
+      if period["close_type"] != 0:
+        raise ValueError("Cannot post to closed period")
+
+    quantified_lines: list[CreateLineParams] = []
+    total_debits = Decimal("0")
+    total_credits = Decimal("0")
+    for line in lines:
+      debit = self._quantize_4dp(self._to_decimal(line.get("debit", "0")))
+      credit = self._quantize_4dp(self._to_decimal(line.get("credit", "0")))
+      debit_5dp = self._quantize_5dp(debit)
+      credit_5dp = self._quantize_5dp(credit)
+      total_debits += debit_5dp
+      total_credits += credit_5dp
+      quantified_lines.append(
+        CreateLineParams(
+          journals_recid=0,
+          line_number=int(line["line_number"]),
+          accounts_guid=str(line["accounts_guid"]),
+          debit=str(debit_5dp),
+          credit=str(credit_5dp),
+          description=line.get("description"),
+          dimension_recids=[int(x) for x in line.get("dimension_recids", [])],
+        )
+      )
+
+    if abs(total_debits - total_credits) > Decimal("0.00001"):
+      raise ValueError(f"Journal is unbalanced: debits={total_debits} credits={total_credits}")
+
+    create_res = await self.db.run(
+      create_journal_request(
+        CreateJournalParams(
+          name=name,
+          description=description,
+          posting_key=posting_key,
+          source_type=source_type,
+          source_id=source_id,
+          periods_guid=periods_guid,
+          ledgers_recid=ledgers_recid,
+          status=0,
+        )
+      )
+    )
+    created = self._map_journal(dict(create_res.rows[0]))
+    journal_recid = int(created["recid"])
+    lines_payload = [line.model_copy(update={"journals_recid": journal_recid}) for line in quantified_lines]
+    await self.db.run(
+      create_lines_batch_request(CreateLinesBatchParams(journals_recid=journal_recid, lines=lines_payload))
+    )
+
+    if post:
+      return await self.post_journal(journal_recid, posted_by)
+    return created
+
+  async def post_journal(self, recid: int, posted_by: str | None = None) -> dict[str, Any]:
+    assert self.db
+    journal = await self.get_journal(recid)
+    if not journal:
+      raise ValueError("Journal not found")
+    if journal["status"] != 0:
+      raise ValueError("Only unposted journals can be posted")
+
+    periods_guid = journal.get("periods_guid")
+    if periods_guid:
+      period = await self.get_period(periods_guid)
+      if not period:
+        raise ValueError("Period not found")
+      if period["close_type"] != 0:
+        raise ValueError("Cannot post to closed period")
+
+    lines = await self.get_journal_lines(recid)
+    if not lines:
+      raise ValueError("Cannot post a journal with no lines")
+
+    total_debits = Decimal("0")
+    total_credits = Decimal("0")
+    for line in lines:
+      total_debits += self._quantize_5dp(self._to_decimal(line.get("debit", "0")))
+      total_credits += self._quantize_5dp(self._to_decimal(line.get("credit", "0")))
+
+    if abs(total_debits - total_credits) > Decimal("0.00001"):
+      raise ValueError(f"Journal is unbalanced: debits={total_debits} credits={total_credits}")
+
+    res = await self.db.run(
+      update_journal_status_request(
+        UpdateJournalStatusParams(
+          recid=recid,
+          status=1,
+          posted_by=posted_by,
+          posted_on=datetime.now(timezone.utc).isoformat(),
+        )
+      )
+    )
+    return self._map_journal(dict(res.rows[0]))
+
+  async def reverse_journal(self, recid: int, posted_by: str | None = None) -> dict[str, Any]:
+    assert self.db
+    original = await self.get_journal(recid)
+    if not original:
+      raise ValueError("Journal not found")
+    if original["status"] != 1:
+      raise ValueError("Only posted journals can be reversed")
+
+    periods_guid = original.get("periods_guid")
+    if periods_guid:
+      period = await self.get_period(periods_guid)
+      if not period:
+        raise ValueError("Period not found")
+      if period["close_type"] != 0:
+        raise ValueError("Cannot reverse journal into a closed period")
+
+    original_lines = await self.get_journal_lines(recid)
+    if not original_lines:
+      raise ValueError("Cannot reverse a journal with no lines")
+
+    reversal_lines: list[dict[str, Any]] = []
+    for line in original_lines:
+      reversal_lines.append(
+        {
+          "line_number": line["line_number"],
+          "accounts_guid": line["accounts_guid"],
+          "debit": line.get("credit", "0"),
+          "credit": line.get("debit", "0"),
+          "description": line.get("description"),
+          "dimension_recids": line.get("dimension_recids", []),
+        }
+      )
+
+    reversal = await self.create_journal(
+      name=f"REV-{original['name']}",
+      description=f"Reversal of journal {recid}",
+      posting_key=f"REV-{original['posting_key']}" if original.get("posting_key") else None,
+      source_type="reversal",
+      source_id=str(recid),
+      periods_guid=periods_guid,
+      ledgers_recid=original.get("ledgers_recid"),
+      lines=reversal_lines,
+      post=True,
+      posted_by=posted_by,
+    )
+
+    reversal_recid = int(reversal["recid"])
+    await self.db.run(
+      update_journal_status_request(
+        UpdateJournalStatusParams(
+          recid=recid,
+          status=2,
+          reversed_by=reversal_recid,
+        )
+      )
+    )
+    res = await self.db.run(
+      update_journal_status_request(
+        UpdateJournalStatusParams(
+          recid=reversal_recid,
+          status=1,
+          reversal_of=recid,
+        )
+      )
+    )
+    return self._map_journal(dict(res.rows[0]))
