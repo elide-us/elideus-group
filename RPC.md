@@ -301,6 +301,17 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 
 All Finance domain calls require `ROLE_FINANCE_ADMIN`.
 
+### `journals`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:journals:list:1` | List journals with optional status/period filters. |
+| `urn:finance:journals:get:1` | Get a single journal by record id. |
+| `urn:finance:journals:get_lines:1` | List lines for a journal record id. |
+| `urn:finance:journals:create:1` | Create a journal with lines and optional immediate posting. |
+| `urn:finance:journals:post:1` | Post a draft journal. |
+| `urn:finance:journals:reverse:1` | Reverse a posted journal. |
+
 ### `staging`
 
 | Operation | Description |
