@@ -7,7 +7,6 @@ from fastapi import FastAPI
 import logging
 
 from queryregistry.handler import dispatch_query_request
-from queryregistry.identity.accounts.models import AccountExistsRequestPayload
 from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 from .env_module import EnvModule
@@ -195,8 +194,7 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    params: AccountExistsRequestPayload = {"user_guid": user_guid}
-    request = account_exists_request(params)
+    request = account_exists_request({"user_guid": user_guid})
     provider_name = self.provider or "mssql"
     try:
       res = await dispatch_query_request(request, provider=provider_name)

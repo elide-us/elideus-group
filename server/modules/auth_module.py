@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Any, Dict
 
-from queryregistry.system.roles.models import DeleteRolePayload, UpsertRolePayload
+from queryregistry.system.roles.models import DeleteRoleParams, UpsertRoleParams
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
@@ -77,16 +77,16 @@ class RoleCache:
     await self.load_roles()
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    payload: UpsertRolePayload = {"name": name, "mask": mask, "display": display}
+    payload = UpsertRoleParams(name=name, mask=mask, display=display)
     await self._dispatch_system_role_request(
-      DBRequest(op="db:system:roles:update:1", payload=dict(payload)),
+      DBRequest(op="db:system:roles:update:1", payload=payload.model_dump()),
     )
     await self.refresh_role_cache()
 
   async def delete_role(self, name: str):
-    payload: DeleteRolePayload = {"name": name}
+    payload = DeleteRoleParams(name=name)
     await self._dispatch_system_role_request(
-      DBRequest(op="db:system:roles:delete:1", payload=dict(payload)),
+      DBRequest(op="db:system:roles:delete:1", payload=payload.model_dump()),
     )
     await self.refresh_role_cache()
 

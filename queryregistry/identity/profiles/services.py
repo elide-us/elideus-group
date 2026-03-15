@@ -11,17 +11,11 @@ from . import mssql
 from .models import (
   GetPublicProfileParams,
   GuidParams,
-  ProfileReadCallable,
-  ProfileReadRequestPayload,
-  ProfileUpdateCallable,
-  ProfileUpdateIfUneditedCallable,
-  ProfileUpdateRequestPayload,
   SetDisplayParams,
   SetOptInParams,
   SetProfileImageParams,
   SetRolesParams,
   UpdateIfUneditedParams,
-  UpdateIfUneditedRequestPayload,
 )
 
 __all__ = [
@@ -38,15 +32,15 @@ __all__ = [
 
 _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
 
-_READ_DISPATCHERS: dict[str, ProfileReadCallable] = {
+_READ_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.read_profile,
 }
 
-_UPDATE_DISPATCHERS: dict[str, ProfileUpdateCallable] = {
+_UPDATE_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.update_profile,
 }
 
-_UPDATE_IF_UNEDITED_DISPATCHERS: dict[str, ProfileUpdateIfUneditedCallable] = {
+_UPDATE_IF_UNEDITED_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.update_if_unedited,
 }
 
@@ -86,7 +80,7 @@ def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _D
   return dispatcher
 
 
-def _validate_update_payload(payload: ProfileUpdateRequestPayload) -> None:
+def _validate_update_payload(payload: Mapping[str, Any]) -> None:
   has_display_name = "display_name" in payload
   has_display_email = "display_email" in payload
   has_image = "image_b64" in payload
@@ -104,7 +98,7 @@ async def read_profile_v1(
   dispatcher = _READ_DISPATCHERS.get(provider)
   if dispatcher is None:
     raise KeyError(f"Unsupported provider '{provider}' for identity profiles registry")
-  payload: ProfileReadRequestPayload = dict(request.payload)
+  payload = dict(request.payload)
   result = await dispatcher(payload)
   return DBResponse(op=request.op, payload=result.payload)
 
@@ -117,7 +111,7 @@ async def update_profile_v1(
   dispatcher = _UPDATE_DISPATCHERS.get(provider)
   if dispatcher is None:
     raise KeyError(f"Unsupported provider '{provider}' for identity profiles registry")
-  payload: ProfileUpdateRequestPayload = dict(request.payload)
+  payload = dict(request.payload)
   _validate_update_payload(payload)
   result = await dispatcher(payload)
   return DBResponse(
@@ -135,7 +129,7 @@ async def update_profile_if_unedited_v1(
   dispatcher = _UPDATE_IF_UNEDITED_DISPATCHERS.get(provider)
   if dispatcher is None:
     raise KeyError(f"Unsupported provider '{provider}' for identity profiles registry")
-  payload: UpdateIfUneditedRequestPayload = dict(request.payload)
+  payload = dict(request.payload)
   result = await dispatcher(payload)
   return DBResponse(
     op=request.op,

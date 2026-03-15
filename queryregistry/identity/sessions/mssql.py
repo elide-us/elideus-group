@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -14,8 +15,6 @@ from .models import (
   GuidParams,
   RevokeDeviceTokenParams,
   RevokeProviderTokensParams,
-  RotkeyRequestPayload,
-  SecuritySnapshotRequestPayload,
   SetRotkeyParams,
   UpdateDeviceTokenParams,
   UpdateSessionParams,
@@ -248,7 +247,7 @@ async def list_snapshots_v1(args: dict[str, Any]) -> DBResponse:
   return await run_json_many(sql, (guid,))
 
 
-async def get_rotkey_v1(params: RotkeyRequestPayload) -> DBResponse:
+async def get_rotkey_v1(params: Mapping[str, Any]) -> DBResponse:
   guid = str(UUID(params["guid"]))
   device_guid = params.get("device_guid")
   fingerprint = params.get("fingerprint")
@@ -306,7 +305,7 @@ async def get_rotkey_v1(params: RotkeyRequestPayload) -> DBResponse:
   return DBResponse(payload=response.payload)
 
 
-async def get_security_snapshot_v1(params: SecuritySnapshotRequestPayload) -> DBResponse:
+async def get_security_snapshot_v1(params: Mapping[str, Any]) -> DBResponse:
   guid = str(UUID(params["guid"]))
   sql = """
     SELECT

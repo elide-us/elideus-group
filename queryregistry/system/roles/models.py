@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from pydantic import BaseModel, ConfigDict
 
 __all__ = [
-  "DeleteRolePayload",
-  "UpsertRolePayload",
+  "DeleteRoleParams",
+  "UpsertRoleParams",
 ]
 
 
-class UpsertRolePayload(TypedDict, total=False):
+class UpsertRoleParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
   name: str
   mask: int
-  display: str | None
+  display: str | None = None
 
 
-class DeleteRolePayload(TypedDict):
+class DeleteRoleParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
   name: str

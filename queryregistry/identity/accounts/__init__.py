@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from queryregistry.models import DBRequest
 
-from .models import AccountExistsRequestPayload
-
 __all__ = ["account_exists_request", "read_by_discord_request"]
 
 
-def account_exists_request(params: AccountExistsRequestPayload) -> DBRequest:
+def account_exists_request(params: dict[str, str]) -> DBRequest:
   return DBRequest(op="db:identity:accounts:exists:1", payload=dict(params))
 
 
