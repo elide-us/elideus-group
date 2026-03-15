@@ -65,6 +65,7 @@ Consult these scoped instruction files when working in a given area:
 - `frontend/AGENTS.md` – React/Vite codebase.
 - `rpc/AGENTS.md` – RPC handlers and services.
 - `server/AGENTS.md` – FastAPI app startup, modules, and providers.
+- `server/mcp_server.py` – MCP server for LLM schema discovery (read-only).
 - `scripts/AGENTS.md` – Automation and RPC binding generation.
 - `tests/AGENTS.md` – Python test suite structure.
 

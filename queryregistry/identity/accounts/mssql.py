@@ -10,10 +10,15 @@ from queryregistry.providers.mssql import run_json_one
 
 from queryregistry.models import DBResponse
 
-from .models import AccountExistsRequestPayload, SecurityProfileRequestPayload
+from .models import (
+  AccountExistsRequestPayload,
+  DiscordSecurityRequestPayload,
+  SecurityProfileRequestPayload,
+)
 
 __all__ = [
   "account_exists",
+  "get_by_discord_id",
   "get_security_profile",
 ]
 
@@ -73,7 +78,7 @@ def _normalize_provider_identifier(identifier: str) -> str:
 def _normalize_discord_identifier(discord_id: str) -> str:
   from uuid import NAMESPACE_URL, uuid5
 
-  return str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{discord_id}"))))
+  return str(UUID(str(uuid5(NAMESPACE_URL, str(discord_id)))))
 
 
 def _unique(sequence: Iterable[str]) -> list[str]:
@@ -141,3 +146,26 @@ async def account_exists(args: AccountExistsRequestPayload) -> DBResponse:
   """
   response = await run_json_one(sql, (guid,))
   return DBResponse(payload=response.payload)
+
+
+async def get_by_discord_id(params: DiscordSecurityRequestPayload) -> DBResponse:
+  """Look up a user's GUID and role mask by Discord numeric ID.
+
+  The Discord auth provider stores identifiers as
+  uuid5(NAMESPACE_URL, f"discord:{discord_id}") — the prefix is
+  required to match.
+  """
+  from uuid import NAMESPACE_URL, uuid5
+
+  discord_id = str(params["discord_id"])
+  identifier = str(UUID(str(uuid5(NAMESPACE_URL, f"discord:{discord_id}"))))
+
+  sql = """
+    SELECT TOP 1
+      user_guid,
+      user_roles
+    FROM vw_user_discord_security
+    WHERE discord_identifier = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (identifier,))

@@ -1,9 +1,36 @@
 # providers/database/mssql_provider/logic.py
 import aioodbc, logging
+import struct
+from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from typing import Callable, Optional
 
 _pool: aioodbc.pool.Pool | None = None
+
+
+def _handle_datetimeoffset(dto_value):
+  """Convert raw DATETIMEOFFSET bytes to an ISO 8601 string.
+
+  pyodbc receives DATETIMEOFFSET as raw bytes with the struct format
+  ``<6hI2h`` (20 bytes): year, month, day, hour, minute, second,
+  nanoseconds, offset_hours, offset_minutes.
+
+  Returns an ISO 8601 string to match the existing codebase convention
+  where all datetime values are transported as strings.
+  """
+  tup = struct.unpack("<6hI2h", dto_value)
+  dt = datetime(
+    tup[0], tup[1], tup[2],
+    tup[3], tup[4], tup[5],
+    tup[6] // 1000,
+    tzinfo=timezone(timedelta(hours=tup[7], minutes=tup[8])),
+  )
+  return dt.isoformat()
+
+
+async def _on_connection_created(conn):
+  """Register custom type converters on new pool connections."""
+  conn.add_output_converter(-155, _handle_datetimeoffset)
 
 
 def _parse_dsn_info(dsn: str) -> dict[str, str]:
@@ -32,7 +59,9 @@ async def init_pool(*, dsn: str | None = None, **cfg):
   server = info.get("server", "unknown")
   database = info.get("database", "unknown")
   driver = info.get("driver", "unknown")
-  _pool = await aioodbc.create_pool(dsn=dsn, autocommit=True)
+  _pool = await aioodbc.create_pool(
+    dsn=dsn, autocommit=True, after_created=_on_connection_created,
+  )
   logging.info(
     "MSSQL ODBC Connection Pool Created: server=%s database=%s driver=%s",
     server,

@@ -63,7 +63,7 @@ GO
 INSERT INTO system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
 SELECT
   (SELECT recid FROM system_schema_tables WHERE element_name = 'assistant_models' AND element_schema = 'dbo'),
-  (SELECT recid FROM system_edt_mappings WHERE element_name = 'BOOLEAN'),
+  (SELECT recid FROM system_edt_mappings WHERE element_name = 'BOOL'),
   'element_is_active', 4, 0, '((1))', NULL, 0, 0
 WHERE NOT EXISTS (
   SELECT 1 FROM system_schema_columns c

@@ -30,6 +30,10 @@ CREATE TABLE [dbo].[account_users] (
 CREATE TABLE [dbo].[assistant_models] (
   [recid] bigint identity(1,1) NOT NULL,
   [element_name] NVARCHAR(50) NOT NULL,
+  [element_api_provider] NVARCHAR(64) NOT NULL DEFAULT ('openai'),
+  [element_is_active] BIT NOT NULL DEFAULT ((1)),
+  [element_created_on] datetimeoffset(7) NOT NULL DEFAULT (sysutcdatetime()),
+  [element_modified_on] datetimeoffset(7) NOT NULL DEFAULT (sysutcdatetime()),
   CONSTRAINT [PK_assistant_models] PRIMARY KEY ([recid])
 );
 CREATE TABLE [dbo].[assistant_personas] (
@@ -41,6 +45,7 @@ CREATE TABLE [dbo].[assistant_personas] (
   [element_tokens] INT NOT NULL,
   [element_prompt] nvarchar(max) NOT NULL,
   [models_recid] BIGINT NOT NULL,
+  [element_is_active] BIT NOT NULL DEFAULT ((1)),
   CONSTRAINT [PK_assistant_personas] PRIMARY KEY ([recid])
 );
 CREATE TABLE [dbo].[assistant_conversations] (
@@ -54,6 +59,11 @@ CREATE TABLE [dbo].[assistant_conversations] (
   [element_tokens] INT NULL,
   [element_user_id] NVARCHAR(64) NULL,
   [models_recid] BIGINT NOT NULL,
+  [element_role] NVARCHAR(16) NOT NULL DEFAULT 'user',
+  [element_content] nvarchar(max) NULL,
+  [element_thread_id] NVARCHAR(64) NULL,
+  [users_guid] UNIQUEIDENTIFIER NULL,
+  [element_modified_on] datetimeoffset(7) NOT NULL DEFAULT (sysutcdatetime()),
   CONSTRAINT [PK_assistant_conversations] PRIMARY KEY ([recid])
 );
 CREATE TABLE [dbo].[builder_categories] (
@@ -72,7 +82,21 @@ CREATE TABLE [dbo].[discord_guilds] (
   [element_region] NVARCHAR(128) NULL,
   [element_left_on] datetimeoffset(7) NULL,
   [element_notes] nvarchar(max) NULL,
+  [element_credits] INT NOT NULL DEFAULT ((0)),
   CONSTRAINT [PK_discord_guilds] PRIMARY KEY ([recid])
+);
+CREATE TABLE [dbo].[discord_channels] (
+  [recid] bigint identity(1,1) NOT NULL,
+  [guilds_recid] BIGINT NOT NULL,
+  [element_channel_id] NVARCHAR(64) NOT NULL,
+  [element_name] NVARCHAR(256) NULL,
+  [element_type] NVARCHAR(32) NULL,
+  [element_message_count] BIGINT NOT NULL DEFAULT ((0)),
+  [element_last_activity_on] datetimeoffset(7) NULL,
+  [element_created_on] datetimeoffset(7) NOT NULL DEFAULT (sysutcdatetime()),
+  [element_modified_on] datetimeoffset(7) NOT NULL DEFAULT (sysutcdatetime()),
+  [element_notes] nvarchar(max) NULL,
+  CONSTRAINT [PK_discord_channels] PRIMARY KEY ([recid])
 );
 CREATE TABLE [dbo].[finance_accounts] (
   [element_guid] UNIQUEIDENTIFIER NOT NULL,
@@ -330,7 +354,11 @@ CREATE TABLE [dbo].[users_storage_cache] (
 
 CREATE UNIQUE INDEX [UQ_account_actions_label] ON [dbo].[account_actions] ([action_label]);
 CREATE UNIQUE INDEX [UQ_account_users_guid] ON [dbo].[account_users] ([element_guid]);
+CREATE INDEX [IX_assistant_conversations_guild_channel] ON [dbo].[assistant_conversations] ([element_guild_id], [element_channel_id], [element_created_on]);
+CREATE INDEX [IX_assistant_conversations_persona_time] ON [dbo].[assistant_conversations] ([personas_recid], [element_created_on]);
+CREATE INDEX [IX_assistant_conversations_thread] ON [dbo].[assistant_conversations] ([element_thread_id], [element_created_on]);
 CREATE UNIQUE INDEX [UQ_discord_guilds_guild_id] ON [dbo].[discord_guilds] ([element_guild_id]);
+CREATE INDEX [IX_discord_channels_guild] ON [dbo].[discord_channels] ([guilds_recid]);
 CREATE UNIQUE INDEX [UQ_finance_numbers_account] ON [dbo].[finance_numbers] ([accounts_guid]);
 CREATE UNIQUE INDEX [UQ_finance_periods_year_period] ON [dbo].[finance_periods] ([element_year], [element_period_number]);
 CREATE UNIQUE INDEX [UQ_service_pages_route] ON [dbo].[service_pages] ([element_route_name]);
@@ -349,6 +377,8 @@ ALTER TABLE [dbo].[account_users] ADD CONSTRAINT [FK_account_users_providers_rec
 ALTER TABLE [dbo].[assistant_personas] ADD CONSTRAINT [FK_assistant_personas_models_recid_assistant_models] FOREIGN KEY ([models_recid]) REFERENCES [dbo].[assistant_models] ([recid]);
 ALTER TABLE [dbo].[assistant_conversations] ADD CONSTRAINT [FK_assistant_conversations_models_recid_assistant_models] FOREIGN KEY ([models_recid]) REFERENCES [dbo].[assistant_models] ([recid]);
 ALTER TABLE [dbo].[assistant_conversations] ADD CONSTRAINT [FK_assistant_conversations_personas_recid_assistant_personas] FOREIGN KEY ([personas_recid]) REFERENCES [dbo].[assistant_personas] ([recid]);
+ALTER TABLE [dbo].[assistant_conversations] ADD CONSTRAINT [FK_assistant_conversations_users_guid_account_users] FOREIGN KEY ([users_guid]) REFERENCES [dbo].[account_users] ([element_guid]);
+ALTER TABLE [dbo].[discord_channels] ADD CONSTRAINT [FK_discord_channels_guilds_recid_discord_guilds] FOREIGN KEY ([guilds_recid]) REFERENCES [dbo].[discord_guilds] ([recid]);
 ALTER TABLE [dbo].[finance_accounts] ADD CONSTRAINT [FK_finance_accounts_element_parent_finance_accounts] FOREIGN KEY ([element_parent]) REFERENCES [dbo].[finance_accounts] ([element_guid]);
 ALTER TABLE [dbo].[finance_numbers] ADD CONSTRAINT [FK_finance_numbers_accounts_guid_finance_accounts] FOREIGN KEY ([accounts_guid]) REFERENCES [dbo].[finance_accounts] ([element_guid]);
 ALTER TABLE [dbo].[service_pages] ADD CONSTRAINT [FK_service_pages_element_created_by_account_users] FOREIGN KEY ([element_created_by]) REFERENCES [dbo].[account_users] ([element_guid]);
