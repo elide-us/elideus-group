@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from queryregistry.models import DBRequest
 
-from .models import BatchParams, DumpTableParams, UpdateVersionParams
+from .models import BatchParams, DumpTableParams, QueryInfoSchemaParams, UpdateVersionParams
 
 __all__ = [
   "apply_batch_request",
@@ -12,6 +12,7 @@ __all__ = [
   "get_version_request",
   "rebuild_indexes_request",
   "update_version_request",
+  "query_info_schema_request",
 ]
 
 
@@ -33,3 +34,7 @@ def rebuild_indexes_request() -> DBRequest:
 
 def apply_batch_request(params: BatchParams) -> DBRequest:
   return DBRequest(op="db:reflection:data:apply_batch:1", payload=params.model_dump())
+
+
+def query_info_schema_request(params: QueryInfoSchemaParams) -> DBRequest:
+  return DBRequest(op="db:reflection:data:query_info_schema:1", payload=params.model_dump())

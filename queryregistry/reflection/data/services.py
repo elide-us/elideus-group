@@ -8,7 +8,7 @@ from typing import Any
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from .models import BatchParams, DumpTableParams, UpdateVersionParams, VersionParams
+from .models import BatchParams, DumpTableParams, QueryInfoSchemaParams, UpdateVersionParams, VersionParams
 
 __all__ = [
   "apply_batch_v1",
@@ -16,6 +16,7 @@ __all__ = [
   "get_version_v1",
   "rebuild_indexes_v1",
   "update_version_v1",
+  "query_info_schema_v1",
 ]
 
 _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
@@ -25,6 +26,7 @@ _UPDATE_VERSION_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.update_ver
 _DUMP_TABLE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.dump_table_v1}
 _REBUILD_INDEXES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.rebuild_indexes_v1}
 _APPLY_BATCH_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.apply_batch_v1}
+_QUERY_INFO_SCHEMA_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.query_info_schema_v1}
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -60,4 +62,10 @@ async def rebuild_indexes_v1(request: DBRequest, *, provider: str) -> DBResponse
 async def apply_batch_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = BatchParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _APPLY_BATCH_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def query_info_schema_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = QueryInfoSchemaParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _QUERY_INFO_SCHEMA_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
