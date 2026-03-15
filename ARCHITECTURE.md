@@ -32,41 +32,115 @@ Layer responsibility rule: **Modules (business logic) → QueryRegistry (data-ac
 
 ## Security Model
 
-## MCP Server (Schema Discovery)
+## Input Shim Architecture
 
-The application hosts an MCP (Model Context Protocol) server at `/mcp` that
-provides read-only access to the database reflection domain and
-INFORMATION_SCHEMA. This endpoint is designed for LLM agents (Claude, Codex)
-to discover the database schema and query registry structure for prompt
-planning.
+External protocols connect to the platform through **input shims** — thin
+protocol adapters that authenticate callers and dispatch requests through the
+standard RPC handler chain. Input shims contain no business logic. They are
+structurally equivalent to the RPC router — they receive, authenticate,
+dispatch, and return.
+
+Every input surface — React frontend, Discord bot, TheOracleMCP, future social
+integrations — is a different view into the same authoritative backend. See
+**INPUT_SHIMS.md** for the full design, constraints, and per-surface details.
+
+| Surface | Transport | Status |
+|---------|-----------|--------|
+| React frontend | HTTP POST `/rpc` | Production |
+| Discord | WebSocket (discord.py) | Production |
+| TheOracleMCP | Streamable HTTP `/mcp` | Refactoring |
+| Others (Bluesky, TikTok, etc.) | Varies | Planned |
+
+## TheOracleMCP (Agent Input Surface)
+
+The application hosts TheOracleMCP at `/mcp` — a Model Context Protocol server
+that provides LLM agents (Claude, Codex) with access to the platform.
+TheOracleMCP follows the input shim pattern described above.
+
+### Current State (POC)
+
+The current implementation is a proof-of-concept that bypasses the RPC layer.
+MCP tool functions call `dispatch_query_request()` directly against the
+QueryRegistry, which violates the layered architecture. This is being
+refactored to route through `urn:service:reflection:*` RPC operations under
+`ROLE_SERVICE_ADMIN`.
+
+### Target Architecture
+
+MCP tools will be thin wrappers that:
+
+1. Authenticate the caller via OAuth 2.1 JWT (issued through TheOracleMCP's
+   OAuth consent flow with Microsoft/Google/Discord provider login).
+2. Resolve the JWT subject to an internal user GUID and role bitmask via
+   `AuthModule.get_user_roles()`.
+3. Construct an `RPCRequest` with the resolved auth context.
+4. Dispatch through the standard RPC handler chain (`dispatch_rpc_op`).
+5. Return the `RPCResponse` payload to the MCP client.
+
+This makes TheOracleMCP structurally identical to the Discord input shim and
+the React frontend — all three are presentation layers over the same RPC
+boundary.
 
 ### Authentication
 
-The MCP endpoint requires a bearer token matching the `MCP_AGENT_TOKEN`
-environment variable. This token is linked to a dedicated API user account
-in `account_api_tokens`. The MCP server validates the token via ASGI
-middleware — requests without a valid bearer token receive HTTP 401.
+TheOracleMCP authentication uses OAuth 2.1 with PKCE:
 
-### Available Tools
+1. Client discovers auth metadata via `/.well-known/oauth-protected-resource`
+   and `/.well-known/oauth-authorization-server`.
+2. Client initiates authorization code flow with PKCE S256 challenge.
+3. User authenticates through a server-rendered consent page using an identity
+   provider (Microsoft, Google, or Discord).
+4. Server issues a short-lived JWT access token (5 min) and refresh token
+   (7 days).
+5. JWT contains `sub` (user GUID), `client_id`, scopes, and is signed with
+   the application's JWT secret.
+6. The user's role bitmask is resolved server-side at dispatch time — JWT
+   scopes are not the authorization mechanism, the role bitmask is.
 
-All tools are read-only and idempotent.
+A static `MCP_AGENT_TOKEN` environment variable is supported for development
+bootstrapping but grants full access without user identity binding.
+
+### OAuth Infrastructure
+
+| Component | Location |
+|-----------|----------|
+| Discovery endpoints | `server/routers/oauth_router.py` |
+| OAuth consent flow | `server/routers/oauth_router.py` |
+| Token issuance & refresh | `server/modules/mcp_gateway_module.py` |
+| Client/token storage | `identity.mcp_agents` QueryRegistry subdomain |
+| Rate limiting | `McpGatewayModule.SlidingWindowRateLimiter` |
+| DCR circuit breaker | `McpGatewayModule._set_dcr_enabled()` |
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `account_mcp_agents` | Registered MCP clients (client_id, scopes, user binding) |
+| `account_mcp_agent_tokens` | Issued access/refresh tokens per agent |
+| `account_mcp_auth_codes` | Authorization codes (consumed during token exchange) |
+
+### Available Tools (Current POC)
+
+All tools are currently read-only and idempotent. These will be rewired to
+dispatch through `urn:service:reflection:*` RPC operations.
 
 | Tool | Description |
 |------|-------------|
-| `oracle_list_tables` | List all tables from the reflection schema catalog |
+| `oracle_list_tables` | List tables from reflection schema catalog |
 | `oracle_describe_table` | Columns, indexes, and foreign keys for a table |
-| `oracle_list_views` | List all views with definitions |
-| `oracle_get_full_schema` | Complete schema dump |
-| `oracle_get_schema_version` | Current schema version from system_config |
-| `oracle_dump_table` | Export table rows as JSON (with row limit) |
+| `oracle_list_views` | List views with definitions |
+| `oracle_get_full_schema` | Complete schema snapshot |
+| `oracle_get_schema_version` | Schema version from system_config |
+| `oracle_dump_table` | Export table rows as JSON (bounded) |
 | `oracle_query_info_schema` | Query INFORMATION_SCHEMA views (whitelisted) |
-| `oracle_list_domains` | Enumerate query registry domains/subdomains/ops |
+| `oracle_list_domains` | Enumerate QueryRegistry domains and operations |
 | `oracle_list_rpc_endpoints` | List RPC domain handler names |
 
 ### Transport
 
-Streamable HTTP transport mounted at `/mcp` on the existing FastAPI server.
-Runs in-process sharing the same database connection pool.
+Streamable HTTP mounted at `/mcp` via Starlette `Route`. Runs in-process
+sharing the application's database connection pool. Stateless mode with JSON
+responses.
 
 ### Role Bit Assignments
 
