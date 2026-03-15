@@ -313,7 +313,7 @@ async def create_token_v1(args: dict[str, Any]) -> DBResponse:
 async def get_token_v1(args: dict[str, Any]) -> DBResponse:
   params = RefreshTokenParams.model_validate(args)
   sql = """
-    SELECT
+    SELECT TOP 1
       t.recid,
       t.agents_recid,
       t.element_refresh_token,
@@ -328,6 +328,8 @@ async def get_token_v1(args: dict[str, Any]) -> DBResponse:
     JOIN account_mcp_agents a ON a.recid = t.agents_recid
     LEFT JOIN account_users au ON au.recid = a.users_recid
     WHERE t.element_refresh_token = ?
+      AND t.element_revoked_at IS NULL
+    ORDER BY t.recid DESC
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (params.refresh_token,))
