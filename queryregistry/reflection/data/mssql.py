@@ -8,12 +8,15 @@ from typing import Any
 from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
+from .models import QueryInfoSchemaParams
+
 __all__ = [
   "apply_batch_v1",
   "dump_table_v1",
   "get_version_v1",
   "rebuild_indexes_v1",
   "update_version_v1",
+  "query_info_schema_v1",
 ]
 
 
@@ -52,3 +55,16 @@ async def rebuild_indexes_v1(_: Mapping[str, Any]) -> DBResponse:
 async def apply_batch_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = args["sql"]
   return await run_exec(sql)
+
+
+async def query_info_schema_v1(args: Mapping[str, Any]) -> DBResponse:
+  params = QueryInfoSchemaParams.model_validate(args)
+  ident = _quote_ident(params.view_name)
+  sql = f"SELECT * FROM INFORMATION_SCHEMA.{ident}"
+  query_params: tuple[str, ...] = ()
+  if params.filter_column is not None and params.filter_value is not None:
+    col_ident = _quote_ident(params.filter_column)
+    sql += f" WHERE {col_ident} = ?"
+    query_params = (params.filter_value,)
+  sql += " FOR JSON PATH;"
+  return await run_json_many(sql, query_params)
