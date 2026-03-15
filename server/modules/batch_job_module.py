@@ -204,7 +204,8 @@ class BatchJobModule(BaseModule):
           job = dict(row)
           if not job.get("element_is_enabled"):
             continue
-          if int(job.get("element_status") or 0) == 1:
+          job_status = int(job.get("element_status") or 0)
+          if job_status in (1, 6):  # Skip Running and Paused
             continue
 
           next_run = self._parse_utc(job.get("element_next_run"))

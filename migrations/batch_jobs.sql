@@ -33,3 +33,19 @@ CREATE TABLE [dbo].[system_batch_job_history] (
     REFERENCES [dbo].[system_batch_jobs] ([recid])
 );
 CREATE INDEX [IX_batch_job_history_jobs_recid] ON [dbo].[system_batch_job_history] ([jobs_recid]);
+
+INSERT INTO [dbo].[frontend_routes] (
+    [element_enablement],
+    [element_roles],
+    [element_sequence],
+    [element_path],
+    [element_name],
+    [element_icon]
+) VALUES (
+    '0',
+    2305843009213693952,
+    1820,
+    '/system-batch-jobs',
+    'Batch Jobs',
+    'schedule'
+);
