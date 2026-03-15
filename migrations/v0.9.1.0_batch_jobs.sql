@@ -109,3 +109,27 @@ INSERT INTO [dbo].[frontend_routes] (
     'Batch Jobs',
     'schedule'
 );
+
+-- ============================================================
+-- Seed: Storage Reindex batch job
+-- ============================================================
+
+INSERT INTO [dbo].[system_batch_jobs] (
+    [element_name],
+    [element_description],
+    [element_class],
+    [element_parameters],
+    [element_cron],
+    [element_recurrence_type],
+    [element_is_enabled],
+    [element_status]
+) VALUES (
+    'Storage Reindex',
+    'Periodically scan Azure Blob Storage and synchronize the users_storage_cache table.',
+    'server.jobs.storage_reindex.run',
+    NULL,
+    '0 */12 * * *',
+    1,
+    1,
+    0
+);
