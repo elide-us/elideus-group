@@ -16,6 +16,7 @@ from .journal_lines.handler import handle_journal_lines_request
 from .journals.handler import handle_journals_request
 from .numbers.handler import handle_numbers_request
 from .periods.handler import handle_periods_request
+from .reporting.handler import handle_reporting_request
 from .staging.handler import handle_staging_request
 from .status.handler import handle_status_request
 
@@ -30,6 +31,7 @@ HANDLERS = {
   "journals": handle_journals_request,
   "numbers": handle_numbers_request,
   "periods": handle_periods_request,
+  "reporting": handle_reporting_request,
   "staging": handle_staging_request,
   "status": handle_status_request,
 }
