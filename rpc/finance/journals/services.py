@@ -17,6 +17,15 @@ from .models import (
 )
 
 
+def _coerce_line(line: dict) -> dict:
+  coerced = dict(line)
+  if "debit" in coerced:
+    coerced["debit"] = str(coerced["debit"])
+  if "credit" in coerced:
+    coerced["credit"] = str(coerced["credit"])
+  return coerced
+
+
 async def finance_journals_list_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = JournalListFilter1(**(rpc_request.payload or {}))
@@ -45,7 +54,7 @@ async def finance_journals_get_lines_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   rows = await module.get_journal_lines(input_payload.journals_recid)
-  payload = JournalLineList1(lines=[JournalLineItem1(**line) for line in rows])
+  payload = JournalLineList1(lines=[JournalLineItem1(**_coerce_line(line)) for line in rows])
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
