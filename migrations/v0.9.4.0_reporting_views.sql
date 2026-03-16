@@ -181,3 +181,43 @@ BEGIN
   VALUES ('vw_finance_credit_lot_summary', 'dbo');
 END;
 GO
+
+
+------------- Manual patch
+
+
+IF NOT EXISTS (SELECT 1 FROM system_schema_views WHERE element_name = 'vw_finance_trial_balance' AND element_schema = 'dbo')
+BEGIN
+    INSERT INTO system_schema_views (element_name, element_schema, element_definition)
+    SELECT 'vw_finance_trial_balance', 'dbo', m.definition
+    FROM sys.views v JOIN sys.sql_modules m ON v.object_id = m.object_id
+    WHERE v.name = 'vw_finance_trial_balance';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM system_schema_views WHERE element_name = 'vw_finance_journal_summary' AND element_schema = 'dbo')
+BEGIN
+    INSERT INTO system_schema_views (element_name, element_schema, element_definition)
+    SELECT 'vw_finance_journal_summary', 'dbo', m.definition
+    FROM sys.views v JOIN sys.sql_modules m ON v.object_id = m.object_id
+    WHERE v.name = 'vw_finance_journal_summary';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM system_schema_views WHERE element_name = 'vw_finance_period_status' AND element_schema = 'dbo')
+BEGIN
+    INSERT INTO system_schema_views (element_name, element_schema, element_definition)
+    SELECT 'vw_finance_period_status', 'dbo', m.definition
+    FROM sys.views v JOIN sys.sql_modules m ON v.object_id = m.object_id
+    WHERE v.name = 'vw_finance_period_status';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM system_schema_views WHERE element_name = 'vw_finance_credit_lot_summary' AND element_schema = 'dbo')
+BEGIN
+    INSERT INTO system_schema_views (element_name, element_schema, element_definition)
+    SELECT 'vw_finance_credit_lot_summary', 'dbo', m.definition
+    FROM sys.views v JOIN sys.sql_modules m ON v.object_id = m.object_id
+    WHERE v.name = 'vw_finance_credit_lot_summary';
+END
+GO
