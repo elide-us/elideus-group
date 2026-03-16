@@ -282,7 +282,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								<MenuItem value="">All</MenuItem>
 								{periodsForSelectedYear.map((period) => (
 									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>
-										{period.period_name}
+										{`FY${period.year} - ${period.period_name}`}
 									</MenuItem>
 								))}
 							</TextField>
@@ -668,7 +668,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 							>
 								<MenuItem value="">Select period</MenuItem>
 								{periods.map((period) => (
-									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>{period.period_name}</MenuItem>
+									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>{`FY${period.year} - ${period.period_name}`}</MenuItem>
 								))}
 							</TextField>
 						</Stack>

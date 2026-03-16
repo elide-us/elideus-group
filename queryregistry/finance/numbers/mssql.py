@@ -175,6 +175,21 @@ async def delete_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def next_number_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      recid bigint,
+      accounts_guid uniqueidentifier,
+      element_prefix nvarchar(10),
+      element_account_number nvarchar(10),
+      element_block_start bigint,
+      element_block_end bigint,
+      element_allocation_size int,
+      element_reset_policy nvarchar(20),
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset
+    );
+
     UPDATE finance_numbers
     SET element_last_number = element_last_number + element_allocation_size,
         element_modified_on = SYSUTCDATETIME()
@@ -183,13 +198,16 @@ async def next_number_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.accounts_guid,
       inserted.element_prefix,
       inserted.element_account_number,
-      (inserted.element_last_number - inserted.element_allocation_size + 1) AS element_block_start,
-      inserted.element_last_number AS element_block_end,
+      (inserted.element_last_number - inserted.element_allocation_size + 1),
+      inserted.element_last_number,
       inserted.element_allocation_size,
       inserted.element_reset_policy,
       inserted.element_created_on,
       inserted.element_modified_on
-    WHERE recid = ?
+    INTO @result
+    WHERE recid = ?;
+
+    SELECT * FROM @result
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["recid"],))
