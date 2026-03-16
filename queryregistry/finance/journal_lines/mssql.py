@@ -50,6 +50,10 @@ async def create_line_v1(args: Mapping[str, Any]) -> DBResponse:
   async with transaction() as cur:
     await cur.execute(
       """
+      SET NOCOUNT ON;
+
+      DECLARE @inserted_id TABLE (recid bigint);
+
       INSERT INTO finance_journal_lines (
         journals_recid,
         element_line_number,
@@ -59,7 +63,9 @@ async def create_line_v1(args: Mapping[str, Any]) -> DBResponse:
         element_description,
         element_created_on,
         element_modified_on
-      ) VALUES (
+      )
+      OUTPUT inserted.recid INTO @inserted_id
+      VALUES (
         ?,
         ?,
         TRY_CAST(? AS UNIQUEIDENTIFIER),
@@ -69,6 +75,8 @@ async def create_line_v1(args: Mapping[str, Any]) -> DBResponse:
         SYSUTCDATETIME(),
         SYSUTCDATETIME()
       );
+
+      SELECT recid FROM @inserted_id;
       """,
       (
         args["journals_recid"],
@@ -79,7 +87,6 @@ async def create_line_v1(args: Mapping[str, Any]) -> DBResponse:
         args.get("description"),
       ),
     )
-    await cur.execute("SELECT CAST(SCOPE_IDENTITY() AS BIGINT) AS recid;")
     identity_row = await cur.fetchone()
     line_recid = int(identity_row[0])
 
