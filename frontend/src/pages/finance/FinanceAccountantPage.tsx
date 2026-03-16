@@ -374,8 +374,8 @@ const FinanceAccountantPage = (): JSX.Element => {
 												Post
 											</Button>
 										)}
-										{row.journal_status === 1 && (
-											<Button
+									{row.journal_status === 1 && row.source_type !== "reversal" && (
+										<Button
 												size="small"
 												color="error"
 												onClick={async () => {
