@@ -20,13 +20,30 @@ from .models import (
 )
 
 
+def _coerce_lot(row: dict) -> dict:
+  """Coerce decimal fields from DB float to str for Pydantic models."""
+  coerced = dict(row)
+  for key in ("unit_price", "total_paid"):
+    if key in coerced:
+      coerced[key] = str(coerced[key])
+  return coerced
+
+
+def _coerce_event(row: dict) -> dict:
+  """Coerce decimal fields from DB float to str for Pydantic models."""
+  coerced = dict(row)
+  if "unit_price" in coerced:
+    coerced["unit_price"] = str(coerced["unit_price"])
+  return coerced
+
+
 async def finance_credit_lots_list_by_user_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = CreditLotListByUser1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
   rows = await module.list_lots_by_user(input_payload.users_guid)
-  payload = CreditLotList1(lots=[CreditLotItem1(**lot) for lot in rows])
+  payload = CreditLotList1(lots=[CreditLotItem1(**_coerce_lot(lot)) for lot in rows])
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
@@ -38,7 +55,7 @@ async def finance_credit_lots_get_v1(request: Request):
   row = await module.get_lot(input_payload.recid)
   if not row:
     raise HTTPException(status_code=404, detail="Credit lot not found")
-  payload = CreditLotItem1(**row)
+  payload = CreditLotItem1(**_coerce_lot(row))
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
@@ -60,7 +77,7 @@ async def finance_credit_lots_create_v1(request: Request):
     )
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  payload = CreditLotItem1(**row)
+  payload = CreditLotItem1(**_coerce_lot(row))
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
@@ -93,7 +110,7 @@ async def finance_credit_lots_expire_v1(request: Request):
     row = await module.expire_lot(input_payload.recid, actor_guid=auth_ctx.user_guid)
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  payload = CreditLotItem1(**row)
+  payload = CreditLotItem1(**_coerce_lot(row))
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
@@ -103,7 +120,7 @@ async def finance_credit_lots_list_events_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   rows = await module.list_lot_events(input_payload.lots_recid)
-  payload = CreditLotEventList1(events=[CreditLotEventItem1(**event) for event in rows])
+  payload = CreditLotEventList1(events=[CreditLotEventItem1(**_coerce_event(event)) for event in rows])
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
