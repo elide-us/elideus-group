@@ -8,8 +8,8 @@ class FinancePeriodsItem1(BaseModel):
   period_name: str
   start_date: str
   end_date: str
-  days_in_period: int
-  quarter_number: int
+  days_in_period: int | None = None
+  quarter_number: int | None = None
   has_closing_week: bool = False
   is_leap_adjustment: bool = False
   anchor_event: str | None = None
