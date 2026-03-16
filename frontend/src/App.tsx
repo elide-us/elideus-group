@@ -20,6 +20,7 @@ const SystemConversationsPage = lazy(() => import("./pages/system/SystemConversa
 const SystemBatchJobsPage = lazy(() => import("./pages/system/SystemBatchJobsPage"));
 const FinanceAdminPage = lazy(() => import("./pages/finance/FinanceAdminPage"));
 const FinanceAccountantPage = lazy(() => import("./pages/finance/FinanceAccountantPage"));
+const FinanceManagerPage = lazy(() => import("./pages/finance/FinanceManagerPage"));
 const AccountRolesPage = lazy(() => import("./pages/AccountRolesPage"));
 const AccountUsersPage = lazy(() => import("./pages/AccountUsersPage"));
 const AccountUserPanel = lazy(() => import("./pages/AccountUserPanel"));
@@ -56,6 +57,7 @@ function App(): JSX.Element {
                                                                 <Route path="/system-conversations" element={<SystemConversationsPage />} />
                                                                 <Route path="/system-batch-jobs" element={<SystemBatchJobsPage />} />
                                                                 <Route path="/finance-admin" element={<FinanceAdminPage />} />
+                                                                <Route path="/finance-appr" element={<FinanceManagerPage />} />
                                                                 <Route path="/finance-acct" element={<FinanceAccountantPage />} />
                                                                 <Route path="/service-roles" element={<ServiceRolesPage />} />
 								<Route path="/account-roles" element={<AccountRolesPage />} />
