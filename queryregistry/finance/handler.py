@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from queryregistry.models import DBRequest, DBResponse
 
 from .accounts.handler import handle_accounts_request
+from .credit_lots.handler import handle_credit_lots_request
 from .credits.handler import handle_credits_request
 from .dimensions.handler import handle_dimensions_request
 from .journal_lines.handler import handle_journal_lines_request
@@ -22,6 +23,7 @@ __all__ = ["handle_finance_request"]
 
 HANDLERS = {
   "accounts": handle_accounts_request,
+  "credit_lots": handle_credit_lots_request,
   "credits": handle_credits_request,
   "dimensions": handle_dimensions_request,
   "journal_lines": handle_journal_lines_request,

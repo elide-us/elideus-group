@@ -44,6 +44,7 @@ async def get_by_prefix_and_account_v1(args: Mapping[str, Any]) -> DBResponse:
       recid,
       element_prefix,
       element_account_number,
+      element_pattern,
       element_display_format
     FROM finance_numbers
     WHERE element_prefix = ?
