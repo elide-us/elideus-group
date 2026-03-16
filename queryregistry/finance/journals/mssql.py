@@ -81,6 +81,27 @@ async def get_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def create_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      recid bigint,
+      element_name nvarchar(max),
+      element_description nvarchar(max),
+      numbers_recid bigint,
+      element_status tinyint,
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset,
+      element_posting_key nvarchar(max),
+      element_source_type nvarchar(max),
+      element_source_id nvarchar(max),
+      periods_guid uniqueidentifier,
+      ledgers_recid bigint,
+      element_posted_by uniqueidentifier,
+      element_posted_on datetimeoffset,
+      element_reversed_by bigint,
+      element_reversal_of bigint
+    );
+
     INSERT INTO finance_journals (
       element_name,
       element_description,
@@ -111,8 +132,11 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_posted_on,
       inserted.element_reversed_by,
       inserted.element_reversal_of
-    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES
+    INTO @result
     VALUES (?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME(), ?, ?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?);
+
+    SELECT * FROM @result
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
     args["name"],
@@ -130,6 +154,27 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def update_status_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      recid bigint,
+      element_name nvarchar(max),
+      element_description nvarchar(max),
+      numbers_recid bigint,
+      element_status tinyint,
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset,
+      element_posting_key nvarchar(max),
+      element_source_type nvarchar(max),
+      element_source_id nvarchar(max),
+      periods_guid uniqueidentifier,
+      ledgers_recid bigint,
+      element_posted_by uniqueidentifier,
+      element_posted_on datetimeoffset,
+      element_reversed_by bigint,
+      element_reversal_of bigint
+    );
+
     UPDATE finance_journals
     SET
       element_status = ?,
@@ -155,8 +200,11 @@ async def update_status_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_posted_on,
       inserted.element_reversed_by,
       inserted.element_reversal_of
-    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES
+    INTO @result
     WHERE recid = ?;
+
+    SELECT * FROM @result
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
     args["status"],

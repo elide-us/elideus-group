@@ -89,6 +89,12 @@ type PeriodStatusRow = {
 
 type JournalLineForm = JournalCreateLine1;
 
+
+const getPeriodDisplayLabel = (period: FinancePeriodsItem1): string => {
+	const periodYear = (period as any).year ?? (period as any).fiscal_year ?? (period as any).element_year;
+	return `FY${periodYear ?? "-"} - ${period.period_name}`;
+};
+
 const DEFAULT_JOURNAL_LINE = (lineNumber: number): JournalLineForm => ({
 	line_number: lineNumber,
 	accounts_guid: "",
@@ -282,7 +288,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								<MenuItem value="">All</MenuItem>
 								{periodsForSelectedYear.map((period) => (
 									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>
-										{`FY${period.year} - ${period.period_name}`}
+										{getPeriodDisplayLabel(period)}
 									</MenuItem>
 								))}
 							</TextField>
@@ -668,7 +674,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 							>
 								<MenuItem value="">Select period</MenuItem>
 								{periods.map((period) => (
-									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>{`FY${period.year} - ${period.period_name}`}</MenuItem>
+									<MenuItem key={`${period.guid || period.period_number}`} value={period.guid || ""}>{getPeriodDisplayLabel(period)}</MenuItem>
 								))}
 							</TextField>
 						</Stack>

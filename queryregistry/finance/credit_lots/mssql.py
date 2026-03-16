@@ -78,6 +78,27 @@ async def get_lot_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def create_lot_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      recid bigint,
+      users_guid uniqueidentifier,
+      element_lot_number nvarchar(64),
+      element_source_type nvarchar(64),
+      element_credits_original int,
+      element_credits_remaining int,
+      element_unit_price decimal(19,5),
+      element_total_paid decimal(19,5),
+      element_currency nvarchar(3),
+      element_expires_at datetimeoffset,
+      element_expired bit,
+      element_source_id nvarchar(256),
+      numbers_recid bigint,
+      element_status tinyint,
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset
+    );
+
     INSERT INTO finance_credit_lots (
       users_guid,
       element_lot_number,
@@ -112,6 +133,7 @@ async def create_lot_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_created_on,
       inserted.element_modified_on
+    INTO @result
     VALUES (
       TRY_CAST(? AS UNIQUEIDENTIFIER),
       ?,
@@ -128,7 +150,9 @@ async def create_lot_v1(args: Mapping[str, Any]) -> DBResponse:
       ?,
       SYSUTCDATETIME(),
       SYSUTCDATETIME()
-    )
+    );
+
+    SELECT * FROM @result
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
@@ -196,6 +220,20 @@ async def list_events_by_lot_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def create_event_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      recid bigint,
+      lots_recid bigint,
+      element_event_type nvarchar(32),
+      element_credits int,
+      element_unit_price decimal(19,5),
+      element_description nvarchar(512),
+      element_actor_guid uniqueidentifier,
+      journals_recid bigint,
+      element_created_on datetimeoffset
+    );
+
     INSERT INTO finance_credit_lot_events (
       lots_recid,
       element_event_type,
@@ -216,6 +254,7 @@ async def create_event_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_actor_guid,
       inserted.journals_recid,
       inserted.element_created_on
+    INTO @result
     VALUES (
       ?,
       ?,
@@ -225,7 +264,9 @@ async def create_event_v1(args: Mapping[str, Any]) -> DBResponse:
       TRY_CAST(? AS UNIQUEIDENTIFIER),
       ?,
       SYSUTCDATETIME()
-    )
+    );
+
+    SELECT * FROM @result
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
