@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 __all__ = [
   "CreateImportParams",
+  "DeleteImportParams",
   "InsertCostDetailBatchParams",
   "ListCostDetailsByImportParams",
   "ListImportsParams",
@@ -39,6 +40,12 @@ class InsertCostDetailBatchParams(BaseModel):
 
   imports_recid: int
   rows: list[dict[str, Any]]
+
+
+class DeleteImportParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  imports_recid: int
 
 
 class ListImportsParams(BaseModel):

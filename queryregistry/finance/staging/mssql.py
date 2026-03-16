@@ -11,6 +11,7 @@ from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
   "create_import_v1",
+  "delete_import_v1",
   "insert_cost_detail_batch_v1",
   "list_cost_details_by_import_v1",
   "list_imports_v1",
@@ -99,6 +100,15 @@ async def update_import_status_v1(args: Mapping[str, Any]) -> DBResponse:
   """
   params = (args["status"], args["row_count"], args.get("error"), args["recid"])
   return await run_exec(sql, params)
+
+
+async def delete_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+    DELETE FROM finance_staging_cost_details WHERE imports_recid = ?;
+    DELETE FROM finance_staging_imports WHERE recid = ?;
+  """
+  return await run_exec(sql, (args["imports_recid"], args["imports_recid"]))
 
 
 async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:

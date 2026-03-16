@@ -34,3 +34,12 @@ class StagingImportList1(BaseModel):
 class StagingListDetails1(BaseModel):
   imports_recid: int
 
+
+
+class StagingDeleteImport1(BaseModel):
+  imports_recid: int
+
+
+class StagingDeleteResult1(BaseModel):
+  imports_recid: int
+  deleted: bool
