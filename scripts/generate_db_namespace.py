@@ -9,6 +9,8 @@ import sys
 from typing import Iterable
 
 from pydantic import BaseModel
+from colorama import Fore, Style
+import colorama
 
 from common import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
 
@@ -78,7 +80,7 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
   try:
     module = load_module(path)
   except Exception as e:
-    print(f"⚠️ Skipping '{path}' due to import error: {e}")
+    print(f"{Fore.YELLOW}[WARN]{Style.RESET_ALL} Skipping '{path}' due to import error: {e}")
     return interfaces
 
   for _, obj in inspect.getmembers(module):
@@ -90,7 +92,7 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
       continue
     if obj.__name__ in seen:
       continue
-    print(f"🧩 Found model: {obj.__name__}")
+    print(f"Found model: {obj.__name__}")
     seen.add(obj.__name__)
     interfaces.append(to_tabs(model_to_ts(obj)))
 
@@ -117,9 +119,9 @@ def find_all_operations() -> list[dict[str, str | list[str]]]:
     if not ops:
       continue
     namespace = '.'.join(base_parts)
-    print(f"\n🧩 Found DISPATCHERS in: {namespace}")
+    print(f"\nFound DISPATCHERS in: {namespace}")
     for op in ops:
-      print(f"  • DB op: {op['op']} (v{op['version']}) → {op['func']}")
+      print(f"  - DB op: {op['op']} (v{op['version']}) → {op['func']}")
       operations.append({'parts': base_parts, 'op': op['op'], 'version': op['version']})
   return sorted(
     operations,
@@ -171,7 +173,7 @@ def write_namespace_file(
   content = generate_db_namespace_ts(interfaces, operations)
   with open(out_path, 'w') as f:
     f.write(content)
-  print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
+  print(f"Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
 
 
 DB_CALL_FUNC = [
@@ -233,11 +235,12 @@ DB_CALL_FUNC = [
 
 
 def main() -> None:
-  print('✨ Starting Query Registry model extraction and TS generation...')
+  colorama.init()
+  print('Starting Query Registry model extraction and TS generation...')
   interfaces = find_all_interfaces()
   operations = find_all_operations()
   write_namespace_file(interfaces, operations, FRONTEND_DB)
-  print('\n🏁 Query Registry namespace generation complete.')
+  print('\nQuery Registry namespace generation complete.')
 
 
 if __name__ == '__main__':
