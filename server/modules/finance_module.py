@@ -463,6 +463,38 @@ class FinanceModule(BaseModule):
     await self.db.run(delete_lines_by_journal_request(DeleteLinesByJournalParams(journals_recid=journals_recid)))
     return {"journals_recid": journals_recid}
 
+  async def _next_formatted_number(self, prefix: str, account_number: str) -> tuple[str, int]:
+    """Get next number from a sequence and format it using the configured pattern."""
+    assert self.db
+    lookup_res = await self.db.run(
+      get_by_prefix_account_number_request(
+        GetByPrefixAndAccountNumberParams(prefix=prefix, account_number=account_number)
+      )
+    )
+    if not lookup_res.rows:
+      raise ValueError(f"Number sequence not found: prefix={prefix} account_number={account_number}")
+
+    seq_row = dict(lookup_res.rows[0])
+    numbers_recid = int(seq_row["recid"])
+
+    next_res = await self.db.run(next_number_request(NextNumberParams(recid=numbers_recid)))
+    if not next_res.rows:
+      raise ValueError(f"Failed to get next number from sequence {numbers_recid}")
+
+    result = dict(next_res.rows[0])
+    next_val = int(result.get("element_block_start", result.get("element_last_number", 0)))
+    pattern = seq_row.get("element_pattern") or seq_row.get("element_display_format")
+
+    if pattern and "{number" in pattern:
+      formatted = pattern.format(number=next_val)
+    elif pattern:
+      formatted = f"{pattern}{next_val}"
+    else:
+      prefix_str = seq_row.get("element_prefix") or ""
+      formatted = f"{prefix_str}{next_val:06d}"
+
+    return formatted, numbers_recid
+
   async def create_journal(
     self,
     *,
@@ -484,6 +516,12 @@ class FinanceModule(BaseModule):
       if existing.rows:
         logging.debug("[FinanceModule] create_journal idempotency hit for posting_key=%s", posting_key)
         return self._map_journal(dict(existing.rows[0]))
+
+    journal_number = None
+    journal_numbers_recid = None
+    if not posting_key:
+      journal_number, journal_numbers_recid = await self._next_formatted_number("JRN", "JRN-SEQ")
+      posting_key = journal_number
 
     if periods_guid and post:
       period = await self.get_period(periods_guid)
@@ -520,13 +558,14 @@ class FinanceModule(BaseModule):
     create_res = await self.db.run(
       create_journal_request(
         CreateJournalParams(
-          name=name,
+          name=journal_number or name,
           description=description,
           posting_key=posting_key,
           source_type=source_type,
           source_id=source_id,
           periods_guid=periods_guid,
           ledgers_recid=ledgers_recid,
+          numbers_recid=journal_numbers_recid,
           status=0,
         )
       )
