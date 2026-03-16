@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import csv
+from datetime import datetime
 import io
 import logging
+import re
 
 import aiohttp
 from azure.identity.aio import ClientSecretCredential
@@ -30,6 +32,12 @@ from .env_module import EnvModule
 
 
 class AzureBillingImportModule(BaseModule):
+  _START_DATE_AFTER_PATTERN = re.compile(
+    r"Start\s+date\s+must\s+be\s+after\s+"
+    r"(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)",
+    re.IGNORECASE,
+  )
+
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
@@ -136,6 +144,12 @@ class AzureBillingImportModule(BaseModule):
       return default
     return max(1, min(parsed, 300))
 
+  def _parse_start_date_after_error(self, response_text: str) -> datetime | None:
+    match = self._START_DATE_AFTER_PATTERN.search(response_text)
+    if not match:
+      return None
+    return datetime.strptime(match.group(1), "%m/%d/%Y %I:%M:%S %p")
+
   async def import_cost_details(
     self,
     period_start: str,
@@ -188,17 +202,39 @@ class AzureBillingImportModule(BaseModule):
       }
 
       async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=body) as response:
-          if response.status != 202:
+        corrected_start: str | None = None
+        for attempt in range(2):
+          async with session.post(url, headers=headers, json=body) as response:
+            if response.status == 202:
+              location = response.headers.get("Location")
+              retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
+              if not location:
+                raise RuntimeError("Azure Cost Details report response missing Location header")
+              break
+
             response_text = await response.text()
-            raise RuntimeError(
-              "Azure Cost Details report request failed "
-              f"({response.status}): {response_text}",
+            if response.status != 400 or attempt == 1:
+              raise RuntimeError(
+                "Azure Cost Details report request failed "
+                f"({response.status}): {response_text}",
+              )
+
+            corrected_start_dt = self._parse_start_date_after_error(response_text)
+            if not corrected_start_dt:
+              raise RuntimeError(
+                "Azure Cost Details report request failed "
+                f"({response.status}): {response_text}",
+              )
+
+            corrected_start = corrected_start_dt.isoformat(timespec="seconds")
+            logging.info(
+              "[AzureBillingImportModule] Auto-corrected Azure Cost Details start date from %s to %s",
+              body["timePeriod"]["start"],
+              corrected_start,
             )
-          location = response.headers.get("Location")
-          retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
-          if not location:
-            raise RuntimeError("Azure Cost Details report response missing Location header")
+            body["timePeriod"]["start"] = corrected_start
+        else:
+          raise RuntimeError("Azure Cost Details report request failed with unknown retry state")
 
         manifest: dict | None = None
         while True:
