@@ -316,6 +316,7 @@ All Finance domain calls require `ROLE_FINANCE_ADMIN`.
 
 | Operation | Description |
 | --- | --- |
+| `urn:finance:staging:delete_import:1` | Delete a finance staging import batch and its staged cost detail rows. |
 | `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range. |
 | `urn:finance:staging:list_imports:1` | List finance staging import batches. |
 | `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |

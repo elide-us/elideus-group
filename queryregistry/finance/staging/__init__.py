@@ -6,6 +6,7 @@ from queryregistry.models import DBRequest
 
 from .models import (
   CreateImportParams,
+  DeleteImportParams,
   InsertCostDetailBatchParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
@@ -14,6 +15,7 @@ from .models import (
 
 __all__ = [
   "create_import_request",
+  "delete_import_request",
   "insert_cost_detail_batch_request",
   "list_cost_details_by_import_request",
   "list_imports_request",
@@ -45,3 +47,7 @@ def list_cost_details_by_import_request(params: ListCostDetailsByImportParams) -
     op="db:finance:staging:list_cost_details_by_import:1",
     payload=params.model_dump(),
   )
+
+
+def delete_import_request(params: DeleteImportParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:delete_import:1", payload=params.model_dump())
