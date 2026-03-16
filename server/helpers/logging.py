@@ -1,6 +1,8 @@
 import logging, asyncio, time
 import sys
 
+from server.helpers.error_digest import ErrorDigest
+
 MAX_DISCORD_MESSAGE_LEN = 1900
 
 def split_message(msg: str, limit: int = MAX_DISCORD_MESSAGE_LEN) -> list[str]:
@@ -9,6 +11,18 @@ def split_message(msg: str, limit: int = MAX_DISCORD_MESSAGE_LEN) -> list[str]:
 class ExcludeDiscordFilter(logging.Filter):
   def filter(self, record):
     return not record.name.startswith('discord')
+
+
+class ConsoleDigestFormatter(logging.Formatter):
+  def formatException(self, ei):
+    exc = ei[1]
+    if exc is None:
+      return super().formatException(ei)
+    digest = ErrorDigest.from_exception(exc, ei[2])
+    logger = logging.getLogger()
+    if logger.isEnabledFor(logging.DEBUG):
+      return f"{digest.detail}\n{digest.full_traceback.rstrip()}"
+    return digest.detail
 
 class DiscordHandler(logging.Handler):
   def __init__(self, discord_module, interval: float = 1.0, delay: float = 5.0):
@@ -23,7 +37,18 @@ class DiscordHandler(logging.Handler):
     if record.name.startswith('discord'):
       return
 
-    msg = self.format(record)
+    record_to_format = record
+    if record.exc_info and record.exc_info[1] is not None:
+      digest = ErrorDigest.from_exception(record.exc_info[1], record.exc_info[2])
+      record_to_format = logging.makeLogRecord({
+        **record.__dict__,
+        'msg': digest.short,
+        'args': (),
+        'exc_info': None,
+        'exc_text': None,
+      })
+
+    msg = self.format(record_to_format)
 
     if not msg or msg == "None":
       return
@@ -110,7 +135,7 @@ def configure_root_logging(level: int = 3):
   if logger.handlers:
     logger.handlers.clear()
   handler = logging.StreamHandler(sys.stdout)
-  handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+  handler.setFormatter(ConsoleDigestFormatter('%(levelname)s: %(message)s'))
   logger.addHandler(handler)
   logger.addFilter(ExcludeDiscordFilter())
   for name in ('discord', 'discord.http', 'discord.client', 'discord.gateway'):
@@ -122,4 +147,3 @@ def remove_discord_logging(discord_module):
   for h in list(logger.handlers):
     if isinstance(h, DiscordHandler) and h.discord is discord_module:
       logger.removeHandler(h)
-
