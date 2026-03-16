@@ -274,6 +274,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								label="Fiscal Year"
 								value={selectedYear}
 								onChange={(e) => setSelectedYear(Number(e.target.value))}
+								sx={{ minWidth: 120 }}
 							>
 								{fiscalYears.map((year) => (
 									<MenuItem key={year} value={year}>{year}</MenuItem>
@@ -284,6 +285,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								label="Period"
 								value={selectedPeriodGuid}
 								onChange={(e) => setSelectedPeriodGuid(e.target.value)}
+								sx={{ minWidth: 200 }}
 							>
 								<MenuItem value="">All</MenuItem>
 								{periodsForSelectedYear.map((period) => (
@@ -297,6 +299,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								label="Status"
 								value={journalStatus}
 								onChange={(e) => setJournalStatus(e.target.value)}
+								sx={{ minWidth: 140 }}
 							>
 								<MenuItem value="">All</MenuItem>
 								<MenuItem value="0">Unposted</MenuItem>
@@ -330,8 +333,12 @@ const FinanceAccountantPage = (): JSX.Element => {
 									key={row.recid}
 									sx={{ cursor: "pointer" }}
 									onClick={async () => {
-										const linesRes = await fetchLines({ journals_recid: row.recid }) as JournalLineList1;
-										setJournalLines(linesRes.lines || []);
+										try {
+											const linesRes = await fetchLines({ journals_recid: row.recid }) as JournalLineList1;
+											setJournalLines(linesRes.lines || []);
+										} catch {
+											setJournalLines([]);
+										}
 										setSelectedJournal(row);
 										setJournalDialogOpen(true);
 									}}
@@ -475,6 +482,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								label="Fiscal Year"
 								value={periodYearFilter}
 								onChange={(e) => setPeriodYearFilter(Number(e.target.value))}
+								sx={{ minWidth: 120 }}
 							>
 								{fiscalYears.map((year) => (
 									<MenuItem key={year} value={year}>{year}</MenuItem>

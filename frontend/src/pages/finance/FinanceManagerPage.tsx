@@ -104,6 +104,10 @@ const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 4, label: "Expense" },
 ];
 
+const getPeriodDisplayLabel = (row: { fiscal_year: number; period_name: string }): string => {
+	return `FY${row.fiscal_year} - ${row.period_name}`;
+};
+
 const FinanceManagerPage = (): JSX.Element => {
 	const [tab, setTab] = useState(0);
 	const [forbidden, setForbidden] = useState(false);
@@ -127,6 +131,7 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
 
 	const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
+	const [allPeriodStatusRows, setAllPeriodStatusRows] = useState<PeriodStatus[]>([]);
 	const [periodStatusRows, setPeriodStatusRows] = useState<PeriodStatus[]>([]);
 
 	const [trialYear, setTrialYear] = useState<number>(new Date().getFullYear());
@@ -140,21 +145,21 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const yearOptions = useMemo(() => {
 		const years = new Set<number>();
-		periodStatusRows.forEach((row) => years.add(row.fiscal_year));
+		allPeriodStatusRows.forEach((row) => years.add(row.fiscal_year));
 		if (!years.size) {
 			years.add(new Date().getFullYear());
 		}
 		return Array.from(years).sort((a, b) => b - a);
-	}, [periodStatusRows]);
+	}, [allPeriodStatusRows]);
 
 	const periodsForTrialYear = useMemo(
-		() => periodStatusRows.filter((row) => row.fiscal_year === trialYear),
-		[periodStatusRows, trialYear],
+		() => allPeriodStatusRows.filter((row) => row.fiscal_year === trialYear),
+		[allPeriodStatusRows, trialYear],
 	);
 
 	const periodsForJournalYear = useMemo(
-		() => periodStatusRows.filter((row) => row.fiscal_year === journalYear),
-		[periodStatusRows, journalYear],
+		() => allPeriodStatusRows.filter((row) => row.fiscal_year === journalYear),
+		[allPeriodStatusRows, journalYear],
 	);
 
 	const loadNumbers = useCallback(async (): Promise<void> => {
@@ -173,6 +178,11 @@ const FinanceManagerPage = (): JSX.Element => {
 		});
 		setPeriodStatusRows(res.periods || []);
 	}, [periodYear]);
+
+	const loadAllPeriodStatus = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ periods: PeriodStatus[] }>("urn:finance:reporting:period_status:1", {});
+		setAllPeriodStatusRows(res.periods || []);
+	}, []);
 
 	const loadTrialBalance = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ rows: TrialBalanceRow[] }>("urn:finance:reporting:trial_balance:1", {
@@ -193,7 +203,7 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
-			await Promise.all([loadNumbers(), loadPeriodStatus()]);
+			await Promise.all([loadNumbers(), loadPeriodStatus(), loadAllPeriodStatus()]);
 			setForbidden(false);
 		} catch (e: any) {
 			if (e?.response?.status === 403) {
@@ -202,7 +212,7 @@ const FinanceManagerPage = (): JSX.Element => {
 			}
 			throw e;
 		}
-	}, [loadNumbers, loadPeriodStatus]);
+	}, [loadAllPeriodStatus, loadNumbers, loadPeriodStatus]);
 
 	useEffect(() => {
 		void loadAll();
@@ -411,7 +421,7 @@ const FinanceManagerPage = (): JSX.Element => {
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
-							<TextField select label="Fiscal Year" value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))}>
+							<TextField select label="Fiscal Year" value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
 								{yearOptions.map((year) => (
 									<MenuItem key={year} value={year}>{year}</MenuItem>
 								))}
@@ -438,7 +448,7 @@ const FinanceManagerPage = (): JSX.Element => {
 						<TableBody>
 							{periodStatusRows.map((row) => (
 								<TableRow key={row.period_guid}>
-									<TableCell>{row.period_name}</TableCell>
+									<TableCell>{getPeriodDisplayLabel(row)}</TableCell>
 									<TableCell>{row.period_number}</TableCell>
 									<TableCell>{row.start_date}</TableCell>
 									<TableCell>{row.end_date}</TableCell>
@@ -493,15 +503,15 @@ const FinanceManagerPage = (): JSX.Element => {
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
-							<TextField select label="Fiscal Year" value={trialYear} onChange={(e) => setTrialYear(Number(e.target.value))}>
+							<TextField select label="Fiscal Year" value={trialYear} onChange={(e) => setTrialYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
 								{yearOptions.map((year) => (
 									<MenuItem key={year} value={year}>{year}</MenuItem>
 								))}
 							</TextField>
-							<TextField select label="Period" value={trialPeriodGuid} onChange={(e) => setTrialPeriodGuid(e.target.value)}>
+							<TextField select label="Period" value={trialPeriodGuid} onChange={(e) => setTrialPeriodGuid(e.target.value)} sx={{ minWidth: 200 }}>
 								<MenuItem value="">All</MenuItem>
 								{periodsForTrialYear.map((period) => (
-									<MenuItem key={period.period_guid} value={period.period_guid}>{period.period_name}</MenuItem>
+									<MenuItem key={period.period_guid} value={period.period_guid}>{getPeriodDisplayLabel(period)}</MenuItem>
 								))}
 							</TextField>
 							<Button variant="outlined" onClick={() => void loadTrialBalance()}>Refresh</Button>
@@ -544,18 +554,18 @@ const FinanceManagerPage = (): JSX.Element => {
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
-							<TextField select label="Fiscal Year" value={journalYear} onChange={(e) => setJournalYear(Number(e.target.value))}>
+							<TextField select label="Fiscal Year" value={journalYear} onChange={(e) => setJournalYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
 								{yearOptions.map((year) => (
 									<MenuItem key={year} value={year}>{year}</MenuItem>
 								))}
 							</TextField>
-							<TextField select label="Period" value={journalPeriodGuid} onChange={(e) => setJournalPeriodGuid(e.target.value)}>
+							<TextField select label="Period" value={journalPeriodGuid} onChange={(e) => setJournalPeriodGuid(e.target.value)} sx={{ minWidth: 200 }}>
 								<MenuItem value="">All</MenuItem>
 								{periodsForJournalYear.map((period) => (
-									<MenuItem key={period.period_guid} value={period.period_guid}>{period.period_name}</MenuItem>
+									<MenuItem key={period.period_guid} value={period.period_guid}>{getPeriodDisplayLabel(period)}</MenuItem>
 								))}
 							</TextField>
-							<TextField select label="Status" value={journalStatus} onChange={(e) => setJournalStatus(e.target.value)}>
+							<TextField select label="Status" value={journalStatus} onChange={(e) => setJournalStatus(e.target.value)} sx={{ minWidth: 140 }}>
 								<MenuItem value="">All</MenuItem>
 								<MenuItem value="0">Unposted</MenuItem>
 								<MenuItem value="1">Posted</MenuItem>
