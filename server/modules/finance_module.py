@@ -94,6 +94,32 @@ from queryregistry.finance.journals.models import (
   ListJournalsParams,
   UpdateJournalStatusParams,
 )
+from queryregistry.finance.credit_lots import (
+  create_event_request,
+  create_lot_request,
+  consume_credits_request,
+  expire_lot_request,
+  get_lot_request,
+  list_events_by_lot_request,
+  list_lots_by_user_request,
+  sum_remaining_by_user_request,
+)
+from queryregistry.finance.credit_lots.models import (
+  CreateEventParams,
+  CreateLotParams,
+  ConsumeCreditsParams,
+  ExpireLotParams,
+  GetLotParams,
+  ListEventsByLotParams,
+  ListLotsByUserParams,
+  SumRemainingByUserParams,
+)
+from queryregistry.finance.credits import (
+  set_credits_request,
+)
+from queryregistry.finance.credits.models import (
+  SetCreditsParams,
+)
 
 
 _FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
@@ -198,6 +224,36 @@ class FinanceModule(BaseModule):
       "credit": row.get("element_credit"),
       "description": row.get("element_description"),
       "dimension_recids": row.get("dimension_recids", []),
+    }
+
+  def _map_lot(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "users_guid": row.get("users_guid"),
+      "lot_number": row.get("element_lot_number"),
+      "source_type": row.get("element_source_type"),
+      "credits_original": row.get("element_credits_original"),
+      "credits_remaining": row.get("element_credits_remaining"),
+      "unit_price": row.get("element_unit_price"),
+      "total_paid": row.get("element_total_paid"),
+      "currency": row.get("element_currency"),
+      "expires_at": row.get("element_expires_at"),
+      "expired": row.get("element_expired"),
+      "source_id": row.get("element_source_id"),
+      "numbers_recid": row.get("numbers_recid"),
+      "status": row.get("element_status"),
+    }
+
+  def _map_lot_event(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "lots_recid": row.get("lots_recid"),
+      "event_type": row.get("element_event_type"),
+      "credits": row.get("element_credits"),
+      "unit_price": row.get("element_unit_price"),
+      "description": row.get("element_description"),
+      "actor_guid": row.get("element_actor_guid"),
+      "journals_recid": row.get("journals_recid"),
     }
 
   @staticmethod
@@ -688,3 +744,223 @@ class FinanceModule(BaseModule):
       )
     )
     return self._map_journal(dict(res.rows[0]))
+
+  async def list_lots_by_user(self, users_guid: str) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_lots_by_user_request(ListLotsByUserParams(users_guid=users_guid)))
+    return [self._map_lot(row) for row in res.rows]
+
+  async def get_lot(self, recid: int) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(get_lot_request(GetLotParams(recid=recid)))
+    if not res.rows:
+      return None
+    return self._map_lot(dict(res.rows[0]))
+
+  async def list_lot_events(self, lots_recid: int) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_events_by_lot_request(ListEventsByLotParams(lots_recid=lots_recid)))
+    return [self._map_lot_event(row) for row in res.rows]
+
+  async def get_wallet_balance(self, users_guid: str) -> int:
+    """Get total remaining credits across all active lots for a user."""
+    assert self.db
+    res = await self.db.run(sum_remaining_by_user_request(SumRemainingByUserParams(users_guid=users_guid)))
+    row = dict(res.rows[0]) if res.rows else {}
+    total = row.get("total_remaining", 0)
+    return int(total or 0)
+
+  async def _get_account_guid_by_number(self, account_number: str) -> str:
+    """Look up an account GUID by its account number."""
+    accounts = await self.list_accounts()
+    for acct in accounts:
+      if acct["number"] == account_number:
+        return acct["guid"]
+    raise ValueError(f"Account {account_number} not found")
+
+  async def _sync_wallet(self, users_guid: str) -> None:
+    """Sync the users_credits wallet balance from lot totals."""
+    assert self.db
+    total = await self.get_wallet_balance(users_guid)
+    await self.db.run(set_credits_request(SetCreditsParams(guid=users_guid, credits=total)))
+
+  async def create_lot(
+    self,
+    *,
+    users_guid: str,
+    source_type: str,
+    credits: int,
+    total_paid: str = "0",
+    currency: str = "USD",
+    expires_at: str | None = None,
+    source_id: str | None = None,
+    actor_guid: str | None = None,
+  ) -> dict[str, Any]:
+    assert self.db
+
+    total_paid_decimal = self._to_decimal(total_paid)
+    unit_price = Decimal("0")
+    if credits > 0 and total_paid_decimal > Decimal("0"):
+      unit_price = self._quantize_5dp(total_paid_decimal / Decimal(credits))
+
+    lot_number, numbers_recid = await self._next_formatted_number("LOT", "LOT-SEQ")
+    lot_res = await self.db.run(
+      create_lot_request(
+        CreateLotParams(
+          users_guid=users_guid,
+          lot_number=lot_number,
+          source_type=source_type,
+          credits_original=credits,
+          credits_remaining=credits,
+          unit_price=str(unit_price),
+          total_paid=str(total_paid_decimal),
+          currency=currency,
+          expires_at=expires_at,
+          source_id=source_id,
+          numbers_recid=numbers_recid,
+          status=1,
+        )
+      )
+    )
+    if not lot_res.rows:
+      raise ValueError("Failed to create credit lot")
+
+    created = self._map_lot(dict(lot_res.rows[0]))
+    await self.db.run(
+      create_event_request(
+        CreateEventParams(
+          lots_recid=int(created["recid"]),
+          event_type="Purchase" if source_type == "purchase" else "Grant",
+          credits=credits,
+          unit_price=str(unit_price),
+          actor_guid=actor_guid,
+        )
+      )
+    )
+    await self._sync_wallet(users_guid)
+    return created
+
+  async def expire_lot(self, recid: int, actor_guid: str | None = None) -> dict[str, Any] | None:
+    assert self.db
+    lot = await self.get_lot(recid)
+    if not lot:
+      return None
+
+    expired_res = await self.db.run(expire_lot_request(ExpireLotParams(recid=recid)))
+    if not expired_res.rows:
+      return None
+
+    expired = self._map_lot(dict(expired_res.rows[0]))
+    remaining_before = int(lot.get("credits_remaining") or 0)
+    if remaining_before > 0:
+      await self.db.run(
+        create_event_request(
+          CreateEventParams(
+            lots_recid=recid,
+            event_type="Expire",
+            credits=remaining_before,
+            unit_price=str(lot.get("unit_price") or "0"),
+            actor_guid=actor_guid,
+          )
+        )
+      )
+    await self._sync_wallet(str(expired["users_guid"]))
+    return expired
+
+  async def consume_credits(
+    self,
+    *,
+    users_guid: str,
+    credits_needed: int,
+    service_type: str | None = None,
+    description: str | None = None,
+    actor_guid: str | None = None,
+    periods_guid: str | None = None,
+  ) -> dict[str, Any]:
+    assert self.db
+
+    if credits_needed <= 0:
+      raise ValueError("credits_needed must be greater than zero")
+
+    lots_res = await self.db.run(list_lots_by_user_request(ListLotsByUserParams(users_guid=users_guid)))
+    lots = [self._map_lot(row) for row in lots_res.rows]
+
+    remaining_need = credits_needed
+    consumed_lots: list[tuple[dict[str, Any], int]] = []
+    for lot in lots:
+      if remaining_need <= 0:
+        break
+      available = int(lot.get("credits_remaining") or 0)
+      if available <= 0:
+        continue
+      take = min(available, remaining_need)
+      consume_res = await self.db.run(
+        consume_credits_request(ConsumeCreditsParams(recid=int(lot["recid"]), credits_to_consume=take))
+      )
+      if consume_res.rowcount == 0:
+        continue
+      consumed_lots.append((lot, take))
+      remaining_need -= take
+
+    if remaining_need > 0:
+      available = credits_needed - remaining_need
+      raise ValueError(f"Insufficient credits: needed {credits_needed}, available {available}")
+
+    recognized_revenue = Decimal("0")
+    for lot, take in consumed_lots:
+      if lot.get("source_type") == "purchase":
+        recognized_revenue += self._quantize_5dp(Decimal(take) * self._to_decimal(lot.get("unit_price", "0")))
+
+    journal: dict[str, Any] | None = None
+    if recognized_revenue > Decimal("0"):
+      deferred_revenue_guid = await self._get_account_guid_by_number("2100")
+      recognized_revenue_guid = await self._get_account_guid_by_number("4010")
+      journal = await self.create_journal(
+        name=f"REV-{users_guid[:8]}-{credits_needed}",
+        source_type="credit_consumption",
+        source_id=users_guid,
+        periods_guid=periods_guid,
+        lines=[
+          {
+            "line_number": 1,
+            "accounts_guid": deferred_revenue_guid,
+            "debit": str(recognized_revenue),
+            "credit": "0",
+            "description": description or service_type,
+          },
+          {
+            "line_number": 2,
+            "accounts_guid": recognized_revenue_guid,
+            "debit": "0",
+            "credit": str(recognized_revenue),
+            "description": description or service_type,
+          },
+        ],
+        post=True,
+        posted_by=actor_guid,
+      )
+
+    for lot, take in consumed_lots:
+      event_journal_recid = None
+      if journal and lot.get("source_type") == "purchase":
+        event_journal_recid = int(journal["recid"])
+      await self.db.run(
+        create_event_request(
+          CreateEventParams(
+            lots_recid=int(lot["recid"]),
+            event_type="Consume",
+            credits=take,
+            unit_price=str(lot.get("unit_price") or "0"),
+            description=description or service_type,
+            actor_guid=actor_guid,
+            journals_recid=event_journal_recid,
+          )
+        )
+      )
+
+    await self._sync_wallet(users_guid)
+    return {
+      "credits_consumed": credits_needed,
+      "lots_affected": len(consumed_lots),
+      "journal_recid": int(journal["recid"]) if journal else None,
+    }
