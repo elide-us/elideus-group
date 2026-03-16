@@ -847,10 +847,13 @@ class FinanceModule(BaseModule):
       return None
 
     expired_res = await self.db.run(expire_lot_request(ExpireLotParams(recid=recid)))
-    if not expired_res.rows:
+    if expired_res.rowcount == 0:
       return None
 
-    expired = self._map_lot(dict(expired_res.rows[0]))
+    expired_lot = await self.get_lot(recid)
+    if not expired_lot:
+      return None
+    expired = self._map_lot(expired_lot) if isinstance(expired_lot, dict) else expired_lot
     remaining_before = int(lot.get("credits_remaining") or 0)
     if remaining_before > 0:
       await self.db.run(
