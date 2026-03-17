@@ -8,6 +8,8 @@ from .models import (
   FinanceNumbersItem1,
   FinanceNumbersList1,
   FinanceNumbersNextNumber1,
+  FinanceNumbersShift1,
+  FinanceNumbersShiftResult1,
   FinanceNumbersUpsert1,
 )
 
@@ -62,4 +64,17 @@ async def finance_numbers_next_number_v1(request: Request):
   if not row:
     raise HTTPException(status_code=404, detail="Number sequence not found")
   payload = FinanceNumbersItem1(**row)
+  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+
+
+async def finance_numbers_shift_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  input_payload = FinanceNumbersShift1(**(rpc_request.payload or {}))
+  module = request.app.state.finance
+  await module.on_ready()
+  row = await module.shift_sequence(input_payload.model_dump())
+  payload = FinanceNumbersShiftResult1(
+    closed_sequence=FinanceNumbersItem1(**row["closed_sequence"]) if row.get("closed_sequence") else None,
+    new_sequence=FinanceNumbersItem1(**row["new_sequence"]),
+  )
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

@@ -31,3 +31,17 @@ class FinanceNumbersDelete1(BaseModel):
 
 class FinanceNumbersNextNumber1(BaseModel):
   recid: int
+
+
+class FinanceNumbersShift1(BaseModel):
+  current_recid: int
+  new_prefix: str | None = None
+  new_account_number: str
+  new_display_format: str | None = None
+  new_pattern: str | None = None
+  new_allocation_size: int = 1
+
+
+class FinanceNumbersShiftResult1(BaseModel):
+  closed_sequence: FinanceNumbersItem1 | None = None
+  new_sequence: FinanceNumbersItem1

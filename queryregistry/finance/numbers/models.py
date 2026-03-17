@@ -7,12 +7,14 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "CloseSequenceParams",
   "DeleteNumberParams",
   "GetByPrefixAndAccountNumberParams",
   "GetNumberParams",
   "ListNumbersParams",
   "NextNumberParams",
   "NumberRecord",
+  "ShiftNumberParams",
   "UpsertNumberParams",
 ]
 
@@ -56,10 +58,27 @@ class DeleteNumberParams(BaseModel):
   recid: int
 
 
+class CloseSequenceParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  recid: int
+
+
 class NextNumberParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   recid: int
+
+
+class ShiftNumberParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  current_recid: int
+  new_prefix: str | None = None
+  new_account_number: str
+  new_display_format: str | None = None
+  new_pattern: str | None = None
+  new_allocation_size: int = 1
 
 
 class NumberRecord(TypedDict):
