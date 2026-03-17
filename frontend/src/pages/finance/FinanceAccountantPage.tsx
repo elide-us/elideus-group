@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	Box,
 	Button,
+	Checkbox,
 	Chip,
+	Collapse,
 	Dialog,
 	DialogActions,
 	DialogContent,
 	DialogTitle,
 	Divider,
+	FormControlLabel,
 	MenuItem,
 	Paper,
 	Stack,
@@ -21,6 +24,7 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
+import Notification from "../../components/Notification";
 import PageTitle from "../../components/PageTitle";
 import { fetchCreate, fetchLines, fetchPost, fetchReverse } from "../../rpc/finance/journals/index";
 import { fetchCreate as fetchCreditCreate, fetchExpire, fetchListEvents } from "../../rpc/finance/credit_lots/index";
@@ -41,8 +45,12 @@ import {
 	JournalLineList1,
 	JournalSummaryList1,
 	PeriodStatusList1,
+	FinanceStagingAccountMapItem1,
+	FinanceStagingAccountMapList1,
+	FinanceStagingAccountMapUpsert1,
 	StagingImportItem1,
 	StagingImportList1,
+	StagingPromoteResult1,
 } from "../../shared/RpcModels";
 
 type JournalSummaryRow = {
@@ -89,6 +97,25 @@ type PeriodStatusRow = {
 
 type JournalLineForm = JournalCreateLine1;
 
+interface MappingFormState {
+	recid: number | null;
+	element_service_pattern: string;
+	element_meter_pattern: string;
+	accounts_guid: string;
+	element_priority: number;
+	element_description: string;
+	element_status: boolean;
+}
+
+const EMPTY_MAPPING_FORM: MappingFormState = {
+	recid: null,
+	element_service_pattern: "",
+	element_meter_pattern: "",
+	accounts_guid: "",
+	element_priority: 0,
+	element_description: "",
+	element_status: true,
+};
 
 const getPeriodDisplayLabel = (period: FinancePeriodsItem1): string => {
 	const periodYear = (period as any).year ?? (period as any).fiscal_year ?? (period as any).element_year;
@@ -156,6 +183,13 @@ const FinanceAccountantPage = (): JSX.Element => {
 	const [imports, setImports] = useState<StagingImportItem1[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
+	const [accountMappings, setAccountMappings] = useState<FinanceStagingAccountMapItem1[]>([]);
+	const [mappingFormOpen, setMappingFormOpen] = useState(false);
+	const [mappingForm, setMappingForm] = useState<MappingFormState>(EMPTY_MAPPING_FORM);
+	const [promoting, setPromoting] = useState<Record<number, boolean>>({});
+	const [notification, setNotification] = useState(false);
+	const [notificationMessage, setNotificationMessage] = useState("Done");
+	const [notificationSeverity, setNotificationSeverity] = useState<"success" | "error">("success");
 
 	const fiscalYears = useMemo(() => {
 		const years = new Set<number>();
@@ -179,6 +213,30 @@ const FinanceAccountantPage = (): JSX.Element => {
 		() => accounts.filter((account) => account.is_posting),
 		[accounts],
 	);
+
+	const showNotification = (message: string, severity: "success" | "error" = "success"): void => {
+		setNotificationMessage(message);
+		setNotificationSeverity(severity);
+		setNotification(true);
+	};
+
+	const openMappingForm = (mapping?: FinanceStagingAccountMapItem1): void => {
+		if (!mapping) {
+			setMappingForm(EMPTY_MAPPING_FORM);
+			setMappingFormOpen(true);
+			return;
+		}
+		setMappingForm({
+			recid: typeof mapping.recid === "number" ? mapping.recid : null,
+			element_service_pattern: mapping.element_service_pattern || "",
+			element_meter_pattern: String(mapping.element_meter_pattern || ""),
+			accounts_guid: mapping.accounts_guid || "",
+			element_priority: Number(mapping.element_priority || 0),
+			element_description: String(mapping.element_description || ""),
+			element_status: Number(mapping.element_status) === 1,
+		});
+		setMappingFormOpen(true);
+	};
 
 	const loadShared = useCallback(async (): Promise<void> => {
 		const [periodRes, accountRes] = await Promise.all([
@@ -214,6 +272,11 @@ const FinanceAccountantPage = (): JSX.Element => {
 		setImports(res.imports || []);
 	}, []);
 
+	const loadAccountMappings = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<FinanceStagingAccountMapList1>("urn:finance:staging_account_map:list:1");
+		setAccountMappings(res.mappings || []);
+	}, []);
+
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
 			await loadShared();
@@ -244,7 +307,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 		if (tab === 3) {
 			void loadImports();
 		}
-	}, [tab, loadImports, loadJournals, loadLots, loadPeriodStatus]);
+		if (tab === 4) {
+			void loadAccountMappings();
+		}
+	}, [tab, loadAccountMappings, loadImports, loadJournals, loadLots, loadPeriodStatus]);
 
 	if (forbidden) {
 		return (
@@ -263,6 +329,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 				<Tab label="Credit Lots" />
 				<Tab label="Periods" />
 				<Tab label="Staging" />
+				<Tab label="Account Mappings" />
 			</Tabs>
 
 			{tab === 0 && (
@@ -571,6 +638,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 								<TableCell>Status</TableCell>
 								<TableCell>Error</TableCell>
 								<TableCell>Created On</TableCell>
+								<TableCell>Actions</TableCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -594,9 +662,52 @@ const FinanceAccountantPage = (): JSX.Element => {
 									<TableCell>{row.element_period_start}</TableCell>
 									<TableCell>{row.element_period_end}</TableCell>
 									<TableCell>{row.element_row_count}</TableCell>
-									<TableCell>{row.element_status === 0 ? "Pending" : row.element_status === 1 ? "Completed" : row.element_status === 2 ? "Failed" : row.element_status}</TableCell>
+									<TableCell><Chip
+											label={
+												row.element_status === 1
+													? "Completed"
+													: row.element_status === 2
+														? "Failed"
+													: row.element_status === 3
+														? "Promoted"
+													: "Pending"
+											}
+											color={
+												row.element_status === 1
+													? "success"
+													: row.element_status === 2
+														? "error"
+													: row.element_status === 3
+														? "info"
+													: "default"
+											}
+											size="small"
+										/></TableCell>
 									<TableCell>{row.element_error ? `${String(row.element_error).slice(0, 80)}${String(row.element_error).length > 80 ? "..." : ""}` : ""}</TableCell>
 									<TableCell>{String(row.element_created_on || "")}</TableCell>
+								<TableCell onClick={(event) => event.stopPropagation()}>
+									{row.element_status === 1 && (
+										<Button
+											size="small"
+											variant="outlined"
+											disabled={Boolean(promoting[row.recid])}
+											onClick={async () => {
+												setPromoting((previous) => ({ ...previous, [row.recid]: true }));
+												try {
+													const result = await rpcCall<StagingPromoteResult1>("urn:finance:staging:promote:1", { imports_recid: row.recid });
+													showNotification(`Promotion started — task ${result.task_guid}`);
+													await loadImports();
+												} catch (error: any) {
+													showNotification(error?.message || "Promotion failed", "error");
+												} finally {
+													setPromoting((previous) => ({ ...previous, [row.recid]: false }));
+												}
+											}}
+										>
+											{promoting[row.recid] ? "Promoting..." : "Promote"}
+										</Button>
+									)}
+								</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
@@ -635,6 +746,147 @@ const FinanceAccountantPage = (): JSX.Element => {
 							</Table>
 						</Stack>
 					)}
+				</Stack>
+			)}
+
+
+			{tab === 4 && (
+				<Stack spacing={2} sx={{ mt: 2 }}>
+					<Paper sx={{ p: 2 }}>
+						<Button variant="contained" onClick={() => openMappingForm()}>Create Mapping</Button>
+					</Paper>
+					<Table size="small">
+						<TableHead>
+							<TableRow>
+								<TableCell>Service Pattern</TableCell>
+								<TableCell>Meter Pattern</TableCell>
+								<TableCell>Account</TableCell>
+								<TableCell>Priority</TableCell>
+								<TableCell>Status</TableCell>
+								<TableCell>Actions</TableCell>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{accountMappings.map((mapping) => (
+								<TableRow key={mapping.recid}>
+									<TableCell>{mapping.element_service_pattern}</TableCell>
+									<TableCell>{mapping.element_meter_pattern || "-"}</TableCell>
+									<TableCell>{mapping.account_number} - {mapping.account_name}</TableCell>
+									<TableCell>{mapping.element_priority}</TableCell>
+									<TableCell>
+										<Chip label={Number(mapping.element_status) === 1 ? "Active" : "Disabled"} color={Number(mapping.element_status) === 1 ? "success" : "default"} size="small" />
+									</TableCell>
+									<TableCell>
+										<Stack direction="row" spacing={1}>
+											<Button size="small" onClick={() => openMappingForm(mapping)}>Edit</Button>
+											<Button
+												size="small"
+												color="error"
+												onClick={async () => {
+												if (!window.confirm("Delete this mapping?")) {
+													return;
+												}
+												await rpcCall("urn:finance:staging_account_map:delete:1", { recid: mapping.recid });
+												showNotification("Mapping deleted");
+												await loadAccountMappings();
+											}}
+											>
+												Delete
+											</Button>
+										</Stack>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+
+					<Collapse in={mappingFormOpen}>
+						<Paper sx={{ p: 2 }}>
+							<Stack spacing={2}>
+								<Stack direction="row" spacing={1} flexWrap="wrap">
+									<TextField
+										label="Service Pattern"
+										value={mappingForm.element_service_pattern}
+										onChange={(event) => setMappingForm((previous) => ({ ...previous, element_service_pattern: event.target.value }))}
+										required
+									/>
+									<TextField
+										label="Meter Pattern"
+										value={mappingForm.element_meter_pattern}
+										onChange={(event) => setMappingForm((previous) => ({ ...previous, element_meter_pattern: event.target.value }))}
+									/>
+									<TextField
+										select
+										label="Account"
+										value={mappingForm.accounts_guid}
+										onChange={(event) => setMappingForm((previous) => ({ ...previous, accounts_guid: event.target.value }))}
+									>
+										<MenuItem value="">Select account</MenuItem>
+										{postingAccounts.map((account) => (
+											<MenuItem key={account.guid || account.number} value={String(account.guid || "")}>
+												{account.number} - {account.name}
+											</MenuItem>
+										))}
+									</TextField>
+									<TextField
+										type="number"
+										label="Priority"
+										value={mappingForm.element_priority}
+										onChange={(event) => setMappingForm((previous) => ({ ...previous, element_priority: Number(event.target.value) }))}
+									/>
+								</Stack>
+								<TextField
+									label="Description"
+									value={mappingForm.element_description}
+									onChange={(event) => setMappingForm((previous) => ({ ...previous, element_description: event.target.value }))}
+								/>
+								<FormControlLabel
+									control={
+										<Checkbox
+											checked={mappingForm.element_status}
+											onChange={(event) => setMappingForm((previous) => ({ ...previous, element_status: event.target.checked }))}
+										/>
+									}
+									label="Active"
+								/>
+								<Stack direction="row" spacing={1}>
+									<Button
+										variant="contained"
+										onClick={async () => {
+											if (!mappingForm.element_service_pattern || !mappingForm.accounts_guid) {
+												showNotification("Service pattern and account are required", "error");
+												return;
+											}
+											const payload: FinanceStagingAccountMapUpsert1 = {
+												recid: mappingForm.recid,
+												element_service_pattern: mappingForm.element_service_pattern,
+												element_meter_pattern: mappingForm.element_meter_pattern || null,
+												accounts_guid: mappingForm.accounts_guid,
+												element_priority: mappingForm.element_priority,
+												element_description: mappingForm.element_description || null,
+												element_status: mappingForm.element_status ? 1 : 0,
+											};
+											await rpcCall("urn:finance:staging_account_map:upsert:1", payload);
+											showNotification(mappingForm.recid ? "Mapping updated" : "Mapping created");
+											setMappingFormOpen(false);
+											setMappingForm(EMPTY_MAPPING_FORM);
+											await loadAccountMappings();
+										}}
+									>
+										Save
+									</Button>
+									<Button
+										onClick={() => {
+											setMappingFormOpen(false);
+											setMappingForm(EMPTY_MAPPING_FORM);
+										}}
+									>
+										Cancel
+									</Button>
+								</Stack>
+							</Stack>
+						</Paper>
+					</Collapse>
 				</Stack>
 			)}
 
@@ -862,6 +1114,13 @@ const FinanceAccountantPage = (): JSX.Element => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+
+			<Notification
+				open={notification}
+				handleClose={() => setNotification(false)}
+				message={notificationMessage}
+				severity={notificationSeverity}
+			/>
 		</Box>
 	);
 };
