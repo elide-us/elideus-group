@@ -94,6 +94,62 @@ Dispatch pattern:
 
 ---
 
+## MSSQL query standards
+
+The default database provider is Microsoft SQL Server (enterprise). The query
+registry supports MySQL and PostgreSQL, but MSSQL is the primary target and has
+specific requirements that every `mssql.py` implementation must follow.
+
+### SET NOCOUNT ON
+
+**Every multi-statement SQL string that uses INSERT/UPDATE/DELETE followed by a
+SELECT must begin with `SET NOCOUNT ON;`.** Without it, pyodbc consumes the
+intermediate rowcount result from the DML statement and never advances to the
+trailing SELECT. This causes `No results. Previous SQL was not a query.` errors
+at runtime.
+
+This applies to:
+- `OUTPUT ... INTO @table_variable` followed by `SELECT * FROM @table_variable`
+- `UPDATE ... SET ...` followed by a `SELECT` in the same batch
+- Any `INSERT`/`UPDATE`/`DELETE` combined with a trailing `SELECT ... FOR JSON`
+
+Simple single-statement queries (a lone `SELECT ... FOR JSON`) do not need it.
+`run_exec` calls (fire-and-forget DML with no result) should still use
+`SET NOCOUNT ON;` to suppress unneeded rowcount messages.
+
+Example pattern:
+```sql
+SET NOCOUNT ON;
+DECLARE @inserted TABLE (...);
+
+INSERT INTO my_table (...)
+OUTPUT inserted.* INTO @inserted
+VALUES (...);
+
+SELECT * FROM @inserted FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+```
+
+### FOR JSON output
+
+- Single-row results: `FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES`
+- Multi-row results: `FOR JSON PATH, INCLUDE_NULL_VALUES`
+- Always include `INCLUDE_NULL_VALUES` so null columns appear in JSON output.
+
+### Parameterized queries
+
+- Use `?` positional placeholders (pyodbc ODBC style), not named parameters.
+- Use `TRY_CAST(? AS DATETIMEOFFSET(7))` for datetime parameters.
+- Use `TRY_CAST(? AS UNIQUEIDENTIFIER)` for GUID parameters.
+- Never interpolate values into SQL strings.
+
+### Dynamic UPDATE builders
+
+When building UPDATE statements dynamically (e.g., only setting changed
+fields), always include `SET NOCOUNT ON;` at the top of the SQL template and
+`element_modified_on = SYSUTCDATETIME()` in the SET clause.
+
+---
+
 ## Anti-patterns (forbidden)
 
 - Alias maps that translate new operation names back to legacy names.
