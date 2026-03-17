@@ -58,7 +58,7 @@ def test_create_import_v1_returns_json_payload(monkeypatch):
   assert result == {'rows': [{'recid': 1}]}
 
 
-def test_delete_import_v1_deletes_line_items_before_raw_details(monkeypatch):
+def test_delete_import_v1_deletes_all_staging_children_before_import(monkeypatch):
   captured = {}
 
   async def fake_run_exec(sql, params=()):
@@ -71,5 +71,6 @@ def test_delete_import_v1_deletes_line_items_before_raw_details(monkeypatch):
   asyncio.run(mssql.delete_import_v1({"imports_recid": 77}))
 
   assert "DELETE FROM finance_staging_line_items" in captured["sql"]
+  assert "DELETE FROM finance_staging_azure_invoices" in captured["sql"]
   assert "DELETE FROM finance_staging_azure_cost_details" in captured["sql"]
-  assert captured["params"] == (77, 77, 77)
+  assert captured["params"] == (77, 77, 77, 77)
