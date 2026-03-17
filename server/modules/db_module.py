@@ -32,6 +32,14 @@ from queryregistry.helpers import parse_query_operation
 from server.helpers.logging import update_logging_level
 
 
+_QUIET_OPS = frozenset({
+  "db:system:batch_jobs:list_jobs",
+  "db:system:async_tasks:list_tasks",
+  "db:system:async_tasks:update_task",
+  "db:system:async_tasks:create_task_event",
+})
+
+
 class DbModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
@@ -91,7 +99,11 @@ class DbModule(BaseModule):
     except ValueError:
       raise ValueError(f"Invalid database operation: {op}")
 
-    registry_logger.info("DB completed: %s", op)
+    op_without_version = op.rsplit(":", 1)[0]
+    if op_without_version in _QUIET_OPS:
+      registry_logger.debug("DB completed: %s", op)
+    else:
+      registry_logger.info("DB completed: %s", op)
 
     response = await dispatch_query_request(request, provider=provider_name)
 
