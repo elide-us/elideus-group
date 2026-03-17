@@ -18,6 +18,8 @@ async def handle_finance_request(parts: list[str], request: Request) -> RPCRespo
   requires_system_admin = False
   if subdomain == "staging_account_map":
     requires_system_admin = True
+  elif subdomain == "vendors":
+    requires_system_admin = True
   elif subdomain == "staging" and len(parts) >= 3 and parts[1] == "promote" and parts[2] == "1":
     requires_system_admin = True
 

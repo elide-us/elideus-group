@@ -47,8 +47,7 @@ import {
 	PeriodStatusList1,
 	FinanceStagingAccountMapItem1,
 	FinanceStagingAccountMapList1,
-	FinanceStagingAccountMapUpsert1,
-	StagingImportItem1,
+		StagingImportItem1,
 	StagingImportList1,
 	StagingPromoteResult1,
 } from "../../shared/RpcModels";
@@ -97,8 +96,28 @@ type PeriodStatusRow = {
 
 type JournalLineForm = JournalCreateLine1;
 
+type VendorItem = {
+	recid: number;
+	element_name: string;
+};
+
+type StagingLineItem = {
+	recid: number;
+	imports_recid: number;
+	vendors_recid: number;
+	vendor_name?: string | null;
+	element_date?: string | null;
+	element_service?: string | null;
+	element_category?: string | null;
+	element_description?: string | null;
+	element_quantity?: string | null;
+	element_amount?: string | null;
+	element_currency?: string | null;
+};
+
 interface MappingFormState {
 	recid: number | null;
+	vendors_recid: number | null;
 	element_service_pattern: string;
 	element_meter_pattern: string;
 	accounts_guid: string;
@@ -109,6 +128,7 @@ interface MappingFormState {
 
 const EMPTY_MAPPING_FORM: MappingFormState = {
 	recid: null,
+	vendors_recid: null,
 	element_service_pattern: "",
 	element_meter_pattern: "",
 	accounts_guid: "",
@@ -183,7 +203,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 	const [imports, setImports] = useState<StagingImportItem1[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
+	const [normalizedLineItems, setNormalizedLineItems] = useState<StagingLineItem[]>([]);
 	const [accountMappings, setAccountMappings] = useState<FinanceStagingAccountMapItem1[]>([]);
+	const [vendors, setVendors] = useState<VendorItem[]>([]);
+	const [mappingVendorFilter, setMappingVendorFilter] = useState<string>("");
 	const [mappingFormOpen, setMappingFormOpen] = useState(false);
 	const [mappingForm, setMappingForm] = useState<MappingFormState>(EMPTY_MAPPING_FORM);
 	const [promoting, setPromoting] = useState<Record<number, boolean>>({});
@@ -228,6 +251,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 		}
 		setMappingForm({
 			recid: typeof mapping.recid === "number" ? mapping.recid : null,
+			vendors_recid: Number((mapping as any).vendors_recid || 0) || null,
 			element_service_pattern: mapping.element_service_pattern || "",
 			element_meter_pattern: String(mapping.element_meter_pattern || ""),
 			accounts_guid: mapping.accounts_guid || "",
@@ -239,12 +263,14 @@ const FinanceAccountantPage = (): JSX.Element => {
 	};
 
 	const loadShared = useCallback(async (): Promise<void> => {
-		const [periodRes, accountRes] = await Promise.all([
+		const [periodRes, accountRes, vendorRes] = await Promise.all([
 			rpcCall<FinancePeriodsList1>("urn:finance:periods:list:1"),
 			rpcCall<FinanceAccountsList1>("urn:finance:accounts:list:1"),
+			rpcCall<{ vendors: VendorItem[] }>("urn:finance:vendors:list:1"),
 		]);
 		setPeriods(periodRes.periods || []);
 		setAccounts(accountRes.accounts || []);
+		setVendors(vendorRes.vendors || []);
 	}, []);
 
 	const loadJournals = useCallback(async (): Promise<void> => {
@@ -273,9 +299,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 	}, []);
 
 	const loadAccountMappings = useCallback(async (): Promise<void> => {
-		const res = await rpcCall<FinanceStagingAccountMapList1>("urn:finance:staging_account_map:list:1");
+		const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
+		const res = await rpcCall<FinanceStagingAccountMapList1>("urn:finance:staging_account_map:list:1", payload);
 		setAccountMappings(res.mappings || []);
-	}, []);
+	}, [mappingVendorFilter]);
 
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
@@ -653,7 +680,11 @@ const FinanceAccountantPage = (): JSX.Element => {
 										const details = await rpcCall<Record<string, any>[]>("urn:finance:staging:list_details:1", {
 											imports_recid: row.recid,
 										});
+										const normalized = await rpcCall<{ line_items: StagingLineItem[] }>("urn:finance:staging:list_line_items:1", {
+											imports_recid: row.recid,
+										});
 										setImportDetails(details || []);
+										setNormalizedLineItems(normalized.line_items || []);
 									}}
 								>
 									<TableCell>{row.recid}</TableCell>
@@ -744,6 +775,35 @@ const FinanceAccountantPage = (): JSX.Element => {
 									))}
 								</TableBody>
 							</Table>
+							<Typography variant="subtitle1">Normalized Lines</Typography>
+							<Table size="small">
+								<TableHead>
+									<TableRow>
+										<TableCell>Date</TableCell>
+										<TableCell>Vendor</TableCell>
+										<TableCell>Service</TableCell>
+										<TableCell>Category</TableCell>
+										<TableCell>Description</TableCell>
+										<TableCell>Quantity</TableCell>
+										<TableCell>Amount</TableCell>
+										<TableCell>Currency</TableCell>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{normalizedLineItems.slice(0, 100).map((line) => (
+										<TableRow key={line.recid}>
+											<TableCell>{line.element_date || ""}</TableCell>
+											<TableCell>{line.vendor_name || line.vendors_recid}</TableCell>
+											<TableCell>{line.element_service || ""}</TableCell>
+											<TableCell>{line.element_category || ""}</TableCell>
+											<TableCell>{line.element_description || ""}</TableCell>
+											<TableCell>{line.element_quantity || ""}</TableCell>
+											<TableCell>{line.element_amount || ""}</TableCell>
+											<TableCell>{line.element_currency || ""}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
 						</Stack>
 					)}
 				</Stack>
@@ -753,12 +813,19 @@ const FinanceAccountantPage = (): JSX.Element => {
 			{tab === 4 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
-						<Button variant="contained" onClick={() => openMappingForm()}>Create Mapping</Button>
+						<Stack direction="row" spacing={1}>
+							<TextField select label="Vendor Filter" value={mappingVendorFilter} onChange={(event) => setMappingVendorFilter(event.target.value)} sx={{ minWidth: 180 }}>
+								<MenuItem value="">All Vendors</MenuItem>
+								{vendors.map((vendor) => (<MenuItem key={vendor.recid} value={String(vendor.recid)}>{vendor.element_name}</MenuItem>))}
+							</TextField>
+							<Button variant="outlined" onClick={() => void loadAccountMappings()}>Refresh</Button>
+							<Button variant="contained" onClick={() => openMappingForm()}>Create Mapping</Button>
+						</Stack>
 					</Paper>
 					<Table size="small">
 						<TableHead>
 							<TableRow>
-								<TableCell>Service Pattern</TableCell>
+								<TableCell>Vendor</TableCell><TableCell>Service Pattern</TableCell>
 								<TableCell>Meter Pattern</TableCell>
 								<TableCell>Account</TableCell>
 								<TableCell>Priority</TableCell>
@@ -769,7 +836,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 						<TableBody>
 							{accountMappings.map((mapping) => (
 								<TableRow key={mapping.recid}>
-									<TableCell>{mapping.element_service_pattern}</TableCell>
+									<TableCell>{(mapping as any).vendor_name || "Any"}</TableCell><TableCell>{mapping.element_service_pattern}</TableCell>
 									<TableCell>{mapping.element_meter_pattern || "-"}</TableCell>
 									<TableCell>{mapping.account_number} - {mapping.account_name}</TableCell>
 									<TableCell>{mapping.element_priority}</TableCell>
@@ -804,6 +871,18 @@ const FinanceAccountantPage = (): JSX.Element => {
 						<Paper sx={{ p: 2 }}>
 							<Stack spacing={2}>
 								<Stack direction="row" spacing={1} flexWrap="wrap">
+									<TextField
+										select
+										label="Vendor"
+										value={mappingForm.vendors_recid || ""}
+										onChange={(event) => setMappingForm((previous) => ({ ...previous, vendors_recid: event.target.value ? Number(event.target.value) : null }))}
+										sx={{ minWidth: 180 }}
+									>
+										<MenuItem value="">Any Vendor</MenuItem>
+										{vendors.map((vendor) => (
+											<MenuItem key={vendor.recid} value={vendor.recid}>{vendor.element_name}</MenuItem>
+										))}
+									</TextField>
 									<TextField
 										label="Service Pattern"
 										value={mappingForm.element_service_pattern}
@@ -857,9 +936,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 												showNotification("Service pattern and account are required", "error");
 												return;
 											}
-											const payload: FinanceStagingAccountMapUpsert1 = {
+											const payload = {
 												recid: mappingForm.recid,
-												element_service_pattern: mappingForm.element_service_pattern,
+												vendors_recid: mappingForm.vendors_recid,
+								element_service_pattern: mappingForm.element_service_pattern,
 												element_meter_pattern: mappingForm.element_meter_pattern || null,
 												accounts_guid: mappingForm.accounts_guid,
 												element_priority: mappingForm.element_priority,

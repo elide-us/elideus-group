@@ -25,23 +25,26 @@ class FakeDb:
           }
         ]
       )
-    if request.op == "db:finance:staging:aggregate_cost_by_service:1":
+    if request.op == "db:finance:staging_line_items:aggregate_line_items:1":
       return DBResponse(
         rows=[
           {
-            "element_ConsumedService": "Microsoft.Compute",
-            "element_MeterCategory": "Virtual Machines",
-            "element_total_cost": "10.50",
+            "element_service": "Microsoft.Compute",
+            "element_category": "Virtual Machines",
+            "element_total_amount": "10.50",
             "element_row_count": 2,
           },
           {
-            "element_ConsumedService": "Microsoft.Cache",
-            "element_MeterCategory": "Redis",
-            "element_total_cost": "2.00",
+            "element_service": "Microsoft.Cache",
+            "element_category": "Redis",
+            "element_total_amount": "2.00",
             "element_row_count": 1,
           },
         ]
       )
+
+    if request.op == "db:finance:staging_line_items:list_line_items_by_import:1":
+      return DBResponse(rows=[{"vendors_recid": 1}])
     if request.op == "db:finance:staging_account_map:resolve_account:1":
       service_name = request.payload.get("service_name")
       if service_name == "Microsoft.Compute":
