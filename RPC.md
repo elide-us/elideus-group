@@ -325,6 +325,17 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:journals:post:1` | Post a draft journal. |
 | `urn:finance:journals:reverse:1` | Reverse a posted journal. |
 
+### `numbers`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:numbers:list:1` | List number sequences. |
+| `urn:finance:numbers:get:1` | Get one number sequence by record id. |
+| `urn:finance:numbers:upsert:1` | Create or update a number sequence. |
+| `urn:finance:numbers:delete:1` | Delete a number sequence by record id. |
+| `urn:finance:numbers:next_number:1` | Consume the next allocated number block from a sequence. |
+| `urn:finance:numbers:shift:1` | Close an active sequence and create a new active sequence for the same account. |
+
 ### `staging`
 
 | Operation | Description |

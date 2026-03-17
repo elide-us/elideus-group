@@ -40,6 +40,7 @@ from queryregistry.finance.dimensions.models import (
   UpsertDimensionParams,
 )
 from queryregistry.finance.numbers import (
+  close_sequence_request,
   delete_number_request,
   get_by_prefix_account_number_request,
   get_number_request,
@@ -48,6 +49,7 @@ from queryregistry.finance.numbers import (
   upsert_number_request,
 )
 from queryregistry.finance.numbers.models import (
+  CloseSequenceParams,
   DeleteNumberParams,
   GetByPrefixAndAccountNumberParams,
   GetNumberParams,
@@ -461,6 +463,46 @@ class FinanceModule(BaseModule):
     res = await self.db.run(upsert_number_request(params))
     row = dict(res.rows[0]) if res.rows else params.model_dump()
     return self._map_number(row)
+
+  async def shift_sequence(self, data: dict[str, Any]) -> dict[str, Any]:
+    """Close the current active sequence and create a new one for the same account.
+
+    The old sequence is preserved with its consumed numbers.
+    The new sequence starts at 0 with a max derived from the display format.
+    """
+    assert self.db
+    current_recid = data["current_recid"]
+
+    current = await self.get_number(current_recid)
+    if not current:
+      raise ValueError(f"Sequence {current_recid} not found")
+    if current.get("sequence_status") != 1:
+      raise ValueError(f"Sequence {current_recid} is not active")
+
+    close_res = await self.db.run(
+      close_sequence_request(CloseSequenceParams(recid=current_recid))
+    )
+    if not close_res.rows:
+      raise ValueError(f"Failed to close sequence {current_recid}")
+
+    new_data = {
+      "accounts_guid": current["accounts_guid"],
+      "prefix": data.get("new_prefix") or current.get("prefix"),
+      "account_number": data["new_account_number"],
+      "last_number": 0,
+      "allocation_size": data.get("new_allocation_size", 1),
+      "reset_policy": "Never",
+      "sequence_status": 1,
+      "pattern": data.get("new_pattern") or current.get("pattern"),
+      "display_format": data.get("new_display_format") or current.get("display_format"),
+    }
+    new_sequence = await self.upsert_number(new_data)
+
+    return {
+      "closed_sequence": self._map_number(dict(close_res.rows[0])) if close_res.rows else None,
+      "new_sequence": new_sequence,
+    }
+
 
   async def delete_number(self, recid: int) -> dict[str, Any]:
     assert self.db

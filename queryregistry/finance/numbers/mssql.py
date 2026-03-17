@@ -8,7 +8,7 @@ from typing import Any
 from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
-__all__ = ["delete_v1", "get_by_prefix_and_account_v1", "get_v1", "list_v1", "next_number_v1", "upsert_v1"]
+__all__ = ["close_sequence_v1", "delete_v1", "get_by_prefix_and_account_v1", "get_v1", "list_v1", "next_number_v1", "upsert_v1"]
 
 
 def _derive_max_number(display_format: str | None) -> int:
@@ -198,6 +198,46 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
     args.get("display_format"),
   )
   return await run_json_one(sql, params)
+
+
+async def close_sequence_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+    DECLARE @result TABLE (
+      recid BIGINT,
+      accounts_guid UNIQUEIDENTIFIER,
+      element_prefix NVARCHAR(10),
+      element_account_number NVARCHAR(10),
+      element_last_number BIGINT,
+      element_max_number BIGINT,
+      element_allocation_size INT,
+      element_reset_policy NVARCHAR(20),
+      element_sequence_status TINYINT,
+      element_pattern NVARCHAR(256),
+      element_display_format NVARCHAR(256),
+      element_created_on DATETIMEOFFSET(7),
+      element_modified_on DATETIMEOFFSET(7)
+    );
+
+    UPDATE finance_numbers
+    SET element_sequence_status = 0,
+        element_modified_on = SYSUTCDATETIME()
+    OUTPUT
+      inserted.recid, inserted.accounts_guid, inserted.element_prefix,
+      inserted.element_account_number, inserted.element_last_number,
+      inserted.element_max_number, inserted.element_allocation_size,
+      inserted.element_reset_policy, inserted.element_sequence_status,
+      inserted.element_pattern, inserted.element_display_format,
+      inserted.element_created_on, inserted.element_modified_on
+    INTO @result
+    WHERE recid = ?
+      AND element_sequence_status = 1;
+
+    SELECT *, (element_max_number - element_last_number) AS remaining
+    FROM @result
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (args["recid"],))
 
 
 async def delete_v1(args: Mapping[str, Any]) -> DBResponse:
