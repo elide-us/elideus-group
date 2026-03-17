@@ -21,6 +21,7 @@ from .staging.handler import handle_staging_request
 from .staging_account_map.handler import handle_staging_account_map_request
 from .staging_invoices.handler import handle_staging_invoices_request
 from .staging_line_items.handler import handle_staging_line_items_request
+from .staging_purge_log.handler import handle_staging_purge_log_request
 from .vendors.handler import handle_vendors_request
 from .status.handler import handle_status_request
 
@@ -40,6 +41,7 @@ HANDLERS = {
   "staging_account_map": handle_staging_account_map_request,
   "staging_invoices": handle_staging_invoices_request,
   "staging_line_items": handle_staging_line_items_request,
+  "staging_purge_log": handle_staging_purge_log_request,
   "status": handle_status_request,
   "vendors": handle_vendors_request,
 }
