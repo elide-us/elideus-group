@@ -6,12 +6,15 @@ class FinanceNumbersItem1(BaseModel):
   accounts_guid: str
   prefix: str | None = None
   account_number: str
-  last_number: int = 1000
-  allocation_size: int = 10
+  last_number: int = 0
+  max_number: int | None = None
+  allocation_size: int = 1
   reset_policy: str = "Never"
+  sequence_status: int = 1
   pattern: str | None = None
   display_format: str | None = None
   account_name: str | None = None
+  remaining: int | None = None
 
 
 class FinanceNumbersList1(BaseModel):
@@ -19,8 +22,7 @@ class FinanceNumbersList1(BaseModel):
 
 
 class FinanceNumbersUpsert1(FinanceNumbersItem1):
-  pattern: str | None = None
-  display_format: str | None = None
+  pass
 
 
 class FinanceNumbersDelete1(BaseModel):
