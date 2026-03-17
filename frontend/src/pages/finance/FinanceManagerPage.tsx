@@ -31,6 +31,11 @@ type FinanceNumber = {
 	account_name?: string | null;
 };
 
+type FinanceAccount = {
+	guid: string;
+	name: string;
+};
+
 type StagingImport = {
 	recid: number;
 	element_source: string;
@@ -113,6 +118,7 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [forbidden, setForbidden] = useState(false);
 
 	const [numbers, setNumbers] = useState<FinanceNumber[]>([]);
+	const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
 	const [numberForm, setNumberForm] = useState<FinanceNumber>({
 		recid: null,
 		accounts_guid: "",
@@ -167,6 +173,11 @@ const FinanceManagerPage = (): JSX.Element => {
 		setNumbers(res.numbers || []);
 	}, []);
 
+	const loadAccounts = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ accounts: FinanceAccount[] }>("urn:finance:accounts:list:1");
+		setAccounts((res.accounts || []).filter((account) => Boolean(account.guid)));
+	}, []);
+
 	const loadImports = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
 		setImports(res.imports || []);
@@ -203,7 +214,7 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
-			await Promise.all([loadNumbers(), loadPeriodStatus(), loadAllPeriodStatus()]);
+			await Promise.all([loadNumbers(), loadAccounts(), loadPeriodStatus(), loadAllPeriodStatus()]);
 			setForbidden(false);
 		} catch (e: any) {
 			if (e?.response?.status === 403) {
@@ -212,7 +223,7 @@ const FinanceManagerPage = (): JSX.Element => {
 			}
 			throw e;
 		}
-	}, [loadAllPeriodStatus, loadNumbers, loadPeriodStatus]);
+	}, [loadAccounts, loadAllPeriodStatus, loadNumbers, loadPeriodStatus]);
 
 	useEffect(() => {
 		void loadAll();
@@ -269,7 +280,20 @@ const FinanceManagerPage = (): JSX.Element => {
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
 							<TextField label="Prefix" value={numberForm.prefix || ""} onChange={(e) => setNumberForm((prev) => ({ ...prev, prefix: e.target.value }))} />
-							<TextField label="Account GUID" value={numberForm.accounts_guid} onChange={(e) => setNumberForm((prev) => ({ ...prev, accounts_guid: e.target.value }))} />
+							<TextField
+								select
+								label="Account"
+								value={numberForm.accounts_guid}
+								onChange={(e) => setNumberForm((prev) => ({ ...prev, accounts_guid: e.target.value }))}
+								sx={{ minWidth: 300 }}
+							>
+								<MenuItem value="">Select account</MenuItem>
+								{accounts.map((account) => (
+									<MenuItem key={account.guid} value={account.guid}>
+										{account.guid} | {account.name}
+									</MenuItem>
+								))}
+							</TextField>
 							<TextField label="Account Number" value={numberForm.account_number} onChange={(e) => setNumberForm((prev) => ({ ...prev, account_number: e.target.value }))} />
 							<TextField type="number" label="Last Number" value={numberForm.last_number} onChange={(e) => setNumberForm((prev) => ({ ...prev, last_number: Number(e.target.value) }))} />
 							<TextField type="number" label="Allocation Size" value={numberForm.allocation_size} onChange={(e) => setNumberForm((prev) => ({ ...prev, allocation_size: Number(e.target.value) }))} />

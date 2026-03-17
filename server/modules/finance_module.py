@@ -127,6 +127,7 @@ from queryregistry.finance.credits.models import (
 _FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
 _FIVE_PLACES = Decimal("0.00001")
 _FOUR_PLACES = Decimal("0.0001")
+_UPSERT_NUMBER_STRIP = frozenset({"account_name", "remaining"})
 
 
 class FinanceModule(BaseModule):
@@ -452,14 +453,15 @@ class FinanceModule(BaseModule):
 
   async def upsert_number(self, data: dict[str, Any]) -> dict[str, Any]:
     assert self.db
-    if data.get("recid") and data.get("max_number") is not None:
-      existing = await self.get_number(data["recid"])
-      if existing and data["max_number"] < existing["last_number"]:
+    clean = {key: value for key, value in data.items() if key not in _UPSERT_NUMBER_STRIP}
+    if clean.get("recid") and clean.get("max_number") is not None:
+      existing = await self.get_number(clean["recid"])
+      if existing and clean["max_number"] < existing["last_number"]:
         raise ValueError(
-          f"Cannot set max_number ({data['max_number']}) below "
+          f"Cannot set max_number ({clean['max_number']}) below "
           f"last_number ({existing['last_number']})"
         )
-    params = UpsertNumberParams(**data)
+    params = UpsertNumberParams(**clean)
     res = await self.db.run(upsert_number_request(params))
     row = dict(res.rows[0]) if res.rows else params.model_dump()
     return self._map_number(row)
