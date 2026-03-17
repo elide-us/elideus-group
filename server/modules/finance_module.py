@@ -180,11 +180,14 @@ class FinanceModule(BaseModule):
       "prefix": row.get("element_prefix"),
       "account_number": row.get("element_account_number"),
       "last_number": row.get("element_last_number"),
+      "max_number": row.get("element_max_number"),
       "allocation_size": row.get("element_allocation_size"),
       "reset_policy": row.get("element_reset_policy"),
+      "sequence_status": row.get("element_sequence_status"),
       "pattern": row.get("element_pattern"),
       "display_format": row.get("element_display_format"),
       "account_name": row.get("account_name"),
+      "remaining": row.get("remaining"),
     }
 
   def _map_dimension(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -447,6 +450,13 @@ class FinanceModule(BaseModule):
 
   async def upsert_number(self, data: dict[str, Any]) -> dict[str, Any]:
     assert self.db
+    if data.get("recid") and data.get("max_number") is not None:
+      existing = await self.get_number(data["recid"])
+      if existing and data["max_number"] < existing["last_number"]:
+        raise ValueError(
+          f"Cannot set max_number ({data['max_number']}) below "
+          f"last_number ({existing['last_number']})"
+        )
     params = UpsertNumberParams(**data)
     res = await self.db.run(upsert_number_request(params))
     row = dict(res.rows[0]) if res.rows else params.model_dump()
@@ -461,7 +471,7 @@ class FinanceModule(BaseModule):
     assert self.db
     res = await self.db.run(next_number_request(NextNumberParams(recid=recid)))
     if not res.rows:
-      return None
+      raise ValueError(f"Number sequence {recid} is exhausted or inactive")
     return self._map_number(dict(res.rows[0]))
 
   async def list_dimensions(self) -> list[dict[str, Any]]:
@@ -535,7 +545,7 @@ class FinanceModule(BaseModule):
 
     next_res = await self.db.run(next_number_request(NextNumberParams(recid=numbers_recid)))
     if not next_res.rows:
-      raise ValueError(f"Failed to get next number from sequence {numbers_recid}")
+      raise ValueError(f"Number sequence {numbers_recid} is exhausted or inactive")
 
     result = dict(next_res.rows[0])
     next_val = int(result.get("element_block_start", result.get("element_last_number", 0)))
