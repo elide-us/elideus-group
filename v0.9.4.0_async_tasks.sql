@@ -100,7 +100,7 @@ LEFT JOIN (
 OUTER APPLY (
   SELECT TOP (1) m.recid
   FROM system_edt_mappings m
-  WHERE UPPER(m.element_data_type) = UPPER(
+  WHERE UPPER(m.element_mssql_type) = UPPER(
     CASE
       WHEN c.DATA_TYPE IN ('nvarchar', 'nchar', 'varchar', 'char')
         THEN CONCAT(c.DATA_TYPE, '(', CASE WHEN c.CHARACTER_MAXIMUM_LENGTH = -1 THEN 'max' ELSE CAST(c.CHARACTER_MAXIMUM_LENGTH AS NVARCHAR(10)) END, ')')
@@ -115,7 +115,7 @@ OUTER APPLY (
 OUTER APPLY (
   SELECT TOP (1) m.recid
   FROM system_edt_mappings m
-  WHERE UPPER(m.element_data_type) = UPPER(c.DATA_TYPE)
+  WHERE UPPER(m.element_mssql_type) = UPPER(c.DATA_TYPE)
 ) edt_base
 WHERE c.TABLE_SCHEMA = 'dbo'
   AND c.TABLE_NAME IN ('system_async_tasks', 'system_async_task_events');
