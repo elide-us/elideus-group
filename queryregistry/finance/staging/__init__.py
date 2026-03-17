@@ -5,6 +5,7 @@ from __future__ import annotations
 from queryregistry.models import DBRequest
 
 from .models import (
+  AggregateCostByServiceParams,
   CreateImportParams,
   DeleteImportParams,
   InsertCostDetailBatchParams,
@@ -14,6 +15,7 @@ from .models import (
 )
 
 __all__ = [
+  "aggregate_cost_by_service_request",
   "create_import_request",
   "delete_import_request",
   "insert_cost_detail_batch_request",
@@ -51,3 +53,7 @@ def list_cost_details_by_import_request(params: ListCostDetailsByImportParams) -
 
 def delete_import_request(params: DeleteImportParams) -> DBRequest:
   return DBRequest(op="db:finance:staging:delete_import:1", payload=params.model_dump())
+
+
+def aggregate_cost_by_service_request(params: AggregateCostByServiceParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:aggregate_cost_by_service:1", payload=params.model_dump())

@@ -8,6 +8,7 @@ from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
 from .services import (
+  aggregate_cost_by_service_v1,
   create_import_v1,
   delete_import_v1,
   insert_cost_detail_batch_v1,
@@ -25,6 +26,7 @@ DISPATCHERS = {
   ("insert_cost_detail_batch", "1"): insert_cost_detail_batch_v1,
   ("list_imports", "1"): list_imports_v1,
   ("list_cost_details_by_import", "1"): list_cost_details_by_import_v1,
+  ("aggregate_cost_by_service", "1"): aggregate_cost_by_service_v1,
 }
 
 

@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "AggregateCostByServiceParams",
   "CreateImportParams",
   "DeleteImportParams",
   "InsertCostDetailBatchParams",
@@ -14,6 +15,12 @@ __all__ = [
   "ListImportsParams",
   "UpdateImportStatusParams",
 ]
+
+
+class AggregateCostByServiceParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  imports_recid: int
 
 
 class CreateImportParams(BaseModel):

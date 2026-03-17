@@ -9,6 +9,7 @@ from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
 from .models import (
+  AggregateCostByServiceParams,
   CreateImportParams,
   DeleteImportParams,
   InsertCostDetailBatchParams,
@@ -18,6 +19,7 @@ from .models import (
 )
 
 __all__ = [
+  "aggregate_cost_by_service_v1",
   "create_import_v1",
   "delete_import_v1",
   "insert_cost_detail_batch_v1",
@@ -39,6 +41,9 @@ _INSERT_COST_DETAIL_BATCH_DISPATCHERS: dict[str, _Dispatcher] = {
 _LIST_IMPORTS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_imports_v1}
 _LIST_COST_DETAILS_BY_IMPORT_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.list_cost_details_by_import_v1,
+}
+_AGGREGATE_COST_BY_SERVICE_DISPATCHERS: dict[str, _Dispatcher] = {
+  "mssql": mssql.aggregate_cost_by_service_v1,
 }
 
 
@@ -86,6 +91,14 @@ async def list_imports_v1(request: DBRequest, *, provider: str) -> DBResponse:
 async def list_cost_details_by_import_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = ListCostDetailsByImportParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _LIST_COST_DETAILS_BY_IMPORT_DISPATCHERS)(
+    params.model_dump(),
+  )
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def aggregate_cost_by_service_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = AggregateCostByServiceParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _AGGREGATE_COST_BY_SERVICE_DISPATCHERS)(
     params.model_dump(),
   )
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
