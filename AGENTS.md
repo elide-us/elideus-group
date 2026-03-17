@@ -20,6 +20,10 @@ Component-specific expectations now live beside the code they regulate; see the
 - Update tests, scripts, and documentation alongside code changes.
 - Database loads must be delivered as `.sql` files—humans run them through
   **SSMS**.
+- Migration SQL scripts go in `migrations/`, never at the repo root.
+  The repo root holds only the tagged release baseline files
+  (`v{version}_YYYYMMDD.sql` and `v{version}_seed_YYYYMMDD.sql`).
+  See `migrations/AGENTS.md` for versioning and naming rules.
 - Prefer existing automation helpers when they exist instead of ad-hoc scripts.
 - Docker builds have no automated coverage—plan manual validation when touching
   the Dockerfile or startup scripts.

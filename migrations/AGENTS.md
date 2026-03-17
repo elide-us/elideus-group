@@ -38,6 +38,69 @@ Format: `v{Major}.{Minor}.{Patch}.0_{short_description}.sql`
 - Do not modify root baseline files — those are regenerated at release time
 - Keep descriptions short, lowercase, underscores in filenames
 
+## Reflection registration in migrations
+
+Every migration that creates tables must register them in the reflection
+system (`system_schema_tables`, `system_schema_columns`,
+`system_schema_indexes`, `system_schema_foreign_keys`).
+
+### Use direct INSERTs, not INFORMATION_SCHEMA discovery
+
+When a migration creates a table and registers its reflection in the same
+file, use direct `INSERT ... VALUES` for `system_schema_columns` with
+hardcoded `edt_recid` values from `system_edt_mappings`. Do NOT query
+`INFORMATION_SCHEMA.COLUMNS` to discover the schema of a table you just
+created in the same file — you already know the schema because you wrote it.
+
+EDT mapping reference (from `system_edt_mappings`):
+
+| edt_recid | element_name   | element_mssql_type       |
+|-----------|----------------|--------------------------|
+| 1         | INT32          | int                      |
+| 2         | INT64          | bigint                   |
+| 3         | INT64_IDENTITY | bigint identity(1,1)     |
+| 4         | UUID           | uniqueidentifier         |
+| 5         | BOOL           | bit                      |
+| 7         | DATETIME_TZ    | datetimeoffset(7)        |
+| 8         | STRING         | nvarchar                 |
+| 9         | TEXT           | nvarchar(max)            |
+| 11        | INT8           | tinyint                  |
+| 12        | DATE           | date                     |
+| 13        | DECIMAL_19_5   | decimal(19,5)            |
+
+### Pattern
+```sql
+-- 1. Create the table
+CREATE TABLE [dbo].[my_table] (...);
+GO
+
+-- 2. Register in system_schema_tables
+INSERT INTO system_schema_tables (element_name, element_schema)
+SELECT 'my_table', 'dbo'
+WHERE NOT EXISTS (
+  SELECT 1 FROM system_schema_tables
+  WHERE element_name = 'my_table' AND element_schema = 'dbo'
+);
+GO
+
+-- 3. Resolve the tables_recid
+DECLARE @t BIGINT = (
+  SELECT recid FROM system_schema_tables
+  WHERE element_name = 'my_table' AND element_schema = 'dbo'
+);
+
+-- 4. Direct INSERT for columns (no INFORMATION_SCHEMA)
+INSERT INTO system_schema_columns
+  (tables_recid, edt_recid, element_name, element_ordinal,
+   element_nullable, element_default, element_max_length,
+   element_is_primary_key, element_is_identity)
+VALUES
+  (@t, 3, 'recid', 1, 0, NULL, NULL, 1, 1),
+  (@t, 8, 'element_name', 2, 0, NULL, 128, 0, 0),
+  ...
+GO
+```
+
 ## MSSQL Batch Separators
 
 **Always use `GO` between statements that depend on each other.** MSSQL executes scripts in batches, and a batch boundary (`GO`) is required between:
