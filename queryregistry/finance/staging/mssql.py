@@ -10,6 +10,7 @@ from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
+  "aggregate_cost_by_service_v1",
   "create_import_v1",
   "delete_import_v1",
   "insert_cost_detail_batch_v1",
@@ -164,6 +165,24 @@ async def list_cost_details_by_import_v1(args: Mapping[str, Any]) -> DBResponse:
     SELECT *
     FROM finance_staging_cost_details
     WHERE imports_recid = ?
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args["imports_recid"],))
+
+
+async def aggregate_cost_by_service_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      element_ConsumedService,
+      element_MeterCategory,
+      SUM(CAST(element_CostInBillingCurrency AS DECIMAL(19,5))) AS element_total_cost,
+      COUNT_BIG(1) AS element_row_count
+    FROM finance_staging_cost_details
+    WHERE imports_recid = ?
+      AND element_CostInBillingCurrency IS NOT NULL
+      AND LTRIM(RTRIM(element_CostInBillingCurrency)) <> ''
+    GROUP BY element_ConsumedService, element_MeterCategory
+    ORDER BY element_ConsumedService, element_MeterCategory
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["imports_recid"],))
