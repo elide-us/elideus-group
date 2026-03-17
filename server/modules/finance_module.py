@@ -124,7 +124,6 @@ from queryregistry.finance.credits.models import (
 )
 
 
-_FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
 _FIVE_PLACES = Decimal("0.00001")
 _FOUR_PLACES = Decimal("0.0001")
 _UPSERT_NUMBER_STRIP = frozenset({"account_name", "remaining"})
@@ -316,35 +315,6 @@ class FinanceModule(BaseModule):
     if start.weekday() != 6:
       raise ValueError("start_date must be a Sunday")
 
-    assert self.db
-    lookup_res = await self.db.run(
-      get_by_prefix_account_number_request(
-        GetByPrefixAndAccountNumberParams(prefix="FP", account_number=str(fiscal_year))
-      )
-    )
-    lookup_row = dict(lookup_res.rows[0]) if lookup_res.rows else None
-
-    if lookup_row and lookup_row.get("recid") is not None:
-      numbers_recid = int(lookup_row["recid"])
-    else:
-      upsert_res = await self.db.run(
-        upsert_number_request(
-          UpsertNumberParams(
-            accounts_guid=_FISCAL_PERIODS_ACCOUNTS_GUID,
-            prefix="FP",
-            account_number=str(fiscal_year),
-            last_number=0,
-            allocation_size=1,
-            reset_policy="Never",
-            display_format=f"FY{fiscal_year}",
-          )
-        )
-      )
-      upsert_row = dict(upsert_res.rows[0]) if upsert_res.rows else None
-      if not upsert_row or upsert_row.get("recid") is None:
-        raise ValueError(f"Failed to create number sequence for fiscal year {fiscal_year}")
-      numbers_recid = int(upsert_row["recid"])
-
     fiscal_end = start + timedelta(days=365)
     has_leap_adjustment = calendar.isleap(fiscal_year) and start <= date(fiscal_year, 2, 29) < fiscal_end
 
@@ -375,7 +345,7 @@ class FinanceModule(BaseModule):
           "anchor_event": None,
           "close_type": 0,
           "status": 1,
-          "numbers_recid": numbers_recid,
+          "numbers_recid": None,
         }
         row = await self.upsert_period(payload)
         generated.append(row)
@@ -397,7 +367,7 @@ class FinanceModule(BaseModule):
         "anchor_event": "period_close",
         "close_type": 0,
         "status": 1,
-        "numbers_recid": numbers_recid,
+        "numbers_recid": None,
       }
       row = await self.upsert_period(closing_payload)
       generated.append(row)
