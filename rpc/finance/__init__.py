@@ -7,6 +7,7 @@ from .periods.handler import handle_periods_request
 from .reporting.handler import handle_reporting_request
 from .staging.handler import handle_staging_request
 from .staging_account_map.handler import handle_staging_account_map_request
+from .staging_purge_log.handler import handle_staging_purge_log_request
 from .vendors.handler import handle_vendors_request
 
 
@@ -20,5 +21,6 @@ HANDLERS: dict[str, callable] = {
   "reporting": handle_reporting_request,
   "staging": handle_staging_request,
   "staging_account_map": handle_staging_account_map_request,
+  "staging_purge_log": handle_staging_purge_log_request,
   "vendors": handle_vendors_request,
 }

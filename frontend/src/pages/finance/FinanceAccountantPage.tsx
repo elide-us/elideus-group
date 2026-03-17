@@ -200,10 +200,12 @@ const FinanceAccountantPage = (): JSX.Element => {
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
 	const [importing, setImporting] = useState(false);
+	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImportItem1[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
 	const [normalizedLineItems, setNormalizedLineItems] = useState<StagingLineItem[]>([]);
+	const [purgeLogs, setPurgeLogs] = useState<any[]>([]);
 	const [accountMappings, setAccountMappings] = useState<FinanceStagingAccountMapItem1[]>([]);
 	const [vendors, setVendors] = useState<VendorItem[]>([]);
 	const [mappingVendorFilter, setMappingVendorFilter] = useState<string>("");
@@ -298,6 +300,11 @@ const FinanceAccountantPage = (): JSX.Element => {
 		setImports(res.imports || []);
 	}, []);
 
+	const loadPurgeLogs = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ purge_logs: any[] }>("urn:finance:staging_purge_log:list:1", {});
+		setPurgeLogs(res.purge_logs || []);
+	}, []);
+
 	const loadAccountMappings = useCallback(async (): Promise<void> => {
 		const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
 		const res = await rpcCall<FinanceStagingAccountMapList1>("urn:finance:staging_account_map:list:1", payload);
@@ -333,11 +340,12 @@ const FinanceAccountantPage = (): JSX.Element => {
 		}
 		if (tab === 3) {
 			void loadImports();
+			void loadPurgeLogs();
 		}
 		if (tab === 4) {
 			void loadAccountMappings();
 		}
-	}, [tab, loadAccountMappings, loadImports, loadJournals, loadLots, loadPeriodStatus]);
+	}, [tab, loadAccountMappings, loadImports, loadJournals, loadLots, loadPeriodStatus, loadPurgeLogs]);
 
 	if (forbidden) {
 		return (
@@ -621,6 +629,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 			{tab === 3 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
+						<Typography variant="subtitle2" sx={{ mb: 1 }}>Cost Details Import</Typography>
 						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
 							<TextField
 								label="Start Date (YYYY-MM-DD)"
@@ -649,6 +658,44 @@ const FinanceAccountantPage = (): JSX.Element => {
 								}}
 							>
 								{importing ? "Importing..." : "Import"}
+							</Button>
+						</Stack>
+					</Paper>
+
+					<Paper sx={{ p: 2 }}>
+						<Typography variant="subtitle2" sx={{ mb: 1 }}>Invoice Import</Typography>
+						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+							<TextField
+								label="Start Date (YYYY-MM-DD)"
+								value={importStartDate}
+								onChange={(event) => setImportStartDate(event.target.value)}
+							/>
+							<TextField
+								label="End Date (YYYY-MM-DD)"
+								value={importEndDate}
+								onChange={(event) => setImportEndDate(event.target.value)}
+							/>
+							<Button
+								variant="contained"
+								color="secondary"
+								disabled={importingInvoices}
+								onClick={async () => {
+									setImportingInvoices(true);
+									try {
+										const result = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number }>(
+											"urn:finance:staging:import_invoices:1",
+											{ period_start: importStartDate, period_end: importEndDate },
+										);
+										showNotification(`Imported ${result.invoice_count} invoices (${result.skipped_count} skipped)`);
+										await loadImports();
+									} catch (error: any) {
+										showNotification(error?.message || "Invoice import failed", "error");
+									} finally {
+										setImportingInvoices(false);
+									}
+								}}
+							>
+								{importingInvoices ? "Importing..." : "Import Invoices"}
 							</Button>
 						</Stack>
 					</Paper>
@@ -806,6 +853,28 @@ const FinanceAccountantPage = (): JSX.Element => {
 							</Table>
 						</Stack>
 					)}
+
+					<Typography variant="h6" sx={{ mt: 3 }}>Purge Log</Typography>
+					<Table size="small">
+						<TableHead>
+							<TableRow>
+								<TableCell>Vendor</TableCell>
+								<TableCell>Period</TableCell>
+								<TableCell>Purged Count</TableCell>
+								<TableCell>Last Purged</TableCell>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{purgeLogs.map((log: any) => (
+								<TableRow key={log.recid}>
+									<TableCell>{vendors.find((vendor) => vendor.recid === log.vendors_recid)?.element_name || log.vendors_recid}</TableCell>
+									<TableCell>{log.element_period_key}</TableCell>
+									<TableCell>{log.element_purged_count}</TableCell>
+									<TableCell>{String(log.element_purged_on || "")}</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
 				</Stack>
 			)}
 
