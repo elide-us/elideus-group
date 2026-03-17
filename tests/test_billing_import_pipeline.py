@@ -33,12 +33,14 @@ class FakeDb:
             "element_category": "Virtual Machines",
             "element_total_amount": "10.50",
             "element_row_count": 2,
+            "element_record_type": "usage",
           },
           {
             "element_service": "Microsoft.Cache",
             "element_category": "Redis",
             "element_total_amount": "2.00",
             "element_row_count": 1,
+            "element_record_type": "usage",
           },
         ]
       )
@@ -135,6 +137,7 @@ def test_pipeline_steps_through_all_stages_and_tracks_wildcard_warning():
   assert result["imports_recid"] == 77
   assert result["journal_recid"] == 500
   assert result["import_status"] == 3
+  assert result["classified_costs"][0]["record_type"] == "usage"
   assert result["warnings"] == [
     {
       "service": "Microsoft.Cache",
@@ -153,12 +156,13 @@ def test_create_journal_selects_period_by_import_start_date():
   context = {
     "imports_recid": 77,
     "import_metadata": {"element_period_start": "2025-01-05"},
-    "classified_costs": [{"accounts_guid": "exp-guid", "service": "Microsoft.Compute", "meter_category": "Virtual Machines", "amount": "10.50"}],
+    "classified_costs": [{"accounts_guid": "exp-guid", "service": "Microsoft.Compute", "meter_category": "Virtual Machines", "amount": "10.50", "record_type": "usage"}],
   }
   result = asyncio.run(BillingImportPipelineHandler.create_journal(app, {"imports_recid": 77}, context))
 
   assert result["posting_summary"]["periods_guid"] == "period-jan"
   assert finance.last_create_payload["periods_guid"] == "period-jan"
+  assert finance.last_create_payload["source_type"] == "azure_billing_import"
 
 
 def test_create_journal_is_idempotent_for_same_posting_key():
@@ -167,7 +171,7 @@ def test_create_journal_is_idempotent_for_same_posting_key():
   context = {
     "imports_recid": 77,
     "import_metadata": {"element_period_start": "2025-01-05"},
-    "classified_costs": [{"accounts_guid": "exp-guid", "service": "Microsoft.Compute", "meter_category": "Virtual Machines", "amount": "10.50"}],
+    "classified_costs": [{"accounts_guid": "exp-guid", "service": "Microsoft.Compute", "meter_category": "Virtual Machines", "amount": "10.50", "record_type": "usage"}],
   }
 
   first = asyncio.run(BillingImportPipelineHandler.create_journal(app, {"imports_recid": 77}, dict(context)))
@@ -175,3 +179,18 @@ def test_create_journal_is_idempotent_for_same_posting_key():
 
   assert first["journal_recid"] == second["journal_recid"]
   assert first["posting_summary"]["posting_key"] == "AZURE-IMPORT-77"
+
+
+def test_create_journal_uses_invoice_source_type_for_invoice_only_batches():
+  finance = FakeFinance()
+  app = SimpleNamespace(state=SimpleNamespace(finance=finance))
+
+  context = {
+    "imports_recid": 77,
+    "import_metadata": {"element_period_start": "2025-01-05"},
+    "classified_costs": [{"accounts_guid": "exp-guid", "service": "AzureServices", "meter_category": "Invoice", "amount": "10.50", "record_type": "invoice"}],
+  }
+  asyncio.run(BillingImportPipelineHandler.create_journal(app, {"imports_recid": 77}, context))
+
+  assert finance.last_create_payload["source_type"] == "azure_invoice"
+  assert finance.last_create_payload["lines"][0]["description"].startswith("Azure Invoice")

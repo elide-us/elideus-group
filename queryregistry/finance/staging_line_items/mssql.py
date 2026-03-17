@@ -23,8 +23,9 @@ async def insert_line_items_batch_v1(args: Mapping[str, Any]) -> DBResponse:
       element_amount,
       element_currency,
       element_raw_json,
+      element_record_type,
       element_created_on
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME());
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME());
   """
   for row in rows:
     await run_exec(
@@ -41,6 +42,7 @@ async def insert_line_items_batch_v1(args: Mapping[str, Any]) -> DBResponse:
         row.get("element_amount") or 0,
         row.get("element_currency"),
         row.get("element_raw_json"),
+        row.get("element_record_type") or "usage",
       ),
     )
     inserted += 1

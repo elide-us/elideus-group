@@ -142,6 +142,7 @@ class BillingImportPipelineHandler(PipelineHandler):
           "meter_category": meter_category,
           "amount": str(amount),
           "row_count": row_count,
+          "record_type": row.get("element_record_type") or "usage",
         }
       )
 
@@ -176,19 +177,34 @@ class BillingImportPipelineHandler(PipelineHandler):
 
     ap_account_guid = await finance._get_account_guid_by_number("2200")
 
+    record_types = {bucket.get("record_type") or "usage" for bucket in classified_costs}
+    if record_types == {"invoice"}:
+      source_type = "azure_invoice"
+    elif record_types == {"usage"}:
+      source_type = "azure_billing_import"
+    else:
+      source_type = "azure_billing_import"
+
     total = Decimal("0")
     lines: list[dict[str, Any]] = []
     line_number = 1
     for bucket in classified_costs:
       amount = Decimal(str(bucket.get("amount") or "0")).quantize(Decimal("0.00001"), rounding=ROUND_HALF_UP)
       total += amount
+      service = bucket.get("service") or "Unclassified"
+      category = bucket.get("meter_category") or "General"
+      if (bucket.get("record_type") or "usage") == "invoice":
+        line_description = f"Azure Invoice — {service} / {category}"
+      else:
+        line_description = f"Azure {service} / {category}"
+
       lines.append(
         {
           "line_number": line_number,
           "accounts_guid": bucket["accounts_guid"],
           "debit": str(amount),
           "credit": "0",
-          "description": f"Azure {bucket.get('service') or 'Unclassified'} / {bucket.get('meter_category') or 'General'}",
+          "description": line_description,
           "dimension_recids": [15, 4],
         }
       )
@@ -210,7 +226,7 @@ class BillingImportPipelineHandler(PipelineHandler):
       name=f"AZURE-IMPORT-{imports_recid}",
       description=f"Azure billing import promotion for staging import {imports_recid}",
       posting_key=posting_key,
-      source_type="azure_billing_import",
+      source_type=source_type,
       source_id=str(imports_recid),
       periods_guid=matching_period["guid"],
       lines=lines,
