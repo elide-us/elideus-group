@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from pydantic import BaseModel
@@ -167,7 +167,7 @@ class BillingImportPipelineHandler(PipelineHandler):
     lines: list[dict[str, Any]] = []
     line_number = 1
     for bucket in classified_costs:
-      amount = Decimal(str(bucket.get("amount") or "0"))
+      amount = Decimal(str(bucket.get("amount") or "0")).quantize(Decimal("0.00001"), rounding=ROUND_HALF_UP)
       total += amount
       lines.append(
         {
