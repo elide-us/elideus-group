@@ -61,6 +61,17 @@ async def get_vendor_by_name_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def upsert_vendor_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+    DECLARE @result TABLE (
+      recid BIGINT,
+      element_name NVARCHAR(64),
+      element_display NVARCHAR(256),
+      element_description NVARCHAR(512),
+      element_status TINYINT,
+      element_created_on DATETIMEOFFSET(7),
+      element_modified_on DATETIMEOFFSET(7)
+    );
+
     MERGE finance_vendors AS target
     USING (
       SELECT
@@ -104,7 +115,9 @@ async def upsert_vendor_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_created_on,
       inserted.element_modified_on
-    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+    INTO @result;
+
+    SELECT * FROM @result FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
     args.get("recid"),
