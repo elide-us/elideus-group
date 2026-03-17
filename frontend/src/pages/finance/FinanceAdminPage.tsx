@@ -3,6 +3,7 @@ import {
 	Box,
 	Button,
 	Checkbox,
+	Chip,
 	Divider,
 	FormControlLabel,
 	MenuItem,
@@ -54,6 +55,14 @@ type FinanceDimension = {
 	status: number;
 };
 
+type FinanceVendor = {
+	recid?: number | null;
+	element_name: string;
+	element_display?: string | null;
+	element_description?: string | null;
+	element_status: number;
+};
+
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 0, label: "Asset" },
 	{ value: 1, label: "Liability" },
@@ -89,6 +98,15 @@ const FinanceAdminPage = (): JSX.Element => {
 		status: 1,
 	});
 
+	const [vendors, setVendors] = useState<FinanceVendor[]>([]);
+	const [vendorForm, setVendorForm] = useState<FinanceVendor>({
+		recid: null,
+		element_name: "",
+		element_display: "",
+		element_description: "",
+		element_status: 1,
+	});
+
 	const loadPeriods = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ periods: FinancePeriod[] }>("urn:finance:periods:list:1");
 		setPeriods(res.periods || []);
@@ -104,9 +122,14 @@ const FinanceAdminPage = (): JSX.Element => {
 		setDimensions(res.dimensions || []);
 	}, []);
 
+	const loadVendors = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ vendors: FinanceVendor[] }>("urn:finance:vendors:list:1");
+		setVendors(res.vendors || []);
+	}, []);
+
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
-			await Promise.all([loadPeriods(), loadAccounts(), loadDimensions()]);
+			await Promise.all([loadPeriods(), loadAccounts(), loadDimensions(), loadVendors()]);
 			setForbidden(false);
 		} catch (e: any) {
 			if (e?.response?.status === 403) {
@@ -115,7 +138,7 @@ const FinanceAdminPage = (): JSX.Element => {
 			}
 			throw e;
 		}
-	}, [loadPeriods, loadAccounts, loadDimensions]);
+	}, [loadPeriods, loadAccounts, loadDimensions, loadVendors]);
 
 	useEffect(() => {
 		void loadAll();
@@ -137,6 +160,7 @@ const FinanceAdminPage = (): JSX.Element => {
 				<Tab label="Fiscal Periods" />
 				<Tab label="Chart of Accounts" />
 				<Tab label="Financial Dimensions" />
+				<Tab label="Vendors" />
 			</Tabs>
 
 			{tab === 0 && (
@@ -316,6 +340,46 @@ const FinanceAdminPage = (): JSX.Element => {
 					</Table>
 				</Stack>
 			)}
+
+			{tab === 3 && (
+				<Stack spacing={2} sx={{ mt: 2 }}>
+					<Paper sx={{ p: 2 }}>
+						<Stack direction="row" spacing={1} flexWrap="wrap">
+							<TextField label="Name" value={vendorForm.element_name} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_name: e.target.value }))} />
+							<TextField label="Display" value={vendorForm.element_display || ""} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_display: e.target.value }))} />
+							<TextField label="Description" value={vendorForm.element_description || ""} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_description: e.target.value }))} />
+							<FormControlLabel label="Active" control={<Checkbox checked={vendorForm.element_status === 1} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_status: e.target.checked ? 1 : 0 }))} />} />
+							<Button variant="contained" onClick={async () => {
+								await rpcCall("urn:finance:vendors:upsert:1", vendorForm);
+								setVendorForm({ recid: null, element_name: "", element_display: "", element_description: "", element_status: 1 });
+								await loadVendors();
+							}}>{vendorForm.recid ? "Update" : "Create"}</Button>
+						</Stack>
+					</Paper>
+					<Table size="small">
+						<TableHead><TableRow><TableCell>Name</TableCell><TableCell>Display</TableCell><TableCell>Description</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
+						<TableBody>
+							{vendors.map((item) => (
+								<TableRow key={item.recid || item.element_name}>
+									<TableCell>{item.element_name}</TableCell>
+									<TableCell>{item.element_display || ""}</TableCell>
+									<TableCell>{item.element_description || ""}</TableCell>
+									<TableCell><Chip size="small" color={item.element_status === 1 ? "success" : "default"} label={item.element_status === 1 ? "Active" : "Disabled"} /></TableCell>
+									<TableCell>
+										<Button onClick={() => setVendorForm(item)}>Edit</Button>
+										<Button color="error" onClick={async () => {
+											if (!item.recid || !window.confirm(`Delete vendor ${item.element_name}?`)) return;
+											await rpcCall("urn:finance:vendors:delete:1", { recid: item.recid });
+											await loadVendors();
+										}}>Delete</Button>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</Stack>
+			)}
+
 		</Box>
 	);
 };

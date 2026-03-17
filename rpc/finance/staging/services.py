@@ -5,11 +5,13 @@ from queryregistry.finance.staging import (
   list_cost_details_by_import_request,
   list_imports_request,
 )
+from queryregistry.finance.staging_line_items import list_line_items_by_import_request
 from queryregistry.finance.staging.models import (
   DeleteImportParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
 )
+from queryregistry.finance.staging_line_items.models import ListLineItemsByImportParams
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
@@ -21,6 +23,8 @@ from .models import (
   StagingImportItem1,
   StagingImportList1,
   StagingImportResult1,
+  StagingLineItem1,
+  StagingLineItemList1,
   StagingListDetails1,
   StagingPromote1,
   StagingPromoteResult1,
@@ -91,3 +95,19 @@ async def finance_staging_promote_v1(request: Request):
   )
   result = StagingPromoteResult1(task_guid=task["guid"])
   return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
+
+
+async def finance_staging_list_line_items_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  payload = StagingListDetails1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.on_ready()
+  result = await db.run(
+    list_line_items_by_import_request(
+      ListLineItemsByImportParams(imports_recid=payload.imports_recid),
+    ),
+  )
+  response_payload = StagingLineItemList1(
+    line_items=[StagingLineItem1(**dict(row)) for row in (result.rows or [])],
+  )
+  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)

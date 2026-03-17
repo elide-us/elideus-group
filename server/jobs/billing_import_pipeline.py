@@ -7,14 +7,20 @@ from typing import Any
 from pydantic import BaseModel
 
 from queryregistry.finance.staging import (
-  aggregate_cost_by_service_request,
   list_imports_request,
   update_import_status_request,
 )
 from queryregistry.finance.staging.models import (
-  AggregateCostByServiceParams,
   ListImportsParams,
   UpdateImportStatusParams,
+)
+from queryregistry.finance.staging_line_items import (
+  aggregate_line_items_request,
+  list_line_items_by_import_request,
+)
+from queryregistry.finance.staging_line_items.models import (
+  AggregateLineItemsParams,
+  ListLineItemsByImportParams,
 )
 from queryregistry.finance.staging_account_map import (
   resolve_account_request,
@@ -73,8 +79,14 @@ class BillingImportPipelineHandler(PipelineHandler):
 
     imports_recid = int(context["imports_recid"])
     aggregate_res = await db.run(
-      aggregate_cost_by_service_request(AggregateCostByServiceParams(imports_recid=imports_recid))
+      aggregate_line_items_request(AggregateLineItemsParams(imports_recid=imports_recid))
     )
+    line_items_res = await db.run(
+      list_line_items_by_import_request(ListLineItemsByImportParams(imports_recid=imports_recid))
+    )
+    vendor_recid = None
+    if line_items_res.rows:
+      vendor_recid = int(line_items_res.rows[0].get("vendors_recid") or 0) or None
 
     accounts = await finance.list_accounts()
     accounts_by_guid = {str(acct["guid"]): acct for acct in accounts}
@@ -83,9 +95,9 @@ class BillingImportPipelineHandler(PipelineHandler):
     classified: list[dict[str, Any]] = []
 
     for row in aggregate_res.rows or []:
-      service = row.get("element_ConsumedService")
-      meter_category = row.get("element_MeterCategory")
-      amount = Decimal(str(row.get("element_total_cost") or "0"))
+      service = row.get("element_service")
+      meter_category = row.get("element_category")
+      amount = Decimal(str(row.get("element_total_amount") or "0"))
       row_count = int(row.get("element_row_count") or 0)
 
       resolved = await db.run(
@@ -93,6 +105,7 @@ class BillingImportPipelineHandler(PipelineHandler):
           ResolveAccountParams(
             service_name=str(service or ""),
             meter_category=str(meter_category) if meter_category is not None else None,
+            vendors_recid=vendor_recid,
           )
         )
       )

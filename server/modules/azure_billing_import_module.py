@@ -6,6 +6,7 @@ import asyncio
 import csv
 from datetime import datetime
 import io
+import json
 import logging
 import re
 
@@ -18,11 +19,15 @@ from queryregistry.finance.staging import (
   insert_cost_detail_batch_request,
   update_import_status_request,
 )
+from queryregistry.finance.staging_line_items import insert_line_items_batch_request
 from queryregistry.finance.staging.models import (
   CreateImportParams,
   InsertCostDetailBatchParams,
   UpdateImportStatusParams,
 )
+from queryregistry.finance.staging_line_items.models import InsertLineItemsBatchParams
+from queryregistry.finance.vendors import get_vendor_by_name_request
+from queryregistry.finance.vendors.models import GetVendorByNameParams
 from queryregistry.system.config import get_config_request
 from queryregistry.system.config.models import ConfigKeyParams
 
@@ -150,6 +155,28 @@ class AzureBillingImportModule(BaseModule):
       return None
     return datetime.strptime(match.group(1), "%m/%d/%Y %I:%M:%S %p")
 
+
+  @staticmethod
+  def _to_decimal(value: str | None) -> str | None:
+    if value is None:
+      return None
+    cleaned = str(value).strip()
+    if not cleaned:
+      return None
+    try:
+      return str(float(cleaned))
+    except ValueError:
+      return None
+
+  @staticmethod
+  def _to_iso_date(value: str | None) -> str | None:
+    if value is None:
+      return None
+    raw = str(value).strip()
+    if not raw:
+      return None
+    return raw[:10]
+
   async def import_cost_details(
     self,
     period_start: str,
@@ -272,27 +299,67 @@ class AzureBillingImportModule(BaseModule):
           csv_text = await blob_response.text()
           csv_text = csv_text.lstrip("\ufeff")
 
+      vendor_lookup = await self.db.run(
+        get_vendor_by_name_request(GetVendorByNameParams(element_name="Azure")),
+      )
+      if not vendor_lookup.rows:
+        raise ValueError("Missing finance vendor seed row for Azure")
+      vendors_recid = int(vendor_lookup.rows[0]["recid"])
+
       csv_reader = csv.DictReader(io.StringIO(csv_text))
-      batch: list[dict[str, object]] = []
+      raw_batch: list[dict[str, object]] = []
+      normalized_batch: list[dict[str, object]] = []
       for row in csv_reader:
         clean_row = {key: value for key, value in row.items() if key}
-        batch.append(clean_row)
-        if len(batch) >= 100:
+        raw_batch.append(clean_row)
+        normalized_batch.append(
+          {
+            "element_date": self._to_iso_date(clean_row.get("element_Date") or clean_row.get("Date")),
+            "element_service": clean_row.get("ConsumedService"),
+            "element_category": clean_row.get("MeterCategory"),
+            "element_description": clean_row.get("MeterName"),
+            "element_quantity": self._to_decimal(clean_row.get("Quantity")),
+            "element_unit_price": self._to_decimal(clean_row.get("EffectivePrice")),
+            "element_amount": self._to_decimal(clean_row.get("CostInBillingCurrency")) or "0",
+            "element_currency": clean_row.get("BillingCurrency"),
+            "element_raw_json": json.dumps(clean_row),
+          },
+        )
+        if len(raw_batch) >= 100:
           await self.db.run(
             insert_cost_detail_batch_request(
-              InsertCostDetailBatchParams(imports_recid=import_recid, rows=batch),
+              InsertCostDetailBatchParams(imports_recid=import_recid, rows=raw_batch),
             ),
           )
-          total_rows += len(batch)
-          batch = []
+          await self.db.run(
+            insert_line_items_batch_request(
+              InsertLineItemsBatchParams(
+                imports_recid=import_recid,
+                vendors_recid=vendors_recid,
+                rows=normalized_batch,
+              ),
+            ),
+          )
+          total_rows += len(raw_batch)
+          raw_batch = []
+          normalized_batch = []
 
-      if batch:
+      if raw_batch:
         await self.db.run(
           insert_cost_detail_batch_request(
-            InsertCostDetailBatchParams(imports_recid=import_recid, rows=batch),
+            InsertCostDetailBatchParams(imports_recid=import_recid, rows=raw_batch),
           ),
         )
-        total_rows += len(batch)
+        await self.db.run(
+          insert_line_items_batch_request(
+            InsertLineItemsBatchParams(
+              imports_recid=import_recid,
+              vendors_recid=vendors_recid,
+              rows=normalized_batch,
+            ),
+          ),
+        )
+        total_rows += len(raw_batch)
 
       await self.db.run(
         update_import_status_request(

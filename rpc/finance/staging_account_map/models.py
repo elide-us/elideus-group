@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 class FinanceStagingAccountMapItem1(BaseModel):
   recid: int | None = None
+  vendors_recid: int | None = None
+  vendor_name: str | None = None
   element_service_pattern: str
   element_meter_pattern: str | None = None
   accounts_guid: str
@@ -19,6 +21,8 @@ class FinanceStagingAccountMapList1(BaseModel):
 
 class FinanceStagingAccountMapUpsert1(BaseModel):
   recid: int | None = None
+  vendors_recid: int | None = None
+  vendor_name: str | None = None
   element_service_pattern: str
   element_meter_pattern: str | None = None
   accounts_guid: str

@@ -16,6 +16,8 @@ __all__ = [
 class ListAccountMapParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
+  vendors_recid: int | None = None
+
 
 class GetAccountMapParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
@@ -29,6 +31,7 @@ class UpsertAccountMapParams(BaseModel):
   recid: int | None = None
   element_service_pattern: str
   element_meter_pattern: str | None = None
+  vendors_recid: int | None = None
   accounts_guid: str
   element_priority: int = 0
   element_description: str | None = None
@@ -46,3 +49,4 @@ class ResolveAccountParams(BaseModel):
 
   service_name: str
   meter_category: str | None = None
+  vendors_recid: int | None = None

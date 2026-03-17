@@ -106,10 +106,11 @@ async def update_import_status_v1(args: Mapping[str, Any]) -> DBResponse:
 async def delete_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SET NOCOUNT ON;
-    DELETE FROM finance_staging_cost_details WHERE imports_recid = ?;
+    DELETE FROM finance_staging_line_items WHERE imports_recid = ?;
+    DELETE FROM finance_staging_azure_cost_details WHERE imports_recid = ?;
     DELETE FROM finance_staging_imports WHERE recid = ?;
   """
-  return await run_exec(sql, (args["imports_recid"], args["imports_recid"]))
+  return await run_exec(sql, (args["imports_recid"], args["imports_recid"], args["imports_recid"]))
 
 
 async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
@@ -129,7 +130,7 @@ async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
     columns_sql = ", ".join(f"[{column}]" for column in columns)
     placeholders_sql = ", ".join("?" for _ in values)
     sql = f"""
-      INSERT INTO finance_staging_cost_details ({columns_sql})
+      INSERT INTO finance_staging_azure_cost_details ({columns_sql})
       VALUES ({placeholders_sql});
     """
     await run_exec(sql, tuple(values))
@@ -163,7 +164,7 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
 async def list_cost_details_by_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT *
-    FROM finance_staging_cost_details
+    FROM finance_staging_azure_cost_details
     WHERE imports_recid = ?
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
@@ -177,7 +178,7 @@ async def aggregate_cost_by_service_v1(args: Mapping[str, Any]) -> DBResponse:
       element_MeterCategory,
       SUM(CAST(element_CostInBillingCurrency AS DECIMAL(19,5))) AS element_total_cost,
       COUNT_BIG(1) AS element_row_count
-    FROM finance_staging_cost_details
+    FROM finance_staging_azure_cost_details
     WHERE imports_recid = ?
       AND element_CostInBillingCurrency IS NOT NULL
       AND LTRIM(RTRIM(element_CostInBillingCurrency)) <> ''
