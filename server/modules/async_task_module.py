@@ -57,6 +57,13 @@ class AsyncTaskModule(BaseModule):
     await self.db.on_ready()
     self.app.state.async_task = self
     self._loop_task = asyncio.create_task(self._tick_loop())
+
+    finance = getattr(self.app.state, "finance", None)
+    if finance is not None:
+      await finance.on_ready()
+      from server.jobs.billing_import_pipeline import BillingImportPipelineHandler
+
+      self.register_handler("finance.billing.import_pipeline", BillingImportPipelineHandler())
     logging.debug("[AsyncTaskModule] loaded")
     self.mark_ready()
 

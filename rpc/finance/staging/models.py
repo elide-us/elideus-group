@@ -43,3 +43,12 @@ class StagingDeleteImport1(BaseModel):
 class StagingDeleteResult1(BaseModel):
   imports_recid: int
   deleted: bool
+
+
+class StagingPromote1(BaseModel):
+  imports_recid: int
+
+
+class StagingPromoteResult1(BaseModel):
+  task_guid: str
+
