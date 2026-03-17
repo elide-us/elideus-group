@@ -297,3 +297,35 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> Any:
   app = _get_gateway().app
   response = await dispatch_rpc_op(app, "urn:service:reflection:list_rpc_endpoints:1", {}, auth_ctx=auth_ctx)
   return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_async_tasks(ctx: Context, status: int | None = None, handler_type: str | None = None, handler_name: str | None = None) -> Any:
+  """List async orchestration tasks."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(
+    app,
+    "urn:system:tasks:list:1",
+    {"status": status, "handler_type": handler_type, "handler_name": handler_name},
+    auth_ctx=auth_ctx,
+  )
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_get_async_task(ctx: Context, guid: str) -> Any:
+  """Get async orchestration task detail by GUID."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:system:tasks:get:1", {"guid": guid}, auth_ctx=auth_ctx)
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_async_task_events(ctx: Context, guid: str) -> Any:
+  """List events for a given async task GUID."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:system:tasks:events:1", {"guid": guid}, auth_ctx=auth_ctx)
+  return response.payload

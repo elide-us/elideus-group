@@ -171,6 +171,18 @@ These calls expose system administration functionality. All System domain calls 
 | ----------------------------------- | -------------------------------------------------- |
 | `urn:system:storage:get_stats:1`    | Return counts and sizes for storage and cache.     |
 
+
+### `tasks`
+
+| Operation | Description |
+| --- | --- |
+| `urn:system:tasks:list:1` | List async tasks with optional status/type/handler filters. |
+| `urn:system:tasks:get:1` | Get a single async task by GUID. |
+| `urn:system:tasks:submit:1` | Submit an on-demand async task (human-initiated RPC). |
+| `urn:system:tasks:cancel:1` | Cancel a queued/running/polling/waiting task. |
+| `urn:system:tasks:retry:1` | Retry a failed pipeline task from its failed step. |
+| `urn:system:tasks:events:1` | List event history for an async task GUID. |
+
 ## Service Domain
 
 All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
