@@ -79,12 +79,13 @@ async def aggregate_line_items_v1(args: Mapping[str, Any]) -> DBResponse:
     SELECT
       element_service,
       element_category,
+      element_record_type,
       SUM(element_amount) AS element_total_amount,
       COUNT_BIG(1) AS element_row_count
     FROM finance_staging_line_items
     WHERE imports_recid = ?
-    GROUP BY element_service, element_category
-    ORDER BY element_service, element_category
+    GROUP BY element_service, element_category, element_record_type
+    ORDER BY element_record_type, element_service, element_category
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["imports_recid"],))

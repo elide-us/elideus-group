@@ -107,10 +107,14 @@ async def delete_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SET NOCOUNT ON;
     DELETE FROM finance_staging_line_items WHERE imports_recid = ?;
+    DELETE FROM finance_staging_azure_invoices WHERE imports_recid = ?;
     DELETE FROM finance_staging_azure_cost_details WHERE imports_recid = ?;
     DELETE FROM finance_staging_imports WHERE recid = ?;
   """
-  return await run_exec(sql, (args["imports_recid"], args["imports_recid"], args["imports_recid"]))
+  return await run_exec(
+    sql,
+    (args["imports_recid"], args["imports_recid"], args["imports_recid"], args["imports_recid"]),
+  )
 
 
 async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
