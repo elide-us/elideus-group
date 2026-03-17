@@ -10,6 +10,8 @@ from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 async def create_task_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
     DECLARE @inserted TABLE (
       recid BIGINT,
       element_guid UNIQUEIDENTIFIER,
@@ -201,13 +203,15 @@ async def update_task_v1(args: Mapping[str, Any]) -> DBResponse:
 
   if not setters:
     return await run_json_one(
-      "SELECT * FROM system_async_tasks WHERE recid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;",
+      "SET NOCOUNT ON;\nSELECT * FROM system_async_tasks WHERE recid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;",
       (recid,),
     )
 
   setters.append("element_modified_on = SYSUTCDATETIME()")
   set_sql = ",\n      ".join(setters)
   sql = f"""
+    SET NOCOUNT ON;
+
     DECLARE @updated TABLE (
       recid BIGINT,
       element_guid UNIQUEIDENTIFIER,
