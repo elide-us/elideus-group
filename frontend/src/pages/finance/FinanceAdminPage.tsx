@@ -4,6 +4,7 @@ import {
 	Button,
 	Checkbox,
 	Chip,
+	Collapse,
 	Divider,
 	FormControlLabel,
 	MenuItem,
@@ -55,14 +56,6 @@ type FinanceDimension = {
 	status: number;
 };
 
-type FinanceVendor = {
-	recid?: number | null;
-	element_name: string;
-	element_display?: string | null;
-	element_description?: string | null;
-	element_status: number;
-};
-
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 0, label: "Asset" },
 	{ value: 1, label: "Liability" },
@@ -98,13 +91,14 @@ const FinanceAdminPage = (): JSX.Element => {
 		status: 1,
 	});
 
-	const [vendors, setVendors] = useState<FinanceVendor[]>([]);
-	const [vendorForm, setVendorForm] = useState<FinanceVendor>({
+	const [vendorList, setVendorList] = useState<any[]>([]);
+	const [vendorFormOpen, setVendorFormOpen] = useState(false);
+	const [vendorForm, setVendorForm] = useState({
 		recid: null,
 		element_name: "",
 		element_display: "",
 		element_description: "",
-		element_status: 1,
+		element_status: true,
 	});
 
 	const loadPeriods = useCallback(async (): Promise<void> => {
@@ -123,13 +117,13 @@ const FinanceAdminPage = (): JSX.Element => {
 	}, []);
 
 	const loadVendors = useCallback(async (): Promise<void> => {
-		const res = await rpcCall<{ vendors: FinanceVendor[] }>("urn:finance:vendors:list:1");
-		setVendors(res.vendors || []);
+		const res = await rpcCall<{ vendors: any[] }>("urn:finance:vendors:list:1");
+		setVendorList(res.vendors || []);
 	}, []);
 
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
-			await Promise.all([loadPeriods(), loadAccounts(), loadDimensions(), loadVendors()]);
+			await Promise.all([loadPeriods(), loadAccounts(), loadDimensions()]);
 			setForbidden(false);
 		} catch (e: any) {
 			if (e?.response?.status === 403) {
@@ -138,11 +132,17 @@ const FinanceAdminPage = (): JSX.Element => {
 			}
 			throw e;
 		}
-	}, [loadPeriods, loadAccounts, loadDimensions, loadVendors]);
+	}, [loadPeriods, loadAccounts, loadDimensions]);
 
 	useEffect(() => {
 		void loadAll();
 	}, [loadAll]);
+
+	useEffect(() => {
+		if (tab === 3) {
+			void loadVendors();
+		}
+	}, [tab, loadVendors]);
 
 	if (forbidden) {
 		return (
@@ -294,7 +294,9 @@ const FinanceAdminPage = (): JSX.Element => {
 									<TableCell>{item.status}</TableCell>
 									<TableCell>
 										<Button color="error" onClick={async () => {
-											if (!item.guid) return;
+											if (!item.guid) {
+												return;
+											}
 											await rpcCall("urn:finance:accounts:delete:1", { guid: item.guid });
 											await loadAccounts();
 										}}>Delete</Button>
@@ -344,34 +346,133 @@ const FinanceAdminPage = (): JSX.Element => {
 			{tab === 3 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
-						<Stack direction="row" spacing={1} flexWrap="wrap">
-							<TextField label="Name" value={vendorForm.element_name} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_name: e.target.value }))} />
-							<TextField label="Display" value={vendorForm.element_display || ""} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_display: e.target.value }))} />
-							<TextField label="Description" value={vendorForm.element_description || ""} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_description: e.target.value }))} />
-							<FormControlLabel label="Active" control={<Checkbox checked={vendorForm.element_status === 1} onChange={(e) => setVendorForm((prev) => ({ ...prev, element_status: e.target.checked ? 1 : 0 }))} />} />
-							<Button variant="contained" onClick={async () => {
-								await rpcCall("urn:finance:vendors:upsert:1", vendorForm);
-								setVendorForm({ recid: null, element_name: "", element_display: "", element_description: "", element_status: 1 });
-								await loadVendors();
-							}}>{vendorForm.recid ? "Update" : "Create"}</Button>
+						<Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" flexWrap="wrap">
+							<Typography variant="subtitle1">Vendors</Typography>
+							<Button
+								variant="contained"
+								onClick={() => {
+									setVendorForm({ recid: null, element_name: "", element_display: "", element_description: "", element_status: true });
+									setVendorFormOpen(true);
+								}}
+							>
+								Create Vendor
+							</Button>
 						</Stack>
 					</Paper>
+
+					<Collapse in={vendorFormOpen}>
+						<Paper sx={{ p: 2 }}>
+							<Stack spacing={2}>
+								<Stack direction="row" spacing={1} flexWrap="wrap">
+									<TextField
+										label="Name"
+										required
+										value={vendorForm.element_name}
+										onChange={(event) => setVendorForm((previous) => ({ ...previous, element_name: event.target.value }))}
+									/>
+									<TextField
+										label="Display Name"
+										value={vendorForm.element_display}
+										onChange={(event) => setVendorForm((previous) => ({ ...previous, element_display: event.target.value }))}
+									/>
+									<TextField
+										label="Description"
+										value={vendorForm.element_description}
+										onChange={(event) => setVendorForm((previous) => ({ ...previous, element_description: event.target.value }))}
+									/>
+									<FormControlLabel
+										label="Active"
+										control={<Checkbox checked={vendorForm.element_status} onChange={(event) => setVendorForm((previous) => ({ ...previous, element_status: event.target.checked }))} />}
+									/>
+								</Stack>
+								<Stack direction="row" spacing={1}>
+									<Button
+										variant="contained"
+										onClick={async () => {
+											if (!vendorForm.element_name.trim()) {
+												return;
+											}
+											await rpcCall("urn:finance:vendors:upsert:1", {
+												recid: vendorForm.recid,
+												element_name: vendorForm.element_name,
+												element_display: vendorForm.element_display || null,
+												element_description: vendorForm.element_description || null,
+												element_status: vendorForm.element_status ? 1 : 0,
+											});
+											setVendorFormOpen(false);
+											setVendorForm({ recid: null, element_name: "", element_display: "", element_description: "", element_status: true });
+											await loadVendors();
+										}}
+									>
+										Save
+									</Button>
+									<Button
+										onClick={() => {
+											setVendorFormOpen(false);
+											setVendorForm({ recid: null, element_name: "", element_display: "", element_description: "", element_status: true });
+										}}
+									>
+										Cancel
+									</Button>
+								</Stack>
+							</Stack>
+						</Paper>
+					</Collapse>
+
 					<Table size="small">
-						<TableHead><TableRow><TableCell>Name</TableCell><TableCell>Display</TableCell><TableCell>Description</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
+						<TableHead>
+							<TableRow>
+								<TableCell>Name</TableCell>
+								<TableCell>Display Name</TableCell>
+								<TableCell>Description</TableCell>
+								<TableCell>Status</TableCell>
+								<TableCell>Actions</TableCell>
+							</TableRow>
+						</TableHead>
 						<TableBody>
-							{vendors.map((item) => (
+							{vendorList.map((item) => (
 								<TableRow key={item.recid || item.element_name}>
 									<TableCell>{item.element_name}</TableCell>
 									<TableCell>{item.element_display || ""}</TableCell>
 									<TableCell>{item.element_description || ""}</TableCell>
-									<TableCell><Chip size="small" color={item.element_status === 1 ? "success" : "default"} label={item.element_status === 1 ? "Active" : "Disabled"} /></TableCell>
 									<TableCell>
-										<Button onClick={() => setVendorForm(item)}>Edit</Button>
-										<Button color="error" onClick={async () => {
-											if (!item.recid || !window.confirm(`Delete vendor ${item.element_name}?`)) return;
-											await rpcCall("urn:finance:vendors:delete:1", { recid: item.recid });
-											await loadVendors();
-										}}>Delete</Button>
+										<Chip
+											size="small"
+											color={item.element_status === 1 ? "success" : "default"}
+											label={item.element_status === 1 ? "Active" : "Disabled"}
+										/>
+									</TableCell>
+									<TableCell>
+										<Stack direction="row" spacing={1}>
+											<Button
+												size="small"
+												onClick={() => {
+													setVendorForm({
+														recid: item.recid || null,
+														element_name: item.element_name || "",
+														element_display: item.element_display || "",
+														element_description: item.element_description || "",
+														element_status: Number(item.element_status) === 1,
+													});
+													setVendorFormOpen(true);
+												}}
+											>
+												Edit
+											</Button>
+											<Button
+												size="small"
+												color="error"
+												onClick={async () => {
+													if (!item.recid || !window.confirm(`Delete vendor ${item.element_name}?`)) {
+														return;
+													}
+													await rpcCall("urn:finance:vendors:delete:1", { recid: item.recid });
+													await loadVendors();
+												}}
+											>
+												Delete
+											</Button>
+										</Stack>
 									</TableCell>
 								</TableRow>
 							))}
@@ -379,7 +480,6 @@ const FinanceAdminPage = (): JSX.Element => {
 					</Table>
 				</Stack>
 			)}
-
 		</Box>
 	);
 };

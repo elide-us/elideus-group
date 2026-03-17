@@ -312,7 +312,7 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 ## Finance Domain
 
 Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
-`urn:finance:staging:promote:1` and all `staging_account_map` operations require `ROLE_SYSTEM_ADMIN`.
+`urn:finance:staging:promote:1`, all `staging_account_map` operations, all `staging_purge_log` operations, and all `vendors` operations require `ROLE_SYSTEM_ADMIN`.
 
 ### `journals`
 
@@ -331,6 +331,7 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | --- | --- |
 | `urn:finance:staging:delete_import:1` | Delete a finance staging import batch and its staged cost detail rows. |
 | `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range. |
+| `urn:finance:staging:import_invoices:1` | Trigger an Azure invoice import for a date range. |
 | `urn:finance:staging:list_imports:1` | List finance staging import batches. |
 | `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |
 | `urn:finance:staging:promote:1` | Submit async promotion of a completed staging import into a posted journal and return task guid. |
@@ -342,3 +343,9 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:staging_account_map:list:1` | List billing service-to-account mapping rules with account metadata. |
 | `urn:finance:staging_account_map:upsert:1` | Create or update a billing service-to-account mapping rule. |
 | `urn:finance:staging_account_map:delete:1` | Delete a billing service-to-account mapping rule. |
+
+### `staging_purge_log`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:staging_purge_log:list:1` | List purge log records used to track staged import purges by vendor and period. |
