@@ -144,8 +144,14 @@ async def delete_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
 async def resolve_account_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT TOP (1)
-      map.accounts_guid
+      map.accounts_guid,
+      map.element_service_pattern,
+      map.element_meter_pattern,
+      account.element_number AS account_number,
+      account.element_name AS account_name
     FROM finance_staging_account_map AS map
+    INNER JOIN finance_accounts AS account
+      ON account.element_guid = map.accounts_guid
     WHERE map.element_status = 1
       AND (map.element_service_pattern = ? OR map.element_service_pattern = '*')
       AND (

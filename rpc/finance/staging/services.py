@@ -22,6 +22,8 @@ from .models import (
   StagingImportList1,
   StagingImportResult1,
   StagingListDetails1,
+  StagingPromote1,
+  StagingPromoteResult1,
 )
 
 
@@ -70,3 +72,22 @@ async def finance_staging_delete_import_v1(request: Request):
   await db.run(delete_import_request(DeleteImportParams(imports_recid=payload.imports_recid)))
   response_payload = StagingDeleteResult1(imports_recid=payload.imports_recid, deleted=True)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
+
+
+async def finance_staging_promote_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  payload = StagingPromote1(**(rpc_request.payload or {}))
+  module = request.app.state.async_task
+  await module.on_ready()
+  task = await module.submit_task(
+    handler_name="finance.billing.import_pipeline",
+    payload={"imports_recid": payload.imports_recid},
+    source_type="rpc",
+    source_id=str(payload.imports_recid),
+    created_by=auth_ctx.user_guid,
+    timeout_seconds=600,
+    poll_interval_seconds=None,
+    max_retries=0,
+  )
+  result = StagingPromoteResult1(task_guid=task["guid"])
+  return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
