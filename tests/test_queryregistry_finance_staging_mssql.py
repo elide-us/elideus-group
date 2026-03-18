@@ -74,3 +74,35 @@ def test_delete_import_v1_deletes_all_staging_children_before_import(monkeypatch
   assert "DELETE FROM finance_staging_azure_invoices" in captured["sql"]
   assert "DELETE FROM finance_staging_azure_cost_details" in captured["sql"]
   assert captured["params"] == (77, 77, 77, 77)
+
+
+def test_insert_cost_detail_batch_v1_uses_api_field_names_as_element_columns(monkeypatch):
+  captured = []
+
+  async def fake_run_exec(sql, params=()):
+    captured.append((sql, params))
+    return {"rows": []}
+
+  monkeypatch.setattr(mssql, "run_exec", fake_run_exec)
+
+  result = asyncio.run(
+    mssql.insert_cost_detail_batch_v1(
+      {
+        "imports_recid": 77,
+        "rows": [
+          {
+            "consumedService": "Microsoft.Sql",
+            "meterCategory": "Databases",
+            "costInBillingCurrency": "12.34",
+          },
+        ],
+      },
+    ),
+  )
+
+  sql, params = captured[0]
+  assert "[element_consumedService]" in sql
+  assert "[element_meterCategory]" in sql
+  assert "[element_costInBillingCurrency]" in sql
+  assert params == (77, "Microsoft.Sql", "Databases", "12.34")
+  assert result.rowcount == 1

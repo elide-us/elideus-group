@@ -55,9 +55,9 @@ def test_aggregate_line_items_groups_by_service_and_category(monkeypatch):
   result = asyncio.run(staging_mssql.aggregate_cost_by_service_v1({'imports_recid': 42}))
 
   sql = captured['sql']
-  assert 'GROUP BY element_ConsumedService, element_MeterCategory' in sql
-  assert 'SUM(CAST(element_CostInBillingCurrency AS DECIMAL(19,5)))' in sql
-  assert "LTRIM(RTRIM(element_CostInBillingCurrency)) <> ''" in sql
+  assert 'GROUP BY element_consumedService, element_meterCategory' in sql
+  assert 'SUM(CAST(element_costInBillingCurrency AS DECIMAL(19,5)))' in sql
+  assert "LTRIM(RTRIM(element_costInBillingCurrency)) <> ''" in sql
   assert captured['params'] == (42,)
   assert result == {'rows': []}
 

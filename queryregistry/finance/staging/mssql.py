@@ -178,16 +178,16 @@ async def list_cost_details_by_import_v1(args: Mapping[str, Any]) -> DBResponse:
 async def aggregate_cost_by_service_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      element_ConsumedService,
-      element_MeterCategory,
-      SUM(CAST(element_CostInBillingCurrency AS DECIMAL(19,5))) AS element_total_cost,
+      element_consumedService,
+      element_meterCategory,
+      SUM(CAST(element_costInBillingCurrency AS DECIMAL(19,5))) AS element_total_cost,
       COUNT_BIG(1) AS element_row_count
     FROM finance_staging_azure_cost_details
     WHERE imports_recid = ?
-      AND element_CostInBillingCurrency IS NOT NULL
-      AND LTRIM(RTRIM(element_CostInBillingCurrency)) <> ''
-    GROUP BY element_ConsumedService, element_MeterCategory
-    ORDER BY element_ConsumedService, element_MeterCategory
+      AND element_costInBillingCurrency IS NOT NULL
+      AND LTRIM(RTRIM(element_costInBillingCurrency)) <> ''
+    GROUP BY element_consumedService, element_meterCategory
+    ORDER BY element_consumedService, element_meterCategory
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["imports_recid"],))
