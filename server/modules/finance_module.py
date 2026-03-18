@@ -761,7 +761,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if period["close_type"] != 0:
+      if int(period["status"] or 0) != 1:
         raise ValueError("Cannot post to closed period")
 
     quantified_lines: list[CreateLineParams] = []
@@ -828,7 +828,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if period["close_type"] != 0:
+      if int(period["status"] or 0) != 1:
         raise ValueError("Cannot post to closed period")
 
     lines = await self.get_journal_lines(recid)
@@ -869,7 +869,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if period["close_type"] != 0:
+      if int(period["status"] or 0) != 1:
         raise ValueError("Cannot reverse journal into a closed period")
 
     original_lines = await self.get_journal_lines(recid)

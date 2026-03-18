@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class StagingImport1(BaseModel):
@@ -81,6 +81,13 @@ class StagingLineItem1(BaseModel):
   element_currency: str | None = None
   element_raw_json: str | None = None
   element_created_on: str | None = None
+
+  @field_validator("element_quantity", "element_unit_price", "element_amount", mode="before")
+  @classmethod
+  def coerce_decimal_to_str(cls, value):
+    if value is None:
+      return "0"
+    return str(value)
 
 
 class StagingLineItemList1(BaseModel):

@@ -98,3 +98,164 @@ def test_delete_ledger_blocks_when_journals_reference_it():
 
   with pytest.raises(ValueError, match="journals already reference it"):
     asyncio.run(FinanceModule.delete_ledger(module, 42))
+
+
+def test_create_journal_allows_open_month_close_period():
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = None
+
+  async def fake_get_period(guid: str):
+    assert guid == "period-guid"
+    return {"guid": guid, "status": 1, "close_type": 1}
+
+  async def fake_db_run(request):
+    if request.op == "db:finance:journals:get_by_posting_key:1":
+      return DBResponse(op=request.op, rows=[])
+    if request.op == "db:finance:journals:create:1":
+      return DBResponse(
+        op=request.op,
+        rows=[{
+          "recid": 10,
+          "element_name": "AZURE-IMPORT-10",
+          "element_description": "desc",
+          "element_posting_key": "pk",
+          "element_source_type": "azure_invoice",
+          "element_source_id": "10",
+          "periods_guid": "period-guid",
+          "ledgers_recid": None,
+          "numbers_recid": None,
+          "element_status": 0,
+          "element_posted_by": None,
+          "element_posted_on": None,
+          "element_reversed_by": None,
+          "element_reversal_of": None,
+        }],
+      )
+    if request.op == "db:finance:journal_lines:create_lines_batch:1":
+      return DBResponse(op=request.op, rows=[])
+    if request.op == "db:finance:journals:get:1":
+      return DBResponse(
+        op=request.op,
+        rows=[{
+          "recid": 10,
+          "element_name": "AZURE-IMPORT-10",
+          "element_description": "desc",
+          "element_posting_key": "pk",
+          "element_source_type": "azure_invoice",
+          "element_source_id": "10",
+          "periods_guid": "period-guid",
+          "ledgers_recid": None,
+          "numbers_recid": None,
+          "element_status": 0,
+          "element_posted_by": None,
+          "element_posted_on": None,
+          "element_reversed_by": None,
+          "element_reversal_of": None,
+        }],
+      )
+    if request.op == "db:finance:journal_lines:list_by_journal:1":
+      return DBResponse(
+        op=request.op,
+        rows=[
+          {
+            "recid": 1,
+            "journals_recid": 10,
+            "element_line_number": 1,
+            "accounts_guid": "expense-guid",
+            "element_debit": "10.00000",
+            "element_credit": "0.00000",
+            "element_description": "line 1",
+            "dimension_recids": [],
+          },
+          {
+            "recid": 2,
+            "journals_recid": 10,
+            "element_line_number": 2,
+            "accounts_guid": "ap-guid",
+            "element_debit": "0.00000",
+            "element_credit": "10.00000",
+            "element_description": "line 2",
+            "dimension_recids": [],
+          },
+        ],
+      )
+    if request.op == "db:finance:journals:update_status:1":
+      return DBResponse(
+        op=request.op,
+        rows=[{
+          "recid": 10,
+          "element_name": "AZURE-IMPORT-10",
+          "element_description": "desc",
+          "element_posting_key": "pk",
+          "element_source_type": "azure_invoice",
+          "element_source_id": "10",
+          "periods_guid": "period-guid",
+          "ledgers_recid": None,
+          "numbers_recid": None,
+          "element_status": 1,
+          "element_posted_by": None,
+          "element_posted_on": "2026-03-18T00:00:00+00:00",
+          "element_reversed_by": None,
+          "element_reversal_of": None,
+        }],
+      )
+    raise AssertionError(f"Unhandled op: {request.op}")
+
+  module.get_period = fake_get_period
+
+  class FakeDb:
+    async def run(self, request):
+      return await fake_db_run(request)
+
+  module.db = FakeDb()
+
+  journal = asyncio.run(
+    FinanceModule.create_journal(
+      module,
+      name="AZURE-IMPORT-10",
+      description="desc",
+      posting_key="pk",
+      source_type="azure_invoice",
+      source_id="10",
+      periods_guid="period-guid",
+      lines=[
+        {"line_number": 1, "accounts_guid": "expense-guid", "debit": "10", "credit": "0", "dimension_recids": []},
+        {"line_number": 2, "accounts_guid": "ap-guid", "debit": "0", "credit": "10", "dimension_recids": []},
+      ],
+      post=True,
+    )
+  )
+
+  assert journal["status"] == 1
+
+
+def test_create_journal_blocks_non_open_period_status():
+  module = FinanceModule.__new__(FinanceModule)
+  class FakeDb:
+    async def run(self, request):
+      if request.op == "db:finance:journals:get_by_posting_key:1":
+        return DBResponse(op=request.op, rows=[])
+      raise AssertionError(f"Unhandled op: {request.op}")
+
+  module.db = FakeDb()
+
+  async def fake_get_period(guid: str):
+    assert guid == "period-guid"
+    return {"guid": guid, "status": 2, "close_type": 0}
+
+  module.get_period = fake_get_period
+
+  with pytest.raises(ValueError, match="Cannot post to closed period"):
+    asyncio.run(
+      FinanceModule.create_journal(
+        module,
+        name="AZURE-IMPORT-10",
+        posting_key="pk",
+        periods_guid="period-guid",
+        lines=[
+          {"line_number": 1, "accounts_guid": "expense-guid", "debit": "10", "credit": "0", "dimension_recids": []},
+          {"line_number": 2, "accounts_guid": "ap-guid", "debit": "0", "credit": "10", "dimension_recids": []},
+        ],
+        post=True,
+      )
+    )
