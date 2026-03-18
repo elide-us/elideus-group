@@ -20,9 +20,13 @@ class BillingImportModule(BaseModule):
 
   async def startup(self):
     from .providers.billing.azure_cost_details_provider import AzureCostDetailsProvider
+    from .providers.billing.azure_invoice_provider import AzureInvoiceProvider
 
     provider = AzureCostDetailsProvider(self)
     await self.register_provider(provider)
+
+    invoice_provider = AzureInvoiceProvider(self)
+    await self.register_provider(invoice_provider)
 
     logging.info("[BillingImportModule] loaded providers: %s", list(self.providers.keys()))
     self.app.state.billing_import = self

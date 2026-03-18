@@ -13,6 +13,18 @@ class StagingImportResult1(BaseModel):
   row_count: int
 
 
+class StagingImportInvoices1(BaseModel):
+  period_month: str
+
+
+class StagingImportInvoicesResult1(BaseModel):
+  import_recid: int
+  status: str
+  invoice_count: int
+  skipped_count: int
+  message: str | None = None
+
+
 class StagingImportItem1(BaseModel):
   recid: int
   element_source: str
