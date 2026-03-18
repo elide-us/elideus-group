@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+from calendar import monthrange
 import csv
-from datetime import date, datetime, timedelta
+from datetime import datetime
 import io
 import json
 import logging
@@ -419,10 +420,11 @@ class AzureBillingImportModule(BaseModule):
       if not re.fullmatch(r"\d{4}-\d{2}", period_month or ""):
         raise ValueError("Invoice month must be in YYYY-MM format")
 
-      requested_month_start = date.fromisoformat(f"{period_month}-01")
-      next_month_start = (requested_month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
-      requested_month_end = next_month_start - timedelta(days=1)
-      requested_year_month = period_month[:7]
+      year = int(period_month[:4])
+      month = int(period_month[5:7])
+      _, last_day = monthrange(year, month)
+      period_start = f"{year:04d}-{month:02d}-01"
+      period_end = f"{year:04d}-{month:02d}-{last_day:02d}"
 
       if not self._subscription_id:
         raise ValueError("Azure billing subscription not configured")
@@ -443,8 +445,8 @@ class AzureBillingImportModule(BaseModule):
             source="azure_invoices",
             scope=f"subscriptions/{self._subscription_id}",
             metric="Invoices",
-            period_start=requested_month_start.isoformat(),
-            period_end=requested_month_end.isoformat(),
+            period_start=period_start,
+            period_end=period_end,
           ),
         ),
       )
@@ -484,21 +486,26 @@ class AzureBillingImportModule(BaseModule):
           invoices = payload.get("value") or []
           total_from_api += len(invoices)
           for invoice in invoices:
-            props = invoice.get("properties") or {}
-            invoice_period_start = self._to_iso_date(props.get("invoicePeriodStartDate"))
-            invoice_period_end = self._to_iso_date(props.get("invoicePeriodEndDate"))
-            if not invoice_period_start or not invoice_period_end:
-              continue
-
-            invoice_start_date = date.fromisoformat(invoice_period_start)
-            invoice_end_date = date.fromisoformat(invoice_period_end)
-            if requested_month_end < invoice_start_date or requested_month_start > invoice_end_date:
-              continue
-
-            matched_count += 1
             name = invoice.get("name")
             if not name:
               continue
+
+            props = invoice.get("properties") or {}
+            raw_period_start = str(props.get("invoicePeriodStartDate") or "").strip()
+            invoice_month: str | None = None
+            if "T" in raw_period_start or (len(raw_period_start) >= 10 and raw_period_start[4] == "-"):
+              invoice_month = raw_period_start[:7]
+            elif "/" in raw_period_start:
+              parts = raw_period_start.split("/")
+              if len(parts) == 3:
+                invoice_month = f"{parts[2][:4]}-{int(parts[0]):02d}"
+
+            if invoice_month != period_month:
+              continue
+
+            matched_count += 1
+            invoice_period_start = self._to_iso_date(props.get("invoicePeriodStartDate"))
+            invoice_period_end = self._to_iso_date(props.get("invoicePeriodEndDate"))
 
             existing = await self.db.run(
               get_invoice_by_name_request(GetInvoiceByNameParams(invoice_name=str(name))),
@@ -577,13 +584,6 @@ class AzureBillingImportModule(BaseModule):
           next_url = payload.get("nextLink")
           next_params = None
 
-      logging.info(
-        "[AzureBillingImportModule] Invoice API returned %d invoices, %d matched month %s",
-        total_from_api,
-        matched_count,
-        requested_year_month,
-      )
-
       if raw_batch:
         await self.db.run(
           insert_invoice_batch_request(
@@ -601,10 +601,20 @@ class AzureBillingImportModule(BaseModule):
         )
         inserted_count += len(raw_batch)
 
+      logging.info(
+        "[AzureBillingImportModule] Invoice API returned %d total invoices, "
+        "%d matched month %s, %d inserted, %d skipped",
+        total_from_api,
+        matched_count,
+        period_month,
+        inserted_count,
+        skipped_count,
+      )
+
       message = None
       if matched_count == 0:
         message = (
-          f"No Azure invoice matched billing period month {requested_year_month}. "
+          f"No Azure invoice matched billing period month {period_month}. "
           "The invoice may not have been generated yet for that period."
         )
 

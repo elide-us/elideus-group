@@ -187,7 +187,7 @@ def test_import_invoices_dedups_against_active_and_purged(monkeypatch, caplog):
   invoices_payload = {
     "value": [
       {"name": "INV-ACTIVE", "properties": {"invoiceDate": "2025-01-02", "invoicePeriodStartDate": "2025-01-01T00:00:00Z", "invoicePeriodEndDate": "2025-01-31T23:59:59Z", "billedAmount": {"value": "10", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
-      {"name": "INV-PURGED", "properties": {"invoiceDate": "2025-01-03", "invoicePeriodStartDate": "2025-01-01", "invoicePeriodEndDate": "2025-01-31", "billedAmount": {"value": "20", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+      {"name": "INV-PURGED", "properties": {"invoiceDate": "2025-01-03", "invoicePeriodStartDate": "1/1/2025", "invoicePeriodEndDate": "1/31/2025", "billedAmount": {"value": "20", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
       {"name": "INV-NEW", "properties": {"invoiceDate": "2025-01-04", "invoicePeriodStartDate": "2025-01-01", "invoicePeriodEndDate": "2025-01-31", "billedAmount": {"value": "30", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
       {"name": "INV-OTHER-MONTH", "properties": {"invoiceDate": "2025-02-04", "invoicePeriodStartDate": "2025-02-01", "invoicePeriodEndDate": "2025-02-28", "billedAmount": {"value": "40", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
     ],
@@ -225,10 +225,18 @@ def test_import_invoices_dedups_against_active_and_purged(monkeypatch, caplog):
   assert result["invoice_count"] == 1
   assert result["skipped_count"] == 2
   assert result["message"] is None
-  assert "Invoice API returned 4 invoices, 3 matched month 2025-01" in caplog.text
+  assert "Invoice API returned 4 total invoices, 3 matched month 2025-01, 1 inserted, 2 skipped" in caplog.text
 
   line_item_insert = next(r for r in module.db.requests if r.op == "db:finance:staging_line_items:insert_line_items_batch:1")
   assert line_item_insert.payload["rows"][0]["element_record_type"] == "invoice"
+
+  create_request = next(
+    request
+    for request in module.db.requests
+    if request.op == "db:finance:staging:create_import:1"
+  )
+  assert create_request.payload["period_start"] == "2025-01-01"
+  assert create_request.payload["period_end"] == "2025-01-31"
 
 
 def test_import_invoices_returns_message_when_month_has_no_invoice(monkeypatch, caplog):
@@ -273,7 +281,7 @@ def test_import_invoices_returns_message_when_month_has_no_invoice(monkeypatch, 
     "No Azure invoice matched billing period month 2025-01. "
     "The invoice may not have been generated yet for that period."
   )
-  assert "Invoice API returned 1 invoices, 0 matched month 2025-01" in caplog.text
+  assert "Invoice API returned 1 total invoices, 0 matched month 2025-01, 0 inserted, 0 skipped" in caplog.text
 
   update_request = next(
     request
