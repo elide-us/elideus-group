@@ -230,3 +230,88 @@ def test_import_invoices_dedups_against_active_and_purged(monkeypatch):
 def test_to_azure_date_formats_mm_dd_yyyy():
   module = AzureBillingImportModule.__new__(AzureBillingImportModule)
   assert module._to_azure_date("2025-02-14") == "02-14-2025"
+
+
+class _RecordingDb:
+  def __init__(self):
+    self.requests = []
+
+  async def run(self, request):
+    self.requests.append(request)
+    if request.op == "db:finance:staging:create_import:1":
+      return SimpleNamespace(rows=[{"recid": 77}])
+    if request.op == "db:finance:vendors:get_vendor_by_name:1":
+      return SimpleNamespace(rows=[{"recid": 9}])
+    if request.op in (
+      "db:finance:staging:insert_cost_detail_batch:1",
+      "db:finance:staging_line_items:insert_line_items_batch:1",
+      "db:finance:staging:update_import_status:1",
+    ):
+      return SimpleNamespace(rows=[])
+    raise AssertionError(f"unexpected op {request.op}")
+
+
+def test_import_cost_details_normalizes_camel_case_csv_headers(monkeypatch):
+  post_bodies = []
+  post_responses = [
+    _FakeResponse(
+      202,
+      headers={"Location": "https://poll.example", "Retry-After": "1"},
+    ),
+  ]
+  get_responses = [
+    _FakeResponse(
+      200,
+      json_data={
+        "status": "Completed",
+        "manifest": {"blobs": [{"blobLink": "https://blob.example"}]},
+      },
+      headers={"Retry-After": "1"},
+    ),
+    _FakeResponse(
+      200,
+      text_data=(
+        "date,consumedService,meterCategory,meterName,quantity,effectivePrice,"
+        "costInBillingCurrency,billingCurrency\n"
+        "2024-01-02T00:00:00Z,Microsoft.Sql,Databases,SQL Database,2,3.5,7.0,USD\n"
+      ),
+    ),
+  ]
+
+  module = _build_module(
+    monkeypatch,
+    lambda: _FakeClientSession(post_responses, get_responses, post_bodies),
+  )
+  module.db = _RecordingDb()
+
+  result = asyncio.run(
+    module.import_cost_details(
+      period_start="2024-01-01T00:00:00",
+      period_end="2024-01-31T23:59:59",
+    )
+  )
+
+  assert result["status"] == "completed"
+
+  cost_detail_insert = next(
+    request
+    for request in module.db.requests
+    if request.op == "db:finance:staging:insert_cost_detail_batch:1"
+  )
+  assert cost_detail_insert.payload["rows"][0]["consumedService"] == "Microsoft.Sql"
+  assert cost_detail_insert.payload["rows"][0]["costInBillingCurrency"] == "7.0"
+
+  line_item_insert = next(
+    request
+    for request in module.db.requests
+    if request.op == "db:finance:staging_line_items:insert_line_items_batch:1"
+  )
+  row = line_item_insert.payload["rows"][0]
+  assert row["element_date"] == "2024-01-02"
+  assert row["element_service"] == "Microsoft.Sql"
+  assert row["element_category"] == "Databases"
+  assert row["element_description"] == "SQL Database"
+  assert row["element_quantity"] == "2.0"
+  assert row["element_unit_price"] == "3.5"
+  assert row["element_amount"] == "7.0"
+  assert row["element_currency"] == "USD"

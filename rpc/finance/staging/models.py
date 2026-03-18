@@ -82,9 +82,9 @@ class StagingLineItem1(BaseModel):
   element_raw_json: str | None = None
   element_created_on: str | None = None
 
-  @field_validator("element_quantity", "element_unit_price", "element_amount", mode="before")
+  @field_validator("element_amount", "element_quantity", "element_unit_price", mode="before")
   @classmethod
-  def coerce_decimal_to_str(cls, value):
+  def coerce_numeric_to_str(cls, value):
     if value is None:
       return "0"
     return str(value)

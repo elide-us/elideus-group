@@ -335,14 +335,14 @@ class AzureBillingImportModule(BaseModule):
         raw_batch.append(clean_row)
         normalized_batch.append(
           {
-            "element_date": self._to_iso_date(clean_row.get("element_Date") or clean_row.get("Date")),
-            "element_service": clean_row.get("ConsumedService"),
-            "element_category": clean_row.get("MeterCategory"),
-            "element_description": clean_row.get("MeterName"),
-            "element_quantity": self._to_decimal(clean_row.get("Quantity")),
-            "element_unit_price": self._to_decimal(clean_row.get("EffectivePrice")),
-            "element_amount": self._to_decimal(clean_row.get("CostInBillingCurrency")) or "0",
-            "element_currency": clean_row.get("BillingCurrency"),
+            "element_date": self._to_iso_date(clean_row.get("date")),
+            "element_service": clean_row.get("consumedService"),
+            "element_category": clean_row.get("meterCategory"),
+            "element_description": clean_row.get("meterName"),
+            "element_quantity": self._to_decimal(clean_row.get("quantity")),
+            "element_unit_price": self._to_decimal(clean_row.get("effectivePrice")),
+            "element_amount": self._to_decimal(clean_row.get("costInBillingCurrency")) or "0",
+            "element_currency": clean_row.get("billingCurrency"),
             "element_raw_json": json.dumps(clean_row),
           },
         )
