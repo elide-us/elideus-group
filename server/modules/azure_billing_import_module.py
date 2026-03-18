@@ -455,11 +455,14 @@ class AzureBillingImportModule(BaseModule):
       import_recid = int(create_res.rows[0]["recid"])
 
       url = (
-        "https://management.azure.com/providers/Microsoft.Billing/"
-        "billingAccounts/default/billingSubscriptions/"
-        f"{self._subscription_id}/invoices"
+        "https://management.azure.com/subscriptions/"
+        f"{self._subscription_id}/providers/Microsoft.Billing/invoices"
       )
-      params = {"api-version": "2024-04-01"}
+      params = {
+        "api-version": "2020-05-01",
+        "periodStartDate": "2020-01-01",
+        "periodEndDate": "2030-12-31",
+      }
       headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
