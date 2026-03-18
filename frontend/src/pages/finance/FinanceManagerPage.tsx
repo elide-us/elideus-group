@@ -187,7 +187,9 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
+	const [invoiceMonth, setInvoiceMonth] = useState("");
 	const [importing, setImporting] = useState(false);
+	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
@@ -528,39 +530,72 @@ const FinanceManagerPage = (): JSX.Element => {
 			{tab === 1 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
-						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-							<TextField
-								label="Start Date (YYYY-MM-DD)"
-								value={importStartDate}
-								onChange={(e) => setImportStartDate(e.target.value)}
-							/>
-							<TextField
-								label="End Date (YYYY-MM-DD)"
-								value={importEndDate}
-								onChange={(e) => setImportEndDate(e.target.value)}
-							/>
-							<Button
-								variant="contained"
-								disabled={importing}
-								onClick={async () => {
-									setImporting(true);
-									setBillingMessage(null);
-									try {
-										await rpcCall("urn:finance:staging:import:1", {
-											period_start: importStartDate,
-											period_end: importEndDate,
-										});
-										setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
-										await loadImports();
-									} catch (e: any) {
-										setBillingMessage({ severity: "error", text: e?.message || "Cost detail import failed." });
-									} finally {
-										setImporting(false);
-									}
-								}}
-							>
-								{importing ? "Importing..." : "Import"}
-							</Button>
+						<Stack spacing={2}>
+							<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+								<TextField
+									label="Start Date (YYYY-MM-DD)"
+									value={importStartDate}
+									onChange={(e) => setImportStartDate(e.target.value)}
+								/>
+								<TextField
+									label="End Date (YYYY-MM-DD)"
+									value={importEndDate}
+									onChange={(e) => setImportEndDate(e.target.value)}
+								/>
+								<Button
+									variant="contained"
+									disabled={importing}
+									onClick={async () => {
+										setImporting(true);
+										setBillingMessage(null);
+										try {
+											await rpcCall("urn:finance:staging:import:1", {
+												period_start: importStartDate,
+												period_end: importEndDate,
+											});
+											setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
+											await loadImports();
+										} catch (e: any) {
+											setBillingMessage({ severity: "error", text: e?.message || "Cost detail import failed." });
+										} finally {
+											setImporting(false);
+										}
+									}}
+								>
+									{importing ? "Importing..." : "Import"}
+								</Button>
+							</Stack>
+							<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+								<TextField
+									label="Invoice Month (YYYY-MM)"
+									value={invoiceMonth}
+									onChange={(e) => setInvoiceMonth(e.target.value)}
+								/>
+								<Button
+									variant="contained"
+									disabled={importingInvoices}
+									onClick={async () => {
+										setImportingInvoices(true);
+										setBillingMessage(null);
+										try {
+											const res = await rpcCall<{ message?: string }>("urn:finance:staging:import_invoices:1", {
+												period_month: invoiceMonth,
+											});
+											setBillingMessage({
+												severity: "success",
+												text: res.message || "Invoice import completed successfully.",
+											});
+											await loadImports();
+										} catch (e: any) {
+											setBillingMessage({ severity: "error", text: e?.message || "Invoice import failed." });
+										} finally {
+											setImportingInvoices(false);
+										}
+									}}
+								>
+									{importingInvoices ? "Importing..." : "Import Invoices"}
+								</Button>
+							</Stack>
 						</Stack>
 					</Paper>
 
