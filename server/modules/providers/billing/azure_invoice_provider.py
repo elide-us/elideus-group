@@ -276,8 +276,6 @@ class AzureInvoiceProvider(BillingImportProvider):
     import_recid: int | None = None
     invoice_count = 0
     skipped_count = 0
-    total_periods = 0
-    matched_period_count = 0
 
     try:
       parsed_month = datetime.strptime(period_month, "%Y-%m")
@@ -309,11 +307,20 @@ class AzureInvoiceProvider(BillingImportProvider):
       token = await self._get_management_token()
       headers = {"Authorization": f"Bearer {token}"}
 
-      billing_periods_url = (
-        "https://management.azure.com/subscriptions/"
-        f"{self._subscription_id}/providers/Microsoft.Billing/billingPeriods"
+      invoices_list_url = (
+        "https://management.azure.com/providers/Microsoft.Billing/"
+        "billingAccounts/default/billingSubscriptions/"
+        f"{self._subscription_id}/invoices"
       )
-      billing_periods_params = {"api-version": "2018-03-01-preview"}
+      invoices_list_params = {
+        "api-version": "2024-04-01",
+        "periodStartDate": f"{parsed_month.month:02d}-01-{parsed_month.year}",
+        "periodEndDate": (
+          f"{parsed_month.month:02d}-"
+          f"{monthrange(parsed_month.year, parsed_month.month)[1]:02d}-"
+          f"{parsed_month.year}"
+        ),
+      }
 
       invoice_rows: list[dict[str, Any]] = []
       line_item_rows: list[dict[str, Any]] = []
@@ -322,75 +329,40 @@ class AzureInvoiceProvider(BillingImportProvider):
 
       async with aiohttp.ClientSession() as session:
         logging.info(
-          "[AzureInvoiceProvider] Fetching billing periods url=%s params=%s",
-          billing_periods_url,
-          billing_periods_params,
+          "[AzureInvoiceProvider] Fetching invoices list url=%s params=%s",
+          invoices_list_url,
+          invoices_list_params,
         )
-        async with session.get(billing_periods_url, headers=headers, params=billing_periods_params) as response:
+        async with session.get(invoices_list_url, headers=headers, params=invoices_list_params) as response:
           response_text = await response.text()
           if response.status >= 400:
             logging.error(
-              "[AzureInvoiceProvider] Billing periods request failed status=%s body=%s",
+              "[AzureInvoiceProvider] Invoices list request failed status=%s body=%s",
               response.status,
               response_text[:500],
             )
             raise RuntimeError(
-              f"Azure billing periods request failed ({response.status}): {response_text[:500]}",
+              f"Azure invoices list request failed ({response.status}): {response_text[:500]}",
             )
           payload = json.loads(response_text or "{}")
 
-        periods = payload.get("value") or []
-        total_periods = len(periods)
+        invoices = payload.get("value") or []
         logging.info(
-          "[AzureInvoiceProvider] Billing periods response count=%s url=%s",
-          total_periods,
-          billing_periods_url,
+          "[AzureInvoiceProvider] Invoices list response count=%s url=%s",
+          len(invoices),
+          invoices_list_url,
         )
 
-        matched_periods = []
-        for period in periods:
-          properties = period.get("properties") or {}
-          start_date = self._to_iso_date(properties.get("billingPeriodStartDate"))
-          if start_date and start_date[:7] == period_month:
-            matched_periods.append(period)
+        for invoice in invoices:
+          invoice_name = invoice.get("name")
+          if not invoice_name:
+            logging.warning("[AzureInvoiceProvider] Skipping invoice with missing name payload=%s", invoice)
+            continue
+          if invoice_name in invoice_names_seen:
+            continue
+          invoice_names_seen.add(invoice_name)
+          discovered_invoice_names.append(invoice_name)
 
-        matched_period_count = len(matched_periods)
-        for period in matched_periods:
-          period_name = period.get("name") or period.get("id") or "unknown"
-          invoice_ids = ((period.get("properties") or {}).get("invoiceIds") or [])
-          logging.info(
-            "[AzureInvoiceProvider] Matched billing period name=%s invoice_ids=%s",
-            period_name,
-            invoice_ids,
-          )
-          for invoice_id in invoice_ids:
-            invoice_name = self._extract_invoice_name(str(invoice_id))
-            if invoice_name in invoice_names_seen:
-              continue
-            invoice_names_seen.add(invoice_name)
-            discovered_invoice_names.append(invoice_name)
-
-        if not discovered_invoice_names:
-          message = f"No Azure invoices found for billing month {period_month}."
-          logging.info(
-            "[AzureInvoiceProvider] Summary total_periods=%s matched_periods=%s invoices_found=0 inserted=0 skipped=0",
-            total_periods,
-            matched_period_count,
-          )
-          await self.db.run(
-            update_import_status_request(
-              UpdateImportStatusParams(recid=import_recid, status=1, row_count=0, error=None),
-            ),
-          )
-          return {
-            "import_recid": import_recid,
-            "status": "completed",
-            "invoice_count": 0,
-            "skipped_count": 0,
-            "message": message,
-          }
-
-        for invoice_name in discovered_invoice_names:
           existing = await self.db.run(
             get_invoice_by_name_request(GetInvoiceByNameParams(invoice_name=invoice_name)),
           )
@@ -407,42 +379,34 @@ class AzureInvoiceProvider(BillingImportProvider):
             logging.info("[AzureInvoiceProvider] Skipping purged invoice_name=%s", invoice_name)
             continue
 
-          invoice_url = (
-            "https://management.azure.com/providers/Microsoft.Billing/billingAccounts/default/"
-            f"billingSubscriptions/{self._subscription_id}/invoices/{invoice_name}"
-          )
-          invoice_params = {"api-version": "2020-05-01"}
-          logging.info(
-            "[AzureInvoiceProvider] Fetching invoice details invoice_name=%s url=%s params=%s",
-            invoice_name,
-            invoice_url,
-            invoice_params,
-          )
-          async with session.get(invoice_url, headers=headers, params=invoice_params) as invoice_response:
-            invoice_body = await invoice_response.text()
-            if invoice_response.status >= 400:
-              logging.error(
-                "[AzureInvoiceProvider] Invoice detail request failed invoice_name=%s status=%s body=%s",
-                invoice_name,
-                invoice_response.status,
-                invoice_body[:500],
-              )
-              raise RuntimeError(
-                "Azure invoice detail request failed "
-                f"for {invoice_name} ({invoice_response.status}): {invoice_body[:500]}",
-              )
-            invoice_payload = json.loads(invoice_body or "{}")
-
-          properties = invoice_payload.get("properties") or {}
+          properties = invoice.get("properties") or {}
           invoice_rows.append(
             self._build_invoice_row(
               invoice_name=invoice_name,
               subscription_id=self._subscription_id,
               properties=properties,
-              invoice_payload=invoice_payload,
+              invoice_payload=invoice,
             ),
           )
-          line_item_rows.append(self._build_line_item(invoice_name, properties, invoice_payload))
+          line_item_rows.append(self._build_line_item(invoice_name, properties, invoice))
+
+        if not discovered_invoice_names:
+          message = f"No Azure invoices found from invoices list API for billing month {period_month}."
+          logging.info(
+            "[AzureInvoiceProvider] Summary invoices_found=0 inserted=0 skipped=0",
+          )
+          await self.db.run(
+            update_import_status_request(
+              UpdateImportStatusParams(recid=import_recid, status=1, row_count=0, error=None),
+            ),
+          )
+          return {
+            "import_recid": import_recid,
+            "status": "completed",
+            "invoice_count": 0,
+            "skipped_count": 0,
+            "message": message,
+          }
 
         if invoice_rows:
           await self.db.run(
@@ -465,9 +429,7 @@ class AzureInvoiceProvider(BillingImportProvider):
           f"Imported {invoice_count} Azure invoice(s) for {period_month}; skipped {skipped_count}."
         )
         logging.info(
-          "[AzureInvoiceProvider] Summary total_periods=%s matched_periods=%s invoices_found=%s inserted=%s skipped=%s",
-          total_periods,
-          matched_period_count,
+          "[AzureInvoiceProvider] Summary invoices_found=%s inserted=%s skipped=%s",
           len(discovered_invoice_names),
           invoice_count,
           skipped_count,
