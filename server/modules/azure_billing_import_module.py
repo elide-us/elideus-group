@@ -191,8 +191,10 @@ class AzureBillingImportModule(BaseModule):
 
 
   @staticmethod
+  # Retained for legacy callers/tests; the invoice API expects ISO YYYY-MM-DD
+  # values directly and does not use this formatter.
   def _to_azure_date(iso_date: str) -> str:
-    """Convert YYYY-MM-DD to MM-DD-YYYY for Azure Billing API."""
+    """Convert YYYY-MM-DD to MM-DD-YYYY for legacy Azure date formatting."""
     parts = iso_date.split("-")
     if len(parts) != 3:
       raise ValueError(f"Expected date in YYYY-MM-DD format, got: {iso_date}")
@@ -459,8 +461,8 @@ class AzureBillingImportModule(BaseModule):
         f"{self._subscription_id}/invoices"
       )
       params = {
-        "periodStartDate": self._to_azure_date(period_start[:10]),
-        "periodEndDate": self._to_azure_date(period_end[:10]),
+        "periodStartDate": period_start[:10],
+        "periodEndDate": period_end[:10],
         "api-version": "2024-04-01",
       }
       headers = {
