@@ -21,8 +21,10 @@ def test_dispatch_rpc_op_uses_discord_metadata():
       self.calls.append(discord_id)
       return ('guid-123', ['ROLE_REGISTERED', 'ROLE_DISCORD_BOT'], 0x3)
 
-    async def user_has_role(self, guid, mask):
-      return True
+    async def check_domain_access(self, domain, user_guid):
+      assert domain == 'discord'
+      assert user_guid == 'guid-123'
+      return None
 
   app.state.auth = DummyAuth()
 

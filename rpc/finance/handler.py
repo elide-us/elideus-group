@@ -13,9 +13,7 @@ async def handle_finance_request(parts: list[str], request: Request) -> RPCRespo
     raise HTTPException(status_code=404, detail="Unknown RPC subdomain")
 
   auth: AuthModule = request.app.state.auth
-  required_mask = auth.roles.get("ROLE_FINANCE_ADMIN", 0)
-  if not await auth.user_has_role(auth_ctx.user_guid, required_mask):
-    raise HTTPException(status_code=403, detail="Forbidden")
+  await auth.check_domain_access("finance", auth_ctx.user_guid)
 
   handler = HANDLERS.get(parts[0])
   if not handler:

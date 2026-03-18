@@ -143,6 +143,7 @@ class AuthModule(BaseModule):
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
     self.role_cache = RoleCache()
+    self.domain_role_map: dict[str, int] = {}
     self.discord: DiscordBotModule | None = None
 
   @property
@@ -166,6 +167,7 @@ class AuthModule(BaseModule):
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
+    self.domain_role_map: dict[str, int] = {}
     self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
     self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
@@ -206,6 +208,7 @@ class AuthModule(BaseModule):
         self.providers["discord"] = provider
         logging.debug("[AuthModule] Discord provider ready")
       await self.role_cache.load_roles()
+      await self.load_domain_role_map()
       logging.debug("Auth module loaded")
       self.mark_ready()
     except Exception as e:
@@ -352,14 +355,37 @@ class AuthModule(BaseModule):
   async def load_roles(self):
     await self.role_cache.load_roles()
 
+  async def load_domain_role_map(self):
+    """Load RPC domain → required role mask mapping from system_roles."""
+    logging.debug("[AuthModule] Loading RPC domain role map")
+    result = await self.db.run(DBRequest(op="db:system:roles:list:1", payload={}))
+    rows = self._normalize_query_payload(result.payload)
+    self.domain_role_map = {}
+    for row in rows:
+      domain = row.get("element_rpc_domain")
+      if not domain:
+        continue
+      self.domain_role_map[str(domain)] = int(row.get("mask", 0) or 0)
+    logging.debug("[AuthModule] Loaded RPC domain role map: %s", self.domain_role_map)
+
   async def refresh_role_cache(self):
     await self.role_cache.refresh_role_cache()
 
+  async def check_domain_access(self, domain: str, user_guid: str) -> None:
+    """Check if a user has the required role for an RPC domain."""
+    required_mask = self.domain_role_map.get(domain)
+    if required_mask is None:
+      raise HTTPException(status_code=403, detail="Domain access not configured")
+    if not await self.user_has_role(user_guid, required_mask):
+      raise HTTPException(status_code=403, detail="Forbidden")
+
   async def upsert_role(self, name: str, mask: int, display: str | None):
     await self.role_cache.upsert_role(name, mask, display)
+    await self.load_domain_role_map()
 
   async def delete_role(self, name: str):
     await self.role_cache.delete_role(name)
+    await self.load_domain_role_map()
 
   def mask_to_names(self, mask: int) -> list[str]:
     return self.role_cache.mask_to_names(mask)
