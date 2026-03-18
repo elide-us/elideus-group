@@ -175,6 +175,7 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
+	const [invoiceMonth, setInvoiceMonth] = useState("");
 	const [importing, setImporting] = useState(false);
 	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
@@ -550,6 +551,17 @@ const FinanceManagerPage = (): JSX.Element => {
 							>
 								{importing ? "Importing..." : "Import"}
 							</Button>
+						</Stack>
+					</Paper>
+
+					<Paper sx={{ p: 2 }}>
+						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+							<TextField
+								label="Invoice Month (YYYY-MM)"
+								placeholder="2025-04"
+								value={invoiceMonth}
+								onChange={(e) => setInvoiceMonth(e.target.value)}
+							/>
 							<Button
 								variant="outlined"
 								disabled={importingInvoices}
@@ -557,9 +569,21 @@ const FinanceManagerPage = (): JSX.Element => {
 									setImportingInvoices(true);
 									setBillingMessage(null);
 									try {
+										const monthValue = invoiceMonth.trim();
+										if (!/^\d{4}-\d{2}$/.test(monthValue)) {
+											throw new Error("Invoice month must be in YYYY-MM format.");
+										}
+										const [yearPart, monthPart] = monthValue.split("-");
+										const year = Number(yearPart);
+										const month = Number(monthPart);
+										if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+											throw new Error("Invoice month must be a valid YYYY-MM value.");
+										}
+										const periodStart = `${monthValue}-01`;
+										const periodEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 										const res = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number }>("urn:finance:staging:import_invoices:1", {
-											period_start: importStartDate,
-											period_end: importEndDate,
+											period_start: periodStart,
+											period_end: periodEnd,
 										});
 										setBillingMessage({
 											severity: "success",
