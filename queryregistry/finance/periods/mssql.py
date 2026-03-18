@@ -99,6 +99,27 @@ async def get_v1(args: Mapping[str, Any]) -> DBResponse:
 
 async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
+    SET NOCOUNT ON;
+
+    DECLARE @result TABLE (
+      element_guid uniqueidentifier,
+      element_year int,
+      element_period_number tinyint,
+      element_period_name nvarchar(50),
+      element_start_date date,
+      element_end_date date,
+      element_days_in_period tinyint,
+      element_quarter_number tinyint,
+      element_has_closing_week bit,
+      element_is_leap_adjustment bit,
+      element_anchor_event nvarchar(50),
+      element_close_type tinyint,
+      element_status tinyint,
+      numbers_recid bigint,
+      element_created_on datetimeoffset,
+      element_modified_on datetimeoffset
+    );
+
     MERGE finance_periods AS target
     USING (
       SELECT
@@ -187,6 +208,9 @@ async def upsert_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.numbers_recid,
       inserted.element_created_on,
       inserted.element_modified_on
+    INTO @result;
+
+    SELECT * FROM @result
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   params = (
