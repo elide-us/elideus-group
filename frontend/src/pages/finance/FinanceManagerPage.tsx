@@ -153,6 +153,18 @@ const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 4, label: "Expense" },
 ];
 
+const PERIOD_TYPE_CONFIG: Record<number, { label: string; color: "default" | "info" | "warning" }> = {
+	0: { label: "Standard", color: "default" },
+	1: { label: "Quarter Close", color: "warning" },
+	2: { label: "Year Close", color: "info" },
+};
+
+const PERIOD_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" }> = {
+	1: { label: "Open", color: "success" },
+	2: { label: "Closed", color: "error" },
+	3: { label: "Locked", color: "default" },
+};
+
 const getPeriodDisplayLabel = (row: { fiscal_year: number; period_name: string }): string => {
 	return `FY${row.fiscal_year} - ${row.period_name}`;
 };
@@ -877,7 +889,8 @@ const FinanceManagerPage = (): JSX.Element => {
 								<TableCell>Period Number</TableCell>
 								<TableCell>Start</TableCell>
 								<TableCell>End</TableCell>
-								<TableCell>Close Type</TableCell>
+								<TableCell>Period Type</TableCell>
+								<TableCell>Status</TableCell>
 								<TableCell>Has Closing Week</TableCell>
 								<TableCell>Total Journals</TableCell>
 								<TableCell>Unposted</TableCell>
@@ -894,7 +907,18 @@ const FinanceManagerPage = (): JSX.Element => {
 									<TableCell>{row.start_date}</TableCell>
 									<TableCell>{row.end_date}</TableCell>
 									<TableCell>
-										<Chip label={row.close_type === 1 ? "Closed" : "Open"} color={row.close_type === 1 ? "error" : "success"} size="small" />
+										<Chip
+											label={PERIOD_TYPE_CONFIG[row.close_type]?.label || "Unknown"}
+											color={PERIOD_TYPE_CONFIG[row.close_type]?.color || "default"}
+											size="small"
+										/>
+									</TableCell>
+									<TableCell>
+										<Chip
+											label={PERIOD_STATUS_CONFIG[row.period_status]?.label || "Unknown"}
+											color={PERIOD_STATUS_CONFIG[row.period_status]?.color || "default"}
+											size="small"
+										/>
 									</TableCell>
 									<TableCell>{row.has_closing_week ? "Yes" : "No"}</TableCell>
 									<TableCell>{row.total_journals}</TableCell>
@@ -911,26 +935,40 @@ const FinanceManagerPage = (): JSX.Element => {
 										<Button
 											size="small"
 											onClick={async () => {
-														const message = row.close_type === 1
+												const nextStatus = row.period_status === 1 ? 2 : 1;
+												const message = nextStatus === 1
 													? `Reopen period ${row.period_name}? This will allow new journal postings.`
 													: `Close period ${row.period_name}? This will prevent new journal postings.`;
 												if (!window.confirm(message)) {
 													return;
 												}
-												await rpcCall("urn:finance:periods:upsert:1", {
+												const existingPeriod = await rpcCall<{
+													guid: string | null;
+													year: number;
+													period_number: number;
+													period_name: string;
+													start_date: string;
+													end_date: string;
+													days_in_period: number | null;
+													quarter_number: number | null;
+													has_closing_week: boolean;
+													is_leap_adjustment: boolean;
+													anchor_event: string | null;
+													close_type: number;
+													status: number;
+													numbers_recid: number | null;
+													element_display_format: string | null;
+												}>("urn:finance:periods:get:1", {
 													guid: row.period_guid,
-													year: row.fiscal_year,
-													period_number: row.period_number,
-													period_name: row.period_name,
-													start_date: row.start_date,
-													end_date: row.end_date,
-													has_closing_week: row.has_closing_week,
-													close_type: row.close_type === 1 ? 0 : 1,
+												});
+												await rpcCall("urn:finance:periods:upsert:1", {
+													...existingPeriod,
+													status: nextStatus,
 												});
 												await loadPeriodStatus();
 										}}
 										>
-											{row.close_type === 1 ? "Reopen Period" : "Close Period"}
+											{row.period_status === 1 ? "Close Period" : "Reopen Period"}
 										</Button>
 									</TableCell>
 								</TableRow>
