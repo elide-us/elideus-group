@@ -264,12 +264,7 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 
 ## Discord Domain
 
-Discord domain calls require Discord-specific roles depending on the subdomain:
-
-- `chat` and `command` operations require `ROLE_DISCORD_BOT`.
-- `personas` operations require `ROLE_DISCORD_ADMIN`.
-
-Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
+All Discord domain calls require the role mapped to the `discord` RPC domain in `system_roles.element_rpc_domain` (currently `ROLE_DISCORD_ADMIN`). Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
 Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 

@@ -22,10 +22,14 @@ def _normalize_payload(rows: list[Any]) -> list[dict[str, Any]]:
 
 async def list_roles(_: Mapping[str, Any]) -> DBResponse:
   sql = """
-    SELECT element_name AS name, element_mask AS mask, element_display AS display
+    SELECT
+      element_name AS name,
+      element_mask AS mask,
+      element_display AS display,
+      element_rpc_domain
     FROM system_roles
     ORDER BY element_mask
-    FOR JSON PATH;
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   response = await run_json_many(sql)
   return DBResponse(payload=_normalize_payload(response.rows))
