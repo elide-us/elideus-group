@@ -92,43 +92,42 @@ def _build_provider(monkeypatch, session_factory):
   return provider
 
 
-def test_import_invoices_uses_billing_periods_and_normalizes_invoice_rows(monkeypatch):
+def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypatch):
   get_calls = []
-  billing_periods_payload = {
+  invoices_list_payload = {
     "value": [
       {
-        "name": "2025-04-1",
+        "name": "INV-NEW",
         "properties": {
-          "billingPeriodStartDate": "2025-04-01",
-          "billingPeriodEndDate": "2025-04-30",
-          "invoiceIds": [
-            "/subscriptions/sub-123/providers/Microsoft.Billing/invoices/INV-NEW",
-            "/subscriptions/sub-123/providers/Microsoft.Billing/invoices/INV-EXISTING",
-            "/subscriptions/sub-123/providers/Microsoft.Billing/invoices/INV-PURGED",
-          ],
+          "invoiceDate": "2025-04-30T00:00:00Z",
+          "invoicePeriodStartDate": "2025-04-01",
+          "invoicePeriodEndDate": "2025-04-30",
+          "dueDate": "2025-05-15",
+          "invoiceType": "AzureServices",
+          "status": "Due",
+          "billedAmount": {"amount": 0, "currency": "USD"},
+          "amountDue": {"amount": 0, "currency": "USD"},
+          "subscriptionId": "sub-123",
+          "subscriptionName": "Production",
+          "purchaseOrder": "PO-42",
+        },
+      },
+      {
+        "name": "INV-EXISTING",
+        "properties": {
+          "invoiceDate": "2025-04-29T00:00:00Z",
+        },
+      },
+      {
+        "name": "INV-PURGED",
+        "properties": {
+          "invoiceDate": "2025-04-28T00:00:00Z",
         },
       },
     ],
   }
-  invoice_payload = {
-    "name": "INV-NEW",
-    "properties": {
-      "invoiceDate": "2025-04-30T00:00:00Z",
-      "invoicePeriodStartDate": "2025-04-01",
-      "invoicePeriodEndDate": "2025-04-30",
-      "dueDate": "2025-05-15",
-      "invoiceType": "AzureServices",
-      "status": "Due",
-      "billedAmount": {"amount": 0, "currency": "USD"},
-      "amountDue": {"amount": 0, "currency": "USD"},
-      "subscriptionId": "sub-123",
-      "subscriptionName": "Production",
-      "purchaseOrder": "PO-42",
-    },
-  }
   responses = [
-    _FakeResponse(200, text_data=json.dumps(billing_periods_payload)),
-    _FakeResponse(200, text_data=json.dumps(invoice_payload)),
+    _FakeResponse(200, text_data=json.dumps(invoices_list_payload)),
   ]
 
   provider = _build_provider(
@@ -145,8 +144,13 @@ def test_import_invoices_uses_billing_periods_and_normalizes_invoice_rows(monkey
     "skipped_count": 2,
     "message": "Imported 1 Azure invoice(s) for 2025-04; skipped 2.",
   }
-  assert get_calls[0]["url"].endswith("/billingPeriods")
-  assert get_calls[1]["url"].endswith("/billingSubscriptions/sub-123/invoices/INV-NEW")
+  assert len(get_calls) == 1
+  assert get_calls[0]["url"].endswith("/billingSubscriptions/sub-123/invoices")
+  assert get_calls[0]["params"] == {
+    "api-version": "2024-04-01",
+    "periodStartDate": "04-01-2025",
+    "periodEndDate": "04-30-2025",
+  }
 
   invoice_insert = next(
     request
