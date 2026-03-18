@@ -26,7 +26,6 @@ async def list_v1(args: Mapping[str, Any]) -> DBResponse:
       recid,
       element_name,
       element_description,
-      element_fiscal_calendar_year,
       element_chart_of_accounts_guid,
       element_status,
       element_created_on,
@@ -44,7 +43,6 @@ async def get_v1(args: Mapping[str, Any]) -> DBResponse:
       recid,
       element_name,
       element_description,
-      element_fiscal_calendar_year,
       element_chart_of_accounts_guid,
       element_status,
       element_created_on,
@@ -62,7 +60,6 @@ async def get_by_name_v1(args: Mapping[str, Any]) -> DBResponse:
       recid,
       element_name,
       element_description,
-      element_fiscal_calendar_year,
       element_chart_of_accounts_guid,
       element_status,
       element_created_on,
@@ -82,7 +79,6 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
       recid bigint,
       element_name nvarchar(200),
       element_description nvarchar(max),
-      element_fiscal_calendar_year int,
       element_chart_of_accounts_guid uniqueidentifier,
       element_status tinyint,
       element_created_on datetimeoffset,
@@ -92,7 +88,6 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
     INSERT INTO finance_ledgers (
       element_name,
       element_description,
-      element_fiscal_calendar_year,
       element_chart_of_accounts_guid,
       element_status,
       element_created_on,
@@ -102,13 +97,12 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.recid,
       inserted.element_name,
       inserted.element_description,
-      inserted.element_fiscal_calendar_year,
       inserted.element_chart_of_accounts_guid,
       inserted.element_status,
       inserted.element_created_on,
       inserted.element_modified_on
     INTO @result
-    VALUES (?, ?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?, SYSUTCDATETIME(), SYSUTCDATETIME());
+    VALUES (?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?, SYSUTCDATETIME(), SYSUTCDATETIME());
 
     SELECT * FROM @result
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
@@ -116,7 +110,6 @@ async def create_v1(args: Mapping[str, Any]) -> DBResponse:
   params = (
     args["element_name"],
     args.get("element_description"),
-    args.get("element_fiscal_calendar_year"),
     args.get("element_chart_of_accounts_guid"),
     args["element_status"],
   )
@@ -131,7 +124,6 @@ async def update_v1(args: Mapping[str, Any]) -> DBResponse:
       recid bigint,
       element_name nvarchar(200),
       element_description nvarchar(max),
-      element_fiscal_calendar_year int,
       element_chart_of_accounts_guid uniqueidentifier,
       element_status tinyint,
       element_created_on datetimeoffset,
@@ -142,7 +134,6 @@ async def update_v1(args: Mapping[str, Any]) -> DBResponse:
     SET
       element_name = ?,
       element_description = ?,
-      element_fiscal_calendar_year = ?,
       element_chart_of_accounts_guid = TRY_CAST(? AS UNIQUEIDENTIFIER),
       element_status = ?,
       element_modified_on = SYSUTCDATETIME()
@@ -150,7 +141,6 @@ async def update_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.recid,
       inserted.element_name,
       inserted.element_description,
-      inserted.element_fiscal_calendar_year,
       inserted.element_chart_of_accounts_guid,
       inserted.element_status,
       inserted.element_created_on,
@@ -164,7 +154,6 @@ async def update_v1(args: Mapping[str, Any]) -> DBResponse:
   params = (
     args["element_name"],
     args.get("element_description"),
-    args.get("element_fiscal_calendar_year"),
     args.get("element_chart_of_accounts_guid"),
     args["element_status"],
     args["recid"],

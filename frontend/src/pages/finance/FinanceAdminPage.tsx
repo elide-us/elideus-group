@@ -69,7 +69,6 @@ type FinanceLedger = {
     recid: number;
     element_name: string;
     element_description: string | null;
-    element_fiscal_calendar_year: number | null;
     element_chart_of_accounts_guid: string | null;
     element_status: number;
     element_created_on: string | null;
@@ -80,7 +79,6 @@ type LedgerFormState = {
     recid: number | null;
     element_name: string;
     element_description: string;
-    element_fiscal_calendar_year: string;
     element_chart_of_accounts_guid: string;
     element_status: number;
 };
@@ -174,7 +172,6 @@ const emptyLedgerForm: LedgerFormState = {
     recid: null,
     element_name: "",
     element_description: "",
-    element_fiscal_calendar_year: "",
     element_chart_of_accounts_guid: "",
     element_status: 1,
 };
@@ -385,10 +382,7 @@ const FinanceAdminPage = (): JSX.Element => {
     const openCreateLedgerDialog = (): void => {
         setPageError(null);
         setSuccessMessage(null);
-        setLedgerForm({
-            ...emptyLedgerForm,
-            element_fiscal_calendar_year: String(fiscalYear),
-        });
+        setLedgerForm(emptyLedgerForm);
         setLedgerDialogOpen(true);
     };
 
@@ -399,8 +393,6 @@ const FinanceAdminPage = (): JSX.Element => {
             recid: ledger.recid,
             element_name: ledger.element_name,
             element_description: ledger.element_description || "",
-            element_fiscal_calendar_year:
-                ledger.element_fiscal_calendar_year === null ? "" : String(ledger.element_fiscal_calendar_year),
             element_chart_of_accounts_guid: ledger.element_chart_of_accounts_guid || "",
             element_status: ledger.element_status,
         });
@@ -420,9 +412,6 @@ const FinanceAdminPage = (): JSX.Element => {
             const payload = {
                 element_name: ledgerForm.element_name.trim(),
                 element_description: ledgerForm.element_description.trim() || null,
-                element_fiscal_calendar_year: ledgerForm.element_fiscal_calendar_year.trim()
-                    ? Number(ledgerForm.element_fiscal_calendar_year)
-                    : null,
                 element_chart_of_accounts_guid: ledgerForm.element_chart_of_accounts_guid || null,
             };
 
@@ -615,7 +604,6 @@ const FinanceAdminPage = (): JSX.Element => {
                             <TableRow>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Description</TableCell>
-                                <TableCell>Fiscal Year</TableCell>
                                 <TableCell>Status</TableCell>
                                 <TableCell>Created</TableCell>
                                 <TableCell align="right">Actions</TableCell>
@@ -626,7 +614,6 @@ const FinanceAdminPage = (): JSX.Element => {
                                 <TableRow key={ledger.recid}>
                                     <TableCell>{ledger.element_name}</TableCell>
                                     <TableCell>{ledger.element_description || "—"}</TableCell>
-                                    <TableCell>{ledger.element_fiscal_calendar_year ?? "—"}</TableCell>
                                     <TableCell>
                                         <Chip
                                             size="small"
@@ -1109,18 +1096,6 @@ const FinanceAdminPage = (): JSX.Element => {
                             }
                             multiline
                             minRows={2}
-                        />
-                        <TextField
-                            type="number"
-                            label="Fiscal calendar year"
-                            value={ledgerForm.element_fiscal_calendar_year}
-                            onChange={(event) =>
-                                setLedgerForm((previous) => ({
-                                    ...previous,
-                                    element_fiscal_calendar_year: event.target.value,
-                                }))
-                            }
-                            helperText={periodYears.length > 0 ? `Existing fiscal years: ${periodYears.join(", ")}` : undefined}
                         />
                         <FormControl fullWidth>
                             <InputLabel id="ledger-coa-label">Chart of accounts root</InputLabel>

@@ -186,7 +186,6 @@ class FinanceModule(BaseModule):
       "recid": row.get("recid"),
       "element_name": row.get("element_name"),
       "element_description": row.get("element_description"),
-      "element_fiscal_calendar_year": row.get("element_fiscal_calendar_year"),
       "element_chart_of_accounts_guid": row.get("element_chart_of_accounts_guid"),
       "element_status": row.get("element_status"),
       "element_created_on": row.get("element_created_on"),
@@ -411,7 +410,6 @@ class FinanceModule(BaseModule):
     params = CreateLedgerParams(
       element_name=await self._validate_ledger_name(data.get("element_name", "")),
       element_description=(data.get("element_description") or None),
-      element_fiscal_calendar_year=data.get("element_fiscal_calendar_year"),
       element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
         data.get("element_chart_of_accounts_guid")
       ),
@@ -433,7 +431,6 @@ class FinanceModule(BaseModule):
       recid=recid,
       element_name=await self._validate_ledger_name(data.get("element_name", ""), recid=recid),
       element_description=(data.get("element_description") or None),
-      element_fiscal_calendar_year=data.get("element_fiscal_calendar_year"),
       element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
         data.get("element_chart_of_accounts_guid")
       ),
