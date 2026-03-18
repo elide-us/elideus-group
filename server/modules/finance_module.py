@@ -476,27 +476,6 @@ class FinanceModule(BaseModule):
     if fiscal_year_days not in {364, 371}:
       raise ValueError(f"Fiscal year {fiscal_year} produced unsupported length {fiscal_year_days}")
 
-    lookup = await self.get_number_by_prefix_account("FP", str(fiscal_year))
-    if lookup and lookup.get("recid") is not None:
-      numbers_recid = int(lookup["recid"])
-    else:
-      number = await self.upsert_number(
-        {
-          "recid": None,
-          "accounts_guid": "00000000-0000-0000-0000-000000000000",
-          "prefix": "FP",
-          "account_number": str(fiscal_year),
-          "last_number": 0,
-          "max_number": None,
-          "allocation_size": 1,
-          "reset_policy": "Never",
-          "sequence_status": 1,
-          "pattern": None,
-          "display_format": f"FY{fiscal_year}",
-        }
-      )
-      numbers_recid = int(number["recid"])
-
     generated: list[dict[str, Any]] = []
     cursor = fy_start
     period_number = 1
@@ -518,7 +497,7 @@ class FinanceModule(BaseModule):
           "anchor_event": None,
           "close_type": 0,
           "status": 1,
-          "numbers_recid": numbers_recid,
+          "numbers_recid": None,
         }
         row = await self.upsert_period(payload)
         generated.append(row)
@@ -541,7 +520,7 @@ class FinanceModule(BaseModule):
         "anchor_event": "period_close",
         "close_type": 2 if quarter == 4 else 1,
         "status": 1,
-        "numbers_recid": numbers_recid,
+        "numbers_recid": None,
       }
       row = await self.upsert_period(closing_payload)
       generated.append(row)
