@@ -200,7 +200,6 @@ const FinanceAccountantPage = (): JSX.Element => {
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
 	const [importing, setImporting] = useState(false);
-	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImportItem1[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
@@ -662,47 +661,8 @@ const FinanceAccountantPage = (): JSX.Element => {
 						</Stack>
 					</Paper>
 
-					<Paper sx={{ p: 2 }}>
-						<Typography variant="subtitle2" sx={{ mb: 1 }}>Invoice Import</Typography>
-						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-							<TextField
-								label="Start Date (YYYY-MM-DD)"
-								value={importStartDate}
-								onChange={(event) => setImportStartDate(event.target.value)}
-							/>
-							<TextField
-								label="End Date (YYYY-MM-DD)"
-								value={importEndDate}
-								onChange={(event) => setImportEndDate(event.target.value)}
-							/>
-							<Button
-								variant="contained"
-								color="secondary"
-								disabled={importingInvoices}
-								onClick={async () => {
-									setImportingInvoices(true);
-									try {
-										const periodMonth = importStartDate.trim().slice(0, 7);
-										if (!/^\d{4}-\d{2}$/.test(periodMonth)) {
-											throw new Error("Invoice month must be in YYYY-MM format.");
-										}
-										const result = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number; message?: string | null }>(
-											"urn:finance:staging:import_invoices:1",
-											{ period_month: periodMonth },
-										);
-										showNotification(result.message || `Imported ${result.invoice_count} invoices (${result.skipped_count} skipped)`);
-										await loadImports();
-									} catch (error: any) {
-										showNotification(error?.message || "Invoice import failed", "error");
-									} finally {
-										setImportingInvoices(false);
-									}
-								}}
-							>
-								{importingInvoices ? "Importing..." : "Import Invoices"}
-							</Button>
-						</Stack>
-					</Paper>
+
+
 
 					<Table size="small">
 						<TableHead>

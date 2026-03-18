@@ -20,8 +20,6 @@ from .models import (
   StagingDeleteImport1,
   StagingDeleteResult1,
   StagingImport1,
-  StagingImportInvoices1,
-  StagingImportInvoicesResult1,
   StagingImportItem1,
   StagingImportList1,
   StagingImportResult1,
@@ -36,27 +34,17 @@ from .models import (
 async def finance_staging_import_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = StagingImport1(**(rpc_request.payload or {}))
-  module = request.app.state.azure_billing_import
+  module = request.app.state.billing_import
   await module.on_ready()
-  result = await module.import_cost_details(
-    payload.period_start,
-    payload.period_end,
-    payload.metric,
+  result = await module.run_import(
+    "azure_cost_details",
+    period_start=payload.period_start,
+    period_end=payload.period_end,
+    metric=payload.metric,
   )
   response_payload = StagingImportResult1(**result)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
-
-
-
-async def finance_staging_import_invoices_v1(request: Request):
-  rpc_request, auth_ctx, _ = await unbox_request(request)
-  payload = StagingImportInvoices1(**(rpc_request.payload or {}))
-  module = request.app.state.azure_billing_import
-  await module.on_ready()
-  result = await module.import_invoices(payload.period_month)
-  response_payload = StagingImportInvoicesResult1(**result)
-  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 async def finance_staging_list_imports_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
