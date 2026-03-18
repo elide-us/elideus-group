@@ -682,11 +682,15 @@ const FinanceAccountantPage = (): JSX.Element => {
 								onClick={async () => {
 									setImportingInvoices(true);
 									try {
-										const result = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number }>(
+										const periodMonth = importStartDate.trim().slice(0, 7);
+										if (!/^\d{4}-\d{2}$/.test(periodMonth)) {
+											throw new Error("Invoice month must be in YYYY-MM format.");
+										}
+										const result = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number; message?: string | null }>(
 											"urn:finance:staging:import_invoices:1",
-											{ period_start: importStartDate, period_end: importEndDate },
+											{ period_month: periodMonth },
 										);
-										showNotification(`Imported ${result.invoice_count} invoices (${result.skipped_count} skipped)`);
+										showNotification(result.message || `Imported ${result.invoice_count} invoices (${result.skipped_count} skipped)`);
 										await loadImports();
 									} catch (error: any) {
 										showNotification(error?.message || "Invoice import failed", "error");

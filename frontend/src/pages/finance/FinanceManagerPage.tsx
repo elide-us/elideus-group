@@ -585,21 +585,17 @@ const FinanceManagerPage = (): JSX.Element => {
 										if (!/^\d{4}-\d{2}$/.test(monthValue)) {
 											throw new Error("Invoice month must be in YYYY-MM format.");
 										}
-										const [yearPart, monthPart] = monthValue.split("-");
-										const year = Number(yearPart);
+										const [, monthPart] = monthValue.split("-");
 										const month = Number(monthPart);
-										if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+										if (!Number.isInteger(month) || month < 1 || month > 12) {
 											throw new Error("Invoice month must be a valid YYYY-MM value.");
 										}
-										const periodStart = `${monthValue}-01`;
-										const periodEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-										const res = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number }>("urn:finance:staging:import_invoices:1", {
-											period_start: periodStart,
-											period_end: periodEnd,
+										const res = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number; message?: string | null }>("urn:finance:staging:import_invoices:1", {
+											period_month: monthValue,
 										});
 										setBillingMessage({
-											severity: "success",
-											text: `Imported ${res.invoice_count} invoice${res.invoice_count === 1 ? "" : "s"}${res.skipped_count ? ` (${res.skipped_count} skipped)` : ""}.`,
+											severity: res.invoice_count === 0 ? "info" : "success",
+											text: res.message || `Imported ${res.invoice_count} invoice${res.invoice_count === 1 ? "" : "s"}${res.skipped_count ? ` (${res.skipped_count} skipped)` : ""}.`,
 										});
 										await loadImports();
 									} catch (e: any) {

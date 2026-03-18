@@ -183,12 +183,13 @@ class _FakeInvoicesDb:
     raise AssertionError(f"unexpected op {request.op}")
 
 
-def test_import_invoices_dedups_against_active_and_purged(monkeypatch):
+def test_import_invoices_dedups_against_active_and_purged(monkeypatch, caplog):
   invoices_payload = {
     "value": [
-      {"name": "INV-ACTIVE", "properties": {"invoiceDate": "2025-01-02", "billedAmount": {"value": "10", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
-      {"name": "INV-PURGED", "properties": {"invoiceDate": "2025-01-03", "billedAmount": {"value": "20", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
-      {"name": "INV-NEW", "properties": {"invoiceDate": "2025-01-04", "billedAmount": {"value": "30", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+      {"name": "INV-ACTIVE", "properties": {"invoiceDate": "2025-01-02", "invoicePeriodStartDate": "2025-01-01T00:00:00Z", "invoicePeriodEndDate": "2025-01-31T23:59:59Z", "billedAmount": {"value": "10", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+      {"name": "INV-PURGED", "properties": {"invoiceDate": "2025-01-03", "invoicePeriodStartDate": "2025-01-01", "invoicePeriodEndDate": "2025-01-31", "billedAmount": {"value": "20", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+      {"name": "INV-NEW", "properties": {"invoiceDate": "2025-01-04", "invoicePeriodStartDate": "2025-01-01", "invoicePeriodEndDate": "2025-01-31", "billedAmount": {"value": "30", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+      {"name": "INV-OTHER-MONTH", "properties": {"invoiceDate": "2025-02-04", "invoicePeriodStartDate": "2025-02-01", "invoicePeriodEndDate": "2025-02-28", "billedAmount": {"value": "40", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
     ],
     "nextLink": None,
   }
@@ -217,19 +218,69 @@ def test_import_invoices_dedups_against_active_and_purged(monkeypatch):
     lambda: _FakeClientSession([], [_FakeResponse(200, json_data=invoices_payload)], []),
   )
 
-  result = asyncio.run(module.import_invoices("2025-01-01", "2025-01-31"))
+  with caplog.at_level("INFO"):
+    result = asyncio.run(module.import_invoices("2025-01"))
 
   assert result["status"] == "completed"
   assert result["invoice_count"] == 1
   assert result["skipped_count"] == 2
+  assert result["message"] is None
+  assert "Invoice API returned 4 invoices, 3 matched month 2025-01" in caplog.text
 
   line_item_insert = next(r for r in module.db.requests if r.op == "db:finance:staging_line_items:insert_line_items_batch:1")
   assert line_item_insert.payload["rows"][0]["element_record_type"] == "invoice"
 
 
-def test_to_azure_date_formats_mm_dd_yyyy():
+def test_import_invoices_returns_message_when_month_has_no_invoice(monkeypatch, caplog):
+  invoices_payload = {
+    "value": [
+      {"name": "INV-FEB", "properties": {"invoiceDate": "2025-02-04", "invoicePeriodStartDate": "2025-02-01", "invoicePeriodEndDate": "2025-02-28", "billedAmount": {"value": "40", "currency": "USD"}, "invoiceType": "AzureServices", "subscriptionDisplayName": "Prod"}},
+    ],
+    "nextLink": None,
+  }
+
   module = AzureBillingImportModule.__new__(AzureBillingImportModule)
-  assert module._to_azure_date("2025-02-14") == "02-14-2025"
+  module.app = SimpleNamespace(state=SimpleNamespace())
+  module.db = _FakeInvoicesDb()
+  module.env = None
+  module._subscription_id = "sub-123"
+  module._tenant_id = None
+  module._client_id = None
+  module._client_secret = None
+  module._credential = None
+  module._credential_tenant_id = None
+  module._credential_client_id = None
+  module._credential_client_secret = None
+  module._azure_vendor_recid = None
+
+  async def _fake_token():
+    return "token-abc"
+
+  monkeypatch.setattr(module, "_get_management_token", _fake_token)
+  monkeypatch.setattr(
+    azure_mod.aiohttp,
+    "ClientSession",
+    lambda: _FakeClientSession([], [_FakeResponse(200, json_data=invoices_payload)], []),
+  )
+
+  with caplog.at_level("INFO"):
+    result = asyncio.run(module.import_invoices("2025-01"))
+
+  assert result["status"] == "completed"
+  assert result["invoice_count"] == 0
+  assert result["skipped_count"] == 0
+  assert result["message"] == (
+    "No Azure invoice matched billing period month 2025-01. "
+    "The invoice may not have been generated yet for that period."
+  )
+  assert "Invoice API returned 1 invoices, 0 matched month 2025-01" in caplog.text
+
+  update_request = next(
+    request
+    for request in module.db.requests
+    if request.op == "db:finance:staging:update_import_status:1"
+  )
+  assert update_request.payload["error"] == result["message"]
 
 
 class _RecordingDb:
