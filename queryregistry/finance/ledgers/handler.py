@@ -1,9 +1,10 @@
-"""Finance ledgers query registry operation handler."""
+"""Finance ledgers subdomain handler implementations."""
 
 from __future__ import annotations
 
-from fastapi import HTTPException
+from typing import Sequence
 
+from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
 from .services import (
@@ -18,7 +19,7 @@ from .services import (
 
 __all__ = ["handle_ledgers_request"]
 
-_DISPATCHERS = {
+DISPATCHERS = {
   ("create", "1"): create_v1,
   ("delete", "1"): delete_v1,
   ("get", "1"): get_v1,
@@ -30,13 +31,15 @@ _DISPATCHERS = {
 
 
 async def handle_ledgers_request(
-  path: list[str],
+  path: Sequence[str],
   request: DBRequest,
   *,
   provider: str,
 ) -> DBResponse:
-  key = tuple(path[:2])
-  handler = _DISPATCHERS.get(key)
-  if handler is None:
-    raise HTTPException(status_code=404, detail="Unknown finance ledgers registry operation")
-  return await handler(request, provider=provider)
+  return await dispatch_subdomain_request(
+    path,
+    request,
+    provider=provider,
+    dispatchers=DISPATCHERS,
+    detail="Unknown finance ledgers operation",
+  )
