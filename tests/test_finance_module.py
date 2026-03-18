@@ -15,11 +15,6 @@ def test_generate_calendar_creates_16_periods_for_standard_year():
     assert year == 2025
     return []
 
-  async def fake_get_number_by_prefix_account(prefix: str, account_number: str):
-    assert prefix == "FP"
-    assert account_number == "2025"
-    return {"recid": 77}
-
   generated_payloads: list[dict] = []
 
   async def fake_upsert_period(payload: dict):
@@ -27,7 +22,6 @@ def test_generate_calendar_creates_16_periods_for_standard_year():
     return dict(payload)
 
   module.list_periods_by_year = fake_list_periods_by_year
-  module.get_number_by_prefix_account = fake_get_number_by_prefix_account
   module.upsert_period = fake_upsert_period
 
   rows = asyncio.run(FinanceModule.generate_calendar(module, 2025))
@@ -43,7 +37,6 @@ def test_generate_calendar_creates_16_periods_for_standard_year():
   assert rows[-1]["days_in_period"] == 7
   assert rows[-1]["is_leap_adjustment"] is False
   assert sum(row["days_in_period"] for row in rows) == 364
-  assert all(row["numbers_recid"] == 77 for row in generated_payloads)
 
 
 def test_generate_calendar_marks_53_week_adjustment_on_last_period():
@@ -53,13 +46,6 @@ def test_generate_calendar_marks_53_week_adjustment_on_last_period():
     assert year == 2028
     return []
 
-  async def fake_get_number_by_prefix_account(prefix: str, account_number: str):
-    return None
-
-  async def fake_upsert_number(payload: dict):
-    assert payload["display_format"] == "FY2028"
-    return {"recid": 91}
-
   generated_payloads: list[dict] = []
 
   async def fake_upsert_period(payload: dict):
@@ -67,8 +53,6 @@ def test_generate_calendar_marks_53_week_adjustment_on_last_period():
     return dict(payload)
 
   module.list_periods_by_year = fake_list_periods_by_year
-  module.get_number_by_prefix_account = fake_get_number_by_prefix_account
-  module.upsert_number = fake_upsert_number
   module.upsert_period = fake_upsert_period
 
   rows = asyncio.run(FinanceModule.generate_calendar(module, 2028))
