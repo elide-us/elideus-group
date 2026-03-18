@@ -43,6 +43,92 @@ _DELETE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_v1}
 _FISCAL_PERIODS_ACCOUNTS_GUID = "00000000-0000-0000-0000-000000000000"
 
 
+def _nearest_sunday_for_fiscal_year(fiscal_year: int) -> date:
+  target = date(fiscal_year - 1, 12, 28)
+  nearest: date | None = None
+  nearest_distance: int | None = None
+
+  for offset in range(-6, 7):
+    candidate = target + timedelta(days=offset)
+    if candidate.weekday() != 6:
+      continue
+    distance = abs(offset)
+    if nearest is None or nearest_distance is None or distance < nearest_distance or (distance == nearest_distance and candidate < nearest):
+      nearest = candidate
+      nearest_distance = distance
+
+  if nearest is None:
+    raise ValueError(f"Unable to resolve fiscal year start for {fiscal_year}")
+  return nearest
+
+
+def _build_calendar_periods(fiscal_year: int, start_date_value: str | None, numbers_recid: int) -> list[dict[str, Any]]:
+  fy_start = date.fromisoformat(start_date_value) if start_date_value else _nearest_sunday_for_fiscal_year(fiscal_year)
+  if fy_start.weekday() != 6:
+    raise ValueError("Fiscal year start_date must be a Sunday")
+
+  next_fy_start = _nearest_sunday_for_fiscal_year(fiscal_year + 1)
+  fiscal_year_days = (next_fy_start - fy_start).days
+  if fiscal_year_days not in {364, 371}:
+    raise ValueError(f"Fiscal year {fiscal_year} produced unsupported length {fiscal_year_days}")
+
+  periods: list[dict[str, Any]] = []
+  cursor = fy_start
+  period_number = 1
+
+  for quarter in range(1, 5):
+    for month in range(1, 4):
+      period_end = cursor + timedelta(days=27)
+      periods.append(
+        {
+          "guid": str(uuid.uuid4()),
+          "year": fiscal_year,
+          "period_number": period_number,
+          "period_name": f"Q{quarter}M{month}",
+          "start_date": cursor.isoformat(),
+          "end_date": period_end.isoformat(),
+          "days_in_period": 28,
+          "quarter_number": quarter,
+          "has_closing_week": False,
+          "is_leap_adjustment": False,
+          "anchor_event": None,
+          "close_type": 0,
+          "status": 1,
+          "numbers_recid": numbers_recid,
+        }
+      )
+      cursor = period_end + timedelta(days=1)
+      period_number += 1
+
+    closing_days = 14 if quarter == 4 and fiscal_year_days == 371 else 7
+    closing_end = cursor + timedelta(days=closing_days - 1)
+    periods.append(
+      {
+        "guid": str(uuid.uuid4()),
+        "year": fiscal_year,
+        "period_number": period_number,
+        "period_name": f"Q{quarter}MC",
+        "start_date": cursor.isoformat(),
+        "end_date": closing_end.isoformat(),
+        "days_in_period": closing_days,
+        "quarter_number": quarter,
+        "has_closing_week": True,
+        "is_leap_adjustment": quarter == 4 and fiscal_year_days == 371,
+        "anchor_event": "period_close",
+        "close_type": 2 if quarter == 4 else 1,
+        "status": 1,
+        "numbers_recid": numbers_recid,
+      }
+    )
+    cursor = closing_end + timedelta(days=1)
+    period_number += 1
+
+  if cursor != fy_start + timedelta(days=fiscal_year_days):
+    raise ValueError(f"Generated fiscal year {fiscal_year} length { (cursor - fy_start).days } instead of {fiscal_year_days}")
+
+  return periods
+
+
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
   dispatcher = dispatchers.get(provider)
   if dispatcher is None:
@@ -82,9 +168,16 @@ async def delete_v1(request: DBRequest, *, provider: str) -> DBResponse:
 
 async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = GenerateCalendarParams.model_validate(request.payload)
-  fy_start = date.fromisoformat(params.start_date)
-  if fy_start.weekday() != 6:
-    raise ValueError("Fiscal year start_date must be a Sunday")
+
+  existing = await list_by_year_v1(
+    DBRequest(
+      op="db:finance:periods:list_by_year:1",
+      payload=ListPeriodsByYearParams(year=params.fiscal_year).model_dump(),
+    ),
+    provider=provider,
+  )
+  if existing.rows:
+    raise ValueError(f"Fiscal year {params.fiscal_year} already has generated periods")
 
   lookup_request = DBRequest(
     op="db:finance:numbers:get_by_prefix_account:1",
@@ -117,64 +210,13 @@ async def generate_calendar_v1(request: DBRequest, *, provider: str) -> DBRespon
       raise ValueError(f"Failed to create number sequence for fiscal year {params.fiscal_year}")
     numbers_recid = int(upsert_payload["recid"])
 
-  periods: list[dict[str, Any]] = []
-  cursor = fy_start
-
-  for quarter in range(1, 5):
-    for month in range(1, 4):
-      days = 28
-      period_start = cursor
-      period_end = cursor + timedelta(days=days - 1)
-
-      periods.append(
-        {
-          "guid": str(uuid.uuid4()),
-          "year": params.fiscal_year,
-          "period_number": (quarter - 1) * 4 + month,
-          "period_name": f"Q{quarter}M{month}",
-          "start_date": period_start.isoformat(),
-          "end_date": period_end.isoformat(),
-          "days_in_period": days,
-          "quarter_number": quarter,
-          "has_closing_week": False,
-          "is_leap_adjustment": False,
-          "anchor_event": None,
-          "close_type": 0,
-          "status": 1,
-          "numbers_recid": numbers_recid,
-        }
-      )
-      cursor = period_end + timedelta(days=1)
-
-    mc_start = cursor
-    mc_end = mc_start + timedelta(days=6)
-    periods.append(
-      {
-        "guid": str(uuid.uuid4()),
-        "year": params.fiscal_year,
-        "period_number": quarter * 4,
-        "period_name": f"Q{quarter}MC",
-        "start_date": mc_start.isoformat(),
-        "end_date": mc_end.isoformat(),
-        "days_in_period": 7,
-        "quarter_number": quarter,
-        "has_closing_week": True,
-        "is_leap_adjustment": False,
-        "anchor_event": "period_close",
-        "close_type": 0,
-        "status": 1,
-        "numbers_recid": numbers_recid,
-      }
-    )
-    cursor = mc_end + timedelta(days=1)
-
-  assert cursor == fy_start + timedelta(days=364)
+  periods = _build_calendar_periods(params.fiscal_year, params.start_date, numbers_recid)
 
   upsert_dispatcher = _select_dispatcher(provider, _UPSERT_DISPATCHERS)
   for period in periods:
     await upsert_dispatcher(period)
 
-  result = await _select_dispatcher(provider, _LIST_BY_YEAR_DISPATCHERS)(
-    {"year": params.fiscal_year}
-  )
+  result = await _select_dispatcher(provider, _LIST_BY_YEAR_DISPATCHERS)({
+    "year": params.fiscal_year
+  })
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)

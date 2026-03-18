@@ -42,4 +42,4 @@ class FinancePeriodsDelete1(BaseModel):
 
 class FinancePeriodsGenerateCalendar1(BaseModel):
   fiscal_year: int
-  start_date: str
+  start_date: str | None = None

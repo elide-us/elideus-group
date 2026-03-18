@@ -52,7 +52,10 @@ async def finance_periods_upsert_v1(request: Request):
   input_payload = FinancePeriodsUpsert1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
-  row = await module.upsert_period(input_payload.model_dump())
+  try:
+    row = await module.upsert_period(input_payload.model_dump())
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = FinancePeriodsItem1(**row)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -72,7 +75,10 @@ async def finance_periods_generate_calendar_v1(request: Request):
   input_payload = FinancePeriodsGenerateCalendar1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
-  rows = await module.generate_calendar(input_payload.fiscal_year, input_payload.start_date)
+  try:
+    rows = await module.generate_calendar(input_payload.fiscal_year, input_payload.start_date)
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
   periods = [FinancePeriodsItem1(**row) for row in rows]
   payload = FinancePeriodsList1(periods=periods)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

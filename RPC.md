@@ -325,6 +325,16 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:journals:post:1` | Post a draft journal. |
 | `urn:finance:journals:reverse:1` | Reverse a posted journal. |
 
+### `ledgers`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:ledgers:list:1` | List all ledgers with fiscal year, status, and timestamps. |
+| `urn:finance:ledgers:get:1` | Get a single ledger by record id. |
+| `urn:finance:ledgers:create:1` | Create a ledger with optional fiscal year and chart-of-accounts association. |
+| `urn:finance:ledgers:update:1` | Update ledger metadata and active status. |
+| `urn:finance:ledgers:delete:1` | Soft-delete a ledger when no journals reference it. |
+
 ### `numbers`
 
 | Operation | Description |
@@ -335,6 +345,26 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:numbers:delete:1` | Delete a number sequence by record id. |
 | `urn:finance:numbers:next_number:1` | Consume the next allocated number block from a sequence. |
 | `urn:finance:numbers:shift:1` | Close an active sequence and create a new active sequence for the same account. |
+
+### `periods`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:periods:list:1` | List fiscal periods across all fiscal years. |
+| `urn:finance:periods:list_by_year:1` | List periods for one fiscal year. |
+| `urn:finance:periods:get:1` | Get a single fiscal period by GUID. |
+| `urn:finance:periods:upsert:1` | Update fiscal period metadata, including open/closed/locked status. |
+| `urn:finance:periods:delete:1` | Delete a fiscal period by GUID. |
+| `urn:finance:periods:generate_calendar:1` | Generate the 4-4-5 fiscal calendar for a year, rejecting duplicate generation. |
+
+### `reporting`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:reporting:trial_balance:1` | List trial balance rows by fiscal year or period. |
+| `urn:finance:reporting:journal_summary:1` | List journal totals and status by period. |
+| `urn:finance:reporting:period_status:1` | List period close status metrics for the fiscal calendar. |
+| `urn:finance:reporting:credit_lot_summary:1` | List credit lot balance and usage summaries. |
 
 ### `staging`
 
