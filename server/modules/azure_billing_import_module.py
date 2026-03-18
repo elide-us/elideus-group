@@ -194,6 +194,8 @@ class AzureBillingImportModule(BaseModule):
   def _to_azure_date(iso_date: str) -> str:
     """Convert YYYY-MM-DD to MM-DD-YYYY for Azure Billing API."""
     parts = iso_date.split("-")
+    if len(parts) != 3:
+      raise ValueError(f"Expected date in YYYY-MM-DD format, got: {iso_date}")
     return f"{parts[1]}-{parts[2]}-{parts[0]}"
 
   async def import_cost_details(
@@ -509,6 +511,7 @@ class AzureBillingImportModule(BaseModule):
             props = invoice.get("properties") or {}
             billed_amount = (props.get("billedAmount") or {}).get("value")
             billed_currency = (props.get("billedAmount") or {}).get("currency")
+            normalized_amount = self._to_decimal(billed_amount) or "0"
             raw_batch.append(
               {
                 "element_invoice_name": name,
@@ -535,7 +538,7 @@ class AzureBillingImportModule(BaseModule):
                 "element_description": f"Azure Invoice {name} — {props.get('subscriptionDisplayName') or ''}".rstrip(),
                 "element_quantity": 1,
                 "element_unit_price": billed_amount,
-                "element_amount": billed_amount,
+                "element_amount": normalized_amount,
                 "element_currency": billed_currency,
                 "element_raw_json": json.dumps(invoice),
                 "element_record_type": "invoice",
