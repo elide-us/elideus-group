@@ -2,6 +2,7 @@ from .accounts.handler import handle_accounts_request
 from .credit_lots.handler import handle_credit_lots_request
 from .dimensions.handler import handle_dimensions_request
 from .journals.handler import handle_journals_request
+from .ledgers.handler import handle_ledgers_request
 from .numbers.handler import handle_numbers_request
 from .periods.handler import handle_periods_request
 from .reporting.handler import handle_reporting_request
@@ -16,6 +17,7 @@ HANDLERS: dict[str, callable] = {
   "credit_lots": handle_credit_lots_request,
   "dimensions": handle_dimensions_request,
   "journals": handle_journals_request,
+  "ledgers": handle_ledgers_request,
   "numbers": handle_numbers_request,
   "periods": handle_periods_request,
   "reporting": handle_reporting_request,

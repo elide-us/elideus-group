@@ -62,7 +62,7 @@ class GenerateCalendarParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   fiscal_year: int
-  start_date: str
+  start_date: str | None = None
 
 
 class PeriodRecord(TypedDict):

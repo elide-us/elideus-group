@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import calendar
 import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -11,6 +10,24 @@ from fastapi import FastAPI
 
 from . import BaseModule
 from .db_module import DbModule
+from queryregistry.finance.ledgers import (
+  create_ledger_request,
+  delete_ledger_request,
+  get_ledger_by_name_request,
+  get_ledger_request,
+  journal_reference_count_request,
+  list_ledgers_request,
+  update_ledger_request,
+)
+from queryregistry.finance.ledgers.models import (
+  CreateLedgerParams,
+  DeleteLedgerParams,
+  GetLedgerByNameParams,
+  GetLedgerParams,
+  JournalReferenceCountParams,
+  ListLedgersParams,
+  UpdateLedgerParams,
+)
 from queryregistry.finance.accounts import (
   delete_account_request,
   get_account_request,
@@ -164,6 +181,18 @@ class FinanceModule(BaseModule):
       "element_display_format": row.get("element_display_format"),
     }
 
+  def _map_ledger(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "element_name": row.get("element_name"),
+      "element_description": row.get("element_description"),
+      "element_fiscal_calendar_year": row.get("element_fiscal_calendar_year"),
+      "element_chart_of_accounts_guid": row.get("element_chart_of_accounts_guid"),
+      "element_status": row.get("element_status"),
+      "element_created_on": row.get("element_created_on"),
+      "element_modified_on": row.get("element_modified_on"),
+    }
+
   def _map_account(self, row: dict[str, Any]) -> dict[str, Any]:
     return {
       "guid": row.get("element_guid"),
@@ -300,7 +329,9 @@ class FinanceModule(BaseModule):
 
   async def upsert_period(self, data: dict[str, Any]) -> dict[str, Any]:
     assert self.db
-    params = UpsertPeriodParams(**data)
+    next_data = dict(data)
+    next_data["status"] = self._validate_period_status(int(next_data.get("status", 1)))
+    params = UpsertPeriodParams(**next_data)
     res = await self.db.run(upsert_period_request(params))
     row = dict(res.rows[0]) if res.rows else params.model_dump()
     return self._map_period(row)
@@ -310,68 +341,215 @@ class FinanceModule(BaseModule):
     await self.db.run(delete_period_request(DeletePeriodParams(guid=guid)))
     return {"guid": guid}
 
-  async def generate_calendar(self, fiscal_year: int, start_date: str) -> list[dict[str, Any]]:
-    start = datetime.fromisoformat(start_date).date()
-    if start.weekday() != 6:
+  @staticmethod
+  def _nearest_sunday_for_fiscal_year(fiscal_year: int) -> date:
+    target = date(fiscal_year - 1, 12, 28)
+    nearest: date | None = None
+    nearest_distance: int | None = None
+
+    for offset in range(-6, 7):
+      candidate = target + timedelta(days=offset)
+      if candidate.weekday() != 6:
+        continue
+      distance = abs(offset)
+      if nearest is None or nearest_distance is None or distance < nearest_distance or (distance == nearest_distance and candidate < nearest):
+        nearest = candidate
+        nearest_distance = distance
+
+    if nearest is None:
+      raise ValueError(f"Unable to resolve fiscal year start for {fiscal_year}")
+    return nearest
+
+  async def list_ledgers(self) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_ledgers_request(ListLedgersParams()))
+    return [self._map_ledger(row) for row in res.rows]
+
+  async def get_ledger(self, recid: int) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(get_ledger_request(GetLedgerParams(recid=recid)))
+    if not res.rows:
+      return None
+    return self._map_ledger(dict(res.rows[0]))
+
+  async def _get_ledger_by_name(self, element_name: str) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_ledger_by_name_request(GetLedgerByNameParams(element_name=element_name))
+    )
+    if not res.rows:
+      return None
+    return self._map_ledger(dict(res.rows[0]))
+
+  async def _validate_ledger_name(self, element_name: str, recid: int | None = None) -> str:
+    normalized_name = element_name.strip()
+    if not normalized_name:
+      raise ValueError("Ledger name is required")
+
+    existing = await self._get_ledger_by_name(normalized_name)
+    if existing and existing.get("recid") != recid:
+      raise ValueError(f"Ledger '{normalized_name}' already exists")
+    return normalized_name
+
+  async def _validate_chart_of_accounts_guid(self, chart_of_accounts_guid: str | None) -> str | None:
+    if not chart_of_accounts_guid:
+      return None
+
+    account = await self.get_account(chart_of_accounts_guid)
+    if not account:
+      raise ValueError("Selected chart of accounts account was not found")
+    return chart_of_accounts_guid
+
+  @staticmethod
+  def _validate_period_status(status: int) -> int:
+    if status not in {1, 2, 3}:
+      raise ValueError("Period status must be Open (1), Closed (2), or Locked (3)")
+    return status
+
+  async def create_ledger(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = CreateLedgerParams(
+      element_name=await self._validate_ledger_name(data.get("element_name", "")),
+      element_description=(data.get("element_description") or None),
+      element_fiscal_calendar_year=data.get("element_fiscal_calendar_year"),
+      element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
+        data.get("element_chart_of_accounts_guid")
+      ),
+      element_status=1,
+    )
+    res = await self.db.run(create_ledger_request(params))
+    if not res.rows:
+      raise ValueError("Ledger create did not return a row")
+    return self._map_ledger(dict(res.rows[0]))
+
+  async def update_ledger(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    recid = int(data["recid"])
+    existing = await self.get_ledger(recid)
+    if not existing:
+      raise ValueError("Ledger not found")
+
+    params = UpdateLedgerParams(
+      recid=recid,
+      element_name=await self._validate_ledger_name(data.get("element_name", ""), recid=recid),
+      element_description=(data.get("element_description") or None),
+      element_fiscal_calendar_year=data.get("element_fiscal_calendar_year"),
+      element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
+        data.get("element_chart_of_accounts_guid")
+      ),
+      element_status=int(data.get("element_status", existing.get("element_status") or 1)),
+    )
+    res = await self.db.run(update_ledger_request(params))
+    if not res.rows:
+      raise ValueError("Ledger update did not return a row")
+    return self._map_ledger(dict(res.rows[0]))
+
+  async def delete_ledger(self, recid: int) -> dict[str, Any]:
+    assert self.db
+    existing = await self.get_ledger(recid)
+    if not existing:
+      raise ValueError("Ledger not found")
+
+    reference_res = await self.db.run(
+      journal_reference_count_request(JournalReferenceCountParams(recid=recid))
+    )
+    journal_count = 0
+    if reference_res.rows:
+      journal_count = int(reference_res.rows[0].get("journal_count") or 0)
+    if journal_count > 0:
+      raise ValueError("Ledger cannot be deleted because journals already reference it")
+
+    await self.db.run(delete_ledger_request(DeleteLedgerParams(recid=recid)))
+    return {**existing, "element_status": 0}
+
+  async def generate_calendar(self, fiscal_year: int, start_date: str | None = None) -> list[dict[str, Any]]:
+    existing = await self.list_periods_by_year(fiscal_year)
+    if existing:
+      raise ValueError(f"Fiscal year {fiscal_year} already has generated periods")
+
+    fy_start = datetime.fromisoformat(start_date).date() if start_date else self._nearest_sunday_for_fiscal_year(fiscal_year)
+    if fy_start.weekday() != 6:
       raise ValueError("start_date must be a Sunday")
 
-    fiscal_end = start + timedelta(days=365)
-    has_leap_adjustment = calendar.isleap(fiscal_year) and start <= date(fiscal_year, 2, 29) < fiscal_end
+    next_fy_start = self._nearest_sunday_for_fiscal_year(fiscal_year + 1)
+    fiscal_year_days = (next_fy_start - fy_start).days
+    if fiscal_year_days not in {364, 371}:
+      raise ValueError(f"Fiscal year {fiscal_year} produced unsupported length {fiscal_year_days}")
+
+    lookup = await self.get_number_by_prefix_account("FP", str(fiscal_year))
+    if lookup and lookup.get("recid") is not None:
+      numbers_recid = int(lookup["recid"])
+    else:
+      number = await self.upsert_number(
+        {
+          "recid": None,
+          "accounts_guid": "00000000-0000-0000-0000-000000000000",
+          "prefix": "FP",
+          "account_number": str(fiscal_year),
+          "last_number": 0,
+          "max_number": None,
+          "allocation_size": 1,
+          "reset_policy": "Never",
+          "sequence_status": 1,
+          "pattern": None,
+          "display_format": f"FY{fiscal_year}",
+        }
+      )
+      numbers_recid = int(number["recid"])
 
     generated: list[dict[str, Any]] = []
-    cursor = start
+    cursor = fy_start
     period_number = 1
 
     for quarter in range(1, 5):
-      for month_idx in range(1, 5):
-        days_in_period = 28
-        is_leap_adjustment = False
-        if quarter == 1 and month_idx == 4 and has_leap_adjustment:
-          days_in_period = 8
-          is_leap_adjustment = True
-        end = cursor + timedelta(days=days_in_period - 1)
-        name = f"Q{quarter}M{month_idx}"
+      for month_idx in range(1, 4):
+        end = cursor + timedelta(days=27)
         payload = {
           "guid": None,
           "year": fiscal_year,
           "period_number": period_number,
-          "period_name": name,
+          "period_name": f"Q{quarter}M{month_idx}",
           "start_date": cursor.isoformat(),
           "end_date": end.isoformat(),
-          "days_in_period": days_in_period,
+          "days_in_period": 28,
           "quarter_number": quarter,
           "has_closing_week": False,
-          "is_leap_adjustment": is_leap_adjustment,
+          "is_leap_adjustment": False,
           "anchor_event": None,
           "close_type": 0,
           "status": 1,
-          "numbers_recid": None,
+          "numbers_recid": numbers_recid,
         }
         row = await self.upsert_period(payload)
         generated.append(row)
         cursor = end + timedelta(days=1)
         period_number += 1
 
-      m4 = generated[-1]
+      closing_days = 14 if quarter == 4 and fiscal_year_days == 371 else 7
+      closing_end = cursor + timedelta(days=closing_days - 1)
       closing_payload = {
         "guid": None,
         "year": fiscal_year,
         "period_number": period_number,
         "period_name": f"Q{quarter}MC",
-        "start_date": m4["start_date"],
-        "end_date": m4["end_date"],
-        "days_in_period": 0,
+        "start_date": cursor.isoformat(),
+        "end_date": closing_end.isoformat(),
+        "days_in_period": closing_days,
         "quarter_number": quarter,
         "has_closing_week": True,
-        "is_leap_adjustment": False,
+        "is_leap_adjustment": quarter == 4 and fiscal_year_days == 371,
         "anchor_event": "period_close",
-        "close_type": 0,
+        "close_type": 2 if quarter == 4 else 1,
         "status": 1,
-        "numbers_recid": None,
+        "numbers_recid": numbers_recid,
       }
       row = await self.upsert_period(closing_payload)
       generated.append(row)
+      cursor = closing_end + timedelta(days=1)
       period_number += 1
+
+    if cursor != fy_start + timedelta(days=fiscal_year_days):
+      raise ValueError(f"Generated fiscal year {fiscal_year} length {(cursor - fy_start).days} instead of {fiscal_year_days}")
 
     return generated
 
