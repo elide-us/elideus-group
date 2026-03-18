@@ -478,12 +478,28 @@ class AzureBillingImportModule(BaseModule):
         next_params: dict[str, str] | None = params
 
         while next_url:
+          logging.info(
+            "[AzureBillingImportModule] Invoice API request: url=%s, params=%s",
+            next_url, next_params,
+          )
           async with session.get(next_url, headers=headers, params=next_params) as response:
             payload = await response.json(content_type=None)
+            response_text_preview = json.dumps(payload)[:1000] if payload else "None"
+            logging.info(
+              "[AzureBillingImportModule] Invoice API response: status=%d, "
+              "content_type=%s, body_preview=%s",
+              response.status,
+              response.headers.get("Content-Type", "unknown"),
+              response_text_preview,
+            )
             if response.status >= 400:
+              raw_error = json.dumps(payload) if payload else "(no JSON body)"
+              logging.error(
+                "[AzureBillingImportModule] Invoice API error response: status=%d, body=%s",
+                response.status, raw_error[:2000],
+              )
               raise RuntimeError(
-                "Azure invoice request failed "
-                f"({response.status}): {payload}",
+                f"Azure invoice request failed ({response.status}): {raw_error[:500]}"
               )
 
           invoices = payload.get("value") or []
@@ -494,6 +510,16 @@ class AzureBillingImportModule(BaseModule):
               continue
 
             props = invoice.get("properties") or {}
+            if total_from_api <= 5:
+              logging.info(
+                "[AzureBillingImportModule] Invoice[%d]: name=%s, invoicePeriodStartDate=%r, "
+                "invoicePeriodEndDate=%r, invoiceDate=%r, billedAmount=%r",
+                total_from_api, name,
+                props.get("invoicePeriodStartDate"),
+                props.get("invoicePeriodEndDate"),
+                props.get("invoiceDate"),
+                (props.get("billedAmount") or {}).get("value"),
+              )
             raw_period_start = str(props.get("invoicePeriodStartDate") or "").strip()
             invoice_month: str | None = None
             if "T" in raw_period_start or (len(raw_period_start) >= 10 and raw_period_start[4] == "-"):
