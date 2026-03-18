@@ -14,8 +14,20 @@ class StagingImportResult1(BaseModel):
 
 
 class StagingImportInvoices1(BaseModel):
-  period_start: str
-  period_end: str
+  period_month: str  # YYYY-MM format
+
+  @field_validator("period_month")
+  @classmethod
+  def validate_period_month(cls, value: str) -> str:
+    if len(value) != 7 or value[4] != "-":
+      raise ValueError("period_month must be in YYYY-MM format")
+    year_part, month_part = value.split("-", 1)
+    if not (year_part.isdigit() and month_part.isdigit()):
+      raise ValueError("period_month must be in YYYY-MM format")
+    month = int(month_part)
+    if month < 1 or month > 12:
+      raise ValueError("period_month must be a valid YYYY-MM value")
+    return value
 
 
 class StagingImportInvoicesResult1(BaseModel):
@@ -23,6 +35,7 @@ class StagingImportInvoicesResult1(BaseModel):
   status: str
   invoice_count: int
   skipped_count: int
+  message: str | None = None
 
 
 class StagingImportItem1(BaseModel):

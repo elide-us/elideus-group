@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import io
 import json
 import logging
@@ -188,17 +188,6 @@ class AzureBillingImportModule(BaseModule):
     if not raw:
       return None
     return raw[:10]
-
-
-  @staticmethod
-  # Retained for legacy callers/tests; the invoice API expects ISO YYYY-MM-DD
-  # values directly and does not use this formatter.
-  def _to_azure_date(iso_date: str) -> str:
-    """Convert YYYY-MM-DD to MM-DD-YYYY for legacy Azure date formatting."""
-    parts = iso_date.split("-")
-    if len(parts) != 3:
-      raise ValueError(f"Expected date in YYYY-MM-DD format, got: {iso_date}")
-    return f"{parts[1]}-{parts[2]}-{parts[0]}"
 
   async def import_cost_details(
     self,
@@ -418,7 +407,7 @@ class AzureBillingImportModule(BaseModule):
           logging.exception("[AzureBillingImportModule] Failed to update import failure status")
       raise
 
-  async def import_invoices(self, period_start: str, period_end: str) -> dict:
+  async def import_invoices(self, period_month: str) -> dict:
     if not self.db:
       raise RuntimeError("AzureBillingImportModule requires database module")
 
@@ -427,6 +416,14 @@ class AzureBillingImportModule(BaseModule):
     skipped_count = 0
 
     try:
+      if not re.fullmatch(r"\d{4}-\d{2}", period_month or ""):
+        raise ValueError("Invoice month must be in YYYY-MM format")
+
+      requested_month_start = date.fromisoformat(f"{period_month}-01")
+      next_month_start = (requested_month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+      requested_month_end = next_month_start - timedelta(days=1)
+      requested_year_month = period_month[:7]
+
       if not self._subscription_id:
         raise ValueError("Azure billing subscription not configured")
 
@@ -446,8 +443,8 @@ class AzureBillingImportModule(BaseModule):
             source="azure_invoices",
             scope=f"subscriptions/{self._subscription_id}",
             metric="Invoices",
-            period_start=period_start,
-            period_end=period_end,
+            period_start=requested_month_start.isoformat(),
+            period_end=requested_month_end.isoformat(),
           ),
         ),
       )
@@ -460,11 +457,7 @@ class AzureBillingImportModule(BaseModule):
         "billingAccounts/default/billingSubscriptions/"
         f"{self._subscription_id}/invoices"
       )
-      params = {
-        "periodStartDate": period_start[:10],
-        "periodEndDate": period_end[:10],
-        "api-version": "2024-04-01",
-      }
+      params = {"api-version": "2024-04-01"}
       headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -472,6 +465,8 @@ class AzureBillingImportModule(BaseModule):
 
       raw_batch: list[dict[str, object]] = []
       normalized_batch: list[dict[str, object]] = []
+      total_from_api = 0
+      matched_count = 0
 
       async with aiohttp.ClientSession() as session:
         next_url: str | None = url
@@ -486,7 +481,21 @@ class AzureBillingImportModule(BaseModule):
                 f"({response.status}): {payload}",
               )
 
-          for invoice in payload.get("value") or []:
+          invoices = payload.get("value") or []
+          total_from_api += len(invoices)
+          for invoice in invoices:
+            props = invoice.get("properties") or {}
+            invoice_period_start = self._to_iso_date(props.get("invoicePeriodStartDate"))
+            invoice_period_end = self._to_iso_date(props.get("invoicePeriodEndDate"))
+            if not invoice_period_start or not invoice_period_end:
+              continue
+
+            invoice_start_date = date.fromisoformat(invoice_period_start)
+            invoice_end_date = date.fromisoformat(invoice_period_end)
+            if requested_month_end < invoice_start_date or requested_month_start > invoice_end_date:
+              continue
+
+            matched_count += 1
             name = invoice.get("name")
             if not name:
               continue
@@ -510,7 +519,6 @@ class AzureBillingImportModule(BaseModule):
               skipped_count += 1
               continue
 
-            props = invoice.get("properties") or {}
             billed_amount = (props.get("billedAmount") or {}).get("value")
             billed_currency = (props.get("billedAmount") or {}).get("currency")
             normalized_amount = self._to_decimal(billed_amount) or "0"
@@ -518,8 +526,8 @@ class AzureBillingImportModule(BaseModule):
               {
                 "element_invoice_name": name,
                 "element_invoice_date": self._to_iso_date(props.get("invoiceDate")),
-                "element_invoice_period_start": self._to_iso_date(props.get("invoicePeriodStartDate")),
-                "element_invoice_period_end": self._to_iso_date(props.get("invoicePeriodEndDate")),
+                "element_invoice_period_start": invoice_period_start,
+                "element_invoice_period_end": invoice_period_end,
                 "element_due_date": self._to_iso_date(props.get("dueDate")),
                 "element_invoice_type": props.get("invoiceType"),
                 "element_status": props.get("status"),
@@ -569,6 +577,13 @@ class AzureBillingImportModule(BaseModule):
           next_url = payload.get("nextLink")
           next_params = None
 
+      logging.info(
+        "[AzureBillingImportModule] Invoice API returned %d invoices, %d matched month %s",
+        total_from_api,
+        matched_count,
+        requested_year_month,
+      )
+
       if raw_batch:
         await self.db.run(
           insert_invoice_batch_request(
@@ -586,13 +601,20 @@ class AzureBillingImportModule(BaseModule):
         )
         inserted_count += len(raw_batch)
 
+      message = None
+      if matched_count == 0:
+        message = (
+          f"No Azure invoice matched billing period month {requested_year_month}. "
+          "The invoice may not have been generated yet for that period."
+        )
+
       await self.db.run(
         update_import_status_request(
           UpdateImportStatusParams(
             recid=import_recid,
             status=1,
             row_count=inserted_count,
-            error=None,
+            error=message,
           ),
         ),
       )
@@ -601,6 +623,7 @@ class AzureBillingImportModule(BaseModule):
         "status": "completed",
         "invoice_count": inserted_count,
         "skipped_count": skipped_count,
+        "message": message,
       }
     except Exception as exc:
       logging.exception("[AzureBillingImportModule] Invoice import failed")
