@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+	Alert,
 	Box,
 	Button,
 	Chip,
+	CircularProgress,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogContentText,
+	DialogTitle,
 	Divider,
+	LinearProgress,
 	MenuItem,
 	Paper,
 	Stack,
@@ -49,6 +57,33 @@ type StagingImport = {
 	element_created_on: string;
 	element_modified_on: string;
 };
+
+type StagingLineItem = {
+	recid: number;
+	imports_recid: number;
+	vendors_recid: number;
+	vendor_name: string | null;
+	element_date: string | null;
+	element_service: string | null;
+	element_category: string | null;
+	element_description: string | null;
+	element_quantity: string | null;
+	element_unit_price: string | null;
+	element_amount: string;
+	element_currency: string | null;
+};
+
+type AsyncTask = {
+	guid: string;
+	status: number;
+	handler_name: string | null;
+	current_step: number | null;
+	step_count: number | null;
+	result: Record<string, any> | null;
+	error: string | null;
+};
+
+type AsyncTaskEvent = Record<string, any>;
 
 type PeriodStatus = {
 	period_guid: string;
@@ -101,6 +136,15 @@ type JournalSummaryRow = {
 	total_credit: number;
 };
 
+const IMPORT_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" | "info" | "warning" }> = {
+	0: { label: "Pending", color: "warning" },
+	1: { label: "Completed", color: "success" },
+	2: { label: "Failed", color: "error" },
+	3: { label: "Promoted", color: "info" },
+};
+
+const PROMOTE_PIPELINE_STEPS = ["validate_import", "classify_costs", "create_journal", "mark_promoted"] as const;
+
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 0, label: "Asset" },
 	{ value: 1, label: "Liability" },
@@ -132,9 +176,18 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
 	const [importing, setImporting] = useState(false);
+	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
+	const [detailView, setDetailView] = useState<"raw" | "line_items">("raw");
+	const [lineItems, setLineItems] = useState<StagingLineItem[]>([]);
+	const [promotingImport, setPromotingImport] = useState<number | null>(null);
+	const [promoteTaskGuid, setPromoteTaskGuid] = useState<string | null>(null);
+	const [promoteTaskStatus, setPromoteTaskStatus] = useState<AsyncTask | null>(null);
+	const [promoteTaskEvents, setPromoteTaskEvents] = useState<AsyncTaskEvent[]>([]);
+	const [billingMessage, setBillingMessage] = useState<{ severity: "success" | "error" | "info"; text: string } | null>(null);
+	const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "delete"; recid: number } | null>(null);
 
 	const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
 	const [allPeriodStatusRows, setAllPeriodStatusRows] = useState<PeriodStatus[]>([]);
@@ -181,6 +234,25 @@ const FinanceManagerPage = (): JSX.Element => {
 	const loadImports = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
 		setImports(res.imports || []);
+	}, []);
+
+	const loadImportDetails = useCallback(async (importsRecid: number): Promise<void> => {
+		const details = await rpcCall<Record<string, any>[]>("urn:finance:staging:list_details:1", {
+			imports_recid: importsRecid,
+		});
+		setImportDetails(details || []);
+	}, []);
+
+	const loadLineItems = useCallback(async (importsRecid: number): Promise<void> => {
+		const res = await rpcCall<{ line_items: StagingLineItem[] }>("urn:finance:staging:list_line_items:1", {
+			imports_recid: importsRecid,
+		});
+		setLineItems(res.line_items || []);
+	}, []);
+
+	const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
+		const res = await rpcCall<{ events: AsyncTaskEvent[] }>("urn:system:async_tasks:list_task_events:1", { guid });
+		setPromoteTaskEvents(res.events || []);
 	}, []);
 
 	const loadPeriodStatus = useCallback(async (): Promise<void> => {
@@ -243,6 +315,121 @@ const FinanceManagerPage = (): JSX.Element => {
 			void loadJournalSummary();
 		}
 	}, [tab, loadImports, loadJournalSummary, loadPeriodStatus, loadTrialBalance]);
+
+	const selectedImportRow = useMemo(
+		() => imports.find((row) => row.recid === selectedImport) ?? null,
+		[imports, selectedImport],
+	);
+
+	const currentTaskStepName = useMemo(() => {
+		if (!promoteTaskStatus?.current_step) {
+			return null;
+		}
+		return PROMOTE_PIPELINE_STEPS[promoteTaskStatus.current_step - 1] || null;
+	}, [promoteTaskStatus]);
+
+	const promoteJournalRecid = useMemo(() => {
+		const result = promoteTaskStatus?.result;
+		if (!result) {
+			return null;
+		}
+		return result.journal_recid ?? result.journals_recid ?? result.gl_journal_recid ?? result.journal?.recid ?? null;
+	}, [promoteTaskStatus]);
+
+
+	useEffect(() => {
+		if (selectedImport === null) {
+			setImportDetails([]);
+			setLineItems([]);
+			return;
+		}
+
+		if (detailView === "raw") {
+			void loadImportDetails(selectedImport);
+			return;
+		}
+
+		void loadLineItems(selectedImport);
+	}, [detailView, loadImportDetails, loadLineItems, selectedImport]);
+
+	useEffect(() => {
+		setDetailView("raw");
+		setPromotingImport(null);
+		setPromoteTaskGuid(null);
+		setPromoteTaskStatus(null);
+		setPromoteTaskEvents([]);
+		setBillingMessage(null);
+	}, [selectedImport]);
+
+	useEffect(() => {
+		if (tab !== 1) {
+			setPromotingImport(null);
+			setPromoteTaskGuid(null);
+			setPromoteTaskStatus(null);
+			setPromoteTaskEvents([]);
+			setBillingMessage(null);
+		}
+	}, [tab]);
+
+	useEffect(() => {
+		if (!promoteTaskGuid || selectedImport === null || tab !== 1) {
+			return;
+		}
+
+		let active = true;
+
+		let intervalId = 0;
+
+		const pollTask = async (): Promise<void> => {
+			try {
+				const task = await rpcCall<AsyncTask>("urn:system:async_tasks:get_task:1", { guid: promoteTaskGuid });
+				if (!active) {
+					return;
+				}
+				setPromoteTaskStatus(task);
+				await loadTaskEvents(promoteTaskGuid);
+				if (!active) {
+					return;
+				}
+				if (task.status === 2) {
+					window.clearInterval(intervalId);
+					setBillingMessage({
+						severity: "success",
+						text: task.result
+							? `Promotion completed${(task.result.journal_recid ?? task.result.journals_recid ?? task.result.gl_journal_recid ?? task.result.journal?.recid) ? ` — journal #${task.result.journal_recid ?? task.result.journals_recid ?? task.result.gl_journal_recid ?? task.result.journal?.recid}` : ""}.`
+							: "Promotion completed.",
+					});
+					await loadImports();
+					return;
+				}
+				if (task.status === 3) {
+					window.clearInterval(intervalId);
+					setBillingMessage({
+						severity: "error",
+						text: task.error || "Promotion failed.",
+					});
+				}
+			} catch (e: any) {
+				if (!active) {
+					return;
+				}
+				setBillingMessage({
+					severity: "error",
+					text: e?.message || "Unable to monitor promotion task.",
+				});
+			}
+		};
+
+		void pollTask();
+		intervalId = window.setInterval(() => {
+			void pollTask();
+		}, 4000);
+
+		return () => {
+			active = false;
+			window.clearInterval(intervalId);
+		};
+	}, [loadImports, loadTaskEvents, promoteTaskGuid, selectedImport, tab]);
 
 	const trialTotals = useMemo(() => {
 		return trialRows.reduce(
@@ -346,12 +533,16 @@ const FinanceManagerPage = (): JSX.Element => {
 								disabled={importing}
 								onClick={async () => {
 									setImporting(true);
+									setBillingMessage(null);
 									try {
 										await rpcCall("urn:finance:staging:import:1", {
 											period_start: importStartDate,
 											period_end: importEndDate,
 										});
+										setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
 										await loadImports();
+									} catch (e: any) {
+										setBillingMessage({ severity: "error", text: e?.message || "Cost detail import failed." });
 									} finally {
 										setImporting(false);
 									}
@@ -359,8 +550,35 @@ const FinanceManagerPage = (): JSX.Element => {
 							>
 								{importing ? "Importing..." : "Import"}
 							</Button>
+							<Button
+								variant="outlined"
+								disabled={importingInvoices}
+								onClick={async () => {
+									setImportingInvoices(true);
+									setBillingMessage(null);
+									try {
+										const res = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number }>("urn:finance:staging:import_invoices:1", {
+											period_start: importStartDate,
+											period_end: importEndDate,
+										});
+										setBillingMessage({
+											severity: "success",
+											text: `Imported ${res.invoice_count} invoice${res.invoice_count === 1 ? "" : "s"}${res.skipped_count ? ` (${res.skipped_count} skipped)` : ""}.`,
+										});
+										await loadImports();
+									} catch (e: any) {
+										setBillingMessage({ severity: "error", text: e?.message || "Invoice import failed." });
+									} finally {
+										setImportingInvoices(false);
+									}
+								}}
+							>
+								{importingInvoices ? "Importing Invoices..." : "Import Invoices"}
+							</Button>
 						</Stack>
 					</Paper>
+
+					{billingMessage && <Alert severity={billingMessage.severity}>{billingMessage.text}</Alert>}
 
 					<Table size="small">
 						<TableHead>
@@ -377,67 +595,242 @@ const FinanceManagerPage = (): JSX.Element => {
 							</TableRow>
 						</TableHead>
 						<TableBody>
-							{imports.map((row) => (
-								<TableRow
-									hover
-									key={row.recid}
-									selected={selectedImport === row.recid}
-									sx={{ cursor: "pointer" }}
-									onClick={async () => {
-										setSelectedImport(row.recid);
-										const details = await rpcCall<Record<string, any>[]>("urn:finance:staging:list_details:1", {
-											imports_recid: row.recid,
-										});
-										setImportDetails(details || []);
-									}}
-								>
-									<TableCell>{row.recid}</TableCell>
-									<TableCell>{row.element_source}</TableCell>
-									<TableCell>{row.element_metric}</TableCell>
-									<TableCell>{row.element_period_start}</TableCell>
-									<TableCell>{row.element_period_end}</TableCell>
-									<TableCell>{row.element_row_count}</TableCell>
-									<TableCell>{row.element_status === 0 ? "Pending" : row.element_status === 1 ? "Completed" : row.element_status === 2 ? "Failed" : row.element_status}</TableCell>
-									<TableCell>{row.element_error ? `${row.element_error.slice(0, 80)}${row.element_error.length > 80 ? "..." : ""}` : ""}</TableCell>
-									<TableCell>{row.element_created_on}</TableCell>
-								</TableRow>
-							))}
+							{imports.map((row) => {
+								const statusConfig = IMPORT_STATUS_CONFIG[row.element_status];
+								return (
+									<TableRow
+										hover
+										key={row.recid}
+										selected={selectedImport === row.recid}
+										sx={{ cursor: "pointer" }}
+										onClick={() => {
+											setSelectedImport(row.recid);
+										}}
+									>
+										<TableCell>{row.recid}</TableCell>
+										<TableCell>{row.element_source}</TableCell>
+										<TableCell>{row.element_metric}</TableCell>
+										<TableCell>{row.element_period_start}</TableCell>
+										<TableCell>{row.element_period_end}</TableCell>
+										<TableCell>{row.element_row_count}</TableCell>
+										<TableCell>
+											<Chip
+												label={statusConfig?.label || row.element_status}
+												color={statusConfig?.color || "default"}
+												size="small"
+											/>
+										</TableCell>
+										<TableCell>{row.element_error ? `${row.element_error.slice(0, 80)}${row.element_error.length > 80 ? "..." : ""}` : ""}</TableCell>
+										<TableCell>{row.element_created_on}</TableCell>
+									</TableRow>
+								);
+							})}
 						</TableBody>
 					</Table>
 
-					{selectedImport !== null && (
-						<Stack spacing={1}>
-							<Typography variant="h6">
-								Import #{selectedImport} — {imports.find((row) => row.recid === selectedImport)?.element_row_count || 0} rows
-							</Typography>
-							<Table size="small">
-								<TableHead>
-									<TableRow>
-										<TableCell>Date</TableCell>
-										<TableCell>Subscription</TableCell>
-										<TableCell>Resource Group</TableCell>
-										<TableCell>Meter Category</TableCell>
-										<TableCell>Quantity</TableCell>
-										<TableCell>Cost</TableCell>
-										<TableCell>Currency</TableCell>
-									</TableRow>
-								</TableHead>
-								<TableBody>
-									{importDetails.slice(0, 50).map((detail, index) => (
-										<TableRow key={`${selectedImport}-${index}`}>
-											<TableCell>{detail.element_Date}</TableCell>
-											<TableCell>{detail.element_SubscriptionName}</TableCell>
-											<TableCell>{detail.element_ResourceGroup}</TableCell>
-											<TableCell>{detail.element_MeterCategory}</TableCell>
-											<TableCell>{detail.element_Quantity}</TableCell>
-											<TableCell>{detail.element_CostInBillingCurrency}</TableCell>
-											<TableCell>{detail.element_BillingCurrency}</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</Stack>
+					{selectedImportRow && (
+						<Paper sx={{ p: 2 }}>
+							<Stack spacing={2}>
+								<Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
+									<Box>
+										<Typography variant="h6">
+											Import #{selectedImportRow.recid} — {selectedImportRow.element_row_count} rows
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											{selectedImportRow.element_source} • {selectedImportRow.element_period_start} to {selectedImportRow.element_period_end}
+										</Typography>
+									</Box>
+									<Stack direction="row" spacing={1} flexWrap="wrap">
+										{selectedImportRow.element_status === 1 && (
+											<Button variant="contained" color="success" onClick={() => setConfirmAction({ type: "promote", recid: selectedImportRow.recid })}>
+												Promote to GL
+											</Button>
+										)}
+										{selectedImportRow.element_status !== 3 && (
+											<Button variant="outlined" color="error" onClick={() => setConfirmAction({ type: "delete", recid: selectedImportRow.recid })}>
+												Delete Import
+											</Button>
+										)}
+									</Stack>
+								</Stack>
+
+								{promotingImport === selectedImportRow.recid && promoteTaskStatus && (
+									<Paper variant="outlined" sx={{ p: 2 }}>
+										<Stack spacing={1.5}>
+											<Stack direction="row" spacing={1} alignItems="center">
+												{promoteTaskStatus.status === 0 || promoteTaskStatus.status === 1 ? <CircularProgress size={18} /> : null}
+												<Typography variant="subtitle2">
+													Promotion Task {promoteTaskGuid ? `(${promoteTaskGuid})` : ""}
+												</Typography>
+											</Stack>
+											<Typography variant="body2">
+												Step {promoteTaskStatus.current_step || 0} of {promoteTaskStatus.step_count || PROMOTE_PIPELINE_STEPS.length}: {currentTaskStepName || "Waiting to start"}
+											</Typography>
+											{promoteTaskStatus.step_count ? (
+												<LinearProgress
+													variant="determinate"
+													value={Math.min(100, ((promoteTaskStatus.current_step || 0) / promoteTaskStatus.step_count) * 100)}
+												/>
+											) : (
+												<LinearProgress />
+											)}
+											{promoteTaskStatus.status === 2 && (
+												<Alert severity="success">
+													Promotion completed{promoteJournalRecid ? ` — journal #${promoteJournalRecid}` : ""}.
+												</Alert>
+											)}
+											{promoteTaskStatus.status === 3 && promoteTaskStatus.error && (
+												<Alert severity="error">{promoteTaskStatus.error}</Alert>
+											)}
+											{promoteTaskEvents.length > 0 && (
+												<Box>
+													<Typography variant="subtitle2" sx={{ mb: 1 }}>Recent Task Events</Typography>
+													<Stack spacing={0.5}>
+														{promoteTaskEvents.slice(-4).reverse().map((event, index) => (
+															<Typography key={`${promoteTaskGuid || "task"}-${index}`} variant="body2" color="text.secondary">
+																{event.event_name || event.step_name || event.message || JSON.stringify(event)}
+															</Typography>
+														))}
+													</Stack>
+												</Box>
+											)}
+										</Stack>
+									</Paper>
+								)}
+
+								<Tabs value={detailView} onChange={(_, next) => setDetailView(next)} sx={{ borderBottom: 1, borderColor: "divider" }}>
+									<Tab value="raw" label="Raw Details" />
+									<Tab value="line_items" label="Line Items" />
+								</Tabs>
+
+								{detailView === "raw" ? (
+									<Table size="small">
+										<TableHead>
+											<TableRow>
+												<TableCell>Date</TableCell>
+												<TableCell>Subscription</TableCell>
+												<TableCell>Resource Group</TableCell>
+												<TableCell>Meter Category</TableCell>
+												<TableCell>Quantity</TableCell>
+												<TableCell>Cost</TableCell>
+												<TableCell>Currency</TableCell>
+											</TableRow>
+										</TableHead>
+										<TableBody>
+											{importDetails.slice(0, 50).map((detail, index) => (
+												<TableRow key={`${selectedImportRow.recid}-${index}`}>
+													<TableCell>{detail.element_Date}</TableCell>
+													<TableCell>{detail.element_SubscriptionName}</TableCell>
+													<TableCell>{detail.element_ResourceGroup}</TableCell>
+													<TableCell>{detail.element_MeterCategory}</TableCell>
+													<TableCell>{detail.element_Quantity}</TableCell>
+													<TableCell>{detail.element_CostInBillingCurrency}</TableCell>
+													<TableCell>{detail.element_BillingCurrency}</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								) : (
+									<Table size="small">
+										<TableHead>
+											<TableRow>
+												<TableCell>Date</TableCell>
+												<TableCell>Vendor</TableCell>
+												<TableCell>Service</TableCell>
+												<TableCell>Category</TableCell>
+												<TableCell>Description</TableCell>
+												<TableCell>Quantity</TableCell>
+												<TableCell>Unit Price</TableCell>
+												<TableCell>Amount</TableCell>
+												<TableCell>Currency</TableCell>
+											</TableRow>
+										</TableHead>
+										<TableBody>
+											{lineItems.map((item) => (
+												<TableRow key={item.recid}>
+													<TableCell>{item.element_date || "-"}</TableCell>
+													<TableCell>{item.vendor_name || "-"}</TableCell>
+													<TableCell>{item.element_service || "-"}</TableCell>
+													<TableCell>{item.element_category || "-"}</TableCell>
+													<TableCell>{item.element_description || "-"}</TableCell>
+													<TableCell>{item.element_quantity || "-"}</TableCell>
+													<TableCell>{item.element_unit_price || "-"}</TableCell>
+													<TableCell>{item.element_amount}</TableCell>
+													<TableCell>{item.element_currency || "-"}</TableCell>
+												</TableRow>
+											))}
+										</TableBody>
+									</Table>
+								)}
+							</Stack>
+						</Paper>
 					)}
+
+					<Dialog open={confirmAction !== null} onClose={() => setConfirmAction(null)}>
+						<DialogTitle>{confirmAction?.type === "promote" ? "Promote Import" : "Delete Import"}</DialogTitle>
+						<DialogContent>
+							<DialogContentText>
+								{confirmAction?.type === "promote"
+									? `Promote import #${confirmAction?.recid} to the General Ledger? This will create a journal entry with the classified costs.`
+									: `Delete import #${confirmAction?.recid}? This will remove all staging data for this import.`}
+							</DialogContentText>
+						</DialogContent>
+						<DialogActions>
+							<Button onClick={() => setConfirmAction(null)}>Cancel</Button>
+							<Button
+								onClick={async () => {
+									if (!confirmAction) {
+										return;
+									}
+									setBillingMessage(null);
+									try {
+										if (confirmAction.type === "promote") {
+											const res = await rpcCall<{ task_guid: string }>("urn:finance:staging:promote:1", {
+												imports_recid: confirmAction.recid,
+											});
+											setPromotingImport(confirmAction.recid);
+											setPromoteTaskGuid(res.task_guid);
+											setPromoteTaskStatus({
+												guid: res.task_guid,
+												status: 0,
+												handler_name: null,
+												current_step: 0,
+												step_count: PROMOTE_PIPELINE_STEPS.length,
+												result: null,
+												error: null,
+											});
+											setPromoteTaskEvents([]);
+											setBillingMessage({ severity: "info", text: `Promotion started for import #${confirmAction.recid}.` });
+										} else {
+											await rpcCall("urn:finance:staging:delete_import:1", {
+												imports_recid: confirmAction.recid,
+											});
+											setSelectedImport(null);
+											setPromotingImport(null);
+											setPromoteTaskGuid(null);
+											setPromoteTaskStatus(null);
+											setPromoteTaskEvents([]);
+											setImportDetails([]);
+											setLineItems([]);
+											setBillingMessage({ severity: "success", text: `Import #${confirmAction.recid} deleted.` });
+											await loadImports();
+										}
+									} catch (e: any) {
+										setBillingMessage({
+											severity: "error",
+											text: e?.message || `Unable to ${confirmAction.type === "promote" ? "promote" : "delete"} import.`,
+										});
+									} finally {
+										setConfirmAction(null);
+									}
+								}}
+								color={confirmAction?.type === "delete" ? "error" : "success"}
+								variant="contained"
+							>
+								{confirmAction?.type === "promote" ? "Promote" : "Delete"}
+							</Button>
+						</DialogActions>
+					</Dialog>
 				</Stack>
 			)}
 
