@@ -1,61 +1,54 @@
-"""Azure billing import module for Cost Details staging ingestion."""
+"""Azure Cost Details billing import provider."""
 
 from __future__ import annotations
 
 import asyncio
-from calendar import monthrange
 import csv
 from datetime import datetime
 import io
 import json
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import aiohttp
 from azure.identity.aio import ClientSecretCredential
-from fastapi import FastAPI
 
 from queryregistry.finance.staging import (
   create_import_request,
   insert_cost_detail_batch_request,
   update_import_status_request,
 )
-from queryregistry.finance.staging_invoices import (
-  get_invoice_by_name_request,
-  insert_invoice_batch_request,
-)
-from queryregistry.finance.staging_purge_log import check_purged_key_request
 from queryregistry.finance.staging_line_items import insert_line_items_batch_request
 from queryregistry.finance.staging.models import (
   CreateImportParams,
   InsertCostDetailBatchParams,
   UpdateImportStatusParams,
 )
-from queryregistry.finance.staging_invoices.models import (
-  GetInvoiceByNameParams,
-  InsertInvoiceBatchParams,
-)
-from queryregistry.finance.staging_purge_log.models import CheckPurgedKeyParams
 from queryregistry.finance.staging_line_items.models import InsertLineItemsBatchParams
 from queryregistry.finance.vendors import get_vendor_by_name_request
 from queryregistry.finance.vendors.models import GetVendorByNameParams
 from queryregistry.system.config import get_config_request
 from queryregistry.system.config.models import ConfigKeyParams
 
-from . import BaseModule
-from .db_module import DbModule
-from .env_module import EnvModule
+from ...db_module import DbModule
+from ...env_module import EnvModule
+from . import BillingImportProvider
+
+if TYPE_CHECKING:  # pragma: no cover
+  from ...billing_import_module import BillingImportModule
 
 
-class AzureBillingImportModule(BaseModule):
+class AzureCostDetailsProvider(BillingImportProvider):
+  name = "azure_cost_details"
   _START_DATE_AFTER_PATTERN = re.compile(
     r"Start\s+date\s+must\s+be\s+after\s+"
     r"(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)",
     re.IGNORECASE,
   )
 
-  def __init__(self, app: FastAPI):
-    super().__init__(app)
+  def __init__(self, module: "BillingImportModule"):
+    super().__init__(module)
     self.db: DbModule | None = None
     self.env: EnvModule | None = None
     self._tenant_id: str | None = None
@@ -69,9 +62,9 @@ class AzureBillingImportModule(BaseModule):
     self._azure_vendor_recid: int | None = None
 
   async def startup(self):
-    self.db = self.app.state.db
+    self.db = self.module.app.state.db
     await self.db.on_ready()
-    self.env = self.app.state.env
+    self.env = self.module.app.state.env
     await self.env.on_ready()
 
     self._client_id = await self._load_config("AzureBillingClientId")
@@ -95,9 +88,6 @@ class AzureBillingImportModule(BaseModule):
         "[AzureBillingImportModule] Missing env value for key: AZURE_BILLING_CLIENT_SECRET",
       )
 
-    self.app.state.azure_billing_import = self
-    self.mark_ready()
-
   async def shutdown(self):
     if self._credential:
       await self._credential.close()
@@ -112,6 +102,13 @@ class AzureBillingImportModule(BaseModule):
     self._azure_vendor_recid = None
     self.db = None
     self.env = None
+
+  async def run_import(self, **kwargs) -> dict:
+    return await self.import_cost_details(
+      period_start=kwargs["period_start"],
+      period_end=kwargs["period_end"],
+      metric=kwargs.get("metric", "ActualCost"),
+    )
 
   async def _load_config(self, key: str) -> str:
     if not self.db:
@@ -406,278 +403,4 @@ class AzureBillingImportModule(BaseModule):
           )
         except Exception:
           logging.exception("[AzureBillingImportModule] Failed to update import failure status")
-      raise
-
-  async def import_invoices(self, period_month: str) -> dict:
-    if not self.db:
-      raise RuntimeError("AzureBillingImportModule requires database module")
-
-    import_recid: int | None = None
-    inserted_count = 0
-    skipped_count = 0
-
-    try:
-      if not re.fullmatch(r"\d{4}-\d{2}", period_month or ""):
-        raise ValueError("Invoice month must be in YYYY-MM format")
-
-      year = int(period_month[:4])
-      month = int(period_month[5:7])
-      _, last_day = monthrange(year, month)
-      period_start = f"{year:04d}-{month:02d}-01"
-      period_end = f"{year:04d}-{month:02d}-{last_day:02d}"
-
-      if not self._subscription_id:
-        raise ValueError("Azure billing subscription not configured")
-
-      token = await self._get_management_token()
-
-      if self._azure_vendor_recid is None:
-        vendor_lookup = await self.db.run(
-          get_vendor_by_name_request(GetVendorByNameParams(element_name="Azure")),
-        )
-        if not vendor_lookup.rows:
-          raise ValueError("Missing finance vendor seed row for Azure")
-        self._azure_vendor_recid = int(vendor_lookup.rows[0]["recid"])
-
-      create_res = await self.db.run(
-        create_import_request(
-          CreateImportParams(
-            source="azure_invoices",
-            scope=f"subscriptions/{self._subscription_id}",
-            metric="Invoices",
-            period_start=period_start,
-            period_end=period_end,
-          ),
-        ),
-      )
-      if not create_res.rows:
-        raise RuntimeError("Failed to create finance staging import record")
-      import_recid = int(create_res.rows[0]["recid"])
-
-      url = (
-        "https://management.azure.com/subscriptions/"
-        f"{self._subscription_id}/providers/Microsoft.Billing/invoices"
-      )
-      params = {
-        "api-version": "2020-05-01",
-        "periodStartDate": "2020-01-01",
-        "periodEndDate": "2030-12-31",
-      }
-      headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-      }
-
-      raw_batch: list[dict[str, object]] = []
-      normalized_batch: list[dict[str, object]] = []
-      total_from_api = 0
-      matched_count = 0
-
-      async with aiohttp.ClientSession() as session:
-        next_url: str | None = url
-        next_params: dict[str, str] | None = params
-
-        while next_url:
-          logging.info(
-            "[AzureBillingImportModule] Invoice API request: url=%s, params=%s",
-            next_url, next_params,
-          )
-          async with session.get(next_url, headers=headers, params=next_params) as response:
-            payload = await response.json(content_type=None)
-            response_text_preview = json.dumps(payload)[:1000] if payload else "None"
-            logging.info(
-              "[AzureBillingImportModule] Invoice API response: status=%d, "
-              "content_type=%s, body_preview=%s",
-              response.status,
-              response.headers.get("Content-Type", "unknown"),
-              response_text_preview,
-            )
-            if response.status >= 400:
-              raw_error = json.dumps(payload) if payload else "(no JSON body)"
-              logging.error(
-                "[AzureBillingImportModule] Invoice API error response: status=%d, body=%s",
-                response.status, raw_error[:2000],
-              )
-              raise RuntimeError(
-                f"Azure invoice request failed ({response.status}): {raw_error[:500]}"
-              )
-
-          invoices = payload.get("value") or []
-          total_from_api += len(invoices)
-          for invoice in invoices:
-            name = invoice.get("name")
-            if not name:
-              continue
-
-            props = invoice.get("properties") or {}
-            if total_from_api <= 5:
-              logging.info(
-                "[AzureBillingImportModule] Invoice[%d]: name=%s, invoicePeriodStartDate=%r, "
-                "invoicePeriodEndDate=%r, invoiceDate=%r, billedAmount=%r",
-                total_from_api, name,
-                props.get("invoicePeriodStartDate"),
-                props.get("invoicePeriodEndDate"),
-                props.get("invoiceDate"),
-                (props.get("billedAmount") or {}).get("value"),
-              )
-            raw_period_start = str(props.get("invoicePeriodStartDate") or "").strip()
-            invoice_month: str | None = None
-            if "T" in raw_period_start or (len(raw_period_start) >= 10 and raw_period_start[4] == "-"):
-              invoice_month = raw_period_start[:7]
-            elif "/" in raw_period_start:
-              parts = raw_period_start.split("/")
-              if len(parts) == 3:
-                invoice_month = f"{parts[2][:4]}-{int(parts[0]):02d}"
-
-            if invoice_month != period_month:
-              continue
-
-            matched_count += 1
-            invoice_period_start = self._to_iso_date(props.get("invoicePeriodStartDate"))
-            invoice_period_end = self._to_iso_date(props.get("invoicePeriodEndDate"))
-
-            existing = await self.db.run(
-              get_invoice_by_name_request(GetInvoiceByNameParams(invoice_name=str(name))),
-            )
-            if existing.rows:
-              skipped_count += 1
-              continue
-
-            purged = await self.db.run(
-              check_purged_key_request(
-                CheckPurgedKeyParams(vendors_recid=self._azure_vendor_recid, key=str(name))
-              )
-            )
-            purged_row = None
-            if purged.rows:
-              purged_row = purged.rows[0] if isinstance(purged.rows, list) else purged.rows
-            if purged_row and int(purged_row.get("found") or 0) == 1:
-              skipped_count += 1
-              continue
-
-            billed_amount = (props.get("billedAmount") or {}).get("value")
-            billed_currency = (props.get("billedAmount") or {}).get("currency")
-            normalized_amount = self._to_decimal(billed_amount) or "0"
-            raw_batch.append(
-              {
-                "element_invoice_name": name,
-                "element_invoice_date": self._to_iso_date(props.get("invoiceDate")),
-                "element_invoice_period_start": invoice_period_start,
-                "element_invoice_period_end": invoice_period_end,
-                "element_due_date": self._to_iso_date(props.get("dueDate")),
-                "element_invoice_type": props.get("invoiceType"),
-                "element_status": props.get("status"),
-                "element_billed_amount": billed_amount,
-                "element_amount_due": (props.get("amountDue") or {}).get("value"),
-                "element_currency": billed_currency,
-                "element_subscription_id": props.get("subscriptionId"),
-                "element_subscription_name": props.get("subscriptionDisplayName"),
-                "element_purchase_order": props.get("purchaseOrderNumber"),
-                "element_raw_json": json.dumps(invoice),
-              }
-            )
-            normalized_batch.append(
-              {
-                "element_date": self._to_iso_date(props.get("invoiceDate")),
-                "element_service": props.get("invoiceType"),
-                "element_category": "Invoice",
-                "element_description": f"Azure Invoice {name} — {props.get('subscriptionDisplayName') or ''}".rstrip(),
-                "element_quantity": 1,
-                "element_unit_price": billed_amount,
-                "element_amount": normalized_amount,
-                "element_currency": billed_currency,
-                "element_raw_json": json.dumps(invoice),
-                "element_record_type": "invoice",
-              }
-            )
-
-          if len(raw_batch) >= 100:
-            await self.db.run(
-              insert_invoice_batch_request(
-                InsertInvoiceBatchParams(imports_recid=import_recid, rows=raw_batch),
-              ),
-            )
-            await self.db.run(
-              insert_line_items_batch_request(
-                InsertLineItemsBatchParams(
-                  imports_recid=import_recid,
-                  vendors_recid=self._azure_vendor_recid,
-                  rows=normalized_batch,
-                ),
-              ),
-            )
-            inserted_count += len(raw_batch)
-            raw_batch = []
-            normalized_batch = []
-
-          next_url = payload.get("nextLink")
-          next_params = None
-
-      if raw_batch:
-        await self.db.run(
-          insert_invoice_batch_request(
-            InsertInvoiceBatchParams(imports_recid=import_recid, rows=raw_batch),
-          ),
-        )
-        await self.db.run(
-          insert_line_items_batch_request(
-            InsertLineItemsBatchParams(
-              imports_recid=import_recid,
-              vendors_recid=self._azure_vendor_recid,
-              rows=normalized_batch,
-            ),
-          ),
-        )
-        inserted_count += len(raw_batch)
-
-      logging.info(
-        "[AzureBillingImportModule] Invoice API returned %d total invoices, "
-        "%d matched month %s, %d inserted, %d skipped",
-        total_from_api,
-        matched_count,
-        period_month,
-        inserted_count,
-        skipped_count,
-      )
-
-      message = None
-      if matched_count == 0:
-        message = (
-          f"No Azure invoice matched billing period month {period_month}. "
-          "The invoice may not have been generated yet for that period."
-        )
-
-      await self.db.run(
-        update_import_status_request(
-          UpdateImportStatusParams(
-            recid=import_recid,
-            status=1,
-            row_count=inserted_count,
-            error=message,
-          ),
-        ),
-      )
-      return {
-        "import_recid": import_recid,
-        "status": "completed",
-        "invoice_count": inserted_count,
-        "skipped_count": skipped_count,
-        "message": message,
-      }
-    except Exception as exc:
-      logging.exception("[AzureBillingImportModule] Invoice import failed")
-      if import_recid and self.db:
-        try:
-          await self.db.run(
-            update_import_status_request(
-              UpdateImportStatusParams(
-                recid=import_recid,
-                status=2,
-                row_count=inserted_count,
-                error=str(exc),
-              ),
-            ),
-          )
-        except Exception:
-          logging.exception("[AzureBillingImportModule] Failed to update invoice import failure status")
       raise

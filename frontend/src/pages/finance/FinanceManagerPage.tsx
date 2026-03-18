@@ -187,9 +187,7 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
-	const [invoiceMonth, setInvoiceMonth] = useState("");
 	const [importing, setImporting] = useState(false);
-	const [importingInvoices, setImportingInvoices] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
@@ -566,49 +564,7 @@ const FinanceManagerPage = (): JSX.Element => {
 						</Stack>
 					</Paper>
 
-					<Paper sx={{ p: 2 }}>
-						<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-							<TextField
-								label="Invoice Month (YYYY-MM)"
-								placeholder="2025-04"
-								value={invoiceMonth}
-								onChange={(e) => setInvoiceMonth(e.target.value)}
-							/>
-							<Button
-								variant="outlined"
-								disabled={importingInvoices}
-								onClick={async () => {
-									setImportingInvoices(true);
-									setBillingMessage(null);
-									try {
-										const monthValue = invoiceMonth.trim();
-										if (!/^\d{4}-\d{2}$/.test(monthValue)) {
-											throw new Error("Invoice month must be in YYYY-MM format.");
-										}
-										const [, monthPart] = monthValue.split("-");
-										const month = Number(monthPart);
-										if (!Number.isInteger(month) || month < 1 || month > 12) {
-											throw new Error("Invoice month must be a valid YYYY-MM value.");
-										}
-										const res = await rpcCall<{ import_recid: number; status: string; invoice_count: number; skipped_count: number; message?: string | null }>("urn:finance:staging:import_invoices:1", {
-											period_month: monthValue,
-										});
-										setBillingMessage({
-											severity: res.invoice_count === 0 ? "info" : "success",
-											text: res.message || `Imported ${res.invoice_count} invoice${res.invoice_count === 1 ? "" : "s"}${res.skipped_count ? ` (${res.skipped_count} skipped)` : ""}.`,
-										});
-										await loadImports();
-									} catch (e: any) {
-										setBillingMessage({ severity: "error", text: e?.message || "Invoice import failed." });
-									} finally {
-										setImportingInvoices(false);
-									}
-								}}
-							>
-								{importingInvoices ? "Importing Invoices..." : "Import Invoices"}
-							</Button>
-						</Stack>
-					</Paper>
+
 
 					{billingMessage && <Alert severity={billingMessage.severity}>{billingMessage.text}</Alert>}
 
