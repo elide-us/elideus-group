@@ -4,14 +4,12 @@ import {
 	Box,
 	Button,
 	Chip,
-	CircularProgress,
 	Dialog,
 	DialogActions,
 	DialogContent,
 	DialogContentText,
 	DialogTitle,
 	Divider,
-	LinearProgress,
 	MenuItem,
 	Paper,
 	Stack,
@@ -73,24 +71,6 @@ type StagingLineItem = {
 	element_currency: string | null;
 };
 
-type AsyncTask = {
-	guid: string;
-	status: number;
-	handler_name: string | null;
-	current_step: string | null;
-	step_index: number | null;
-	step_count: number | null;
-	result: Record<string, any> | null;
-	error: string | null;
-};
-
-type FinanceLedger = {
-	recid: number;
-	element_name: string;
-};
-
-type AsyncTaskEvent = Record<string, any>;
-
 type PeriodStatus = {
 	period_guid: string;
 	fiscal_year: number;
@@ -149,8 +129,6 @@ const IMPORT_STATUS_CONFIG: Record<number, { label: string; color: "default" | "
 	3: { label: "Promoted", color: "info" },
 };
 
-const PROMOTE_PIPELINE_STEPS = ["validate_import", "classify_costs", "create_journal", "mark_promoted"] as const;
-
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 0, label: "Asset" },
 	{ value: 1, label: "Liability" },
@@ -200,17 +178,9 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [importingInvoicesOrg, setImportingInvoicesOrg] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
-	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
-	const [detailView, setDetailView] = useState<"raw" | "line_items">("raw");
 	const [lineItems, setLineItems] = useState<StagingLineItem[]>([]);
-	const [ledgers, setLedgers] = useState<FinanceLedger[]>([]);
-	const [selectedLedgerRecid, setSelectedLedgerRecid] = useState<number | null>(null);
-	const [promotingImport, setPromotingImport] = useState<number | null>(null);
-	const [promoteTaskGuid, setPromoteTaskGuid] = useState<string | null>(null);
-	const [promoteTaskStatus, setPromoteTaskStatus] = useState<AsyncTask | null>(null);
-	const [promoteTaskEvents, setPromoteTaskEvents] = useState<AsyncTaskEvent[]>([]);
 	const [billingMessage, setBillingMessage] = useState<{ severity: "success" | "error" | "info"; text: string } | null>(null);
-	const [confirmAction, setConfirmAction] = useState<{ type: "promote" | "delete"; recid: number } | null>(null);
+	const [confirmAction, setConfirmAction] = useState<{ recid: number } | null>(null);
 
 	const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
 	const [allPeriodStatusRows, setAllPeriodStatusRows] = useState<PeriodStatus[]>([]);
@@ -254,21 +224,9 @@ const FinanceManagerPage = (): JSX.Element => {
 		setAccounts((res.accounts || []).filter((account) => Boolean(account.guid)));
 	}, []);
 
-	const loadLedgers = useCallback(async (): Promise<void> => {
-		const res = await rpcCall<{ ledgers: FinanceLedger[] }>("urn:finance:ledgers:list:1");
-		setLedgers(res.ledgers || []);
-	}, []);
-
 	const loadImports = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
 		setImports(res.imports || []);
-	}, []);
-
-	const loadImportDetails = useCallback(async (importsRecid: number): Promise<void> => {
-		const details = await rpcCall<Record<string, any>[]>("urn:finance:staging:list_details:1", {
-			imports_recid: importsRecid,
-		});
-		setImportDetails(details || []);
 	}, []);
 
 	const loadLineItems = useCallback(async (importsRecid: number): Promise<void> => {
@@ -276,11 +234,6 @@ const FinanceManagerPage = (): JSX.Element => {
 			imports_recid: importsRecid,
 		});
 		setLineItems(res.line_items || []);
-	}, []);
-
-	const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
-		const res = await rpcCall<{ events: AsyncTaskEvent[] }>("urn:system:async_tasks:list_task_events:1", { guid });
-		setPromoteTaskEvents(res.events || []);
 	}, []);
 
 	const loadPeriodStatus = useCallback(async (): Promise<void> => {
@@ -314,7 +267,7 @@ const FinanceManagerPage = (): JSX.Element => {
 
 	const loadAll = useCallback(async (): Promise<void> => {
 		try {
-			await Promise.all([loadNumbers(), loadAccounts(), loadLedgers(), loadPeriodStatus(), loadAllPeriodStatus()]);
+			await Promise.all([loadNumbers(), loadAccounts(), loadPeriodStatus(), loadAllPeriodStatus()]);
 			setForbidden(false);
 		} catch (e: any) {
 			if (e?.response?.status === 403) {
@@ -323,7 +276,7 @@ const FinanceManagerPage = (): JSX.Element => {
 			}
 			throw e;
 		}
-	}, [loadAccounts, loadAllPeriodStatus, loadLedgers, loadNumbers, loadPeriodStatus]);
+	}, [loadAccounts, loadAllPeriodStatus, loadNumbers, loadPeriodStatus]);
 
 	useEffect(() => {
 		void loadAll();
@@ -349,111 +302,13 @@ const FinanceManagerPage = (): JSX.Element => {
 		[imports, selectedImport],
 	);
 
-	const currentTaskStepName = promoteTaskStatus?.current_step || null;
-
-	const promoteJournalRecid = useMemo(() => {
-		const result = promoteTaskStatus?.result;
-		if (!result) {
-			return null;
-		}
-		return result.journal_recid ?? result.journals_recid ?? result.gl_journal_recid ?? result.journal?.recid ?? null;
-	}, [promoteTaskStatus]);
-
-
 	useEffect(() => {
 		if (selectedImport === null) {
-			setImportDetails([]);
 			setLineItems([]);
 			return;
 		}
-
-		if (detailView === "raw") {
-			void loadImportDetails(selectedImport);
-			return;
-		}
-
 		void loadLineItems(selectedImport);
-	}, [detailView, loadImportDetails, loadLineItems, selectedImport]);
-
-	useEffect(() => {
-		setDetailView("raw");
-		setSelectedLedgerRecid(null);
-		setPromotingImport(null);
-		setPromoteTaskGuid(null);
-		setPromoteTaskStatus(null);
-		setPromoteTaskEvents([]);
-		setBillingMessage(null);
-	}, [selectedImport]);
-
-	useEffect(() => {
-		if (tab !== 1) {
-			setPromotingImport(null);
-			setPromoteTaskGuid(null);
-			setPromoteTaskStatus(null);
-			setPromoteTaskEvents([]);
-			setBillingMessage(null);
-		}
-	}, [tab]);
-
-	useEffect(() => {
-		if (!promoteTaskGuid || selectedImport === null || tab !== 1) {
-			return;
-		}
-
-		let active = true;
-
-		let intervalId = 0;
-
-		const pollTask = async (): Promise<void> => {
-			try {
-				const task = await rpcCall<AsyncTask>("urn:system:async_tasks:get_task:1", { guid: promoteTaskGuid });
-				if (!active) {
-					return;
-				}
-				setPromoteTaskStatus(task);
-				await loadTaskEvents(promoteTaskGuid);
-				if (!active) {
-					return;
-				}
-				if (task.status === 4) {
-					window.clearInterval(intervalId);
-					setBillingMessage({
-						severity: "success",
-						text: task.result
-							? `Promotion completed${(task.result.journal_recid ?? task.result.journals_recid ?? task.result.gl_journal_recid ?? task.result.journal?.recid) ? ` — journal #${task.result.journal_recid ?? task.result.journals_recid ?? task.result.gl_journal_recid ?? task.result.journal?.recid}` : ""}.`
-							: "Promotion completed.",
-					});
-					await loadImports();
-					return;
-				}
-				if (task.status >= 5) {
-					window.clearInterval(intervalId);
-					setBillingMessage({
-						severity: "error",
-						text: task.error || "Promotion failed.",
-					});
-				}
-			} catch (e: any) {
-				if (!active) {
-					return;
-				}
-				setBillingMessage({
-					severity: "error",
-					text: e?.message || "Unable to monitor promotion task.",
-				});
-			}
-		};
-
-		void pollTask();
-		intervalId = window.setInterval(() => {
-			void pollTask();
-		}, 4000);
-
-		return () => {
-			active = false;
-			window.clearInterval(intervalId);
-		};
-	}, [loadImports, loadTaskEvents, promoteTaskGuid, selectedImport, tab]);
+	}, [loadLineItems, selectedImport]);
 
 	const trialTotals = useMemo(() => {
 		return trialRows.reduce(
@@ -707,159 +562,54 @@ const FinanceManagerPage = (): JSX.Element => {
 										</Typography>
 									</Box>
 									<Stack direction="row" spacing={1} flexWrap="wrap">
-										{selectedImportRow.element_status === 1 && (
-											<Button
-												variant="contained"
-												color="success"
-												onClick={() => {
-													setSelectedLedgerRecid(null);
-													setConfirmAction({ type: "promote", recid: selectedImportRow.recid });
-												}}
-											>
-												Promote Import
-											</Button>
-										)}
 										{selectedImportRow.element_status !== 3 && (
-											<Button variant="outlined" color="error" onClick={() => setConfirmAction({ type: "delete", recid: selectedImportRow.recid })}>
+											<Button variant="outlined" color="error" onClick={() => setConfirmAction({ recid: selectedImportRow.recid })}>
 												Delete Import
 											</Button>
 										)}
 									</Stack>
 								</Stack>
 
-									{promotingImport === selectedImportRow.recid && promoteTaskStatus && (
-										<Paper variant="outlined" sx={{ p: 2 }}>
-											<Stack spacing={1.5}>
-												<Stack direction="row" spacing={1} alignItems="center">
-													{promoteTaskStatus.status === 0 || promoteTaskStatus.status === 1 ? <CircularProgress size={18} /> : null}
-													<Typography variant="subtitle2">
-														Promotion Task {promoteTaskGuid ? `(${promoteTaskGuid})` : ""}
-													</Typography>
-												</Stack>
-												<Typography variant="body2">
-													Step {promoteTaskStatus.step_index || 0} of {PROMOTE_PIPELINE_STEPS.length}: {currentTaskStepName || "Waiting to start"}
-												</Typography>
-												<LinearProgress
-													variant="determinate"
-													value={Math.min(100, ((promoteTaskStatus.step_index || 0) / PROMOTE_PIPELINE_STEPS.length) * 100)}
-												/>
-												{promoteTaskStatus.status === 4 && (
-													<Alert severity="success">
-														Promotion completed{promoteJournalRecid ? ` — journal #${promoteJournalRecid}` : ""}.
-													</Alert>
-												)}
-												{promoteTaskStatus.status >= 5 && promoteTaskStatus.error && (
-													<Alert severity="error">{promoteTaskStatus.error}</Alert>
-												)}
-												{promoteTaskEvents.length > 0 && (
-													<Box>
-														<Typography variant="subtitle2" sx={{ mb: 1 }}>Recent Task Events</Typography>
-														<Stack spacing={0.5}>
-															{promoteTaskEvents.slice(-4).reverse().map((event, index) => (
-																<Typography key={`${promoteTaskGuid || "task"}-${index}`} variant="body2" color="text.secondary">
-																	{event.event_name || event.step_name || event.message || JSON.stringify(event)}
-																</Typography>
-															))}
-														</Stack>
-													</Box>
-												)}
-											</Stack>
-										</Paper>
-									)}
-
-								<Tabs value={detailView} onChange={(_, next) => setDetailView(next)} sx={{ borderBottom: 1, borderColor: "divider" }}>
-									<Tab value="raw" label="Raw Details" />
-									<Tab value="line_items" label="Line Items" />
-								</Tabs>
-
-								{detailView === "raw" ? (
-									<Table size="small">
-										<TableHead>
-											<TableRow>
-												<TableCell>Date</TableCell>
-												<TableCell>Subscription</TableCell>
-												<TableCell>Resource Group</TableCell>
-												<TableCell>Meter Category</TableCell>
-												<TableCell>Quantity</TableCell>
-												<TableCell>Cost</TableCell>
-												<TableCell>Currency</TableCell>
+								<Table size="small">
+									<TableHead>
+										<TableRow>
+											<TableCell>Date</TableCell>
+											<TableCell>Vendor</TableCell>
+											<TableCell>Service</TableCell>
+											<TableCell>Category</TableCell>
+											<TableCell>Description</TableCell>
+											<TableCell>Quantity</TableCell>
+											<TableCell>Unit Price</TableCell>
+											<TableCell>Amount</TableCell>
+											<TableCell>Currency</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{lineItems.map((item) => (
+											<TableRow key={item.recid}>
+												<TableCell>{item.element_date || "-"}</TableCell>
+												<TableCell>{item.vendor_name || "-"}</TableCell>
+												<TableCell>{item.element_service || "-"}</TableCell>
+												<TableCell>{item.element_category || "-"}</TableCell>
+												<TableCell>{item.element_description || "-"}</TableCell>
+												<TableCell>{item.element_quantity || "-"}</TableCell>
+												<TableCell>{item.element_unit_price || "-"}</TableCell>
+												<TableCell>{item.element_amount}</TableCell>
+												<TableCell>{item.element_currency || "-"}</TableCell>
 											</TableRow>
-										</TableHead>
-										<TableBody>
-											{importDetails.slice(0, 50).map((detail, index) => (
-												<TableRow key={`${selectedImportRow.recid}-${index}`}>
-													<TableCell>{detail.element_Date}</TableCell>
-													<TableCell>{detail.element_SubscriptionName}</TableCell>
-													<TableCell>{detail.element_ResourceGroup}</TableCell>
-													<TableCell>{detail.element_MeterCategory}</TableCell>
-													<TableCell>{detail.element_Quantity}</TableCell>
-													<TableCell>{detail.element_CostInBillingCurrency}</TableCell>
-													<TableCell>{detail.element_BillingCurrency}</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								) : (
-									<Table size="small">
-										<TableHead>
-											<TableRow>
-												<TableCell>Date</TableCell>
-												<TableCell>Vendor</TableCell>
-												<TableCell>Service</TableCell>
-												<TableCell>Category</TableCell>
-												<TableCell>Description</TableCell>
-												<TableCell>Quantity</TableCell>
-												<TableCell>Unit Price</TableCell>
-												<TableCell>Amount</TableCell>
-												<TableCell>Currency</TableCell>
-											</TableRow>
-										</TableHead>
-										<TableBody>
-											{lineItems.map((item) => (
-												<TableRow key={item.recid}>
-													<TableCell>{item.element_date || "-"}</TableCell>
-													<TableCell>{item.vendor_name || "-"}</TableCell>
-													<TableCell>{item.element_service || "-"}</TableCell>
-													<TableCell>{item.element_category || "-"}</TableCell>
-													<TableCell>{item.element_description || "-"}</TableCell>
-													<TableCell>{item.element_quantity || "-"}</TableCell>
-													<TableCell>{item.element_unit_price || "-"}</TableCell>
-													<TableCell>{item.element_amount}</TableCell>
-													<TableCell>{item.element_currency || "-"}</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								)}
+										))}
+									</TableBody>
+								</Table>
 							</Stack>
 						</Paper>
 					)}
 
 					<Dialog open={confirmAction !== null} onClose={() => setConfirmAction(null)}>
-						<DialogTitle>{confirmAction?.type === "promote" ? "Promote Import" : "Delete Import"}</DialogTitle>
+						<DialogTitle>Delete Import</DialogTitle>
 						<DialogContent>
 							<DialogContentText>
-								{confirmAction?.type === "promote"
-									? `Promote import #${confirmAction?.recid}? This will create a journal entry with the classified costs in the selected ledger.`
-									: `Delete import #${confirmAction?.recid}? This will remove all staging data for this import.`}
+								Delete import #{confirmAction?.recid}? This will remove all staging data for this import.
 							</DialogContentText>
-							{confirmAction?.type === "promote" && (
-								<TextField
-									select
-									label="Target Ledger"
-									value={selectedLedgerRecid ?? ""}
-									onChange={(e) => setSelectedLedgerRecid(e.target.value ? Number(e.target.value) : null)}
-									fullWidth
-									sx={{ mt: 2 }}
-								>
-									<MenuItem value="">Select ledger</MenuItem>
-									{ledgers.map((ledger) => (
-										<MenuItem key={ledger.recid} value={ledger.recid}>
-											{ledger.element_name}
-										</MenuItem>
-									))}
-								</TextField>
-							)}
 						</DialogContent>
 						<DialogActions>
 							<Button onClick={() => setConfirmAction(null)}>Cancel</Button>
@@ -870,53 +620,26 @@ const FinanceManagerPage = (): JSX.Element => {
 									}
 									setBillingMessage(null);
 									try {
-										if (confirmAction.type === "promote") {
-											const res = await rpcCall<{ task_guid: string }>("urn:finance:staging:promote:1", {
-												imports_recid: confirmAction.recid,
-												ledgers_recid: selectedLedgerRecid,
-											});
-											setPromotingImport(confirmAction.recid);
-											setPromoteTaskGuid(res.task_guid);
-											setPromoteTaskStatus({
-												guid: res.task_guid,
-												status: 0,
-												handler_name: null,
-												current_step: null,
-												step_index: 0,
-												step_count: PROMOTE_PIPELINE_STEPS.length,
-												result: null,
-												error: null,
-											});
-											setPromoteTaskEvents([]);
-											setBillingMessage({ severity: "info", text: `Promotion started for import #${confirmAction.recid}.` });
-										} else {
-											await rpcCall("urn:finance:staging:delete_import:1", {
-												imports_recid: confirmAction.recid,
-											});
-											setSelectedImport(null);
-											setPromotingImport(null);
-											setPromoteTaskGuid(null);
-											setPromoteTaskStatus(null);
-											setPromoteTaskEvents([]);
-											setImportDetails([]);
-											setLineItems([]);
-											setBillingMessage({ severity: "success", text: `Import #${confirmAction.recid} deleted.` });
-											await loadImports();
-										}
+										await rpcCall("urn:finance:staging:delete_import:1", {
+											imports_recid: confirmAction.recid,
+										});
+										setSelectedImport(null);
+										setLineItems([]);
+										setBillingMessage({ severity: "success", text: `Import #${confirmAction.recid} deleted.` });
+										await loadImports();
 									} catch (e: any) {
 										setBillingMessage({
 											severity: "error",
-											text: e?.message || `Unable to ${confirmAction.type === "promote" ? "promote" : "delete"} import.`,
+											text: e?.message || "Delete failed.",
 										});
 									} finally {
 										setConfirmAction(null);
 									}
 								}}
-								color={confirmAction?.type === "delete" ? "error" : "success"}
+								color="error"
 								variant="contained"
-								disabled={confirmAction?.type === "promote" && selectedLedgerRecid === null}
 							>
-								{confirmAction?.type === "promote" ? "Promote" : "Delete"}
+								Delete
 							</Button>
 						</DialogActions>
 					</Dialog>
