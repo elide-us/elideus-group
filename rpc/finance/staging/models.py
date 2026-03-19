@@ -59,6 +59,7 @@ class StagingDeleteResult1(BaseModel):
 
 class StagingPromote1(BaseModel):
   imports_recid: int
+  ledgers_recid: int | None = None
 
 
 class StagingPromoteResult1(BaseModel):

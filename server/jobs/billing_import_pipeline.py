@@ -31,6 +31,7 @@ from server.modules.async_task_handlers import PipelineHandler
 
 class BillingImportPipelinePayload(BaseModel):
   imports_recid: int
+  ledgers_recid: int | None = None
 
 
 class BillingImportPipelineHandler(PipelineHandler):
@@ -67,6 +68,7 @@ class BillingImportPipelineHandler(PipelineHandler):
     return {
       "imports_recid": imports_recid,
       "import_metadata": import_row,
+      "ledgers_recid": int(payload["ledgers_recid"]) if payload.get("ledgers_recid") else None,
     }
 
   @staticmethod
@@ -160,6 +162,7 @@ class BillingImportPipelineHandler(PipelineHandler):
     imports_recid = int(context["imports_recid"])
     import_metadata = context["import_metadata"]
     classified_costs = context.get("classified_costs") or []
+    ledgers_recid = context.get("ledgers_recid")
 
     period_start_raw = str(import_metadata.get("element_period_start") or "")
     period_start = date.fromisoformat(period_start_raw[:10])
@@ -229,6 +232,7 @@ class BillingImportPipelineHandler(PipelineHandler):
       source_type=source_type,
       source_id=str(imports_recid),
       periods_guid=matching_period["guid"],
+      ledgers_recid=ledgers_recid,
       lines=lines,
       post=True,
     )
