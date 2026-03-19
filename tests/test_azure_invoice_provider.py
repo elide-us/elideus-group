@@ -75,6 +75,7 @@ def _build_provider(monkeypatch, session_factory):
   provider.db = _RecordingDb()
   provider.env = None
   provider._subscription_id = "sub-123"
+  provider._billing_account_id = None
   provider._tenant_id = None
   provider._client_id = None
   provider._client_secret = None
@@ -134,6 +135,7 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
     monkeypatch,
     lambda: _FakeClientSession(responses, get_calls),
   )
+  provider._billing_account_id = "billing-acct-123"
 
   result = asyncio.run(provider.import_invoices(period_month="2025-04"))
 
@@ -145,11 +147,11 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
     "message": "Imported 1 Azure invoice(s) for 2025-04; skipped 2.",
   }
   assert len(get_calls) == 1
-  assert get_calls[0]["url"].endswith("/billingSubscriptions/sub-123/invoices")
+  assert get_calls[0]["url"].endswith("/billingAccounts/billing-acct-123/invoices")
   assert get_calls[0]["params"] == {
     "api-version": "2024-04-01",
-    "periodStartDate": "04-01-2025",
-    "periodEndDate": "04-30-2025",
+    "periodStartDate": "2025-04-01",
+    "periodEndDate": "2025-04-30",
   }
 
   invoice_insert = next(
@@ -183,6 +185,7 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
 
 def test_import_invoices_rejects_invalid_period_month(monkeypatch):
   provider = _build_provider(monkeypatch, lambda: _FakeClientSession([], []))
+  provider._billing_account_id = "billing-acct-123"
 
   with pytest.raises(ValueError, match="period_month must be in YYYY-MM format"):
     asyncio.run(provider.import_invoices(period_month="2025/04"))
