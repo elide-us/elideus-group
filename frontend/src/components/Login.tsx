@@ -15,88 +15,126 @@ interface LoginProps {
 }
 
 const Login = ({ open }: LoginProps): JSX.Element => {
-		const { userData, clearUserData } = useContext(UserContext);
-		const [notification, setNotification] = useState({
+	const { userData, clearUserData } = useContext(UserContext);
+	const [notification, setNotification] = useState({
 		open: false,
 		severity: 'info' as 'info' | 'success' | 'warning' | 'error',
-		message: ''
+		message: '',
 	});
-	const handleNotificationClose = (): void => {
-		setNotification(prev => ({ ...prev, open: false }));
-	};
 	const navigate = useNavigate();
-		const handleLoginNavigation = (): void => {
-				navigate('/loginpage');
-		};
-		const handleLogout = async (): Promise<void> => {
-				try {
-						switch (userData?.provider) {
-								case 'microsoft':
-										await pca.initialize();
-										await pca.logoutPopup();
-										break;
-								case 'google': {
-										const oauth2 = (window as any)?.google?.accounts?.oauth2;
-										if (oauth2?.revoke) {
-												await new Promise(resolve => oauth2.revoke(userData?.sessionToken, () => resolve(null)));
-										} else if (oauth2?.disableAutoSelect) {
-												oauth2.disableAutoSelect();
-										}
-										break;
-								}
-								default:
-										// Other providers can be handled here in the future
-										break;
-						}
 
-						if (userData?.sessionToken) {
-								const logoutRes = await fetchLogoutDevice({ token: userData.sessionToken });
-								const invalidateRes = await fetchInvalidateToken();
-								if (!logoutRes?.ok || !invalidateRes?.ok) {
-										throw new Error('Failed to revoke session');
-								}
-						}
+	const handleNotificationClose = (): void => {
+		setNotification((prev) => ({ ...prev, open: false }));
+	};
 
-						clearUserData();
-						setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
-				} catch (error: any) {
-						setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
+	const handleLoginNavigation = (): void => {
+		navigate('/loginpage');
+	};
+
+	const handleLogout = async (): Promise<void> => {
+		try {
+			switch (userData?.provider) {
+				case 'microsoft':
+					await pca.initialize();
+					await pca.logoutPopup();
+					break;
+				case 'google': {
+					const oauth2 = (window as any)?.google?.accounts?.oauth2;
+					if (oauth2?.revoke) {
+						await new Promise((resolve) => oauth2.revoke(userData?.sessionToken, () => resolve(null)));
+					} else if (oauth2?.disableAutoSelect) {
+						oauth2.disableAutoSelect();
+					}
+					break;
 				}
-		};
+				default:
+					break;
+			}
+
+			if (userData?.sessionToken) {
+				const logoutRes = await fetchLogoutDevice({ token: userData.sessionToken });
+				const invalidateRes = await fetchInvalidateToken();
+				if (!logoutRes?.ok || !invalidateRes?.ok) {
+					throw new Error('Failed to revoke session');
+				}
+			}
+
+			clearUserData();
+			setNotification({ open: true, severity: 'info', message: 'Logged out successfully.' });
+		} catch (error: any) {
+			setNotification({ open: true, severity: 'error', message: `Logout failed: ${error.message}` });
+		}
+	};
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+		<Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
 			{userData ? (
-				<Tooltip title='Logout'>
-										<IconButton onClick={handleLogout}>
-												<img src={userData?.profile_image ? `data:image/png;base64,${userData.profile_image}` : ''} alt='user avatar' style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #000' }} />
-										</IconButton>
+				<Tooltip title="Logout">
+					<IconButton onClick={handleLogout} sx={{ width: 32, height: 32, color: '#FFFFFF' }}>
+						<img
+							src={userData?.profile_image ? `data:image/png;base64,${userData.profile_image}` : ''}
+							alt="user avatar"
+							style={{
+								width: '22px',
+								height: '22px',
+								borderRadius: '50%',
+								border: '1.5px solid #4CAF50',
+								display: 'block',
+							}}
+						/>
+					</IconButton>
 				</Tooltip>
 			) : (
-				<Tooltip title='Login'>
-					<IconButton onClick={handleLoginNavigation}>
-						<LoginIcon />
+				<Tooltip title="Login">
+					<IconButton onClick={handleLoginNavigation} sx={{ width: 32, height: 32, color: '#FFFFFF' }}>
+						<LoginIcon sx={{ fontSize: 18 }} />
 					</IconButton>
 				</Tooltip>
 			)}
 
-			{open && (
+			{open ? (
 				<ListItemText
-					primary={ userData ? (
-												<Box>
-														<Typography component={RouterLink} to='/userpage' variant='body1' sx={{fontWeight: 'bold', color: 'gray', textDecoration: 'none' }}>
-																{userData?.display_name ?? ''}
-														</Typography>
-														<Typography component='span' variant='body2' sx={{ display: 'block', fontSize: '0.9em', color: 'gray' }}>
-																{userData ? new Intl.NumberFormat(navigator.language).format(userData.credits) : ''}
-														</Typography>
-												</Box>
-										) : (
-												'Login'
-										)}
-					 sx={{ marginLeft: '8px' }}
+					primary={
+						userData ? (
+							<Box sx={{ minWidth: 0 }}>
+								<Typography
+									component={RouterLink}
+									to="/userpage"
+									sx={{
+										display: 'block',
+										fontSize: '0.75rem',
+										lineHeight: 1.2,
+										color: '#888888',
+										textDecoration: 'none',
+										whiteSpace: 'nowrap',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+									}}
+								>
+									{userData.display_name ?? ''}
+								</Typography>
+								<Typography
+									component="span"
+									sx={{
+										display: 'block',
+										fontSize: '0.65rem',
+										lineHeight: 1.2,
+										color: '#555555',
+										whiteSpace: 'nowrap',
+										overflow: 'hidden',
+										textOverflow: 'ellipsis',
+									}}
+								>
+									{new Intl.NumberFormat(navigator.language).format(userData.credits)}
+								</Typography>
+							</Box>
+						) : (
+							<Typography sx={{ fontSize: '0.75rem', color: '#888888' }}>Login</Typography>
+						)
+					}
+					sx={{ ml: 1, minWidth: 0 }}
 				/>
-			)}
+			) : null}
 
 			<Notification
 				open={notification.open}

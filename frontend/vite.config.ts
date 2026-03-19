@@ -1,22 +1,25 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-	const isProduction = mode === "production";
+	const isProduction = mode === 'production';
 
 	return {
 		plugins: [react()],
-		base: isProduction ? "/static/" : "/",
+		base: isProduction ? '/static/' : '/',
 		build: {
-			outDir: "../static",
-			assetsDir: "assets",
+			outDir: '../static',
+			assetsDir: 'assets',
 			rollupOptions: {
 				output: {
 					manualChunks(id) {
-						if (id.includes("node_modules")) {
-							return "vendor";
+						if (id.includes('node_modules')) {
+							return 'vendor';
 						}
-						const match = id.match(/src\/pages\/(system|service|admin)\//);
+						if (id.includes('src/shared/theme/')) {
+							return 'theme';
+						}
+						const match = id.match(/src\/pages\/(system|service|admin|finance)\//);
 						if (match) {
 							return match[1];
 						}
@@ -26,8 +29,8 @@ export default defineConfig(({ mode }) => {
 		},
 		test: {
 			coverage: {
-				reporter: ["text", "json", "html"],
-				exclude: ["src/rpc/**", "src/shared/RpcModels.tsx"],
+				reporter: ['text', 'json', 'html'],
+				exclude: ['src/rpc/**', 'src/shared/RpcModels.tsx'],
 			},
 		},
 	};
