@@ -43,6 +43,7 @@ class AzureInvoiceProvider(BillingImportProvider):
     self._client_id: str | None = None
     self._client_secret: str | None = None
     self._subscription_id: str | None = None
+    self._billing_account_id: str | None = None
     self._credential: ClientSecretCredential | None = None
     self._credential_tenant_id: str | None = None
     self._credential_client_id: str | None = None
@@ -58,6 +59,7 @@ class AzureInvoiceProvider(BillingImportProvider):
     self._client_id = await self._load_config("AzureBillingClientId")
     self._tenant_id = await self._load_config("AzureBillingTenantId")
     self._subscription_id = await self._load_config("AzureBillingSubscriptionId")
+    self._billing_account_id = await self._load_config("AzureBillingAccountId")
     try:
       self._client_secret = self.env.get("AZURE_BILLING_CLIENT_SECRET") if self.env else None
     except Exception:
@@ -69,6 +71,8 @@ class AzureInvoiceProvider(BillingImportProvider):
       logging.warning("[AzureInvoiceProvider] Missing config value for key: AzureBillingTenantId")
     if not self._subscription_id:
       logging.warning("[AzureInvoiceProvider] Missing config value for key: AzureBillingSubscriptionId")
+    if not self._billing_account_id:
+      logging.warning("[AzureInvoiceProvider] Missing config value for key: AzureBillingAccountId")
     if not self._client_secret:
       logging.warning("[AzureInvoiceProvider] Missing env value for key: AZURE_BILLING_CLIENT_SECRET")
 
@@ -83,6 +87,7 @@ class AzureInvoiceProvider(BillingImportProvider):
     self._client_id = None
     self._client_secret = None
     self._subscription_id = None
+    self._billing_account_id = None
     self._azure_vendor_recid = None
     self.db = None
     self.env = None
@@ -272,6 +277,8 @@ class AzureInvoiceProvider(BillingImportProvider):
       raise RuntimeError("AzureInvoiceProvider requires database module")
     if not self._subscription_id:
       raise ValueError("Azure billing subscription not configured")
+    if not self._billing_account_id:
+      raise ValueError("Azure billing account ID not configured (set AzureBillingAccountId in system_config)")
 
     import_recid: int | None = None
     invoice_count = 0
@@ -309,17 +316,12 @@ class AzureInvoiceProvider(BillingImportProvider):
 
       invoices_list_url = (
         "https://management.azure.com/providers/Microsoft.Billing/"
-        "billingAccounts/default/billingSubscriptions/"
-        f"{self._subscription_id}/invoices"
+        f"billingAccounts/{self._billing_account_id}/invoices"
       )
       invoices_list_params = {
         "api-version": "2024-04-01",
-        "periodStartDate": f"{parsed_month.month:02d}-01-{parsed_month.year}",
-        "periodEndDate": (
-          f"{parsed_month.month:02d}-"
-          f"{monthrange(parsed_month.year, parsed_month.month)[1]:02d}-"
-          f"{parsed_month.year}"
-        ),
+        "periodStartDate": period_start,
+        "periodEndDate": period_end,
       }
 
       invoice_rows: list[dict[str, Any]] = []
@@ -391,7 +393,10 @@ class AzureInvoiceProvider(BillingImportProvider):
           line_item_rows.append(self._build_line_item(invoice_name, properties, invoice))
 
         if not discovered_invoice_names:
-          message = f"No Azure invoices found from invoices list API for billing month {period_month}."
+          message = (
+            f"No Azure invoices found for billing account "
+            f"{self._billing_account_id} in period {period_month}."
+          )
           logging.info(
             "[AzureInvoiceProvider] Summary invoices_found=0 inserted=0 skipped=0",
           )
