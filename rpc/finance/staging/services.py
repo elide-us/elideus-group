@@ -55,7 +55,11 @@ async def finance_staging_import_invoices_v1(request: Request):
   payload = StagingImportInvoices1(**(rpc_request.payload or {}))
   module = request.app.state.billing_import
   await module.on_ready()
-  result = await module.run_import("azure_invoices", period_month=payload.period_month)
+  result = await module.run_import(
+    "azure_invoices",
+    period_month=payload.period_month,
+    billing_account=payload.billing_account,
+  )
   response_payload = StagingImportInvoicesResult1(**result)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
