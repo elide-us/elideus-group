@@ -100,7 +100,10 @@ async def finance_staging_promote_v1(request: Request):
   await module.on_ready()
   task = await module.submit_task(
     handler_name="finance.billing.import_pipeline",
-    payload={"imports_recid": payload.imports_recid},
+    payload={
+      "imports_recid": payload.imports_recid,
+      "ledgers_recid": payload.ledgers_recid,
+    },
     source_type="rpc",
     source_id=str(payload.imports_recid),
     created_by=auth_ctx.user_guid,
