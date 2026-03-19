@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 import json
 import logging
@@ -157,8 +158,8 @@ class AzureInvoiceProvider(BillingImportProvider):
     if not cleaned:
       return None
     try:
-      return str(float(cleaned))
-    except ValueError:
+      return format(Decimal(cleaned), "f")
+    except (InvalidOperation, ValueError):
       return None
 
   @staticmethod
@@ -168,7 +169,13 @@ class AzureInvoiceProvider(BillingImportProvider):
     raw = str(value).strip()
     if not raw:
       return None
-    return raw[:10]
+    if len(raw) >= 10 and raw[4] == "-":
+      return raw[:10]
+    try:
+      parsed = datetime.strptime(raw[:10], "%m/%d/%Y")
+      return parsed.strftime("%Y-%m-%d")
+    except ValueError:
+      return raw[:10]
 
   @staticmethod
   def _extract_invoice_name(invoice_id: str) -> str:

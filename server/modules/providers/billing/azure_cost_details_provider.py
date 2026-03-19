@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 import io
 import json
@@ -174,8 +175,8 @@ class AzureCostDetailsProvider(BillingImportProvider):
     if not cleaned:
       return None
     try:
-      return str(float(cleaned))
-    except ValueError:
+      return format(Decimal(cleaned), "f")
+    except (InvalidOperation, ValueError):
       return None
 
   @staticmethod
@@ -185,7 +186,13 @@ class AzureCostDetailsProvider(BillingImportProvider):
     raw = str(value).strip()
     if not raw:
       return None
-    return raw[:10]
+    if len(raw) >= 10 and raw[4] == "-":
+      return raw[:10]
+    try:
+      parsed = datetime.strptime(raw[:10], "%m/%d/%Y")
+      return parsed.strftime("%Y-%m-%d")
+    except ValueError:
+      return raw[:10]
 
   async def import_cost_details(
     self,

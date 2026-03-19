@@ -161,8 +161,8 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
   )
   invoice_row = invoice_insert.payload["rows"][0]
   assert invoice_row["element_invoice_name"] == "INV-NEW"
-  assert invoice_row["element_billed_amount"] == "0.0"
-  assert invoice_row["element_amount_due"] == "0.0"
+  assert invoice_row["element_billed_amount"] == "0"
+  assert invoice_row["element_amount_due"] == "0"
   assert invoice_row["element_currency"] == "USD"
   assert invoice_row["element_purchase_order"] == "PO-42"
 
@@ -172,8 +172,8 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
     if request.op == "db:finance:staging_line_items:insert_line_items_batch:1"
   )
   line_item_row = line_item_insert.payload["rows"][0]
-  assert line_item_row["element_amount"] == "0.0"
-  assert line_item_row["element_unit_price"] == "0.0"
+  assert line_item_row["element_amount"] == "0"
+  assert line_item_row["element_unit_price"] == "0"
   assert line_item_row["element_record_type"] == "invoice"
   assert line_item_row["element_description"] == "Azure invoice INV-NEW (PO-42)"
 
@@ -189,3 +189,15 @@ def test_import_invoices_rejects_invalid_period_month(monkeypatch):
 
   with pytest.raises(ValueError, match="period_month must be in YYYY-MM format"):
     asyncio.run(provider.import_invoices(period_month="2025/04"))
+
+
+def test_invoice_decimal_and_date_helpers_preserve_precision_and_iso_dates():
+  assert AzureInvoiceProvider._to_decimal("0.000033") == "0.000033"
+  assert AzureInvoiceProvider._to_decimal("3.3e-05") == "0.000033"
+  assert AzureInvoiceProvider._to_decimal("0.0006") == "0.0006"
+  assert AzureInvoiceProvider._to_decimal("  ") is None
+  assert AzureInvoiceProvider._to_decimal("not-a-number") is None
+
+  assert AzureInvoiceProvider._to_iso_date("02/04/2026") == "2026-02-04"
+  assert AzureInvoiceProvider._to_iso_date("2026-02-04T12:34:56Z") == "2026-02-04"
+  assert AzureInvoiceProvider._to_iso_date("2026-02-04") == "2026-02-04"

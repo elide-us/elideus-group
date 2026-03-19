@@ -235,7 +235,19 @@ def test_import_cost_details_normalizes_camel_case_csv_headers(monkeypatch):
   assert row["element_service"] == "Microsoft.Sql"
   assert row["element_category"] == "Databases"
   assert row["element_description"] == "SQL Database"
-  assert row["element_quantity"] == "2.0"
+  assert row["element_quantity"] == "2"
   assert row["element_unit_price"] == "3.5"
   assert row["element_amount"] == "7.0"
   assert row["element_currency"] == "USD"
+
+
+def test_cost_details_decimal_and_date_helpers_preserve_precision_and_iso_dates():
+  assert AzureCostDetailsProvider._to_decimal("0.000033") == "0.000033"
+  assert AzureCostDetailsProvider._to_decimal("3.3e-05") == "0.000033"
+  assert AzureCostDetailsProvider._to_decimal("0.0006") == "0.0006"
+  assert AzureCostDetailsProvider._to_decimal("  ") is None
+  assert AzureCostDetailsProvider._to_decimal("not-a-number") is None
+
+  assert AzureCostDetailsProvider._to_iso_date("02/04/2026") == "2026-02-04"
+  assert AzureCostDetailsProvider._to_iso_date("2026-02-04T12:34:56Z") == "2026-02-04"
+  assert AzureCostDetailsProvider._to_iso_date("2026-02-04") == "2026-02-04"
