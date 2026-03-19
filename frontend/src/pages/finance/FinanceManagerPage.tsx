@@ -194,8 +194,10 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [importStartDate, setImportStartDate] = useState("");
 	const [importEndDate, setImportEndDate] = useState("");
 	const [invoiceMonth, setInvoiceMonth] = useState("");
+	const [invoiceMonthOrg, setInvoiceMonthOrg] = useState("");
 	const [importing, setImporting] = useState(false);
 	const [importingInvoices, setImportingInvoices] = useState(false);
+	const [importingInvoicesOrg, setImportingInvoicesOrg] = useState(false);
 	const [imports, setImports] = useState<StagingImport[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [importDetails, setImportDetails] = useState<Record<string, any>[]>([]);
@@ -576,7 +578,7 @@ const FinanceManagerPage = (): JSX.Element => {
 							</Stack>
 							<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
 								<TextField
-									label="Invoice Month (YYYY-MM)"
+									label="PAYG Invoice Month (YYYY-MM)"
 									value={invoiceMonth}
 									onChange={(e) => setInvoiceMonth(e.target.value)}
 								/>
@@ -592,17 +594,49 @@ const FinanceManagerPage = (): JSX.Element => {
 											});
 											setBillingMessage({
 												severity: "success",
-												text: res.message || "Invoice import completed successfully.",
+												text: res.message || "PAYG invoice import completed successfully.",
 											});
 											await loadImports();
 										} catch (e: any) {
-											setBillingMessage({ severity: "error", text: e?.message || "Invoice import failed." });
+											setBillingMessage({ severity: "error", text: e?.message || "PAYG invoice import failed." });
 										} finally {
 											setImportingInvoices(false);
 										}
 									}}
 								>
-									{importingInvoices ? "Importing..." : "Import Invoices"}
+									{importingInvoices ? "Importing..." : "Import PAYG Invoices"}
+								</Button>
+							</Stack>
+							<Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+								<TextField
+									label="Org Invoice Month (YYYY-MM)"
+									value={invoiceMonthOrg}
+									onChange={(e) => setInvoiceMonthOrg(e.target.value)}
+								/>
+								<Button
+									variant="contained"
+									disabled={importingInvoicesOrg}
+									onClick={async () => {
+										setImportingInvoicesOrg(true);
+										setBillingMessage(null);
+										try {
+											const res = await rpcCall<{ message?: string }>("urn:finance:staging:import_invoices:1", {
+												period_month: invoiceMonthOrg,
+												billing_account: "org",
+											});
+											setBillingMessage({
+												severity: "success",
+												text: res.message || "Org invoice import completed successfully.",
+											});
+											await loadImports();
+										} catch (e: any) {
+											setBillingMessage({ severity: "error", text: e?.message || "Org invoice import failed." });
+										} finally {
+											setImportingInvoicesOrg(false);
+										}
+									}}
+								>
+									{importingInvoicesOrg ? "Importing..." : "Import Org Invoices"}
 								</Button>
 							</Stack>
 						</Stack>

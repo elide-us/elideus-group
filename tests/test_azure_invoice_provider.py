@@ -76,6 +76,7 @@ def _build_provider(monkeypatch, session_factory):
   provider.env = None
   provider._subscription_id = "sub-123"
   provider._billing_account_id = None
+  provider._billing_account_id_org = None
   provider._tenant_id = None
   provider._client_id = None
   provider._client_secret = None
@@ -189,6 +190,60 @@ def test_import_invoices_rejects_invalid_period_month(monkeypatch):
 
   with pytest.raises(ValueError, match="period_month must be in YYYY-MM format"):
     asyncio.run(provider.import_invoices(period_month="2025/04"))
+
+
+def test_import_invoices_org_billing_account(monkeypatch):
+  get_calls = []
+  invoices_list_payload = {
+    "value": [
+      {
+        "name": "INV-ORG-1",
+        "properties": {
+          "invoiceDate": "2025-04-30T00:00:00Z",
+          "invoicePeriodStartDate": "2025-04-01",
+          "invoicePeriodEndDate": "2025-04-30",
+          "dueDate": "2025-05-15",
+          "invoiceType": "AzureServices",
+          "status": "Due",
+          "billedAmount": {"amount": 8, "currency": "USD"},
+          "amountDue": {"amount": 8, "currency": "USD"},
+          "subscriptionId": "sub-123",
+          "subscriptionName": "Elideus Group",
+        },
+      },
+    ],
+  }
+  responses = [
+    _FakeResponse(200, text_data=json.dumps(invoices_list_payload)),
+  ]
+
+  provider = _build_provider(
+    monkeypatch,
+    lambda: _FakeClientSession(responses, get_calls),
+  )
+  provider._billing_account_id = "billing-acct-123"
+  provider._billing_account_id_org = "org-billing-acct-456"
+
+  result = asyncio.run(provider.import_invoices(period_month="2025-04", billing_account="org"))
+
+  assert result == {
+    "import_recid": 88,
+    "status": "completed",
+    "invoice_count": 1,
+    "skipped_count": 0,
+    "message": "Imported 1 Azure invoice(s) for 2025-04; skipped 0.",
+  }
+  assert len(get_calls) == 1
+  assert get_calls[0]["url"].endswith("/billingAccounts/org-billing-acct-456/invoices")
+
+
+def test_import_invoices_org_missing_config_raises(monkeypatch):
+  provider = _build_provider(monkeypatch, lambda: _FakeClientSession([], []))
+  provider._billing_account_id = "billing-acct-123"
+  provider._billing_account_id_org = None
+
+  with pytest.raises(ValueError, match="AzureBillingAccountIdOrg"):
+    asyncio.run(provider.import_invoices(period_month="2025-04", billing_account="org"))
 
 
 def test_invoice_decimal_and_date_helpers_preserve_precision_and_iso_dates():

@@ -15,6 +15,7 @@ class StagingImportResult1(BaseModel):
 
 class StagingImportInvoices1(BaseModel):
   period_month: str
+  billing_account: str | None = None
 
 
 class StagingImportInvoicesResult1(BaseModel):
