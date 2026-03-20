@@ -211,6 +211,15 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:service:routes:delete_route:1` | Delete a route definition.           |
 
+### `renewals`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:renewals:list:1` | List renewal records with optional category and status filters. |
+| `urn:service:renewals:get:1` | Get a renewal record by `recid`. |
+| `urn:service:renewals:upsert:1` | Create or update a renewal record. |
+| `urn:service:renewals:delete:1` | Delete a renewal record by `recid`. |
+
 ### `reflection` (planned)
 
 Schema introspection operations for LLM agents and tooling. Currently served
