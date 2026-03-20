@@ -369,6 +369,7 @@ const UserPage = (): JSX.Element => {
                     {linked ? (
                       <Button
                         variant="outlined"
+                        color={providers.length === 1 ? "error" : undefined}
                         onClick={() => handleUnlink(p.name)}
                       >
                         {providers.length === 1 ? "Delete" : "Unlink"}

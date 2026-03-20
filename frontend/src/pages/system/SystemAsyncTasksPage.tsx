@@ -198,7 +198,7 @@ const SystemAsyncTasksPage = (): JSX.Element => {
 										<Stack direction="row" spacing={1} justifyContent="flex-end">
 											<Button size="small" onClick={() => setSelectedTask(task)}>Details</Button>
 											{ACTIVE_STATUSES.has(task.status) && (
-												<Button size="small" color="warning" onClick={() => void runAction(task.guid, 'cancel')}>Cancel</Button>
+												<Button size="small" color="error" onClick={() => void runAction(task.guid, 'cancel')}>Cancel</Button>
 											)}
 											{task.status === 5 && (
 												<Button size="small" color="error" onClick={() => void runAction(task.guid, 'retry')}>Retry</Button>
