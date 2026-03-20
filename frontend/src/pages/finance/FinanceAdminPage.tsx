@@ -218,12 +218,12 @@ const getLedgerStatusLabel = (status: number): string => {
     return LEDGER_STATUS_OPTIONS.find((option) => option.value === status)?.label || `Status ${status}`;
 };
 
-const getStatusChipColor = (status: number): "success" | "warning" | "error" | "default" => {
+const getStatusChipColor = (status: number): "success" | "error" | "default" => {
     if (status === 1) {
         return "success";
     }
     if (status === 2) {
-        return "warning";
+        return "error";
     }
     if (status === 3) {
         return "error";
@@ -616,7 +616,6 @@ const FinanceAdminPage = (): JSX.Element => {
                                     <TableCell>{ledger.element_description || "—"}</TableCell>
                                     <TableCell>
                                         <Chip
-                                            size="small"
                                             color={ledger.element_status === 1 ? "success" : "default"}
                                             label={getLedgerStatusLabel(ledger.element_status)}
                                         />
@@ -689,9 +688,9 @@ const FinanceAdminPage = (): JSX.Element => {
                                 <Paper key={year} sx={{ p: 2, minWidth: 220 }}>
                                     <Typography variant="subtitle1">FY {year}</Typography>
                                     <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                                        <Chip size="small" color="success" label={`${summary.open} Open`} />
-                                        <Chip size="small" color="warning" label={`${summary.closed} Closed`} />
-                                        <Chip size="small" color="error" label={`${summary.locked} Locked`} />
+                                        <Chip color="success" label={`${summary.open} Open`} />
+                                        <Chip color="error" label={`${summary.closed} Closed`} />
+                                        <Chip color="error" label={`${summary.locked} Locked`} />
                                     </Stack>
                                 </Paper>
                             );
@@ -732,7 +731,7 @@ const FinanceAdminPage = (): JSX.Element => {
                                                         <Stack direction="row" spacing={1} alignItems="center">
                                                             <Typography variant="body2">{period.period_name}</Typography>
                                                             {period.is_leap_adjustment && (
-                                                                <Chip size="small" color="info" label="53-week adj." />
+                                                                <Chip color="info" label="53-week adj." />
                                                             )}
                                                         </Stack>
                                                     </TableCell>
@@ -744,7 +743,6 @@ const FinanceAdminPage = (): JSX.Element => {
                                                     <TableCell>
                                                         <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
                                                             <Chip
-                                                                size="small"
                                                                 color={getStatusChipColor(period.status)}
                                                                 label={getPeriodStatusLabel(period.status)}
                                                             />
@@ -1031,7 +1029,6 @@ const FinanceAdminPage = (): JSX.Element => {
                                     <TableCell>{item.element_description || ""}</TableCell>
                                     <TableCell>
                                         <Chip
-                                            size="small"
                                             color={item.element_status === 1 ? "success" : "default"}
                                             label={item.element_status === 1 ? "Active" : "Disabled"}
                                         />

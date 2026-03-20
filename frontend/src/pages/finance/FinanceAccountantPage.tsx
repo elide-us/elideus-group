@@ -559,7 +559,6 @@ const FinanceAccountantPage = (): JSX.Element => {
 										<Chip
 											label={row.journal_status === 1 ? "Posted" : row.journal_status === 2 ? "Reversed" : "Unposted"}
 											color={row.journal_status === 1 ? "success" : row.journal_status === 2 ? "error" : "warning"}
-											size="small"
 										/>
 									</TableCell>
 									<TableCell>{row.line_count}</TableCell>
@@ -652,7 +651,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 									<TableCell>{Number(row.unit_price || 0).toFixed(2)}</TableCell>
 									<TableCell>{Number(row.total_paid || 0).toFixed(2)}</TableCell>
 									<TableCell>
-										<Chip label={row.expired ? "Expired" : "Active"} color={row.expired ? "error" : "success"} size="small" />
+										<Chip label={row.expired ? "Expired" : "Active"} color={row.expired ? "error" : "success"} />
 									</TableCell>
 									<TableCell>{row.event_count}</TableCell>
 									<TableCell>{Number(row.total_consumed || 0).toFixed(2)}</TableCell>
@@ -719,7 +718,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 									<TableCell>{row.start_date}</TableCell>
 									<TableCell>{row.end_date}</TableCell>
 									<TableCell>
-										<Chip label={row.close_type === 0 ? "Open" : "Closed"} color={row.close_type === 0 ? "success" : "error"} size="small" />
+										<Chip label={row.close_type === 0 ? "Open" : "Closed"} color={row.close_type === 0 ? "success" : "error"} />
 									</TableCell>
 									<TableCell>{row.total_journals}</TableCell>
 									<TableCell>{row.unposted_count}</TableCell>
@@ -788,7 +787,6 @@ const FinanceAccountantPage = (): JSX.Element => {
 														? "info"
 													: "default"
 											}
-											size="small"
 										/></TableCell>
 									<TableCell>{row.element_error ? `${String(row.element_error).slice(0, 80)}${String(row.element_error).length > 80 ? "..." : ""}` : ""}</TableCell>
 									<TableCell>{String(row.element_created_on || "")}</TableCell>
@@ -958,7 +956,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 									<TableCell>{mapping.account_number} - {mapping.account_name}</TableCell>
 									<TableCell>{mapping.element_priority}</TableCell>
 									<TableCell>
-										<Chip label={Number(mapping.element_status) === 1 ? "Active" : "Disabled"} color={Number(mapping.element_status) === 1 ? "success" : "default"} size="small" />
+										<Chip label={Number(mapping.element_status) === 1 ? "Active" : "Disabled"} color={Number(mapping.element_status) === 1 ? "success" : "default"} />
 									</TableCell>
 									<TableCell>
 										<Stack direction="row" spacing={1}>

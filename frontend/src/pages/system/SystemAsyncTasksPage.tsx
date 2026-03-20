@@ -43,13 +43,13 @@ const STATUS_LABELS: Record<number, string> = {
 };
 
 const STATUS_COLORS: Record<number, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
-	0: 'default',
+	0: 'info',
 	1: 'warning',
 	2: 'info',
 	3: 'info',
 	4: 'success',
 	5: 'error',
-	6: 'default',
+	6: 'error',
 	7: 'error',
 };
 
@@ -185,10 +185,10 @@ const SystemAsyncTasksPage = (): JSX.Element => {
 								>
 									<TableCell>{task.handler_name}</TableCell>
 									<TableCell>
-										<Chip size="small" label={task.handler_type || '-'} />
+										<Chip label={task.handler_type || '-'} />
 									</TableCell>
 									<TableCell>
-										<Chip size="small" label={STATUS_LABELS[task.status] || String(task.status)} color={STATUS_COLORS[task.status] || 'default'} />
+										<Chip label={STATUS_LABELS[task.status] || String(task.status)} color={STATUS_COLORS[task.status] || 'default'} />
 									</TableCell>
 									<TableCell>{task.handler_type === 'pipeline' ? (task.current_step || '') : ''}</TableCell>
 									<TableCell>{String(task.source_type || '')}</TableCell>

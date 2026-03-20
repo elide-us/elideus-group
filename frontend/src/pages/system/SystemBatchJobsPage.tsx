@@ -77,7 +77,7 @@ const STATUS_COLORS: Record<number, 'default' | 'success' | 'error' | 'warning' 
 	2: 'success',
 	3: 'error',
 	4: 'default',
-	5: 'info',
+	5: 'success',
 	6: 'warning',
 };
 
@@ -259,7 +259,6 @@ const SystemBatchJobsPage = (): JSX.Element => {
 										</TableCell>
 										<TableCell>
 											<Chip
-												size="small"
 												label={STATUS_LABELS[job.status] || `Status ${job.status}`}
 												color={STATUS_COLORS[job.status] || 'default'}
 											/>
@@ -522,7 +521,6 @@ const SystemBatchJobsPage = (): JSX.Element => {
 										<TableCell>{row.ended_on || '-'}</TableCell>
 										<TableCell>
 											<Chip
-												size="small"
 												label={HISTORY_STATUS[row.status] || `Status ${row.status}`}
 												color={STATUS_COLORS[row.status] || 'default'}
 											/>
