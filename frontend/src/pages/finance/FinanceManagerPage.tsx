@@ -137,16 +137,16 @@ const ACCOUNT_TYPES: { value: number; label: string }[] = [
 	{ value: 4, label: "Expense" },
 ];
 
-const PERIOD_TYPE_CONFIG: Record<number, { label: string; color: "default" | "info" | "warning" }> = {
+const PERIOD_TYPE_CONFIG: Record<number, { label: string; color: "default" | "info" }> = {
 	0: { label: "Standard", color: "default" },
-	1: { label: "Quarter Close", color: "warning" },
+	1: { label: "Quarter Close", color: "info" },
 	2: { label: "Year Close", color: "info" },
 };
 
-const PERIOD_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" }> = {
+const PERIOD_STATUS_CONFIG: Record<number, { label: string; color: "success" | "error" }> = {
 	1: { label: "Open", color: "success" },
 	2: { label: "Closed", color: "error" },
-	3: { label: "Locked", color: "default" },
+	3: { label: "Locked", color: "error" },
 };
 
 const getPeriodDisplayLabel = (row: { fiscal_year: number; period_name: string }): string => {
@@ -538,7 +538,6 @@ const FinanceManagerPage = (): JSX.Element => {
 											<Chip
 												label={statusConfig?.label || row.element_status}
 												color={statusConfig?.color || "default"}
-												size="small"
 											/>
 										</TableCell>
 										<TableCell>{row.element_error ? `${row.element_error.slice(0, 80)}${row.element_error.length > 80 ? "..." : ""}` : ""}</TableCell>
@@ -686,14 +685,12 @@ const FinanceManagerPage = (): JSX.Element => {
 										<Chip
 											label={PERIOD_TYPE_CONFIG[row.close_type]?.label || "Unknown"}
 											color={PERIOD_TYPE_CONFIG[row.close_type]?.color || "default"}
-											size="small"
 										/>
 									</TableCell>
 									<TableCell>
 										<Chip
 											label={PERIOD_STATUS_CONFIG[row.period_status]?.label || "Unknown"}
 											color={PERIOD_STATUS_CONFIG[row.period_status]?.color || "default"}
-											size="small"
 										/>
 									</TableCell>
 									<TableCell>{row.has_closing_week ? "Yes" : "No"}</TableCell>
@@ -702,7 +699,6 @@ const FinanceManagerPage = (): JSX.Element => {
 										<Chip
 											label={row.unposted_journals}
 											color={row.unposted_journals > 0 ? "warning" : "default"}
-											size="small"
 										/>
 									</TableCell>
 									<TableCell>{row.posted_journals}</TableCell>
@@ -858,7 +854,6 @@ const FinanceManagerPage = (): JSX.Element => {
 										<Chip
 											label={row.journal_status === 1 ? "Posted" : row.journal_status === 2 ? "Reversed" : "Unposted"}
 											color={row.journal_status === 1 ? "success" : row.journal_status === 2 ? "error" : "warning"}
-											size="small"
 										/>
 									</TableCell>
 									<TableCell>{row.line_count}</TableCell>
