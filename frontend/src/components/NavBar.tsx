@@ -97,9 +97,9 @@ const NavBar = (): JSX.Element => {
 			<Box
 				sx={{
 					display: 'flex',
-					justifyContent: open ? 'flex-end' : 'center',
+					justifyContent: 'flex-start',
 					alignItems: 'center',
-					px: 1,
+					pl: 1,
 					py: 1,
 				}}
 			>
