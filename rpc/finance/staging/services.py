@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from queryregistry.finance.staging import (
   approve_import_request,
@@ -107,8 +107,6 @@ async def finance_staging_delete_import_v1(request: Request):
 
 async def finance_staging_approve_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  if "ROLE_FINANCE_APPR" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Accounting manager approval role required")
   payload = StagingApprove1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.on_ready()
@@ -126,8 +124,6 @@ async def finance_staging_approve_v1(request: Request):
 
 async def finance_staging_reject_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  if "ROLE_FINANCE_APPR" not in auth_ctx.roles:
-    raise HTTPException(status_code=403, detail="Accounting manager approval role required")
   payload = StagingReject1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.on_ready()
