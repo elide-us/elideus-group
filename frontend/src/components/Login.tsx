@@ -102,7 +102,7 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 									to="/userpage"
 									sx={{
 										display: 'block',
-										fontSize: '0.75rem',
+										fontSize: '0.7rem',
 										lineHeight: 1.2,
 										color: '#888888',
 										textDecoration: 'none',
@@ -132,7 +132,7 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 							<Typography sx={{ fontSize: '0.75rem', color: '#888888' }}>Login</Typography>
 						)
 					}
-					sx={{ ml: 1, minWidth: 0 }}
+					sx={{ ml: '6px', minWidth: 0 }}
 				/>
 			) : null}
 

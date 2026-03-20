@@ -35,6 +35,30 @@ const ElideusTheme: Theme = createTheme({
 				},
 			},
 		},
+		MuiTabs: {
+			styleOverrides: {
+				root: {
+					minHeight: 36,
+				},
+				indicator: {
+					backgroundColor: '#4CAF50',
+				},
+			},
+		},
+		MuiTab: {
+			styleOverrides: {
+				root: {
+					textTransform: 'none',
+					fontSize: '0.8rem',
+					minHeight: 36,
+					padding: '6px 12px',
+					color: '#888888',
+					'&.Mui-selected': {
+						color: '#4CAF50',
+					},
+				},
+			},
+		},
 		MuiTypography: {
 			variants: [
 				{
