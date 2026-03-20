@@ -60,6 +60,13 @@ type RenewalForm = {
     element_status: number;
 };
 
+type PaymentFormState = {
+    amount: string;
+    description: string;
+    period_start: string;
+    period_end: string;
+};
+
 const EMPTY_FORM: RenewalForm = {
     recid: null,
     element_name: '',
@@ -136,6 +143,26 @@ const formatCost = (item: RenewalItem): string => {
     return `${item.element_renewal_cost} ${item.element_currency || ''}`.trim();
 };
 
+const EMPTY_PAYMENT_FORM: PaymentFormState = {
+    amount: '',
+    description: '',
+    period_start: '',
+    period_end: '',
+};
+
+const formatDateInput = (value: Date): string => value.toISOString().slice(0, 10);
+
+const getCurrentMonthBounds = (): Pick<PaymentFormState, 'period_start' | 'period_end'> => {
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+
+    return {
+        period_start: formatDateInput(start),
+        period_end: formatDateInput(end),
+    };
+};
+
 const ServiceRenewalsPage = (): JSX.Element => {
     const [renewals, setRenewals] = useState<RenewalItem[]>([]);
     const [categoryFilter, setCategoryFilter] = useState<string>('');
@@ -146,6 +173,11 @@ const ServiceRenewalsPage = (): JSX.Element => {
     const [forbidden, setForbidden] = useState(false);
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('Saved');
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentForm, setPaymentForm] = useState<PaymentFormState>(EMPTY_PAYMENT_FORM);
+    const [paymentStandalone, setPaymentStandalone] = useState(false);
+    const [paymentVendor, setPaymentVendor] = useState('');
+    const [paymentService, setPaymentService] = useState('');
 
     const loadRenewals = useCallback(async (): Promise<void> => {
         try {
@@ -209,6 +241,38 @@ const ServiceRenewalsPage = (): JSX.Element => {
         setForm(EMPTY_FORM);
     };
 
+    const openPaymentDialog = (standalone: boolean): void => {
+        const monthBounds = getCurrentMonthBounds();
+        setPaymentStandalone(standalone);
+
+        if (standalone) {
+            setPaymentVendor('');
+            setPaymentService('');
+            setPaymentForm({
+                ...EMPTY_PAYMENT_FORM,
+                ...monthBounds,
+            });
+        } else {
+            setPaymentVendor(form.element_vendor);
+            setPaymentService(form.element_name);
+            setPaymentForm({
+                amount: form.element_renewal_cost,
+                description: form.element_name ? `${form.element_name} renewal` : '',
+                ...monthBounds,
+            });
+        }
+
+        setPaymentDialogOpen(true);
+    };
+
+    const closePaymentDialog = (): void => {
+        setPaymentDialogOpen(false);
+        setPaymentStandalone(false);
+        setPaymentVendor('');
+        setPaymentService('');
+        setPaymentForm(EMPTY_PAYMENT_FORM);
+    };
+
     const handleSave = async (): Promise<void> => {
         await rpcCall<RenewalForm>('urn:service:renewals:upsert:1', {
             ...form,
@@ -244,6 +308,22 @@ const ServiceRenewalsPage = (): JSX.Element => {
         await loadRenewals();
         showNotification('Renewal deleted');
         resetSelection();
+    };
+
+    const handlePaymentSubmit = async (): Promise<void> => {
+        await rpcCall('urn:service:payment_requests:create:1', {
+            vendor_name: paymentStandalone ? paymentVendor || null : form.element_vendor || null,
+            amount: paymentForm.amount,
+            currency: form.element_currency || 'USD',
+            description: paymentForm.description,
+            service: paymentStandalone ? paymentService || null : form.element_name || null,
+            category: paymentStandalone ? null : form.element_category || null,
+            period_start: paymentForm.period_start,
+            period_end: paymentForm.period_end,
+            renewal_recid: paymentStandalone ? null : form.recid,
+        });
+        showNotification('Payment request created');
+        closePaymentDialog();
     };
 
     if (forbidden) {
@@ -286,6 +366,9 @@ const ServiceRenewalsPage = (): JSX.Element => {
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <Button variant="outlined" onClick={() => void loadRenewals()}>
                                 Refresh
+                            </Button>
+                            <Button variant="outlined" onClick={() => openPaymentDialog(true)}>
+                                Request Payment
                             </Button>
                             <Button variant="contained" onClick={handleCreate}>
                                 Create
@@ -476,6 +559,11 @@ const ServiceRenewalsPage = (): JSX.Element => {
                             />
 
                             <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                {!creating && form.recid !== null && (
+                                    <Button variant="outlined" color="warning" onClick={() => openPaymentDialog(false)}>
+                                        Request Payment
+                                    </Button>
+                                )}
                                 <Button
                                     variant="contained"
                                     onClick={() => void handleSave()}
@@ -508,6 +596,73 @@ const ServiceRenewalsPage = (): JSX.Element => {
                     <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
                     <Button color="error" variant="contained" onClick={() => void handleDeleteConfirm()}>
                         Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={paymentDialogOpen} onClose={closePaymentDialog} maxWidth="sm" fullWidth>
+                <DialogTitle>{paymentStandalone ? 'Request Payment' : 'Request Renewal Payment'}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            label="Vendor Name"
+                            value={paymentVendor}
+                            onChange={(event) => setPaymentVendor(event.target.value)}
+                            required
+                            fullWidth
+                            InputProps={{ readOnly: !paymentStandalone }}
+                        />
+                        <TextField
+                            label="Service Name"
+                            value={paymentService}
+                            onChange={(event) => setPaymentService(event.target.value)}
+                            fullWidth
+                            InputProps={{ readOnly: !paymentStandalone }}
+                        />
+                        <TextField
+                            label="Amount"
+                            value={paymentForm.amount}
+                            onChange={(event) => setPaymentForm((previous) => ({ ...previous, amount: event.target.value }))}
+                            required
+                            fullWidth
+                        />
+                        <TextField
+                            label="Description"
+                            value={paymentForm.description}
+                            onChange={(event) => setPaymentForm((previous) => ({ ...previous, description: event.target.value }))}
+                            required
+                            fullWidth
+                        />
+                        <TextField
+                            label="Period Start"
+                            value={paymentForm.period_start}
+                            onChange={(event) => setPaymentForm((previous) => ({ ...previous, period_start: event.target.value }))}
+                            placeholder="YYYY-MM-DD"
+                            fullWidth
+                        />
+                        <TextField
+                            label="Period End"
+                            value={paymentForm.period_end}
+                            onChange={(event) => setPaymentForm((previous) => ({ ...previous, period_end: event.target.value }))}
+                            placeholder="YYYY-MM-DD"
+                            fullWidth
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closePaymentDialog}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => void handlePaymentSubmit()}
+                        disabled={
+                            !paymentVendor.trim() ||
+                            !paymentForm.amount.trim() ||
+                            !paymentForm.description.trim() ||
+                            !paymentForm.period_start.trim() ||
+                            !paymentForm.period_end.trim()
+                        }
+                    >
+                        Submit Request
                     </Button>
                 </DialogActions>
             </Dialog>

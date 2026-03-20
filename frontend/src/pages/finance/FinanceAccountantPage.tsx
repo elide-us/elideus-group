@@ -51,7 +51,7 @@ import {
 	PeriodStatusList1,
 	FinanceStagingAccountMapItem1,
 	FinanceStagingAccountMapList1,
-		StagingImportItem1,
+	StagingImportItem1,
 	StagingImportList1,
 	StagingPromoteResult1,
 } from "../../shared/RpcModels";
@@ -124,6 +124,12 @@ type FinanceLedger = {
 	element_name: string;
 };
 
+type StagingImportRow = StagingImportItem1 & {
+	element_requested_by: string | null;
+	element_approved_by: string | null;
+	element_approved_on: string | null;
+};
+
 type AsyncTask = {
 	guid: string;
 	status: number;
@@ -160,6 +166,15 @@ const EMPTY_MAPPING_FORM: MappingFormState = {
 };
 
 const PROMOTE_PIPELINE_STEPS = ["validate_import", "classify_costs", "create_journal", "mark_promoted"] as const;
+
+const IMPORT_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" | "info" | "warning" }> = {
+	0: { label: "Pending", color: "warning" },
+	1: { label: "Approved", color: "success" },
+	2: { label: "Failed", color: "error" },
+	3: { label: "Promoted", color: "info" },
+	4: { label: "Pending Approval", color: "warning" },
+	5: { label: "Rejected", color: "error" },
+};
 
 const getPeriodDisplayLabel = (period: FinancePeriodsItem1): string => {
 	const periodYear = (period as any).year ?? (period as any).fiscal_year ?? (period as any).element_year;
@@ -221,7 +236,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 	const [periodStatusRows, setPeriodStatusRows] = useState<PeriodStatusRow[]>([]);
 	const [periodYearFilter, setPeriodYearFilter] = useState<number>(new Date().getFullYear());
 
-	const [imports, setImports] = useState<StagingImportItem1[]>([]);
+	const [imports, setImports] = useState<StagingImportRow[]>([]);
 	const [selectedImport, setSelectedImport] = useState<number | null>(null);
 	const [normalizedLineItems, setNormalizedLineItems] = useState<StagingLineItem[]>([]);
 	const [purgeLogs, setPurgeLogs] = useState<any[]>([]);
@@ -323,8 +338,8 @@ const FinanceAccountantPage = (): JSX.Element => {
 	}, [periodYearFilter]);
 
 	const loadImports = useCallback(async (): Promise<void> => {
-		const res = await rpcCall<StagingImportList1>("urn:finance:staging:list_imports:1");
-		setImports(res.imports || []);
+		const res = await rpcCall<StagingImportList1>("urn:finance:staging:list_imports:1", { status: 1 });
+		setImports((res.imports || []) as StagingImportRow[]);
 	}, []);
 
 	const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
@@ -743,6 +758,9 @@ const FinanceAccountantPage = (): JSX.Element => {
 								<TableCell>Period Start</TableCell>
 								<TableCell>Period End</TableCell>
 								<TableCell>Rows</TableCell>
+								<TableCell>Requested By</TableCell>
+								<TableCell>Approved By</TableCell>
+								<TableCell>Approved On</TableCell>
 								<TableCell>Status</TableCell>
 								<TableCell>Error</TableCell>
 								<TableCell>Created On</TableCell>
@@ -769,26 +787,15 @@ const FinanceAccountantPage = (): JSX.Element => {
 									<TableCell>{row.element_period_start}</TableCell>
 									<TableCell>{row.element_period_end}</TableCell>
 									<TableCell>{row.element_row_count}</TableCell>
-									<TableCell><Chip
-											label={
-												row.element_status === 1
-													? "Completed"
-													: row.element_status === 2
-														? "Failed"
-													: row.element_status === 3
-														? "Promoted"
-													: "Pending"
-											}
-											color={
-												row.element_status === 1
-													? "success"
-													: row.element_status === 2
-														? "error"
-													: row.element_status === 3
-														? "info"
-													: "default"
-											}
-										/></TableCell>
+									<TableCell>{row.element_requested_by || "-"}</TableCell>
+									<TableCell>{row.element_approved_by || "-"}</TableCell>
+									<TableCell>{row.element_approved_on || "-"}</TableCell>
+									<TableCell>
+										<Chip
+											label={IMPORT_STATUS_CONFIG[row.element_status]?.label || row.element_status}
+											color={IMPORT_STATUS_CONFIG[row.element_status]?.color || "default"}
+										/>
+									</TableCell>
 									<TableCell>{row.element_error ? `${String(row.element_error).slice(0, 80)}${String(row.element_error).length > 80 ? "..." : ""}` : ""}</TableCell>
 									<TableCell>{String(row.element_created_on || "")}</TableCell>
 								</TableRow>
@@ -812,6 +819,9 @@ const FinanceAccountantPage = (): JSX.Element => {
 											</Typography>
 											<Typography variant="body2" color="text.secondary">
 												{selectedRow.element_source} • {selectedRow.element_period_start} to {selectedRow.element_period_end}
+											</Typography>
+											<Typography variant="body2" color="text.secondary">
+												Requested by {selectedRow.element_requested_by || "Unknown"} • Approved by {selectedRow.element_approved_by || "Unknown"}
 											</Typography>
 										</Box>
 										{selectedRow.element_status === 1 && (
