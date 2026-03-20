@@ -11,11 +11,13 @@ from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
   "aggregate_cost_by_service_v1",
+  "approve_import_v1",
   "create_import_v1",
   "delete_import_v1",
   "insert_cost_detail_batch_v1",
   "list_cost_details_by_import_v1",
   "list_imports_v1",
+  "reject_import_v1",
   "update_import_status_v1",
 ]
 
@@ -44,6 +46,7 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status int,
       element_row_count int,
       element_error nvarchar(max),
+      element_requested_by nvarchar(128),
       element_created_on datetimeoffset,
       element_modified_on datetimeoffset
     );
@@ -57,6 +60,7 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_row_count,
       element_error,
+      element_requested_by,
       element_created_on,
       element_modified_on
     )
@@ -70,10 +74,11 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_row_count,
       inserted.element_error,
+      inserted.element_requested_by,
       inserted.element_created_on,
       inserted.element_modified_on
     INTO @inserted
-    VALUES (?, ?, ?, ?, ?, 0, 0, NULL, SYSUTCDATETIME(), SYSUTCDATETIME());
+    VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
 
     SELECT *
     FROM @inserted
@@ -85,6 +90,8 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
     args["metric"],
     args["period_start"],
     args["period_end"],
+    args.get("initial_status", 0),
+    args.get("requested_by"),
   )
   return await run_json_one(sql, params)
 
@@ -101,6 +108,35 @@ async def update_import_status_v1(args: Mapping[str, Any]) -> DBResponse:
   """
   params = (args["status"], args["row_count"], args.get("error"), args["recid"])
   return await run_exec(sql, params)
+
+
+async def approve_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+
+    UPDATE finance_staging_imports
+    SET element_status = 1,
+        element_approved_by = ?,
+        element_approved_on = SYSUTCDATETIME(),
+        element_modified_on = SYSUTCDATETIME()
+    WHERE recid = ? AND element_status = 4;
+  """
+  return await run_exec(sql, (args["approved_by"], args["imports_recid"]))
+
+
+async def reject_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+
+    UPDATE finance_staging_imports
+    SET element_status = 5,
+        element_approved_by = ?,
+        element_approved_on = SYSUTCDATETIME(),
+        element_error = ?,
+        element_modified_on = SYSUTCDATETIME()
+    WHERE recid = ? AND element_status = 4;
+  """
+  return await run_exec(sql, (args["approved_by"], args.get("reason"), args["imports_recid"]))
 
 
 async def delete_import_v1(args: Mapping[str, Any]) -> DBResponse:
@@ -144,7 +180,31 @@ async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
-  del args
+  status = args.get("status")
+  if status is not None:
+    sql = """
+      SELECT
+        recid,
+        element_source,
+        element_scope,
+        element_metric,
+        element_period_start,
+        element_period_end,
+        element_status,
+        element_row_count,
+        element_error,
+        element_requested_by,
+        element_approved_by,
+        element_approved_on,
+        element_created_on,
+        element_modified_on
+      FROM finance_staging_imports
+      WHERE element_status = ?
+      ORDER BY recid DESC
+      FOR JSON PATH, INCLUDE_NULL_VALUES;
+    """
+    return await run_json_many(sql, (status,))
+
   sql = """
     SELECT
       recid,
@@ -156,6 +216,9 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_row_count,
       element_error,
+      element_requested_by,
+      element_approved_by,
+      element_approved_on,
       element_created_on,
       element_modified_on
     FROM finance_staging_imports

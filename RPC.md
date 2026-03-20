@@ -220,6 +220,12 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:renewals:upsert:1` | Create or update a renewal record. |
 | `urn:service:renewals:delete:1` | Delete a renewal record by `recid`. |
 
+### `payment_requests`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:payment_requests:create:1` | Create an accounts payable staging payment request in Pending Approval status for manager review. |
+
 ### `reflection` (planned)
 
 Schema introspection operations for LLM agents and tooling. Currently served
@@ -374,11 +380,14 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 
 | Operation | Description |
 | --- | --- |
-| `urn:finance:staging:delete_import:1` | Delete a finance staging import batch and its staged cost detail rows. |
-| `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range. |
-| `urn:finance:staging:import_invoices:1` | Trigger an Azure invoice import for a billing month (`YYYY-MM`). |
-| `urn:finance:staging:list_imports:1` | List finance staging import batches. |
+| `urn:finance:staging:delete_import:1` | Delete a finance staging import batch and its staged child rows. |
+| `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range; successful imports now land in Pending Approval status. |
+| `urn:finance:staging:import_invoices:1` | Trigger an Azure invoice import for a billing month (`YYYY-MM`); successful imports now land in Pending Approval status. |
+| `urn:finance:staging:list_imports:1` | List finance staging import batches, optionally filtered by `status`. |
 | `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |
+| `urn:finance:staging:list_line_items:1` | List generalized staging line items for a staging import batch. |
+| `urn:finance:staging:approve:1` | Approve a Pending Approval staging import to Completed; requires `ROLE_FINANCE_APPR`. |
+| `urn:finance:staging:reject:1` | Reject a Pending Approval staging import and record an optional reason; requires `ROLE_FINANCE_APPR`. |
 | `urn:finance:staging:promote:1` | Submit async promotion of a completed staging import into a posted journal and return task guid. |
 
 ### `staging_account_map`

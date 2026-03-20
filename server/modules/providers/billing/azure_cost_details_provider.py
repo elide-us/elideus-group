@@ -382,7 +382,7 @@ class AzureCostDetailsProvider(BillingImportProvider):
         update_import_status_request(
           UpdateImportStatusParams(
             recid=import_recid,
-            status=1,
+            status=4,
             row_count=total_rows,
             error=None,
           ),

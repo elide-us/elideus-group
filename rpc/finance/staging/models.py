@@ -26,6 +26,10 @@ class StagingImportInvoicesResult1(BaseModel):
   message: str | None = None
 
 
+class StagingListImports1(BaseModel):
+  status: int | None = None
+
+
 class StagingImportItem1(BaseModel):
   recid: int
   element_source: str
@@ -36,6 +40,9 @@ class StagingImportItem1(BaseModel):
   element_row_count: int
   element_status: int
   element_error: str | None = None
+  element_requested_by: str | None = None
+  element_approved_by: str | None = None
+  element_approved_on: str | None = None
   element_created_on: str | None = None
   element_modified_on: str | None = None
 
@@ -48,7 +55,6 @@ class StagingListDetails1(BaseModel):
   imports_recid: int
 
 
-
 class StagingDeleteImport1(BaseModel):
   imports_recid: int
 
@@ -58,6 +64,25 @@ class StagingDeleteResult1(BaseModel):
   deleted: bool
 
 
+class StagingApprove1(BaseModel):
+  imports_recid: int
+
+
+class StagingApproveResult1(BaseModel):
+  imports_recid: int
+  approved: bool
+
+
+class StagingReject1(BaseModel):
+  imports_recid: int
+  reason: str | None = None
+
+
+class StagingRejectResult1(BaseModel):
+  imports_recid: int
+  rejected: bool
+
+
 class StagingPromote1(BaseModel):
   imports_recid: int
   ledgers_recid: int | None = None
@@ -65,7 +90,6 @@ class StagingPromote1(BaseModel):
 
 class StagingPromoteResult1(BaseModel):
   task_guid: str
-
 
 
 class StagingLineItem1(BaseModel):

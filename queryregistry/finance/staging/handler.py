@@ -9,11 +9,13 @@ from queryregistry.models import DBRequest, DBResponse
 
 from .services import (
   aggregate_cost_by_service_v1,
+  approve_import_v1,
   create_import_v1,
   delete_import_v1,
   insert_cost_detail_batch_v1,
   list_cost_details_by_import_v1,
   list_imports_v1,
+  reject_import_v1,
   update_import_status_v1,
 )
 
@@ -23,6 +25,8 @@ DISPATCHERS = {
   ("create_import", "1"): create_import_v1,
   ("delete_import", "1"): delete_import_v1,
   ("update_import_status", "1"): update_import_status_v1,
+  ("approve_import", "1"): approve_import_v1,
+  ("reject_import", "1"): reject_import_v1,
   ("insert_cost_detail_batch", "1"): insert_cost_detail_batch_v1,
   ("list_imports", "1"): list_imports_v1,
   ("list_cost_details_by_import", "1"): list_cost_details_by_import_v1,
