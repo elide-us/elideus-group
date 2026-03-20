@@ -570,6 +570,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 										{row.journal_status === 0 && (
 											<Button
 												size="small"
+												variant="contained"
 												onClick={async () => {
 													if (!window.confirm("Post this journal?")) {
 														return;

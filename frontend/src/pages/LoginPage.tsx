@@ -129,7 +129,7 @@ const LoginPage = (): JSX.Element => {
 
 	return (
 		<Container component='main' maxWidth='xs'>
-			<Paper elevation={3} sx={{ marginTop: 8, padding: 4 }}>
+			<Paper elevation={0} sx={{ marginTop: 8, padding: 4, border: '1px solid #1A1A1A', borderRadius: '8px' }}>
 				<Typography component='h1' variant='h5' align='center'>
 					Sign in
 				</Typography>
