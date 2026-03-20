@@ -8,11 +8,13 @@ from pydantic import BaseModel, ConfigDict
 
 __all__ = [
   "AggregateCostByServiceParams",
+  "ApproveImportParams",
   "CreateImportParams",
   "DeleteImportParams",
   "InsertCostDetailBatchParams",
   "ListCostDetailsByImportParams",
   "ListImportsParams",
+  "RejectImportParams",
   "UpdateImportStatusParams",
 ]
 
@@ -23,6 +25,13 @@ class AggregateCostByServiceParams(BaseModel):
   imports_recid: int
 
 
+class ApproveImportParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  imports_recid: int
+  approved_by: str
+
+
 class CreateImportParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
@@ -31,6 +40,8 @@ class CreateImportParams(BaseModel):
   metric: str
   period_start: str
   period_end: str
+  requested_by: str | None = None
+  initial_status: int = 0
 
 
 class UpdateImportStatusParams(BaseModel):
@@ -58,8 +69,18 @@ class DeleteImportParams(BaseModel):
 class ListImportsParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
+  status: int | None = None
+
 
 class ListCostDetailsByImportParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   imports_recid: int
+
+
+class RejectImportParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  imports_recid: int
+  approved_by: str
+  reason: str | None = None

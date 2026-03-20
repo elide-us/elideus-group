@@ -421,7 +421,7 @@ class AzureInvoiceProvider(BillingImportProvider):
           )
           await self.db.run(
             update_import_status_request(
-              UpdateImportStatusParams(recid=import_recid, status=1, row_count=0, error=None),
+              UpdateImportStatusParams(recid=import_recid, status=4, row_count=0, error=None),
             ),
           )
           return {
@@ -462,7 +462,7 @@ class AzureInvoiceProvider(BillingImportProvider):
           update_import_status_request(
             UpdateImportStatusParams(
               recid=import_recid,
-              status=1,
+              status=4,
               row_count=invoice_count,
               error=None,
             ),

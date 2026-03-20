@@ -1,15 +1,19 @@
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from queryregistry.finance.staging import (
+  approve_import_request,
   delete_import_request,
   list_cost_details_by_import_request,
   list_imports_request,
+  reject_import_request,
 )
 from queryregistry.finance.staging_line_items import list_line_items_by_import_request
 from queryregistry.finance.staging.models import (
+  ApproveImportParams,
   DeleteImportParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
+  RejectImportParams,
 )
 from queryregistry.finance.staging_line_items.models import ListLineItemsByImportParams
 from rpc.helpers import unbox_request
@@ -17,6 +21,8 @@ from server.models import RPCResponse
 from server.modules.db_module import DbModule
 
 from .models import (
+  StagingApprove1,
+  StagingApproveResult1,
   StagingDeleteImport1,
   StagingDeleteResult1,
   StagingImport1,
@@ -28,8 +34,11 @@ from .models import (
   StagingLineItem1,
   StagingLineItemList1,
   StagingListDetails1,
+  StagingListImports1,
   StagingPromote1,
   StagingPromoteResult1,
+  StagingReject1,
+  StagingRejectResult1,
 )
 
 
@@ -48,8 +57,6 @@ async def finance_staging_import_v1(request: Request):
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 
-
-
 async def finance_staging_import_invoices_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = StagingImportInvoices1(**(rpc_request.payload or {}))
@@ -66,9 +73,10 @@ async def finance_staging_import_invoices_v1(request: Request):
 
 async def finance_staging_list_imports_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
+  payload = StagingListImports1(**(rpc_request.payload or {}))
   db: DbModule = request.app.state.db
   await db.on_ready()
-  result = await db.run(list_imports_request(ListImportsParams()))
+  result = await db.run(list_imports_request(ListImportsParams(status=payload.status)))
   imports = [StagingImportItem1(**row) for row in (result.rows or [])]
   response_payload = StagingImportList1(imports=imports)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
@@ -95,6 +103,45 @@ async def finance_staging_delete_import_v1(request: Request):
   await db.run(delete_import_request(DeleteImportParams(imports_recid=payload.imports_recid)))
   response_payload = StagingDeleteResult1(imports_recid=payload.imports_recid, deleted=True)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
+
+
+async def finance_staging_approve_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  if "ROLE_FINANCE_APPR" not in auth_ctx.roles:
+    raise HTTPException(status_code=403, detail="Accounting manager approval role required")
+  payload = StagingApprove1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.on_ready()
+  await db.run(
+    approve_import_request(
+      ApproveImportParams(
+        imports_recid=payload.imports_recid,
+        approved_by=auth_ctx.user_guid,
+      ),
+    ),
+  )
+  result = StagingApproveResult1(imports_recid=payload.imports_recid, approved=True)
+  return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
+
+
+async def finance_staging_reject_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  if "ROLE_FINANCE_APPR" not in auth_ctx.roles:
+    raise HTTPException(status_code=403, detail="Accounting manager approval role required")
+  payload = StagingReject1(**(rpc_request.payload or {}))
+  db: DbModule = request.app.state.db
+  await db.on_ready()
+  await db.run(
+    reject_import_request(
+      RejectImportParams(
+        imports_recid=payload.imports_recid,
+        approved_by=auth_ctx.user_guid,
+        reason=payload.reason,
+      ),
+    ),
+  )
+  result = StagingRejectResult1(imports_recid=payload.imports_recid, rejected=True)
+  return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
 
 
 async def finance_staging_promote_v1(request: Request):

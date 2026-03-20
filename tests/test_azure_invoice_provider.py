@@ -180,7 +180,7 @@ def test_import_invoices_uses_invoices_list_and_normalizes_invoice_rows(monkeypa
 
   status_update = provider.db.requests[-1]
   assert status_update.op == "db:finance:staging:update_import_status:1"
-  assert status_update.payload["status"] == 1
+  assert status_update.payload["status"] == 4
   assert status_update.payload["row_count"] == 1
 
 

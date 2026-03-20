@@ -10,21 +10,25 @@ from queryregistry.models import DBRequest, DBResponse
 from . import mssql
 from .models import (
   AggregateCostByServiceParams,
+  ApproveImportParams,
   CreateImportParams,
   DeleteImportParams,
   InsertCostDetailBatchParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
+  RejectImportParams,
   UpdateImportStatusParams,
 )
 
 __all__ = [
   "aggregate_cost_by_service_v1",
+  "approve_import_v1",
   "create_import_v1",
   "delete_import_v1",
   "insert_cost_detail_batch_v1",
   "list_cost_details_by_import_v1",
   "list_imports_v1",
+  "reject_import_v1",
   "update_import_status_v1",
 ]
 
@@ -35,6 +39,8 @@ _DELETE_IMPORT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_impo
 _UPDATE_IMPORT_STATUS_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.update_import_status_v1,
 }
+_APPROVE_IMPORT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.approve_import_v1}
+_REJECT_IMPORT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.reject_import_v1}
 _INSERT_COST_DETAIL_BATCH_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.insert_cost_detail_batch_v1,
 }
@@ -71,6 +77,18 @@ async def update_import_status_v1(request: DBRequest, *, provider: str) -> DBRes
   result = await _select_dispatcher(provider, _UPDATE_IMPORT_STATUS_DISPATCHERS)(
     params.model_dump(),
   )
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def approve_import_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ApproveImportParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _APPROVE_IMPORT_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def reject_import_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = RejectImportParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _REJECT_IMPORT_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 
