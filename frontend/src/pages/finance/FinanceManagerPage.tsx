@@ -54,6 +54,9 @@ type StagingImport = {
 	element_error: string | null;
 	element_created_on: string;
 	element_modified_on: string;
+	element_requested_by: string | null;
+	element_approved_by: string | null;
+	element_approved_on: string | null;
 };
 
 type StagingLineItem = {
@@ -124,9 +127,11 @@ type JournalSummaryRow = {
 
 const IMPORT_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" | "info" | "warning" }> = {
 	0: { label: "Pending", color: "warning" },
-	1: { label: "Completed", color: "success" },
+	1: { label: "Approved", color: "success" },
 	2: { label: "Failed", color: "error" },
 	3: { label: "Promoted", color: "info" },
+	4: { label: "Pending Approval", color: "warning" },
+	5: { label: "Rejected", color: "error" },
 };
 
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
@@ -181,6 +186,12 @@ const FinanceManagerPage = (): JSX.Element => {
 	const [lineItems, setLineItems] = useState<StagingLineItem[]>([]);
 	const [billingMessage, setBillingMessage] = useState<{ severity: "success" | "error" | "info"; text: string } | null>(null);
 	const [confirmAction, setConfirmAction] = useState<{ recid: number } | null>(null);
+	const [approvalQueue, setApprovalQueue] = useState<StagingImport[]>([]);
+	const [selectedApproval, setSelectedApproval] = useState<number | null>(null);
+	const [approvalLineItems, setApprovalLineItems] = useState<StagingLineItem[]>([]);
+	const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+	const [rejectReason, setRejectReason] = useState("");
+	const [rejectTarget, setRejectTarget] = useState<number | null>(null);
 
 	const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
 	const [allPeriodStatusRows, setAllPeriodStatusRows] = useState<PeriodStatus[]>([]);
@@ -227,6 +238,11 @@ const FinanceManagerPage = (): JSX.Element => {
 	const loadImports = useCallback(async (): Promise<void> => {
 		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
 		setImports(res.imports || []);
+	}, []);
+
+	const loadApprovalQueue = useCallback(async (): Promise<void> => {
+		const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1", { status: 4 });
+		setApprovalQueue(res.imports || []);
 	}, []);
 
 	const loadLineItems = useCallback(async (importsRecid: number): Promise<void> => {
@@ -287,19 +303,27 @@ const FinanceManagerPage = (): JSX.Element => {
 			void loadImports();
 		}
 		if (tab === 2) {
-			void loadPeriodStatus();
+			void loadApprovalQueue();
 		}
 		if (tab === 3) {
-			void loadTrialBalance();
+			void loadPeriodStatus();
 		}
 		if (tab === 4) {
+			void loadTrialBalance();
+		}
+		if (tab === 5) {
 			void loadJournalSummary();
 		}
-	}, [tab, loadImports, loadJournalSummary, loadPeriodStatus, loadTrialBalance]);
+	}, [tab, loadApprovalQueue, loadImports, loadJournalSummary, loadPeriodStatus, loadTrialBalance]);
 
 	const selectedImportRow = useMemo(
 		() => imports.find((row) => row.recid === selectedImport) ?? null,
 		[imports, selectedImport],
+	);
+
+	const selectedApprovalRow = useMemo(
+		() => approvalQueue.find((row) => row.recid === selectedApproval) ?? null,
+		[approvalQueue, selectedApproval],
 	);
 
 	useEffect(() => {
@@ -309,6 +333,19 @@ const FinanceManagerPage = (): JSX.Element => {
 		}
 		void loadLineItems(selectedImport);
 	}, [loadLineItems, selectedImport]);
+
+	useEffect(() => {
+		if (selectedApproval === null) {
+			setApprovalLineItems([]);
+			return;
+		}
+		void (async () => {
+			const res = await rpcCall<{ line_items: StagingLineItem[] }>("urn:finance:staging:list_line_items:1", {
+				imports_recid: selectedApproval,
+			});
+			setApprovalLineItems(res.line_items || []);
+		})();
+	}, [selectedApproval]);
 
 	const trialTotals = useMemo(() => {
 		return trialRows.reduce(
@@ -336,6 +373,7 @@ const FinanceManagerPage = (): JSX.Element => {
 			<Tabs value={tab} onChange={(_, next) => setTab(next)}>
 				<Tab label="Number Sequences" />
 				<Tab label="Billing Import" />
+				<Tab label="Approval Queue" />
 				<Tab label="Period Management" />
 				<Tab label="Trial Balance" />
 				<Tab label="Journal Overview" />
@@ -510,6 +548,7 @@ const FinanceManagerPage = (): JSX.Element => {
 								<TableCell>Period Start</TableCell>
 								<TableCell>Period End</TableCell>
 								<TableCell>Rows</TableCell>
+								<TableCell>Requested By</TableCell>
 								<TableCell>Status</TableCell>
 								<TableCell>Error</TableCell>
 								<TableCell>Created On</TableCell>
@@ -534,6 +573,7 @@ const FinanceManagerPage = (): JSX.Element => {
 										<TableCell>{row.element_period_start}</TableCell>
 										<TableCell>{row.element_period_end}</TableCell>
 										<TableCell>{row.element_row_count}</TableCell>
+										<TableCell>{row.element_requested_by || "-"}</TableCell>
 										<TableCell>
 											<Chip
 												label={statusConfig?.label || row.element_status}
@@ -647,6 +687,131 @@ const FinanceManagerPage = (): JSX.Element => {
 
 			{tab === 2 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
+					{billingMessage && <Alert severity={billingMessage.severity}>{billingMessage.text}</Alert>}
+
+					<Table size="small">
+						<TableHead>
+							<TableRow>
+								<TableCell>RecId</TableCell>
+								<TableCell>Source</TableCell>
+								<TableCell>Metric</TableCell>
+								<TableCell>Period Start</TableCell>
+								<TableCell>Period End</TableCell>
+								<TableCell>Rows</TableCell>
+								<TableCell>Requested By</TableCell>
+								<TableCell>Created On</TableCell>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{approvalQueue.map((row) => (
+								<TableRow
+									hover
+									key={row.recid}
+									selected={selectedApproval === row.recid}
+									sx={{ cursor: "pointer" }}
+									onClick={() => setSelectedApproval(row.recid)}
+								>
+									<TableCell>{row.recid}</TableCell>
+									<TableCell>{row.element_source}</TableCell>
+									<TableCell>{row.element_metric}</TableCell>
+									<TableCell>{row.element_period_start}</TableCell>
+									<TableCell>{row.element_period_end}</TableCell>
+									<TableCell>{row.element_row_count}</TableCell>
+									<TableCell>{row.element_requested_by || "-"}</TableCell>
+									<TableCell>{row.element_created_on}</TableCell>
+								</TableRow>
+							))}
+							{approvalQueue.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={8}>No imports are pending approval.</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+
+					{selectedApprovalRow && (
+						<Paper sx={{ p: 2 }}>
+							<Stack spacing={2}>
+								<Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
+									<Box>
+										<Typography variant="h6">
+											Approval #{selectedApprovalRow.recid} — {selectedApprovalRow.element_row_count} rows
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											{selectedApprovalRow.element_source} • {selectedApprovalRow.element_period_start} to {selectedApprovalRow.element_period_end}
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											Requested by {selectedApprovalRow.element_requested_by || "Unknown"}
+										</Typography>
+									</Box>
+									<Stack direction="row" spacing={1}>
+										<Button
+											variant="contained"
+											color="success"
+											onClick={async () => {
+												if (selectedApproval === null) {
+													return;
+												}
+												await rpcCall("urn:finance:staging:approve:1", { imports_recid: selectedApproval });
+												setBillingMessage({ severity: "success", text: `Import #${selectedApproval} approved.` });
+												await loadApprovalQueue();
+												setSelectedApproval(null);
+											}}
+										>
+											Approve
+										</Button>
+										<Button
+											variant="outlined"
+											color="error"
+											onClick={() => {
+												setRejectTarget(selectedApprovalRow.recid);
+												setRejectReason("");
+												setRejectDialogOpen(true);
+											}}
+										>
+											Reject
+										</Button>
+									</Stack>
+								</Stack>
+
+								<Table size="small">
+									<TableHead>
+										<TableRow>
+											<TableCell>Date</TableCell>
+											<TableCell>Vendor</TableCell>
+											<TableCell>Service</TableCell>
+											<TableCell>Category</TableCell>
+											<TableCell>Description</TableCell>
+											<TableCell>Quantity</TableCell>
+											<TableCell>Unit Price</TableCell>
+											<TableCell>Amount</TableCell>
+											<TableCell>Currency</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{approvalLineItems.map((item) => (
+											<TableRow key={item.recid}>
+												<TableCell>{item.element_date || "-"}</TableCell>
+												<TableCell>{item.vendor_name || "-"}</TableCell>
+												<TableCell>{item.element_service || "-"}</TableCell>
+												<TableCell>{item.element_category || "-"}</TableCell>
+												<TableCell>{item.element_description || "-"}</TableCell>
+												<TableCell>{item.element_quantity || "-"}</TableCell>
+												<TableCell>{item.element_unit_price || "-"}</TableCell>
+												<TableCell>{item.element_amount}</TableCell>
+												<TableCell>{item.element_currency || "-"}</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</Stack>
+						</Paper>
+					)}
+				</Stack>
+			)}
+
+			{tab === 3 && (
+				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
 							<TextField select label="Fiscal Year" value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))} sx={{ minWidth: 120 }}>
@@ -750,7 +915,7 @@ const FinanceManagerPage = (): JSX.Element => {
 				</Stack>
 			)}
 
-			{tab === 3 && (
+			{tab === 4 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
@@ -801,7 +966,7 @@ const FinanceManagerPage = (): JSX.Element => {
 				</Stack>
 			)}
 
-			{tab === 4 && (
+			{tab === 5 && (
 				<Stack spacing={2} sx={{ mt: 2 }}>
 					<Paper sx={{ p: 2 }}>
 						<Stack direction="row" spacing={1} flexWrap="wrap">
@@ -868,6 +1033,56 @@ const FinanceManagerPage = (): JSX.Element => {
 					</Table>
 				</Stack>
 			)}
+
+			<Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
+				<DialogTitle>Reject Import</DialogTitle>
+				<DialogContent>
+					<DialogContentText>
+						Provide an optional reason for rejecting import #{rejectTarget}.
+					</DialogContentText>
+					<TextField
+						label="Reason"
+						value={rejectReason}
+						onChange={(e) => setRejectReason(e.target.value)}
+						multiline
+						minRows={3}
+						fullWidth
+						sx={{ mt: 2 }}
+					/>
+				</DialogContent>
+				<DialogActions>
+					<Button
+						onClick={() => {
+							setRejectDialogOpen(false);
+							setRejectTarget(null);
+							setRejectReason("");
+						}}
+					>
+						Cancel
+					</Button>
+					<Button
+						color="error"
+						variant="contained"
+						onClick={async () => {
+							if (rejectTarget === null) {
+								return;
+							}
+							await rpcCall("urn:finance:staging:reject:1", {
+								imports_recid: rejectTarget,
+								reason: rejectReason || null,
+							});
+							setBillingMessage({ severity: "success", text: `Import #${rejectTarget} rejected.` });
+							await loadApprovalQueue();
+							setRejectDialogOpen(false);
+							setRejectTarget(null);
+							setRejectReason("");
+							setSelectedApproval(null);
+						}}
+					>
+						Reject
+					</Button>
+				</DialogActions>
+			</Dialog>
 		</Box>
 	);
 };
