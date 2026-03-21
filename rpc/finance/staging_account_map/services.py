@@ -1,18 +1,7 @@
-from fastapi import Request
+from fastapi import HTTPException, Request
 
-from queryregistry.finance.staging_account_map import (
-  delete_account_map_request,
-  list_account_map_request,
-  upsert_account_map_request,
-)
-from queryregistry.finance.staging_account_map.models import (
-  DeleteAccountMapParams,
-  ListAccountMapParams,
-  UpsertAccountMapParams,
-)
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
 
 from .models import (
   FinanceStagingAccountMapDelete1,
@@ -25,11 +14,11 @@ from .models import (
 
 async def finance_staging_account_map_list_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  result = await db.run(list_account_map_request(ListAccountMapParams()))
+  module = request.app.state.finance
+  await module.on_ready()
+  rows = await module.list_account_mappings()
   payload = FinanceStagingAccountMapList1(
-    mappings=[FinanceStagingAccountMapItem1(**dict(row)) for row in (result.rows or [])]
+    mappings=[FinanceStagingAccountMapItem1(**dict(row)) for row in rows]
   )
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -37,19 +26,21 @@ async def finance_staging_account_map_list_v1(request: Request):
 async def finance_staging_account_map_upsert_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = FinanceStagingAccountMapUpsert1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  result = await db.run(upsert_account_map_request(UpsertAccountMapParams(**input_payload.model_dump())))
-  row = dict(result.rows[0]) if result.rows else input_payload.model_dump()
-  payload = FinanceStagingAccountMapItem1(**row)
+  module = request.app.state.finance
+  await module.on_ready()
+  try:
+    row = await module.upsert_account_mapping(input_payload.model_dump())
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  payload = FinanceStagingAccountMapItem1(**dict(row))
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
 async def finance_staging_account_map_delete_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   input_payload = FinanceStagingAccountMapDelete1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  await db.run(delete_account_map_request(DeleteAccountMapParams(recid=input_payload.recid)))
-  payload = FinanceStagingAccountMapDeleteResult1(recid=input_payload.recid, deleted=True)
+  module = request.app.state.finance
+  await module.on_ready()
+  row = await module.delete_account_mapping(input_payload.recid)
+  payload = FinanceStagingAccountMapDeleteResult1(**row)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

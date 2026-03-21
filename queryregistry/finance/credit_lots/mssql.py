@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import CREDIT_LOT_ACTIVE
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
@@ -21,7 +22,7 @@ __all__ = [
 
 
 async def list_lots_by_user_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SELECT
       recid,
       users_guid,
@@ -43,7 +44,7 @@ async def list_lots_by_user_v1(args: Mapping[str, Any]) -> DBResponse:
     WHERE users_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
       AND element_expired = 0
       AND element_credits_remaining > 0
-      AND element_status = 1
+      AND element_status = {CREDIT_LOT_ACTIVE}
     ORDER BY recid ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
@@ -282,12 +283,12 @@ async def create_event_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def sum_remaining_by_user_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SELECT ISNULL(SUM(element_credits_remaining), 0) AS total_remaining
     FROM finance_credit_lots
     WHERE users_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
       AND element_expired = 0
-      AND element_status = 1
+      AND element_status = {CREDIT_LOT_ACTIVE}
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["users_guid"],))

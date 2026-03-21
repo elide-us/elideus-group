@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import ELEMENT_ACTIVE
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
@@ -157,7 +158,7 @@ async def delete_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def resolve_account_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SELECT TOP (1)
       map.accounts_guid,
       map.vendors_recid,
@@ -168,7 +169,7 @@ async def resolve_account_v1(args: Mapping[str, Any]) -> DBResponse:
     FROM finance_staging_account_map AS map
     INNER JOIN finance_accounts AS account
       ON account.element_guid = map.accounts_guid
-    WHERE map.element_status = 1
+    WHERE map.element_status = {ELEMENT_ACTIVE}
       AND (? IS NULL OR map.vendors_recid = ? OR map.vendors_recid IS NULL)
       AND (map.element_service_pattern = ? OR map.element_service_pattern = '*')
       AND (

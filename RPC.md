@@ -322,7 +322,7 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 ## Finance Domain
 
 Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
-`urn:finance:staging:promote:1`, all `staging_account_map` operations, all `staging_purge_log` operations, and all `vendors` operations require `ROLE_SYSTEM_ADMIN`.
+`urn:finance:staging:promote:1`, all `pipeline_config` operations, all `staging_account_map` operations, all `staging_purge_log` operations, and all `vendors` operations require `ROLE_SYSTEM_ADMIN`.
 
 ### `journals`
 
@@ -355,6 +355,15 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:numbers:delete:1` | Delete a number sequence by record id. |
 | `urn:finance:numbers:next_number:1` | Consume the next allocated number block from a sequence. |
 | `urn:finance:numbers:shift:1` | Close an active sequence and create a new active sequence for the same account. |
+
+### `pipeline_config`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:pipeline_config:list:1` | List finance pipeline configuration entries, optionally filtered by pipeline name. |
+| `urn:finance:pipeline_config:get:1` | Get a single finance pipeline configuration entry by pipeline and key. |
+| `urn:finance:pipeline_config:upsert:1` | Create or update a finance pipeline configuration entry. |
+| `urn:finance:pipeline_config:delete:1` | Delete a finance pipeline configuration entry by record id. |
 
 ### `periods`
 
@@ -403,3 +412,11 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | Operation | Description |
 | --- | --- |
 | `urn:finance:staging_purge_log:list:1` | List purge log records used to track staged import purges by vendor and period. |
+
+### `vendors`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:vendors:list:1` | List finance vendors used by billing imports and payment requests. |
+| `urn:finance:vendors:upsert:1` | Create or update a finance vendor. |
+| `urn:finance:vendors:delete:1` | Delete a finance vendor by record id. |
