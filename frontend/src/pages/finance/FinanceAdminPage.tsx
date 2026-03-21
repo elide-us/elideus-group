@@ -113,7 +113,8 @@ type PeriodStatusRow = {
     period_status: number;
     has_closing_week: boolean;
     total_journals: number;
-    unposted_journals: number;
+    draft_journals: number;
+    pending_journals: number;
     posted_journals: number;
     reversed_journals: number;
 };

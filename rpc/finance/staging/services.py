@@ -89,10 +89,10 @@ async def finance_staging_approve_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   try:
-    result = await module.approve_import(payload.imports_recid, auth_ctx.user_guid)
+    await module.approve_import(payload.imports_recid, auth_ctx.user_guid)
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  response_payload = StagingApproveResult1(**result)
+  response_payload = StagingApproveResult1(imports_recid=payload.imports_recid, approved=True)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 
@@ -102,10 +102,10 @@ async def finance_staging_reject_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   try:
-    result = await module.reject_import(payload.imports_recid, auth_ctx.user_guid, payload.reason)
+    await module.reject_import(payload.imports_recid, auth_ctx.user_guid, payload.reason)
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  response_payload = StagingRejectResult1(**result)
+  response_payload = StagingRejectResult1(imports_recid=payload.imports_recid, rejected=True)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 

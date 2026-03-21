@@ -65,7 +65,8 @@ type PeriodStatus = {
     period_status: number;
     has_closing_week: boolean;
     total_journals: number;
-    unposted_journals: number;
+    draft_journals: number;
+    pending_journals: number;
     posted_journals: number;
     reversed_journals: number;
 };
@@ -136,6 +137,13 @@ const PERIOD_STATUS_CONFIG: Record<number, { label: string; color: "success" | "
     1: { label: "Open", color: "success" },
     2: { label: "Closed", color: "error" },
     3: { label: "Locked", color: "error" },
+};
+
+const getPeriodChipColor = (row: PeriodStatus): "warning" | "success" | "error" => {
+    if (row.draft_journals > 0 || row.pending_journals > 0) {
+        return "warning";
+    }
+    return PERIOD_STATUS_CONFIG[row.period_status]?.color || "error";
 };
 
 const FinanceManagerPage = (): JSX.Element => {
@@ -577,6 +585,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                 <TableCell>Status</TableCell>
                                 <TableCell>Total</TableCell>
                                 <TableCell>Draft</TableCell>
+                                <TableCell>Pending</TableCell>
                                 <TableCell>Posted</TableCell>
                                 <TableCell>Reversed</TableCell>
                             </TableRow>
@@ -590,11 +599,12 @@ const FinanceManagerPage = (): JSX.Element => {
                                     <TableCell>
                                         <Chip
                                             label={PERIOD_STATUS_CONFIG[row.period_status]?.label || row.period_status}
-                                            color={PERIOD_STATUS_CONFIG[row.period_status]?.color || "error"}
+                                            color={getPeriodChipColor(row)}
                                         />
                                     </TableCell>
                                     <TableCell>{row.total_journals}</TableCell>
-                                    <TableCell>{row.unposted_journals}</TableCell>
+                                    <TableCell>{row.draft_journals}</TableCell>
+                                    <TableCell>{row.pending_journals}</TableCell>
                                     <TableCell>{row.posted_journals}</TableCell>
                                     <TableCell>{row.reversed_journals}</TableCell>
                                 </TableRow>
