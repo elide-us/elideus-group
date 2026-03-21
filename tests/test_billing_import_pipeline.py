@@ -37,7 +37,7 @@ def test_create_journal_uses_pipeline_config_values():
       assert number == "2200"
       return "ap-guid"
 
-    async def create_journal(self, **kwargs):
+    async def create_and_post_system_journal(self, **kwargs):
       nonlocal created_payload
       created_payload = kwargs
       return {"recid": 91}

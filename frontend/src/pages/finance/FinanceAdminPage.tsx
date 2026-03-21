@@ -37,6 +37,7 @@ import {
     Checkbox,
 } from "@mui/material";
 import PageTitle from "../../components/PageTitle";
+import { rpcCall } from "../../shared/RpcModels";
 import {
     fetchDelete as fetchDeleteAccount,
     fetchList as fetchAccounts,
@@ -147,6 +148,42 @@ type PeriodSummary = {
     open: number;
     closed: number;
     locked: number;
+};
+
+type FinanceStagingAccountMapItem = {
+    recid?: number | null;
+    vendors_recid?: number | null;
+    vendor_name?: string | null;
+    element_service_pattern: string;
+    element_meter_pattern: string | null;
+    accounts_guid: string;
+    account_number?: string | null;
+    account_name?: string | null;
+    element_priority: number;
+    element_description?: string | null;
+    element_status: number;
+};
+
+type MappingFormState = {
+    recid: number | null;
+    vendors_recid: number | null;
+    element_service_pattern: string;
+    element_meter_pattern: string;
+    accounts_guid: string;
+    element_priority: number;
+    element_description: string;
+    element_status: boolean;
+};
+
+const EMPTY_MAPPING_FORM: MappingFormState = {
+    recid: null,
+    vendors_recid: null,
+    element_service_pattern: "",
+    element_meter_pattern: "",
+    accounts_guid: "",
+    element_priority: 0,
+    element_description: "",
+    element_status: true,
 };
 
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
@@ -266,6 +303,10 @@ const FinanceAdminPage = (): JSX.Element => {
     });
 
     const [vendorList, setVendorList] = useState<FinanceVendor[]>([]);
+    const [accountMappings, setAccountMappings] = useState<FinanceStagingAccountMapItem[]>([]);
+    const [mappingVendorFilter, setMappingVendorFilter] = useState<string>("");
+    const [mappingFormOpen, setMappingFormOpen] = useState(false);
+    const [mappingForm, setMappingForm] = useState<MappingFormState>(EMPTY_MAPPING_FORM);
     const [vendorFormOpen, setVendorFormOpen] = useState(false);
     const [vendorForm, setVendorForm] = useState({
         recid: null as number | null,
@@ -305,6 +346,12 @@ const FinanceAdminPage = (): JSX.Element => {
         setVendorList((response.vendors || []) as FinanceVendor[]);
     }, []);
 
+    const loadAccountMappings = useCallback(async (): Promise<void> => {
+        const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
+        const response = await rpcCall<{ mappings: FinanceStagingAccountMapItem[] }>("urn:finance:staging_account_map:list:1", payload);
+        setAccountMappings(response.mappings || []);
+    }, [mappingVendorFilter]);
+
     const loadAll = useCallback(async (): Promise<void> => {
         try {
             setPageError(null);
@@ -335,7 +382,10 @@ const FinanceAdminPage = (): JSX.Element => {
         if (tab === 4) {
             void loadVendors();
         }
-    }, [loadVendors, tab]);
+        if (tab === 5) {
+            void Promise.all([loadVendors(), loadAccountMappings()]);
+        }
+    }, [loadAccountMappings, loadVendors, tab]);
 
     const periodYears = useMemo(() => {
         const years = new Set<number>();
@@ -532,6 +582,63 @@ const FinanceAdminPage = (): JSX.Element => {
         }
     };
 
+    const openMappingForm = (mapping?: FinanceStagingAccountMapItem): void => {
+        if (!mapping) {
+            setMappingForm(EMPTY_MAPPING_FORM);
+            setMappingFormOpen(true);
+            return;
+        }
+        setMappingForm({
+            recid: typeof mapping.recid === "number" ? mapping.recid : null,
+            vendors_recid: typeof mapping.vendors_recid === "number" ? mapping.vendors_recid : null,
+            element_service_pattern: mapping.element_service_pattern || "",
+            element_meter_pattern: String(mapping.element_meter_pattern || ""),
+            accounts_guid: mapping.accounts_guid || "",
+            element_priority: Number(mapping.element_priority || 0),
+            element_description: String(mapping.element_description || ""),
+            element_status: Number(mapping.element_status) === 1,
+        });
+        setMappingFormOpen(true);
+    };
+
+    const saveAccountMapping = async (): Promise<void> => {
+        try {
+            setPageError(null);
+            setSuccessMessage(null);
+            await rpcCall("urn:finance:staging_account_map:upsert:1", {
+                recid: mappingForm.recid,
+                vendors_recid: mappingForm.vendors_recid,
+                element_service_pattern: mappingForm.element_service_pattern,
+                element_meter_pattern: mappingForm.element_meter_pattern || null,
+                accounts_guid: mappingForm.accounts_guid,
+                element_priority: mappingForm.element_priority,
+                element_description: mappingForm.element_description || null,
+                element_status: mappingForm.element_status ? 1 : 0,
+            });
+            setMappingForm(EMPTY_MAPPING_FORM);
+            setMappingFormOpen(false);
+            setSuccessMessage("Account mapping saved.");
+            await loadAccountMappings();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        }
+    };
+
+    const deleteAccountMapping = async (recid: number | null | undefined): Promise<void> => {
+        if (!recid) {
+            return;
+        }
+        try {
+            setPageError(null);
+            setSuccessMessage(null);
+            await rpcCall("urn:finance:staging_account_map:delete:1", { recid });
+            setSuccessMessage("Account mapping deleted.");
+            await loadAccountMappings();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        }
+    };
+
     const saveVendor = async (): Promise<void> => {
         if (!vendorForm.element_name.trim()) {
             return;
@@ -581,6 +688,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 <Tab label="Chart of Accounts" />
                 <Tab label="Financial Dimensions" />
                 <Tab label="Vendors" />
+                <Tab label="Account Mappings" />
             </Tabs>
 
             {tab === 0 && (
@@ -1063,6 +1171,133 @@ const FinanceAdminPage = (): JSX.Element => {
                                             >
                                                 Delete
                                             </Button>
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </Stack>
+            )}
+
+            {tab === 5 && (
+                <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Paper sx={{ p: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap">
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <TextField
+                                    select
+                                    label="Vendor Filter"
+                                    value={mappingVendorFilter}
+                                    onChange={(event) => setMappingVendorFilter(event.target.value)}
+                                    sx={{ minWidth: 220 }}
+                                >
+                                    <MenuItem value="">All Vendors</MenuItem>
+                                    {vendorList.map((vendor) => (
+                                        <MenuItem key={vendor.recid || vendor.element_name} value={vendor.recid || ""}>
+                                            {vendor.element_name}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                                <Button variant="outlined" onClick={() => void loadAccountMappings()}>Refresh</Button>
+                            </Stack>
+                            <Button variant="contained" onClick={() => openMappingForm()}>Create Mapping</Button>
+                        </Stack>
+                    </Paper>
+
+                    <Collapse in={mappingFormOpen}>
+                        <Paper sx={{ p: 2 }}>
+                            <Stack spacing={2}>
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <TextField
+                                        select
+                                        label="Vendor"
+                                        value={mappingForm.vendors_recid ?? ""}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, vendors_recid: event.target.value === "" ? null : Number(event.target.value) }))}
+                                        sx={{ minWidth: 220 }}
+                                    >
+                                        <MenuItem value="">Any Vendor</MenuItem>
+                                        {vendorList.map((vendor) => (
+                                            <MenuItem key={vendor.recid || vendor.element_name} value={vendor.recid || ""}>
+                                                {vendor.element_name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        label="Service Pattern"
+                                        value={mappingForm.element_service_pattern}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, element_service_pattern: event.target.value }))}
+                                    />
+                                    <TextField
+                                        label="Meter Pattern"
+                                        value={mappingForm.element_meter_pattern}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, element_meter_pattern: event.target.value }))}
+                                    />
+                                    <TextField
+                                        select
+                                        label="Account"
+                                        value={mappingForm.accounts_guid}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, accounts_guid: event.target.value }))}
+                                        sx={{ minWidth: 260 }}
+                                    >
+                                        <MenuItem value="">Select account</MenuItem>
+                                        {accounts.filter((account) => account.is_posting).map((account) => (
+                                            <MenuItem key={account.guid || account.number} value={account.guid || ""}>
+                                                {account.number} — {account.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        label="Priority"
+                                        type="number"
+                                        value={mappingForm.element_priority}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, element_priority: Number(event.target.value) }))}
+                                        sx={{ width: 120 }}
+                                    />
+                                    <TextField
+                                        label="Description"
+                                        value={mappingForm.element_description}
+                                        onChange={(event) => setMappingForm((previous) => ({ ...previous, element_description: event.target.value }))}
+                                        sx={{ minWidth: 220 }}
+                                    />
+                                    <FormControlLabel
+                                        label="Active"
+                                        control={<Checkbox checked={mappingForm.element_status} onChange={(event) => setMappingForm((previous) => ({ ...previous, element_status: event.target.checked }))} />}
+                                    />
+                                </Stack>
+                                <Stack direction="row" spacing={1}>
+                                    <Button variant="contained" onClick={() => void saveAccountMapping()}>Save</Button>
+                                    <Button onClick={() => { setMappingForm(EMPTY_MAPPING_FORM); setMappingFormOpen(false); }}>Cancel</Button>
+                                </Stack>
+                            </Stack>
+                        </Paper>
+                    </Collapse>
+
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Vendor</TableCell>
+                                <TableCell>Service Pattern</TableCell>
+                                <TableCell>Meter Pattern</TableCell>
+                                <TableCell>Account</TableCell>
+                                <TableCell>Priority</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {accountMappings.map((mapping) => (
+                                <TableRow key={mapping.recid || `${mapping.accounts_guid}-${mapping.element_service_pattern}`}>
+                                    <TableCell>{mapping.vendor_name || "Any Vendor"}</TableCell>
+                                    <TableCell>{mapping.element_service_pattern}</TableCell>
+                                    <TableCell>{mapping.element_meter_pattern || "*"}</TableCell>
+                                    <TableCell>{mapping.account_number ? `${mapping.account_number} — ${mapping.account_name || mapping.accounts_guid}` : mapping.accounts_guid}</TableCell>
+                                    <TableCell>{mapping.element_priority}</TableCell>
+                                    <TableCell><Chip color={mapping.element_status === 1 ? "success" : "default"} label={mapping.element_status === 1 ? "Active" : "Disabled"} /></TableCell>
+                                    <TableCell>
+                                        <Stack direction="row" spacing={1}>
+                                            <Button size="small" onClick={() => openMappingForm(mapping)}>Edit</Button>
+                                            <Button size="small" color="error" onClick={() => void deleteAccountMapping(mapping.recid)}>Delete</Button>
                                         </Stack>
                                     </TableCell>
                                 </TableRow>

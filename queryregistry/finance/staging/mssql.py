@@ -9,8 +9,8 @@ from typing import Any
 from queryregistry.models import DBResponse
 from server.modules.models.finance_statuses import (
   IMPORT_APPROVED,
-  IMPORT_COMPLETED,
   IMPORT_PENDING,
+  IMPORT_PENDING_APPROVAL,
   IMPORT_REJECTED,
 )
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
@@ -121,11 +121,11 @@ async def approve_import_v1(args: Mapping[str, Any]) -> DBResponse:
     SET NOCOUNT ON;
 
     UPDATE finance_staging_imports
-    SET element_status = {IMPORT_COMPLETED},
+    SET element_status = {IMPORT_APPROVED},
         element_approved_by = ?,
         element_approved_on = SYSUTCDATETIME(),
         element_modified_on = SYSUTCDATETIME()
-    WHERE recid = ? AND element_status = {IMPORT_APPROVED};
+    WHERE recid = ? AND element_status = {IMPORT_PENDING_APPROVAL};
   """
   return await run_exec(sql, (args["approved_by"], args["imports_recid"]))
 
@@ -140,7 +140,7 @@ async def reject_import_v1(args: Mapping[str, Any]) -> DBResponse:
         element_approved_on = SYSUTCDATETIME(),
         element_error = ?,
         element_modified_on = SYSUTCDATETIME()
-    WHERE recid = ? AND element_status = {IMPORT_APPROVED};
+    WHERE recid = ? AND element_status = {IMPORT_PENDING_APPROVAL};
   """
   return await run_exec(sql, (args["approved_by"], args.get("reason"), args["imports_recid"]))
 

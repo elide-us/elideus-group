@@ -192,7 +192,7 @@ def test_create_journal_allows_open_month_close_period():
           "periods_guid": "period-guid",
           "ledgers_recid": None,
           "numbers_recid": None,
-          "element_status": 1,
+          "element_status": 2,
           "element_posted_by": None,
           "element_posted_on": "2026-03-18T00:00:00+00:00",
           "element_reversed_by": None,
@@ -210,7 +210,7 @@ def test_create_journal_allows_open_month_close_period():
   module.db = FakeDb()
 
   journal = asyncio.run(
-    FinanceModule.create_journal(
+    FinanceModule.create_and_post_system_journal(
       module,
       name="AZURE-IMPORT-10",
       description="desc",
@@ -222,32 +222,42 @@ def test_create_journal_allows_open_month_close_period():
         {"line_number": 1, "accounts_guid": "expense-guid", "debit": "10", "credit": "0", "dimension_recids": []},
         {"line_number": 2, "accounts_guid": "ap-guid", "debit": "0", "credit": "10", "dimension_recids": []},
       ],
-      post=True,
     )
   )
 
-  assert journal["status"] == 1
+  assert journal["status"] == 2
 
 
-def test_create_journal_blocks_non_open_period_status():
+def test_create_and_post_system_journal_blocks_non_open_period_status():
   module = FinanceModule.__new__(FinanceModule)
-  class FakeDb:
-    async def run(self, request):
-      if request.op == "db:finance:journals:get_by_posting_key:1":
-        return DBResponse(op=request.op, rows=[])
-      raise AssertionError(f"Unhandled op: {request.op}")
+  module.db = object()
 
-  module.db = FakeDb()
+  async def fake_create_journal(**kwargs):
+    return {"recid": 10}
+
+  async def fake_get_journal(recid: int):
+    assert recid == 10
+    return {"recid": 10, "status": 0, "periods_guid": "period-guid"}
 
   async def fake_get_period(guid: str):
     assert guid == "period-guid"
     return {"guid": guid, "status": 2, "close_type": 0}
 
+  async def fake_get_journal_lines(recid: int):
+    assert recid == 10
+    return [
+      {"debit": "10.00000", "credit": "0.00000"},
+      {"debit": "0.00000", "credit": "10.00000"},
+    ]
+
+  module.create_journal = fake_create_journal
+  module.get_journal = fake_get_journal
   module.get_period = fake_get_period
+  module.get_journal_lines = fake_get_journal_lines
 
   with pytest.raises(ValueError, match="Cannot post to closed period"):
     asyncio.run(
-      FinanceModule.create_journal(
+      FinanceModule.create_and_post_system_journal(
         module,
         name="AZURE-IMPORT-10",
         posting_key="pk",
@@ -256,6 +266,5 @@ def test_create_journal_blocks_non_open_period_status():
           {"line_number": 1, "accounts_guid": "expense-guid", "debit": "10", "credit": "0", "dimension_recids": []},
           {"line_number": 2, "accounts_guid": "ap-guid", "debit": "0", "credit": "10", "dimension_recids": []},
         ],
-        post=True,
       )
     )

@@ -6,16 +6,17 @@ Management of status codes is via Finance Admin UI → status codes table.
 
 # Import statuses (finance_staging_imports.element_status)
 IMPORT_PENDING = 0
-IMPORT_COMPLETED = 1
+IMPORT_APPROVED = 1
 IMPORT_FAILED = 2
 IMPORT_PROMOTED = 3
-IMPORT_APPROVED = 4
+IMPORT_PENDING_APPROVAL = 4
 IMPORT_REJECTED = 5
 
 # Journal statuses (finance_journals.element_status)
 JOURNAL_DRAFT = 0
-JOURNAL_POSTED = 1
-JOURNAL_REVERSED = 2
+JOURNAL_PENDING_APPROVAL = 1
+JOURNAL_POSTED = 2
+JOURNAL_REVERSED = 3
 
 # Period statuses (finance_periods.element_status)
 PERIOD_OPEN = 1
