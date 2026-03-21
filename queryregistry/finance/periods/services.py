@@ -15,20 +15,30 @@ from queryregistry.finance.numbers.services import upsert_v1 as upsert_number_v1
 
 from . import mssql
 from .models import (
+  ClosePeriodParams,
   DeletePeriodParams,
   GenerateCalendarParams,
   GetPeriodParams,
+  ListPeriodCloseBlockersParams,
   ListPeriodsByYearParams,
   ListPeriodsParams,
+  LockPeriodParams,
+  ReopenPeriodParams,
+  UnlockPeriodParams,
   UpsertPeriodParams,
 )
 
 __all__ = [
+  "close_v1",
   "delete_v1",
   "generate_calendar_v1",
   "get_v1",
   "list_by_year_v1",
+  "list_close_blockers_v1",
   "list_v1",
+  "lock_v1",
+  "reopen_v1",
+  "unlock_v1",
   "upsert_v1",
 ]
 
@@ -37,6 +47,11 @@ _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
 _LIST_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_v1}
 _LIST_BY_YEAR_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_by_year_v1}
 _GET_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_v1}
+_CLOSE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.close_period_v1}
+_REOPEN_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.reopen_period_v1}
+_LOCK_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.lock_period_v1}
+_UNLOCK_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.unlock_period_v1}
+_LIST_CLOSE_BLOCKERS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_close_blockers_v1}
 _UPSERT_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_v1}
 _DELETE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_v1}
 
@@ -151,6 +166,36 @@ async def list_by_year_v1(request: DBRequest, *, provider: str) -> DBResponse:
 async def get_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = GetPeriodParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _GET_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def close_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ClosePeriodParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _CLOSE_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def reopen_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ReopenPeriodParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _REOPEN_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def lock_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = LockPeriodParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _LOCK_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def unlock_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = UnlockPeriodParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _UNLOCK_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def list_close_blockers_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ListPeriodCloseBlockersParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _LIST_CLOSE_BLOCKERS_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 

@@ -374,7 +374,12 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:periods:list:1` | List fiscal periods across all fiscal years. |
 | `urn:finance:periods:list_by_year:1` | List periods for one fiscal year. |
 | `urn:finance:periods:get:1` | Get a single fiscal period by GUID. |
-| `urn:finance:periods:upsert:1` | Update fiscal period metadata, including open/closed/locked status. |
+| `urn:finance:periods:close:1` | Close an open fiscal period after all blocking items are resolved. |
+| `urn:finance:periods:reopen:1` | Reopen a closed fiscal period. |
+| `urn:finance:periods:lock:1` | Lock a closed fiscal period. |
+| `urn:finance:periods:unlock:1` | Unlock a locked fiscal period back to closed status. |
+| `urn:finance:periods:list_close_blockers:1` | List blocking journals, imports, and revenue recognition items for period close review. |
+| `urn:finance:periods:upsert:1` | Create or update fiscal period metadata. |
 | `urn:finance:periods:delete:1` | Delete a fiscal period by GUID. |
 | `urn:finance:periods:generate_calendar:1` | Generate the 4-4-5 fiscal calendar for a year, rejecting duplicate generation. |
 

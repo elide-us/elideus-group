@@ -56,6 +56,19 @@ type FinancePeriod = {
     year: number;
     period_number: number;
     period_name: string;
+    status: number;
+    closed_by?: string | null;
+    closed_on?: string | null;
+    locked_by?: string | null;
+    locked_on?: string | null;
+};
+
+type PeriodCloseBlocker = {
+    period_guid: string;
+    blocker_type: string;
+    blocker_recid: number;
+    blocker_name: string;
+    blocker_reason: string;
 };
 
 type JournalSummaryRow = {
@@ -207,6 +220,27 @@ const DEFAULT_JOURNAL_LINE = (lineNumber: number): JournalCreateLine => ({
     dimension_recids: [],
 });
 
+
+const getErrorMessage = (error: unknown): string => {
+    if (typeof error === "object" && error !== null) {
+        const response = Reflect.get(error, "response");
+        if (typeof response === "object" && response !== null) {
+            const data = Reflect.get(response, "data");
+            if (typeof data === "object" && data !== null) {
+                const detail = Reflect.get(data, "detail");
+                if (typeof detail === "string" && detail.trim()) {
+                    return detail;
+                }
+            }
+        }
+        const message = Reflect.get(error, "message");
+        if (typeof message === "string" && message.trim()) {
+            return message;
+        }
+    }
+    return "Something went wrong.";
+};
+
 const FinanceAccountantPage = (): JSX.Element => {
     const [tab, setTab] = useState(0);
     const [forbidden, setForbidden] = useState(false);
@@ -218,6 +252,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [selectedPeriodGuid, setSelectedPeriodGuid] = useState<string>("");
+    const [selectedReadinessPeriodGuid, setSelectedReadinessPeriodGuid] = useState<string>("");
+    const [closeBlockers, setCloseBlockers] = useState<PeriodCloseBlocker[]>([]);
+    const [readinessLoading, setReadinessLoading] = useState(false);
+    const [readinessError, setReadinessError] = useState<string | null>(null);
     const [journalStatus, setJournalStatus] = useState<string>("");
     const [journals, setJournals] = useState<JournalSummaryRow[]>([]);
     const [journalLines, setJournalLines] = useState<JournalLine[]>([]);
@@ -304,6 +342,16 @@ const FinanceAccountantPage = (): JSX.Element => {
         [periods, selectedYear],
     );
 
+    const openPeriodsForSelectedYear = useMemo(
+        () => periodsForSelectedYear.filter((period) => period.status === 1),
+        [periodsForSelectedYear],
+    );
+
+    const selectedReadinessPeriod = useMemo(
+        () => openPeriodsForSelectedYear.find((period) => period.guid === selectedReadinessPeriodGuid) ?? null,
+        [openPeriodsForSelectedYear, selectedReadinessPeriodGuid],
+    );
+
     const postingAccounts = useMemo(
         () => accounts.filter((account) => account.is_posting),
         [accounts],
@@ -370,6 +418,21 @@ const FinanceAccountantPage = (): JSX.Element => {
         setPromoteTaskEvents(res.events || []);
     }, []);
 
+    const loadCloseReadiness = useCallback(async (guid: string): Promise<void> => {
+        setSelectedReadinessPeriodGuid(guid);
+        setReadinessLoading(true);
+        setReadinessError(null);
+        try {
+            const res = await rpcCall<{ blockers: PeriodCloseBlocker[] }>("urn:finance:periods:list_close_blockers:1", { guid });
+            setCloseBlockers(res.blockers || []);
+        } catch (error: unknown) {
+            setCloseBlockers([]);
+            setReadinessError(getErrorMessage(error));
+        } finally {
+            setReadinessLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         void (async () => {
             try {
@@ -393,12 +456,15 @@ const FinanceAccountantPage = (): JSX.Element => {
             void loadApprovedImports();
         }
         if (tab === 2) {
-            void loadJournals();
+            setReadinessError(null);
         }
         if (tab === 3) {
-            void loadLots();
+            void loadJournals();
         }
         if (tab === 4) {
+            void loadLots();
+        }
+        if (tab === 5) {
             void loadShared();
         }
     }, [tab, loadApprovedImports, loadBillingImports, loadJournals, loadLots, loadShared]);
@@ -483,6 +549,7 @@ const FinanceAccountantPage = (): JSX.Element => {
             <Tabs value={tab} onChange={(_, next) => setTab(next)}>
                 <Tab label="Billing Import" />
                 <Tab label="Staging Review" />
+                <Tab label="Period Close" />
                 <Tab label="Journals" />
                 <Tab label="Credit Lots" />
                 <Tab label="Number Sequences" />
@@ -798,7 +865,95 @@ const FinanceAccountantPage = (): JSX.Element => {
                 </Stack>
             )}
 
-            {tab === 2 && (
+                        {tab === 2 && (
+                <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Paper sx={{ p: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <TextField
+                                select
+                                label="Fiscal Year"
+                                value={selectedYear}
+                                onChange={(event) => setSelectedYear(Number(event.target.value))}
+                                sx={{ minWidth: 120 }}
+                            >
+                                {fiscalYears.map((year) => (
+                                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                                ))}
+                            </TextField>
+                            <Button variant="outlined" onClick={() => void loadShared()}>Refresh</Button>
+                        </Stack>
+                    </Paper>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Period</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Closed</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {openPeriodsForSelectedYear.map((period) => (
+                                <TableRow key={period.guid} selected={selectedReadinessPeriodGuid === period.guid}>
+                                    <TableCell>{period.period_name}</TableCell>
+                                    <TableCell><Chip color="success" label="Open" /></TableCell>
+                                    <TableCell>{period.closed_on || "-"}</TableCell>
+                                    <TableCell>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => void loadCloseReadiness(period.guid)}
+                                        >
+                                            Check Close Readiness
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {openPeriodsForSelectedYear.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4}>No open periods for the selected fiscal year.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                    {selectedReadinessPeriod && (
+                        <Paper sx={{ p: 2 }}>
+                            <Stack spacing={2}>
+                                <Typography variant="subtitle1">
+                                    Close readiness — {selectedReadinessPeriod.period_name}
+                                </Typography>
+                                {readinessLoading && <CircularProgress size={24} />}
+                                {readinessError && <Alert severity="error">{readinessError}</Alert>}
+                                {!readinessLoading && !readinessError && closeBlockers.length === 0 && (
+                                    <Alert severity="success">Ready for close.</Alert>
+                                )}
+                                {!readinessLoading && closeBlockers.length > 0 && (
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>Type</TableCell>
+                                                <TableCell>Name</TableCell>
+                                                <TableCell>Reason</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {closeBlockers.map((blocker) => (
+                                                <TableRow key={`${blocker.blocker_type}-${blocker.blocker_recid}`}>
+                                                    <TableCell>{blocker.blocker_type}</TableCell>
+                                                    <TableCell>{blocker.blocker_name}</TableCell>
+                                                    <TableCell>{blocker.blocker_reason}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </Stack>
+                        </Paper>
+                    )}
+                </Stack>
+            )}
+
+            {tab === 3 && (
                 <Stack spacing={2} sx={{ mt: 2 }}>
                     <Paper sx={{ p: 2 }}>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -920,7 +1075,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 </Stack>
             )}
 
-            {tab === 3 && (
+            {tab === 4 && (
                 <Stack spacing={2} sx={{ mt: 2 }}>
                     <Paper sx={{ p: 2 }}>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -978,7 +1133,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 </Stack>
             )}
 
-            {tab === 4 && (
+            {tab === 5 && (
                 <Stack spacing={2} sx={{ mt: 2 }}>
                     <Paper sx={{ p: 2 }}>
                         <Stack direction="row" spacing={1} flexWrap="wrap">

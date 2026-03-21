@@ -64,11 +64,23 @@ type PeriodStatus = {
     close_type: number;
     period_status: number;
     has_closing_week: boolean;
+    closed_by: string | null;
+    closed_on: string | null;
+    locked_by: string | null;
+    locked_on: string | null;
     total_journals: number;
     draft_journals: number;
-    pending_journals: number;
+    pending_approval_journals: number;
     posted_journals: number;
     reversed_journals: number;
+};
+
+type PeriodCloseBlocker = {
+    period_guid: string;
+    blocker_type: string;
+    blocker_recid: number;
+    blocker_name: string;
+    blocker_reason: string;
 };
 
 type TrialBalanceRow = {
@@ -133,17 +145,33 @@ const JOURNAL_STATUS_CONFIG: Record<number, { label: string; color: "warning" | 
     3: { label: "Reversed", color: "error" },
 };
 
-const PERIOD_STATUS_CONFIG: Record<number, { label: string; color: "success" | "error" }> = {
-    1: { label: "Open", color: "success" },
-    2: { label: "Closed", color: "error" },
-    3: { label: "Locked", color: "error" },
+
+
+const getErrorMessage = (error: unknown): string => {
+    if (typeof error === "object" && error !== null) {
+        const response = Reflect.get(error, "response");
+        if (typeof response === "object" && response !== null) {
+            const data = Reflect.get(response, "data");
+            if (typeof data === "object" && data !== null) {
+                const detail = Reflect.get(data, "detail");
+                if (typeof detail === "string" && detail.trim()) {
+                    return detail;
+                }
+            }
+        }
+        const message = Reflect.get(error, "message");
+        if (typeof message === "string" && message.trim()) {
+            return message;
+        }
+    }
+    return "Something went wrong.";
 };
 
-const getPeriodChipColor = (row: PeriodStatus): "warning" | "success" | "error" => {
-    if (row.draft_journals > 0 || row.pending_journals > 0) {
-        return "warning";
+const formatDateTime = (value: string | null | undefined): string => {
+    if (!value) {
+        return "-";
     }
-    return PERIOD_STATUS_CONFIG[row.period_status]?.color || "error";
+    return new Date(value).toLocaleString();
 };
 
 const FinanceManagerPage = (): JSX.Element => {
@@ -159,6 +187,10 @@ const FinanceManagerPage = (): JSX.Element => {
     const [allPeriodStatusRows, setAllPeriodStatusRows] = useState<PeriodStatus[]>([]);
     const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
     const [periodStatusRows, setPeriodStatusRows] = useState<PeriodStatus[]>([]);
+    const [reviewPeriodGuid, setReviewPeriodGuid] = useState<string>("");
+    const [reviewBlockers, setReviewBlockers] = useState<PeriodCloseBlocker[]>([]);
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [reviewError, setReviewError] = useState<string | null>(null);
 
     const [trialYear, setTrialYear] = useState<number>(new Date().getFullYear());
     const [trialPeriodGuid, setTrialPeriodGuid] = useState("");
@@ -202,6 +234,21 @@ const FinanceManagerPage = (): JSX.Element => {
     const selectedPendingJournalRow = useMemo(
         () => pendingJournals.find((row) => row.recid === selectedPendingJournal) ?? null,
         [pendingJournals, selectedPendingJournal],
+    );
+
+    const openPeriods = useMemo(
+        () => periodStatusRows.filter((row) => row.period_status === 1),
+        [periodStatusRows],
+    );
+
+    const closedPeriods = useMemo(
+        () => periodStatusRows.filter((row) => row.period_status === 2),
+        [periodStatusRows],
+    );
+
+    const selectedReviewPeriod = useMemo(
+        () => openPeriods.find((row) => row.period_guid === reviewPeriodGuid) ?? null,
+        [openPeriods, reviewPeriodGuid],
     );
 
     const loadApprovalQueue = useCallback(async (): Promise<void> => {
@@ -257,6 +304,21 @@ const FinanceManagerPage = (): JSX.Element => {
     const loadPendingJournalLines = useCallback(async (recid: number): Promise<void> => {
         const res = await rpcCall<{ lines: JournalLine[] }>("urn:finance:journals:get_lines:1", { journals_recid: recid });
         setPendingJournalLines(res.lines || []);
+    }, []);
+
+    const reviewPeriodClose = useCallback(async (guid: string): Promise<void> => {
+        setReviewPeriodGuid(guid);
+        setReviewLoading(true);
+        setReviewError(null);
+        try {
+            const res = await rpcCall<{ blockers: PeriodCloseBlocker[] }>("urn:finance:periods:list_close_blockers:1", { guid });
+            setReviewBlockers(res.blockers || []);
+        } catch (error: unknown) {
+            setReviewBlockers([]);
+            setReviewError(getErrorMessage(error));
+        } finally {
+            setReviewLoading(false);
+        }
     }, []);
 
     const loadAll = useCallback(async (): Promise<void> => {
@@ -576,41 +638,140 @@ const FinanceManagerPage = (): JSX.Element => {
                             <Button variant="outlined" onClick={() => void loadPeriodStatus()}>Refresh</Button>
                         </Stack>
                     </Paper>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Period</TableCell>
-                                <TableCell>Start</TableCell>
-                                <TableCell>End</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Total</TableCell>
-                                <TableCell>Draft</TableCell>
-                                <TableCell>Pending</TableCell>
-                                <TableCell>Posted</TableCell>
-                                <TableCell>Reversed</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {periodStatusRows.map((row) => (
-                                <TableRow key={row.period_guid}>
-                                    <TableCell>{row.period_name}</TableCell>
-                                    <TableCell>{row.start_date}</TableCell>
-                                    <TableCell>{row.end_date}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={PERIOD_STATUS_CONFIG[row.period_status]?.label || row.period_status}
-                                            color={getPeriodChipColor(row)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{row.total_journals}</TableCell>
-                                    <TableCell>{row.draft_journals}</TableCell>
-                                    <TableCell>{row.pending_journals}</TableCell>
-                                    <TableCell>{row.posted_journals}</TableCell>
-                                    <TableCell>{row.reversed_journals}</TableCell>
+
+                    <Paper sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" sx={{ mb: 1 }}>Open Periods Pending Close Approval</Typography>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Period</TableCell>
+                                    <TableCell>Start</TableCell>
+                                    <TableCell>End</TableCell>
+                                    <TableCell>Draft</TableCell>
+                                    <TableCell>Pending</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHead>
+                            <TableBody>
+                                {openPeriods.map((row) => (
+                                    <TableRow key={row.period_guid} selected={reviewPeriodGuid === row.period_guid}>
+                                        <TableCell>{row.period_name}</TableCell>
+                                        <TableCell>{row.start_date}</TableCell>
+                                        <TableCell>{row.end_date}</TableCell>
+                                        <TableCell>{row.draft_journals}</TableCell>
+                                        <TableCell>{row.pending_approval_journals}</TableCell>
+                                        <TableCell>
+                                            <Button size="small" variant="outlined" onClick={() => void reviewPeriodClose(row.period_guid)}>
+                                                Review & Close
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {openPeriods.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6}>No open periods are awaiting close review.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </Paper>
+
+                    {selectedReviewPeriod && (
+                        <Paper sx={{ p: 2 }}>
+                            <Stack spacing={2}>
+                                <Typography variant="subtitle1">Close Review — {selectedReviewPeriod.period_name}</Typography>
+                                {reviewLoading && <Typography variant="body2">Loading close blockers…</Typography>}
+                                {reviewError && <Typography color="error">{reviewError}</Typography>}
+                                {!reviewLoading && !reviewError && reviewBlockers.length === 0 && (
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                        <Chip color="success" label="Ready for close" />
+                                        <Button
+                                            variant="contained"
+                                            onClick={async () => {
+                                                try {
+                                                    await rpcCall("urn:finance:periods:close:1", { guid: selectedReviewPeriod.period_guid });
+                                                    setReviewBlockers([]);
+                                                    await Promise.all([loadAllPeriodStatus(), loadPeriodStatus()]);
+                                                } catch (error: unknown) {
+                                                    setReviewError(getErrorMessage(error));
+                                                }
+                                            }}
+                                        >
+                                            Approve Close
+                                        </Button>
+                                    </Stack>
+                                )}
+                                {!reviewLoading && reviewBlockers.length > 0 && (
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>Type</TableCell>
+                                                <TableCell>Name</TableCell>
+                                                <TableCell>Reason</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {reviewBlockers.map((blocker) => (
+                                                <TableRow key={`${blocker.blocker_type}-${blocker.blocker_recid}`}>
+                                                    <TableCell>{blocker.blocker_type}</TableCell>
+                                                    <TableCell>{blocker.blocker_name}</TableCell>
+                                                    <TableCell>{blocker.blocker_reason}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </Stack>
+                        </Paper>
+                    )}
+
+                    <Paper sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" sx={{ mb: 1 }}>Closed Periods</Typography>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Period</TableCell>
+                                    <TableCell>Closed By</TableCell>
+                                    <TableCell>Closed On</TableCell>
+                                    <TableCell>Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {closedPeriods.map((row) => (
+                                    <TableRow key={row.period_guid}>
+                                        <TableCell>{row.period_name}</TableCell>
+                                        <TableCell>{row.closed_by || "-"}</TableCell>
+                                        <TableCell>{formatDateTime(row.closed_on)}</TableCell>
+                                        <TableCell>
+                                            <Button
+                                                size="small"
+                                                color="error"
+                                                onClick={async () => {
+                                                    try {
+                                                        await rpcCall("urn:finance:periods:reopen:1", { guid: row.period_guid });
+                                                        if (reviewPeriodGuid === row.period_guid) {
+                                                            setReviewPeriodGuid("");
+                                                            setReviewBlockers([]);
+                                                        }
+                                                        await Promise.all([loadAllPeriodStatus(), loadPeriodStatus()]);
+                                                    } catch (error: unknown) {
+                                                        setReviewError(getErrorMessage(error));
+                                                    }
+                                                }}
+                                            >
+                                                Reopen
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {closedPeriods.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={4}>No closed periods for the selected fiscal year.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </Paper>
                 </Stack>
             )}
 

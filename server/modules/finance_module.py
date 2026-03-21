@@ -75,17 +75,27 @@ from queryregistry.finance.numbers.models import (
   UpsertNumberParams,
 )
 from queryregistry.finance.periods import (
+  close_period_request,
   delete_period_request,
   get_period_request,
+  list_period_close_blockers_request,
   list_periods_by_year_request,
   list_periods_request,
+  lock_period_request,
+  reopen_period_request,
+  unlock_period_request,
   upsert_period_request,
 )
 from queryregistry.finance.periods.models import (
+  ClosePeriodParams,
   DeletePeriodParams,
   GetPeriodParams,
+  ListPeriodCloseBlockersParams,
   ListPeriodsByYearParams,
   ListPeriodsParams,
+  LockPeriodParams,
+  ReopenPeriodParams,
+  UnlockPeriodParams,
   UpsertPeriodParams,
 )
 from queryregistry.finance.journal_lines import (
@@ -211,6 +221,16 @@ from .models.finance_statuses import (
   CREDIT_LOT_ACTIVE,
   ELEMENT_ACTIVE,
   ELEMENT_INACTIVE,
+  IMPORT_APPROVED,
+  IMPORT_FAILED,
+  IMPORT_PENDING,
+  IMPORT_PENDING_APPROVAL,
+  IMPORT_PROMOTED,
+  IMPORT_REJECTED,
+  JOURNAL_DRAFT,
+  JOURNAL_PENDING_APPROVAL,
+  JOURNAL_POSTED,
+  JOURNAL_REVERSED,
   PERIOD_CLOSED,
   PERIOD_LOCKED,
   PERIOD_OPEN,
@@ -220,19 +240,6 @@ from .models.finance_statuses import (
 _FIVE_PLACES = Decimal("0.00001")
 _FOUR_PLACES = Decimal("0.0001")
 _UPSERT_NUMBER_STRIP = frozenset({"account_name", "remaining"})
-
-
-IMPORT_PENDING = 0
-IMPORT_APPROVED = 1
-IMPORT_FAILED = 2
-IMPORT_PROMOTED = 3
-IMPORT_PENDING_APPROVAL = 4
-IMPORT_REJECTED = 5
-
-JOURNAL_DRAFT = 0
-JOURNAL_PENDING_APPROVAL = 1
-JOURNAL_POSTED = 2
-JOURNAL_REVERSED = 3
 
 
 class FinanceModule(BaseModule):
@@ -270,6 +277,10 @@ class FinanceModule(BaseModule):
       "status": row.get("element_status"),
       "numbers_recid": row.get("numbers_recid"),
       "element_display_format": row.get("element_display_format"),
+      "closed_by": row.get("element_closed_by"),
+      "closed_on": row.get("element_closed_on"),
+      "locked_by": row.get("element_locked_by"),
+      "locked_on": row.get("element_locked_on"),
     }
 
   def _map_ledger(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -415,6 +426,82 @@ class FinanceModule(BaseModule):
     res = await self.db.run(get_period_request(GetPeriodParams(guid=guid)))
     if not res.rows:
       return None
+    return self._map_period(dict(res.rows[0]))
+
+  async def list_period_close_blockers(self, period_guid: str) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_period_close_blockers_request(ListPeriodCloseBlockersParams(period_guid=period_guid))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def close_period(self, guid: str, closed_by: str) -> dict[str, Any]:
+    assert self.db
+    period = await self.get_period(guid)
+    if not period:
+      raise ValueError("Period not found")
+    if int(period.get("status") or ELEMENT_INACTIVE) != PERIOD_OPEN:
+      raise ValueError("Only open periods can be closed")
+
+    blockers = await self.list_period_close_blockers(guid)
+    if blockers:
+      label_map = {
+        "journal": "journal blocker(s)",
+        "import": "import blocker(s)",
+        "credit_lot_revrec": "credit lot revenue recognition blocker(s)",
+      }
+      counts: dict[str, int] = {}
+      for blocker in blockers:
+        blocker_type = str(blocker.get("blocker_type") or "unknown")
+        counts[blocker_type] = counts.get(blocker_type, 0) + 1
+      summary = ", ".join(
+        f"{count} {label_map.get(blocker_type, blocker_type)}"
+        for blocker_type, count in sorted(counts.items())
+      )
+      raise ValueError(f"Cannot close period: {summary}")
+
+    res = await self.db.run(close_period_request(ClosePeriodParams(guid=guid, closed_by=closed_by)))
+    if not res.rows:
+      raise ValueError("Period status was modified concurrently")
+    return self._map_period(dict(res.rows[0]))
+
+  async def reopen_period(self, guid: str) -> dict[str, Any]:
+    assert self.db
+    period = await self.get_period(guid)
+    if not period:
+      raise ValueError("Period not found")
+    if int(period.get("status") or ELEMENT_INACTIVE) != PERIOD_CLOSED:
+      raise ValueError("Only closed periods can be reopened")
+
+    res = await self.db.run(reopen_period_request(ReopenPeriodParams(guid=guid)))
+    if not res.rows:
+      raise ValueError("Period status was modified concurrently")
+    return self._map_period(dict(res.rows[0]))
+
+  async def lock_period(self, guid: str, locked_by: str) -> dict[str, Any]:
+    assert self.db
+    period = await self.get_period(guid)
+    if not period:
+      raise ValueError("Period not found")
+    if int(period.get("status") or ELEMENT_INACTIVE) != PERIOD_CLOSED:
+      raise ValueError("Only closed periods can be locked")
+
+    res = await self.db.run(lock_period_request(LockPeriodParams(guid=guid, locked_by=locked_by)))
+    if not res.rows:
+      raise ValueError("Period status was modified concurrently")
+    return self._map_period(dict(res.rows[0]))
+
+  async def unlock_period(self, guid: str) -> dict[str, Any]:
+    assert self.db
+    period = await self.get_period(guid)
+    if not period:
+      raise ValueError("Period not found")
+    if int(period.get("status") or ELEMENT_INACTIVE) != PERIOD_LOCKED:
+      raise ValueError("Only locked periods can be unlocked")
+
+    res = await self.db.run(unlock_period_request(UnlockPeriodParams(guid=guid)))
+    if not res.rows:
+      raise ValueError("Period status was modified concurrently")
     return self._map_period(dict(res.rows[0]))
 
   async def upsert_period(self, data: dict[str, Any]) -> dict[str, Any]:
