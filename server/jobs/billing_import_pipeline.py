@@ -29,7 +29,7 @@ from queryregistry.finance.staging_account_map import (
 from queryregistry.finance.staging_account_map.models import ResolveAccountParams
 from server.modules.async_task_handlers import PipelineHandler
 from server.modules.models.finance_statuses import (
-  IMPORT_COMPLETED,
+  IMPORT_APPROVED,
   IMPORT_PROMOTED,
 )
 
@@ -65,8 +65,8 @@ class BillingImportPipelineHandler(PipelineHandler):
     row_count = int(import_row.get("element_row_count") or 0)
     if status == IMPORT_PROMOTED:
       raise ValueError(f"Import {imports_recid} is already promoted")
-    if status != IMPORT_COMPLETED:
-      raise ValueError(f"Import {imports_recid} must be completed before promotion")
+    if status != IMPORT_APPROVED:
+      raise ValueError(f"Import {imports_recid} must be approved before promotion")
     if row_count <= 0:
       raise ValueError(f"Import {imports_recid} has no rows to promote")
 
@@ -240,7 +240,7 @@ class BillingImportPipelineHandler(PipelineHandler):
     )
 
     posting_key = f"AZURE-IMPORT-{imports_recid}"
-    journal = await finance.create_journal(
+    journal = await finance.create_and_post_system_journal(
       name=f"AZURE-IMPORT-{imports_recid}",
       description=f"Azure billing import promotion for staging import {imports_recid}",
       posting_key=posting_key,

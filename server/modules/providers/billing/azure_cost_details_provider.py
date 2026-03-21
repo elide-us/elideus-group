@@ -35,7 +35,7 @@ from queryregistry.system.config.models import ConfigKeyParams
 from ...db_module import DbModule
 from ...env_module import EnvModule
 from . import BillingImportProvider
-from ...models.finance_statuses import IMPORT_COMPLETED, IMPORT_FAILED
+from ...models.finance_statuses import IMPORT_FAILED, IMPORT_PENDING_APPROVAL
 
 if TYPE_CHECKING:  # pragma: no cover
   from ...billing_import_module import BillingImportModule
@@ -383,7 +383,7 @@ class AzureCostDetailsProvider(BillingImportProvider):
         update_import_status_request(
           UpdateImportStatusParams(
             recid=import_recid,
-            status=IMPORT_COMPLETED,
+            status=IMPORT_PENDING_APPROVAL,
             row_count=total_rows,
             error=None,
           ),

@@ -63,7 +63,6 @@ class JournalCreate1(BaseModel):
   periods_guid: str | None = None
   ledgers_recid: int | None = None
   lines: list[JournalCreateLine1]
-  post: bool = False
 
 
 class JournalListFilter1(BaseModel):
@@ -71,8 +70,17 @@ class JournalListFilter1(BaseModel):
   periods_guid: str | None = None
 
 
-class JournalPost1(BaseModel):
+class JournalSubmitForApproval1(BaseModel):
   recid: int
+
+
+class JournalApprove1(BaseModel):
+  recid: int
+
+
+class JournalReject1(BaseModel):
+  recid: int
+  reason: str | None = None
 
 
 class JournalReverse1(BaseModel):

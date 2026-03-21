@@ -91,7 +91,8 @@ class PeriodStatusRecord(TypedDict):
   period_status: int
   has_closing_week: bool
   total_journals: int
-  unposted_journals: int
+  draft_journals: int
+  pending_journals: int
   posted_journals: int
   reversed_journals: int
 

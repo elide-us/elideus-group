@@ -331,8 +331,10 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:journals:list:1` | List journals with optional status/period filters. |
 | `urn:finance:journals:get:1` | Get a single journal by record id. |
 | `urn:finance:journals:get_lines:1` | List lines for a journal record id. |
-| `urn:finance:journals:create:1` | Create a journal with lines and optional immediate posting. |
-| `urn:finance:journals:post:1` | Post a draft journal. |
+| `urn:finance:journals:create:1` | Create a draft journal with lines. |
+| `urn:finance:journals:submit_for_approval:1` | Submit a draft journal for manager approval. |
+| `urn:finance:journals:approve:1` | Approve a pending journal and post it to the GL. |
+| `urn:finance:journals:reject:1` | Reject a pending journal back to Draft status. |
 | `urn:finance:journals:reverse:1` | Reverse a posted journal. |
 
 ### `ledgers`
@@ -395,9 +397,9 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:staging:list_imports:1` | List finance staging import batches, optionally filtered by `status`. |
 | `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |
 | `urn:finance:staging:list_line_items:1` | List generalized staging line items for a staging import batch. |
-| `urn:finance:staging:approve:1` | Approve a Pending Approval staging import to Completed; requires `ROLE_FINANCE_APPR`. |
+| `urn:finance:staging:approve:1` | Approve a Pending Approval staging import to Approved status; requires `ROLE_FINANCE_APPR`. |
 | `urn:finance:staging:reject:1` | Reject a Pending Approval staging import and record an optional reason; requires `ROLE_FINANCE_APPR`. |
-| `urn:finance:staging:promote:1` | Submit async promotion of a completed staging import into a posted journal and return task guid. |
+| `urn:finance:staging:promote:1` | Submit async promotion of an Approved staging import into a posted journal and return task guid. |
 
 ### `staging_account_map`
 

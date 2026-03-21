@@ -15,7 +15,7 @@ from queryregistry.finance.vendors.models import GetVendorByNameParams
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.db_module import DbModule
-from server.modules.models.finance_statuses import IMPORT_APPROVED
+from server.modules.models.finance_statuses import IMPORT_PENDING_APPROVAL
 
 from .models import PaymentRequestCreate1, PaymentRequestCreateResult1
 
@@ -42,7 +42,7 @@ async def service_payment_requests_create_v1(request: Request):
         period_start=payload.period_start,
         period_end=payload.period_end,
         requested_by=auth_ctx.user_guid,
-        initial_status=IMPORT_APPROVED,
+        initial_status=IMPORT_PENDING_APPROVAL,
       ),
     ),
   )
@@ -84,7 +84,7 @@ async def service_payment_requests_create_v1(request: Request):
     update_import_status_request(
       UpdateImportStatusParams(
         recid=import_recid,
-        status=IMPORT_APPROVED,
+        status=IMPORT_PENDING_APPROVAL,
         row_count=1,
         error=None,
       ),

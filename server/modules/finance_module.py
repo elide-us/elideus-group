@@ -211,9 +211,6 @@ from .models.finance_statuses import (
   CREDIT_LOT_ACTIVE,
   ELEMENT_ACTIVE,
   ELEMENT_INACTIVE,
-  JOURNAL_DRAFT,
-  JOURNAL_POSTED,
-  JOURNAL_REVERSED,
   PERIOD_CLOSED,
   PERIOD_LOCKED,
   PERIOD_OPEN,
@@ -223,6 +220,19 @@ from .models.finance_statuses import (
 _FIVE_PLACES = Decimal("0.00001")
 _FOUR_PLACES = Decimal("0.0001")
 _UPSERT_NUMBER_STRIP = frozenset({"account_name", "remaining"})
+
+
+IMPORT_PENDING = 0
+IMPORT_APPROVED = 1
+IMPORT_FAILED = 2
+IMPORT_PROMOTED = 3
+IMPORT_PENDING_APPROVAL = 4
+IMPORT_REJECTED = 5
+
+JOURNAL_DRAFT = 0
+JOURNAL_PENDING_APPROVAL = 1
+JOURNAL_POSTED = 2
+JOURNAL_REVERSED = 3
 
 
 class FinanceModule(BaseModule):
@@ -757,6 +767,13 @@ class FinanceModule(BaseModule):
     res = await self.db.run(list_imports_request(ListImportsParams(status=status)))
     return [dict(row) for row in res.rows]
 
+  async def get_import(self, recid: int) -> dict[str, Any] | None:
+    rows = await self.list_imports()
+    for row in rows:
+      if int(row.get("recid") or 0) == recid:
+        return row
+    return None
+
   async def list_cost_details_by_import(self, imports_recid: int) -> list[dict[str, Any]]:
     assert self.db
     res = await self.db.run(
@@ -768,24 +785,40 @@ class FinanceModule(BaseModule):
 
   async def list_line_items_by_import(self, imports_recid: int) -> list[dict[str, Any]]:
     assert self.db
+    import_row = await self.get_import(imports_recid)
+    if not import_row:
+      raise ValueError("Import not found")
     res = await self.db.run(
       list_line_items_by_import_request(ListLineItemsByImportParams(imports_recid=imports_recid))
     )
     return [dict(row) for row in res.rows]
 
-  async def delete_import(self, imports_recid: int) -> dict[str, Any]:
+  async def delete_import(self, recid: int) -> dict[str, Any]:
     assert self.db
-    await self.db.run(delete_import_request(DeleteImportParams(imports_recid=imports_recid)))
-    return {"imports_recid": imports_recid, "deleted": True}
+    import_row = await self.get_import(recid)
+    if not import_row:
+      raise ValueError("Import not found")
+    if int(import_row.get("element_status") or IMPORT_PENDING) == IMPORT_PROMOTED:
+      raise ValueError("Promoted imports cannot be deleted")
+    await self.db.run(delete_import_request(DeleteImportParams(imports_recid=recid)))
+    return {"imports_recid": recid, "deleted": True}
 
   async def approve_import(self, imports_recid: int, approved_by: str) -> dict[str, Any]:
     assert self.db
+    import_row = await self.get_import(imports_recid)
+    if not import_row:
+      raise ValueError("Import not found")
+    if int(import_row.get("element_status") or IMPORT_PENDING) != IMPORT_PENDING_APPROVAL:
+      raise ValueError("Only imports pending approval can be approved")
     await self.db.run(
       approve_import_request(
         ApproveImportParams(imports_recid=imports_recid, approved_by=approved_by)
       )
     )
-    return {"imports_recid": imports_recid, "approved": True}
+    updated = await self.get_import(imports_recid)
+    if not updated:
+      raise ValueError("Approved import could not be reloaded")
+    return updated
 
   async def reject_import(
     self,
@@ -794,6 +827,11 @@ class FinanceModule(BaseModule):
     reason: str | None = None,
   ) -> dict[str, Any]:
     assert self.db
+    import_row = await self.get_import(imports_recid)
+    if not import_row:
+      raise ValueError("Import not found")
+    if int(import_row.get("element_status") or IMPORT_PENDING) != IMPORT_PENDING_APPROVAL:
+      raise ValueError("Only imports pending approval can be rejected")
     await self.db.run(
       reject_import_request(
         RejectImportParams(
@@ -803,9 +841,13 @@ class FinanceModule(BaseModule):
         )
       )
     )
-    return {"imports_recid": imports_recid, "rejected": True}
+    updated = await self.get_import(imports_recid)
+    if not updated:
+      raise ValueError("Rejected import could not be reloaded")
+    return updated
 
   async def trial_balance(
+
     self,
     fiscal_year: int | None = None,
     period_guid: str | None = None,
@@ -1021,6 +1063,28 @@ class FinanceModule(BaseModule):
 
     return formatted, numbers_recid
 
+  async def _validate_journal_period_open(self, periods_guid: str | None) -> None:
+    if not periods_guid:
+      return
+    period = await self.get_period(periods_guid)
+    if not period:
+      raise ValueError("Period not found")
+    if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
+      raise ValueError("Cannot post to closed period")
+
+  async def _validate_balanced_journal_lines(self, lines: list[dict[str, Any]]) -> None:
+    if not lines:
+      raise ValueError("Cannot post a journal with no lines")
+
+    total_debits = Decimal("0")
+    total_credits = Decimal("0")
+    for line in lines:
+      total_debits += self._quantize_5dp(self._to_decimal(line.get("debit", "0")))
+      total_credits += self._quantize_5dp(self._to_decimal(line.get("credit", "0")))
+
+    if abs(total_debits - total_credits) > Decimal("0.00001"):
+      raise ValueError(f"Journal is unbalanced: debits={total_debits} credits={total_credits}")
+
   async def create_journal(
     self,
     *,
@@ -1032,8 +1096,6 @@ class FinanceModule(BaseModule):
     periods_guid: str | None = None,
     ledgers_recid: int | None = None,
     lines: list[dict[str, Any]],
-    post: bool = False,
-    posted_by: str | None = None,
   ) -> dict[str, Any]:
     assert self.db
 
@@ -1048,13 +1110,6 @@ class FinanceModule(BaseModule):
     if not posting_key:
       journal_number, journal_numbers_recid = await self._next_formatted_number("JRN", "JRN-SEQ")
       posting_key = journal_number
-
-    if periods_guid and post:
-      period = await self.get_period(periods_guid)
-      if not period:
-        raise ValueError("Period not found")
-      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
-        raise ValueError("Cannot post to closed period")
 
     quantified_lines: list[CreateLineParams] = []
     total_debits = Decimal("0")
@@ -1102,39 +1157,70 @@ class FinanceModule(BaseModule):
     await self.db.run(
       create_lines_batch_request(CreateLinesBatchParams(journals_recid=journal_recid, lines=lines_payload))
     )
-
-    if post:
-      return await self.post_journal(journal_recid, posted_by)
     return created
+
+  async def create_and_post_system_journal(
+    self,
+    *,
+    name: str,
+    description: str | None = None,
+    posting_key: str | None = None,
+    source_type: str | None = None,
+    source_id: str | None = None,
+    periods_guid: str | None = None,
+    ledgers_recid: int | None = None,
+    lines: list[dict[str, Any]],
+    posted_by: str = "SYSTEM",
+  ) -> dict[str, Any]:
+    created = await self.create_journal(
+      name=name,
+      description=description,
+      posting_key=posting_key,
+      source_type=source_type,
+      source_id=source_id,
+      periods_guid=periods_guid,
+      ledgers_recid=ledgers_recid,
+      lines=lines,
+    )
+    return await self.post_journal(int(created["recid"]), posted_by=posted_by)
+
+  async def submit_journal_for_approval(
+    self,
+    recid: int,
+    submitted_by: str | None = None,
+  ) -> dict[str, Any]:
+    del submitted_by
+    assert self.db
+    journal = await self.get_journal(recid)
+    if not journal:
+      raise ValueError("Journal not found")
+    if journal["status"] != JOURNAL_DRAFT:
+      raise ValueError("Only draft journals can be submitted for approval")
+
+    lines = await self.get_journal_lines(recid)
+    await self._validate_balanced_journal_lines(lines)
+
+    res = await self.db.run(
+      update_journal_status_request(
+        UpdateJournalStatusParams(
+          recid=recid,
+          status=JOURNAL_PENDING_APPROVAL,
+        )
+      )
+    )
+    return self._map_journal(dict(res.rows[0]))
 
   async def post_journal(self, recid: int, posted_by: str | None = None) -> dict[str, Any]:
     assert self.db
     journal = await self.get_journal(recid)
     if not journal:
       raise ValueError("Journal not found")
-    if journal["status"] != JOURNAL_DRAFT:
-      raise ValueError("Only unposted journals can be posted")
+    if journal["status"] not in {JOURNAL_DRAFT, JOURNAL_PENDING_APPROVAL}:
+      raise ValueError("Only draft or pending approval journals can be posted")
 
-    periods_guid = journal.get("periods_guid")
-    if periods_guid:
-      period = await self.get_period(periods_guid)
-      if not period:
-        raise ValueError("Period not found")
-      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
-        raise ValueError("Cannot post to closed period")
-
+    await self._validate_journal_period_open(journal.get("periods_guid"))
     lines = await self.get_journal_lines(recid)
-    if not lines:
-      raise ValueError("Cannot post a journal with no lines")
-
-    total_debits = Decimal("0")
-    total_credits = Decimal("0")
-    for line in lines:
-      total_debits += self._quantize_5dp(self._to_decimal(line.get("debit", "0")))
-      total_credits += self._quantize_5dp(self._to_decimal(line.get("credit", "0")))
-
-    if abs(total_debits - total_credits) > Decimal("0.00001"):
-      raise ValueError(f"Journal is unbalanced: debits={total_debits} credits={total_credits}")
+    await self._validate_balanced_journal_lines(lines)
 
     res = await self.db.run(
       update_journal_status_request(
@@ -1143,6 +1229,44 @@ class FinanceModule(BaseModule):
           status=JOURNAL_POSTED,
           posted_by=posted_by,
           posted_on=datetime.now(timezone.utc).isoformat(),
+        )
+      )
+    )
+    return self._map_journal(dict(res.rows[0]))
+
+  async def approve_journal(
+    self,
+    recid: int,
+    approved_by: str | None = None,
+  ) -> dict[str, Any]:
+    journal = await self.get_journal(recid)
+    if not journal:
+      raise ValueError("Journal not found")
+    if journal["status"] != JOURNAL_PENDING_APPROVAL:
+      raise ValueError("Only journals pending approval can be approved")
+    return await self.post_journal(recid, posted_by=approved_by)
+
+  async def reject_journal(
+    self,
+    recid: int,
+    rejected_by: str | None = None,
+    reason: str | None = None,
+  ) -> dict[str, Any]:
+    del rejected_by
+    if reason:
+      logging.info("[FinanceModule] journal %s rejected: %s", recid, reason)
+    assert self.db
+    journal = await self.get_journal(recid)
+    if not journal:
+      raise ValueError("Journal not found")
+    if journal["status"] != JOURNAL_PENDING_APPROVAL:
+      raise ValueError("Only journals pending approval can be rejected")
+
+    res = await self.db.run(
+      update_journal_status_request(
+        UpdateJournalStatusParams(
+          recid=recid,
+          status=JOURNAL_DRAFT,
         )
       )
     )
@@ -1157,12 +1281,7 @@ class FinanceModule(BaseModule):
       raise ValueError("Only posted journals can be reversed")
 
     periods_guid = original.get("periods_guid")
-    if periods_guid:
-      period = await self.get_period(periods_guid)
-      if not period:
-        raise ValueError("Period not found")
-      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
-        raise ValueError("Cannot reverse journal into a closed period")
+    await self._validate_journal_period_open(periods_guid)
 
     original_lines = await self.get_journal_lines(recid)
     if not original_lines:
@@ -1181,7 +1300,7 @@ class FinanceModule(BaseModule):
         }
       )
 
-    reversal = await self.create_journal(
+    reversal = await self.create_and_post_system_journal(
       name=f"REV-{original['name']}",
       description=f"Reversal of journal {recid}",
       posting_key=f"REV-{original['posting_key']}" if original.get("posting_key") else None,
@@ -1190,8 +1309,7 @@ class FinanceModule(BaseModule):
       periods_guid=periods_guid,
       ledgers_recid=original.get("ledgers_recid"),
       lines=reversal_lines,
-      post=True,
-      posted_by=posted_by,
+      posted_by=posted_by or "SYSTEM",
     )
 
     reversal_recid = int(reversal["recid"])
@@ -1396,7 +1514,7 @@ class FinanceModule(BaseModule):
       )
       deferred_revenue_guid = await self._get_account_guid_by_number(deferred_revenue_account)
       recognized_revenue_guid = await self._get_account_guid_by_number(recognized_revenue_account)
-      journal = await self.create_journal(
+      journal = await self.create_and_post_system_journal(
         name=f"REV-{users_guid[:8]}-{credits_needed}",
         source_type="credit_consumption",
         source_id=users_guid,
@@ -1417,8 +1535,7 @@ class FinanceModule(BaseModule):
             "description": description or service_type,
           },
         ],
-        post=True,
-        posted_by=actor_guid,
+        posted_by=actor_guid or "SYSTEM",
       )
 
     for lot, take in consumed_lots:

@@ -4,6 +4,7 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 
 from .models import (
+  JournalApprove1,
   JournalCreate1,
   JournalGet1,
   JournalGetLines1,
@@ -12,8 +13,9 @@ from .models import (
   JournalLineList1,
   JournalList1,
   JournalListFilter1,
-  JournalPost1,
+  JournalReject1,
   JournalReverse1,
+  JournalSubmitForApproval1,
 )
 
 
@@ -28,6 +30,7 @@ def _coerce_line(line: dict) -> dict:
 
 async def finance_journals_list_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
+  del auth_ctx
   input_payload = JournalListFilter1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
@@ -38,6 +41,7 @@ async def finance_journals_list_v1(request: Request):
 
 async def finance_journals_get_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
+  del auth_ctx
   input_payload = JournalGet1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
@@ -50,6 +54,7 @@ async def finance_journals_get_v1(request: Request):
 
 async def finance_journals_get_lines_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
+  del auth_ctx
   input_payload = JournalGetLines1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
@@ -60,6 +65,7 @@ async def finance_journals_get_lines_v1(request: Request):
 
 async def finance_journals_create_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
+  del auth_ctx
   input_payload = JournalCreate1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
@@ -73,8 +79,6 @@ async def finance_journals_create_v1(request: Request):
       periods_guid=input_payload.periods_guid,
       ledgers_recid=input_payload.ledgers_recid,
       lines=[line.model_dump() for line in input_payload.lines],
-      post=input_payload.post,
-      posted_by=auth_ctx.user_guid,
     )
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -82,13 +86,39 @@ async def finance_journals_create_v1(request: Request):
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
 
-async def finance_journals_post_v1(request: Request):
+async def finance_journals_submit_for_approval_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  input_payload = JournalPost1(**(rpc_request.payload or {}))
+  input_payload = JournalSubmitForApproval1(**(rpc_request.payload or {}))
   module = request.app.state.finance
   await module.on_ready()
   try:
-    row = await module.post_journal(input_payload.recid, posted_by=auth_ctx.user_guid)
+    row = await module.submit_journal_for_approval(input_payload.recid, submitted_by=auth_ctx.user_guid)
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  payload = JournalItem1(**row)
+  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+
+
+async def finance_journals_approve_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  input_payload = JournalApprove1(**(rpc_request.payload or {}))
+  module = request.app.state.finance
+  await module.on_ready()
+  try:
+    row = await module.approve_journal(input_payload.recid, approved_by=auth_ctx.user_guid)
+  except ValueError as exc:
+    raise HTTPException(status_code=400, detail=str(exc)) from exc
+  payload = JournalItem1(**row)
+  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+
+
+async def finance_journals_reject_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  input_payload = JournalReject1(**(rpc_request.payload or {}))
+  module = request.app.state.finance
+  await module.on_ready()
+  try:
+    row = await module.reject_journal(input_payload.recid, rejected_by=auth_ctx.user_guid, reason=input_payload.reason)
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = JournalItem1(**row)
