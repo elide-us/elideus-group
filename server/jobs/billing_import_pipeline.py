@@ -234,11 +234,7 @@ class BillingImportPipelineHandler(PipelineHandler):
       periods_guid=matching_period["guid"],
       ledgers_recid=ledgers_recid,
       lines=lines,
-      post=True,
     )
-
-    if int(journal.get("status") or 0) != 1:
-      journal = await finance.post_journal(int(journal["recid"]))
 
     return {
       "journal_recid": int(journal["recid"]),
