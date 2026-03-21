@@ -60,31 +60,6 @@ GROUP BY
   a.element_type;
 GO
 
-DELETE FROM finance_status_codes WHERE element_domain = 'journal';
-GO
-
-INSERT INTO finance_status_codes (element_domain, element_code, element_name, element_description)
-VALUES
-  ('journal', 0, 'draft', 'Journal created, not yet submitted'),
-  ('journal', 1, 'pending_approval', 'Journal submitted, awaiting manager approval'),
-  ('journal', 2, 'posted', 'Journal approved and posted to general ledger'),
-  ('journal', 3, 'reversed', 'Journal has been reversed');
-GO
-
-UPDATE finance_status_codes
-SET element_name = 'approved',
-    element_description = 'Import approved for promotion',
-    element_modified_on = SYSUTCDATETIME()
-WHERE element_domain = 'import' AND element_code = 1;
-GO
-
-UPDATE finance_status_codes
-SET element_name = 'pending_approval',
-    element_description = 'Import staged, awaiting manager approval',
-    element_modified_on = SYSUTCDATETIME()
-WHERE element_domain = 'import' AND element_code = 4;
-GO
-
 IF EXISTS (
   SELECT 1
   FROM system_schema_views

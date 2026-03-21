@@ -1,9 +1,5 @@
-UPDATE finance_journals
-SET element_status = 3
-WHERE element_status = 2;
-GO
-
-UPDATE finance_journals
-SET element_status = 2
-WHERE element_status = 1;
-GO
+-- v0.9.1_journal_status.sql
+-- HISTORICAL: Originally renumbered journal status codes during the 0.9 feature cycle.
+-- These data corrections applied to test transaction data only and are not needed for
+-- fresh deployments. Status codes are now seeded correctly by the reset_transactions script.
+-- Retained as a placeholder to preserve migration sequence numbering.
