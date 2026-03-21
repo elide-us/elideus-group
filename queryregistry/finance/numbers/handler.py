@@ -7,7 +7,17 @@ from typing import Sequence
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
-from .services import close_sequence_v1, delete_v1, get_by_prefix_account_v1, get_v1, list_v1, next_number_v1, upsert_v1
+from .services import (
+  close_sequence_v1,
+  delete_v1,
+  get_by_prefix_account_v1,
+  get_by_scope_v1,
+  get_v1,
+  list_v1,
+  next_number_by_scope_v1,
+  next_number_v1,
+  upsert_v1,
+)
 
 __all__ = ["handle_numbers_request"]
 
@@ -15,10 +25,12 @@ DISPATCHERS = {
   ("list", "1"): list_v1,
   ("get", "1"): get_v1,
   ("get_by_prefix_account", "1"): get_by_prefix_account_v1,
+  ("get_by_scope", "1"): get_by_scope_v1,
   ("upsert", "1"): upsert_v1,
   ("delete", "1"): delete_v1,
   ("close_sequence", "1"): close_sequence_v1,
   ("next_number", "1"): next_number_v1,
+  ("next_number_by_scope", "1"): next_number_by_scope_v1,
 }
 
 

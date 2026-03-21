@@ -11,6 +11,9 @@ class FinanceNumbersItem1(BaseModel):
   allocation_size: int = 1
   reset_policy: str = "Never"
   sequence_status: int = 1
+  sequence_type: str = "continuous"
+  series_number: int = 1
+  scope: str | None = None
   pattern: str | None = None
   display_format: str | None = None
   account_name: str | None = None

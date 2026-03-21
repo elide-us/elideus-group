@@ -55,6 +55,11 @@ import {
     fetchUpdate as fetchUpdateLedger,
 } from "../../rpc/finance/ledgers/index";
 import {
+    fetchDelete as fetchDeleteNumber,
+    fetchList as fetchNumbers,
+    fetchUpsert as fetchUpsertNumber,
+} from "../../rpc/finance/numbers/index";
+import {
     fetchGenerateCalendar,
     fetchList as fetchPeriods,
 } from "../../rpc/finance/periods/index";
@@ -152,6 +157,42 @@ type FinanceVendor = {
     element_status: number;
 };
 
+type FinanceNumber = {
+    recid?: number | null;
+    accounts_guid: string;
+    prefix?: string | null;
+    account_number: string;
+    last_number: number;
+    max_number: number | null;
+    allocation_size: number;
+    reset_policy: string;
+    sequence_status: number;
+    sequence_type: string;
+    series_number: number;
+    scope: string | null;
+    pattern: string | null;
+    display_format: string | null;
+    account_name?: string | null;
+    remaining?: number | null;
+};
+
+type NumberFormState = {
+    recid: number | null;
+    accounts_guid: string;
+    prefix: string;
+    account_number: string;
+    last_number: number;
+    max_number: number;
+    allocation_size: number;
+    reset_policy: string;
+    sequence_status: number;
+    sequence_type: string;
+    series_number: number;
+    scope: string;
+    pattern: string;
+    display_format: string;
+};
+
 type PeriodSummary = {
     open: number;
     closed: number;
@@ -192,6 +233,23 @@ const EMPTY_MAPPING_FORM: MappingFormState = {
     element_priority: 0,
     element_description: "",
     element_status: true,
+};
+
+const EMPTY_NUMBER_FORM: NumberFormState = {
+    recid: null,
+    accounts_guid: "",
+    prefix: "",
+    account_number: "",
+    last_number: 0,
+    max_number: 99999999,
+    allocation_size: 1,
+    reset_policy: "Never",
+    sequence_status: 1,
+    sequence_type: "continuous",
+    series_number: 1,
+    scope: "",
+    pattern: "",
+    display_format: "",
 };
 
 const ACCOUNT_TYPES: { value: number; label: string }[] = [
@@ -253,6 +311,14 @@ const getLedgerStatusLabel = (status: number): string => {
     return LEDGER_STATUS_OPTIONS.find((option) => option.value === status)?.label || `Status ${status}`;
 };
 
+const getSequenceTypeLabel = (value: string): string => {
+    return value === "non_continuous" ? "Non-Continuous" : "Continuous";
+};
+
+const getSequenceTypeColor = (value: string): "info" | "default" => {
+    return value === "non_continuous" ? "info" : "default";
+};
+
 const getStatusChipColor = (status: number): "success" | "error" | "default" => {
     if (status === 1) {
         return "success";
@@ -305,6 +371,9 @@ const FinanceAdminPage = (): JSX.Element => {
     const [mappingVendorFilter, setMappingVendorFilter] = useState<string>("");
     const [mappingFormOpen, setMappingFormOpen] = useState(false);
     const [mappingForm, setMappingForm] = useState<MappingFormState>(EMPTY_MAPPING_FORM);
+    const [numbers, setNumbers] = useState<FinanceNumber[]>([]);
+    const [numberFormOpen, setNumberFormOpen] = useState(false);
+    const [numberForm, setNumberForm] = useState<NumberFormState>(EMPTY_NUMBER_FORM);
     const [vendorFormOpen, setVendorFormOpen] = useState(false);
     const [vendorForm, setVendorForm] = useState({
         recid: null as number | null,
@@ -344,6 +413,11 @@ const FinanceAdminPage = (): JSX.Element => {
         setVendorList((response.vendors || []) as FinanceVendor[]);
     }, []);
 
+    const loadNumbers = useCallback(async (): Promise<void> => {
+        const response = await fetchNumbers();
+        setNumbers((response.numbers || []) as FinanceNumber[]);
+    }, []);
+
     const loadAccountMappings = useCallback(async (): Promise<void> => {
         const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
         const response = await rpcCall<{ mappings: FinanceStagingAccountMapItem[] }>("urn:finance:staging_account_map:list:1", payload);
@@ -359,6 +433,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 loadPeriodStatuses(),
                 loadAccounts(),
                 loadDimensions(),
+                loadNumbers(),
             ]);
             setForbidden(false);
         } catch (error: unknown) {
@@ -370,7 +445,7 @@ const FinanceAdminPage = (): JSX.Element => {
             }
             setPageError(getErrorMessage(error));
         }
-    }, [loadAccounts, loadDimensions, loadLedgers, loadPeriods, loadPeriodStatuses]);
+    }, [loadAccounts, loadDimensions, loadLedgers, loadNumbers, loadPeriods, loadPeriodStatuses]);
 
     useEffect(() => {
         void loadAll();
@@ -383,7 +458,10 @@ const FinanceAdminPage = (): JSX.Element => {
         if (tab === 5) {
             void Promise.all([loadVendors(), loadAccountMappings()]);
         }
-    }, [loadAccountMappings, loadVendors, tab]);
+        if (tab === 6) {
+            void loadNumbers();
+        }
+    }, [loadAccountMappings, loadNumbers, loadVendors, tab]);
 
     const periodYears = useMemo(() => {
         const years = new Set<number>();
@@ -660,6 +738,83 @@ const FinanceAdminPage = (): JSX.Element => {
         }
     };
 
+    const openNumberForm = (sequence?: FinanceNumber): void => {
+        setPageError(null);
+        setSuccessMessage(null);
+        if (!sequence) {
+            setNumberForm(EMPTY_NUMBER_FORM);
+            setNumberFormOpen(true);
+            return;
+        }
+        setNumberForm({
+            recid: sequence.recid ?? null,
+            accounts_guid: sequence.accounts_guid || "",
+            prefix: sequence.prefix || "",
+            account_number: sequence.account_number || "",
+            last_number: Number(sequence.last_number || 0),
+            max_number: Number(sequence.max_number || 99999999),
+            allocation_size: Number(sequence.allocation_size || 1),
+            reset_policy: sequence.reset_policy || "Never",
+            sequence_status: Number(sequence.sequence_status || 1),
+            sequence_type: sequence.sequence_type || "continuous",
+            series_number: Number(sequence.series_number || 1),
+            scope: sequence.scope || "",
+            pattern: sequence.pattern || "",
+            display_format: sequence.display_format || "",
+        });
+        setNumberFormOpen(true);
+    };
+
+    const saveNumber = async (): Promise<void> => {
+        try {
+            setIsBusy(true);
+            setPageError(null);
+            setSuccessMessage(null);
+            await fetchUpsertNumber({
+                recid: numberForm.recid,
+                accounts_guid: numberForm.accounts_guid,
+                prefix: numberForm.prefix || null,
+                account_number: numberForm.account_number,
+                last_number: numberForm.last_number,
+                max_number: numberForm.max_number,
+                allocation_size: numberForm.allocation_size,
+                reset_policy: numberForm.reset_policy,
+                sequence_status: numberForm.sequence_status,
+                sequence_type: numberForm.sequence_type,
+                series_number: numberForm.series_number,
+                scope: numberForm.scope || null,
+                pattern: numberForm.pattern || null,
+                display_format: numberForm.display_format || null,
+            });
+            setNumberForm(EMPTY_NUMBER_FORM);
+            setNumberFormOpen(false);
+            setSuccessMessage("Number sequence saved.");
+            await loadNumbers();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        } finally {
+            setIsBusy(false);
+        }
+    };
+
+    const deleteNumber = async (sequence: FinanceNumber): Promise<void> => {
+        if (!sequence.recid || !window.confirm(`Delete sequence ${sequence.account_number}?`)) {
+            return;
+        }
+        try {
+            setIsBusy(true);
+            setPageError(null);
+            setSuccessMessage(null);
+            await fetchDeleteNumber({ recid: sequence.recid });
+            setSuccessMessage(`Deleted sequence ${sequence.account_number}.`);
+            await loadNumbers();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        } finally {
+            setIsBusy(false);
+        }
+    };
+
     if (forbidden) {
         return (
             <Box sx={{ p: 2 }}>
@@ -683,6 +838,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 <Tab label="Financial Dimensions" />
                 <Tab label="Vendors" />
                 <Tab label="Account Mappings" />
+                <Tab label="Number Sequences" />
             </Tabs>
 
             {tab === 0 && (
@@ -1304,6 +1460,253 @@ const FinanceAdminPage = (): JSX.Element => {
                                     </TableCell>
                                 </TableRow>
                             ))}
+                        </TableBody>
+                    </Table>
+                </Stack>
+            )}
+
+            {tab === 6 && (
+                <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Paper sx={{ p: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap">
+                            <Box>
+                                <Typography variant="h6">Number sequences</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Manage scoped numbering families, sequence types, and current rollover series.
+                                </Typography>
+                            </Box>
+                            <Stack direction="row" spacing={1}>
+                                <Button variant="outlined" onClick={() => void loadNumbers()}>
+                                    Refresh
+                                </Button>
+                                <Button variant="contained" onClick={() => openNumberForm()}>
+                                    Create Sequence
+                                </Button>
+                            </Stack>
+                        </Stack>
+                    </Paper>
+
+                    <Collapse in={numberFormOpen}>
+                        <Paper sx={{ p: 2 }}>
+                            <Stack spacing={2}>
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <TextField
+                                        label="Prefix"
+                                        value={numberForm.prefix}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, prefix: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 120 }}
+                                    />
+                                    <TextField
+                                        select
+                                        label="Parent Account"
+                                        value={numberForm.accounts_guid}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, accounts_guid: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 260 }}
+                                    >
+                                        <MenuItem value="">Select account</MenuItem>
+                                        {accounts.map((account) => (
+                                            <MenuItem key={account.guid || account.number} value={account.guid || ""}>
+                                                {account.number} — {account.name}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                    <TextField
+                                        label="Account Number"
+                                        value={numberForm.account_number}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, account_number: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 160 }}
+                                    />
+                                    <TextField
+                                        label="Scope"
+                                        value={numberForm.scope}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, scope: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 180 }}
+                                    />
+                                    <TextField
+                                        select
+                                        label="Sequence Type"
+                                        value={numberForm.sequence_type}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, sequence_type: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 180 }}
+                                    >
+                                        <MenuItem value="continuous">Continuous</MenuItem>
+                                        <MenuItem value="non_continuous">Non-Continuous</MenuItem>
+                                    </TextField>
+                                    <TextField
+                                        label="Series"
+                                        value={numberForm.series_number}
+                                        InputProps={{ readOnly: true }}
+                                        sx={{ width: 120 }}
+                                    />
+                                    <TextField
+                                        type="number"
+                                        label="Last Number"
+                                        value={numberForm.last_number}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, last_number: Number(event.target.value) }))
+                                        }
+                                        sx={{ width: 140 }}
+                                    />
+                                    <TextField
+                                        type="number"
+                                        label="Max Number"
+                                        value={numberForm.max_number}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, max_number: Number(event.target.value) }))
+                                        }
+                                        sx={{ width: 160 }}
+                                    />
+                                    <TextField
+                                        type="number"
+                                        label="Allocation Size"
+                                        value={numberForm.allocation_size}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, allocation_size: Number(event.target.value) }))
+                                        }
+                                        sx={{ width: 160 }}
+                                    />
+                                    <TextField
+                                        label="Reset Policy"
+                                        value={numberForm.reset_policy}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, reset_policy: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 140 }}
+                                    />
+                                    <TextField
+                                        select
+                                        label="Status"
+                                        value={numberForm.sequence_status}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({
+                                                ...previous,
+                                                sequence_status: Number(event.target.value),
+                                            }))
+                                        }
+                                        sx={{ minWidth: 140 }}
+                                    >
+                                        <MenuItem value={1}>Active</MenuItem>
+                                        <MenuItem value={0}>Inactive</MenuItem>
+                                    </TextField>
+                                </Stack>
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <TextField
+                                        label="Pattern"
+                                        value={numberForm.pattern}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, pattern: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 300, flex: 1 }}
+                                    />
+                                    <TextField
+                                        label="Display Format"
+                                        value={numberForm.display_format}
+                                        onChange={(event) =>
+                                            setNumberForm((previous) => ({ ...previous, display_format: event.target.value }))
+                                        }
+                                        sx={{ minWidth: 240, flex: 1 }}
+                                    />
+                                </Stack>
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        variant="contained"
+                                        disabled={isBusy || !numberForm.accounts_guid || !numberForm.account_number.trim()}
+                                        onClick={() => void saveNumber()}
+                                    >
+                                        Save
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            setNumberForm(EMPTY_NUMBER_FORM);
+                                            setNumberFormOpen(false);
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Stack>
+                            </Stack>
+                        </Paper>
+                    </Collapse>
+
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Prefix</TableCell>
+                                <TableCell>Account Number</TableCell>
+                                <TableCell>Scope</TableCell>
+                                <TableCell>Type</TableCell>
+                                <TableCell>Series</TableCell>
+                                <TableCell>Last</TableCell>
+                                <TableCell>Allocation</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Pattern</TableCell>
+                                <TableCell>Remaining</TableCell>
+                                <TableCell align="right">Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {numbers.map((item) => (
+                                <TableRow key={item.recid || `${item.prefix}-${item.account_number}-${item.series_number}`}>
+                                    <TableCell>{item.prefix || "—"}</TableCell>
+                                    <TableCell>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="body2">{item.account_number}</Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {item.account_name || "—"}
+                                            </Typography>
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell>{item.scope || "—"}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            color={getSequenceTypeColor(item.sequence_type)}
+                                            label={getSequenceTypeLabel(item.sequence_type)}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                    <TableCell>{item.series_number}</TableCell>
+                                    <TableCell>{item.last_number}</TableCell>
+                                    <TableCell>{item.allocation_size}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            color={item.sequence_status === 1 ? "success" : "default"}
+                                            label={item.sequence_status === 1 ? "Active" : "Inactive"}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                    <TableCell>{item.pattern || item.display_format || "—"}</TableCell>
+                                    <TableCell>{item.remaining ?? "—"}</TableCell>
+                                    <TableCell align="right">
+                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                            <Button size="small" onClick={() => openNumberForm(item)}>
+                                                Edit
+                                            </Button>
+                                            <Button size="small" color="error" onClick={() => void deleteNumber(item)}>
+                                                Delete
+                                            </Button>
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {numbers.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={11}>
+                                        <Typography variant="body2" color="text.secondary">
+                                            No number sequences have been configured yet.
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </Stack>
