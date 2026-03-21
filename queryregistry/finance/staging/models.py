@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from server.modules.models.finance_statuses import IMPORT_PENDING
+
 __all__ = [
   "AggregateCostByServiceParams",
   "ApproveImportParams",
@@ -41,7 +43,7 @@ class CreateImportParams(BaseModel):
   period_start: str
   period_end: str
   requested_by: str | None = None
-  initial_status: int = 0
+  initial_status: int = IMPORT_PENDING
 
 
 class UpdateImportStatusParams(BaseModel):

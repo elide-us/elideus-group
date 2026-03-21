@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import ELEMENT_INACTIVE
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
@@ -162,11 +163,11 @@ async def update_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def delete_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SET NOCOUNT ON;
     UPDATE finance_ledgers
     SET
-      element_status = 0,
+      element_status = {ELEMENT_INACTIVE},
       element_modified_on = SYSUTCDATETIME()
     WHERE recid = ?;
   """

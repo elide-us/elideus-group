@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
@@ -27,6 +28,10 @@ from queryregistry.finance.staging_account_map import (
 )
 from queryregistry.finance.staging_account_map.models import ResolveAccountParams
 from server.modules.async_task_handlers import PipelineHandler
+from server.modules.models.finance_statuses import (
+  IMPORT_COMPLETED,
+  IMPORT_PROMOTED,
+)
 
 
 class BillingImportPipelinePayload(BaseModel):
@@ -58,9 +63,9 @@ class BillingImportPipelineHandler(PipelineHandler):
 
     status = int(import_row.get("element_status") or 0)
     row_count = int(import_row.get("element_row_count") or 0)
-    if status == 3:
+    if status == IMPORT_PROMOTED:
       raise ValueError(f"Import {imports_recid} is already promoted")
-    if status != 1:
+    if status != IMPORT_COMPLETED:
       raise ValueError(f"Import {imports_recid} must be completed before promotion")
     if row_count <= 0:
       raise ValueError(f"Import {imports_recid} has no rows to promote")
@@ -178,15 +183,25 @@ class BillingImportPipelineHandler(PipelineHandler):
     if not matching_period:
       raise ValueError(f"No fiscal period found for import date {period_start.isoformat()}")
 
-    ap_account_guid = await finance._get_account_guid_by_number("2200")
+    ap_account_number = await finance.get_pipeline_config("billing_import", "ap_account_number")
+    ap_account_guid = await finance._get_account_guid_by_number(ap_account_number)
+
+    dimension_recids_raw = await finance.get_pipeline_config(
+      "billing_import",
+      "default_dimension_recids",
+    )
+    default_dimension_recids = [int(value) for value in json.loads(dimension_recids_raw)]
+
+    source_type_invoice = await finance.get_pipeline_config("billing_import", "source_type_invoice")
+    source_type_usage = await finance.get_pipeline_config("billing_import", "source_type_usage")
 
     record_types = {bucket.get("record_type") or "usage" for bucket in classified_costs}
     if record_types == {"invoice"}:
-      source_type = "azure_invoice"
+      source_type = source_type_invoice
     elif record_types == {"usage"}:
-      source_type = "azure_billing_import"
+      source_type = source_type_usage
     else:
-      source_type = "azure_billing_import"
+      source_type = source_type_usage
 
     total = Decimal("0")
     lines: list[dict[str, Any]] = []
@@ -208,7 +223,7 @@ class BillingImportPipelineHandler(PipelineHandler):
           "debit": str(amount),
           "credit": "0",
           "description": line_description,
-          "dimension_recids": [15, 4],
+          "dimension_recids": default_dimension_recids,
         }
       )
       line_number += 1
@@ -220,7 +235,7 @@ class BillingImportPipelineHandler(PipelineHandler):
         "debit": "0",
         "credit": str(total),
         "description": f"Azure billing import {imports_recid}",
-        "dimension_recids": [15, 4],
+        "dimension_recids": default_dimension_recids,
       }
     )
 
@@ -260,7 +275,7 @@ class BillingImportPipelineHandler(PipelineHandler):
       update_import_status_request(
         UpdateImportStatusParams(
           recid=imports_recid,
-          status=3,
+          status=IMPORT_PROMOTED,
           row_count=int(import_metadata.get("element_row_count") or 0),
           error=None,
         )
@@ -268,6 +283,6 @@ class BillingImportPipelineHandler(PipelineHandler):
     )
     return {
       "imports_recid": imports_recid,
-      "import_status": 3,
+      "import_status": IMPORT_PROMOTED,
       "journal_recid": journal_recid,
     }

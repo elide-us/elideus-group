@@ -16,7 +16,9 @@ from .journal_lines.handler import handle_journal_lines_request
 from .journals.handler import handle_journals_request
 from .ledgers.handler import handle_ledgers_request
 from .numbers.handler import handle_numbers_request
+from .pipeline_config.handler import handle_pipeline_config_request
 from .periods.handler import handle_periods_request
+from .status.handler import handle_status_request
 from .reporting.handler import handle_reporting_request
 from .staging.handler import handle_staging_request
 from .staging_account_map.handler import handle_staging_account_map_request
@@ -36,7 +38,9 @@ HANDLERS = {
   "journals": handle_journals_request,
   "ledgers": handle_ledgers_request,
   "numbers": handle_numbers_request,
+  "pipeline_config": handle_pipeline_config_request,
   "periods": handle_periods_request,
+  "status": handle_status_request,
   "reporting": handle_reporting_request,
   "staging": handle_staging_request,
   "staging_account_map": handle_staging_account_map_request,

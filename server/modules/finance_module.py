@@ -139,6 +139,85 @@ from queryregistry.finance.credits import (
 from queryregistry.finance.credits.models import (
   SetCreditsParams,
 )
+from queryregistry.finance.pipeline_config import (
+  delete_pipeline_config_request,
+  get_pipeline_config_request,
+  list_pipeline_configs_request,
+  upsert_pipeline_config_request,
+)
+from queryregistry.finance.pipeline_config.models import (
+  DeletePipelineConfigParams,
+  GetPipelineConfigParams,
+  ListPipelineConfigsParams,
+  UpsertPipelineConfigParams,
+)
+from queryregistry.finance.reporting import (
+  credit_lot_summary_request,
+  journal_summary_request,
+  period_status_request,
+  trial_balance_request,
+)
+from queryregistry.finance.reporting.models import (
+  CreditLotSummaryParams,
+  JournalSummaryParams,
+  PeriodStatusParams,
+  TrialBalanceParams,
+)
+from queryregistry.finance.staging import (
+  approve_import_request,
+  delete_import_request,
+  list_cost_details_by_import_request,
+  list_imports_request,
+  reject_import_request,
+)
+from queryregistry.finance.staging.models import (
+  ApproveImportParams,
+  DeleteImportParams,
+  ListCostDetailsByImportParams,
+  ListImportsParams,
+  RejectImportParams,
+)
+from queryregistry.finance.staging_account_map import (
+  delete_account_map_request,
+  list_account_map_request,
+  upsert_account_map_request,
+)
+from queryregistry.finance.staging_account_map.models import (
+  DeleteAccountMapParams,
+  ListAccountMapParams,
+  UpsertAccountMapParams,
+)
+from queryregistry.finance.staging_line_items import list_line_items_by_import_request
+from queryregistry.finance.staging_line_items.models import ListLineItemsByImportParams
+from queryregistry.finance.staging_purge_log import list_purge_logs_request
+from queryregistry.finance.staging_purge_log.models import ListPurgeLogsParams
+from queryregistry.finance.status import get_status_code_request, list_status_codes_request
+from queryregistry.finance.status.models import GetStatusCodeParams, ListStatusCodesParams
+from queryregistry.finance.vendors import (
+  delete_vendor_request,
+  list_vendors_request,
+  upsert_vendor_request,
+)
+from queryregistry.finance.vendors.models import (
+  DeleteVendorParams,
+  ListVendorsParams,
+  UpsertVendorParams,
+)
+
+from .models.finance_statuses import (
+  CLOSE_TYPE_ANNUAL,
+  CLOSE_TYPE_NONE,
+  CLOSE_TYPE_QUARTERLY,
+  CREDIT_LOT_ACTIVE,
+  ELEMENT_ACTIVE,
+  ELEMENT_INACTIVE,
+  JOURNAL_DRAFT,
+  JOURNAL_POSTED,
+  JOURNAL_REVERSED,
+  PERIOD_CLOSED,
+  PERIOD_LOCKED,
+  PERIOD_OPEN,
+)
 
 
 _FIVE_PLACES = Decimal("0.00001")
@@ -150,6 +229,7 @@ class FinanceModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
+    self._pipeline_config_cache: dict[tuple[str, str], str] = {}
 
   async def startup(self):
     self.db = self.app.state.db
@@ -161,6 +241,7 @@ class FinanceModule(BaseModule):
   async def shutdown(self):
     logging.info("[FinanceModule] shutdown")
     self.db = None
+    self._pipeline_config_cache = {}
 
   def _map_period(self, row: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -329,7 +410,7 @@ class FinanceModule(BaseModule):
   async def upsert_period(self, data: dict[str, Any]) -> dict[str, Any]:
     assert self.db
     next_data = dict(data)
-    next_data["status"] = self._validate_period_status(int(next_data.get("status", 1)))
+    next_data["status"] = self._validate_period_status(int(next_data.get("status", PERIOD_OPEN)))
     params = UpsertPeriodParams(**next_data)
     res = await self.db.run(upsert_period_request(params))
     row = dict(res.rows[0]) if res.rows else params.model_dump()
@@ -401,7 +482,7 @@ class FinanceModule(BaseModule):
 
   @staticmethod
   def _validate_period_status(status: int) -> int:
-    if status not in {1, 2, 3}:
+    if status not in {PERIOD_OPEN, PERIOD_CLOSED, PERIOD_LOCKED}:
       raise ValueError("Period status must be Open (1), Closed (2), or Locked (3)")
     return status
 
@@ -413,7 +494,7 @@ class FinanceModule(BaseModule):
       element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
         data.get("element_chart_of_accounts_guid")
       ),
-      element_status=1,
+      element_status=ELEMENT_ACTIVE,
     )
     res = await self.db.run(create_ledger_request(params))
     if not res.rows:
@@ -434,7 +515,7 @@ class FinanceModule(BaseModule):
       element_chart_of_accounts_guid=await self._validate_chart_of_accounts_guid(
         data.get("element_chart_of_accounts_guid")
       ),
-      element_status=int(data.get("element_status", existing.get("element_status") or 1)),
+      element_status=int(data.get("element_status", existing.get("element_status") or ELEMENT_ACTIVE)),
     )
     res = await self.db.run(update_ledger_request(params))
     if not res.rows:
@@ -457,7 +538,7 @@ class FinanceModule(BaseModule):
       raise ValueError("Ledger cannot be deleted because journals already reference it")
 
     await self.db.run(delete_ledger_request(DeleteLedgerParams(recid=recid)))
-    return {**existing, "element_status": 0}
+    return {**existing, "element_status": ELEMENT_INACTIVE}
 
   async def generate_calendar(self, fiscal_year: int, start_date: str | None = None) -> list[dict[str, Any]]:
     existing = await self.list_periods_by_year(fiscal_year)
@@ -492,8 +573,8 @@ class FinanceModule(BaseModule):
           "has_closing_week": False,
           "is_leap_adjustment": False,
           "anchor_event": None,
-          "close_type": 0,
-          "status": 1,
+          "close_type": CLOSE_TYPE_NONE,
+          "status": PERIOD_OPEN,
           "numbers_recid": None,
         }
         row = await self.upsert_period(payload)
@@ -515,8 +596,8 @@ class FinanceModule(BaseModule):
         "has_closing_week": True,
         "is_leap_adjustment": quarter == 4 and fiscal_year_days == 371,
         "anchor_event": "period_close",
-        "close_type": 2 if quarter == 4 else 1,
-        "status": 1,
+        "close_type": CLOSE_TYPE_ANNUAL if quarter == 4 else CLOSE_TYPE_QUARTERLY,
+        "status": PERIOD_OPEN,
         "numbers_recid": None,
       }
       row = await self.upsert_period(closing_payload)
@@ -671,6 +752,217 @@ class FinanceModule(BaseModule):
     await self.db.run(delete_dimension_request(DeleteDimensionParams(recid=recid)))
     return {"recid": recid}
 
+  async def list_imports(self, status: int | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_imports_request(ListImportsParams(status=status)))
+    return [dict(row) for row in res.rows]
+
+  async def list_cost_details_by_import(self, imports_recid: int) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_cost_details_by_import_request(
+        ListCostDetailsByImportParams(imports_recid=imports_recid),
+      )
+    )
+    return [dict(row) for row in res.rows]
+
+  async def list_line_items_by_import(self, imports_recid: int) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_line_items_by_import_request(ListLineItemsByImportParams(imports_recid=imports_recid))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def delete_import(self, imports_recid: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(delete_import_request(DeleteImportParams(imports_recid=imports_recid)))
+    return {"imports_recid": imports_recid, "deleted": True}
+
+  async def approve_import(self, imports_recid: int, approved_by: str) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(
+      approve_import_request(
+        ApproveImportParams(imports_recid=imports_recid, approved_by=approved_by)
+      )
+    )
+    return {"imports_recid": imports_recid, "approved": True}
+
+  async def reject_import(
+    self,
+    imports_recid: int,
+    approved_by: str,
+    reason: str | None = None,
+  ) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(
+      reject_import_request(
+        RejectImportParams(
+          imports_recid=imports_recid,
+          approved_by=approved_by,
+          reason=reason,
+        )
+      )
+    )
+    return {"imports_recid": imports_recid, "rejected": True}
+
+  async def trial_balance(
+    self,
+    fiscal_year: int | None = None,
+    period_guid: str | None = None,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      trial_balance_request(
+        TrialBalanceParams(fiscal_year=fiscal_year, period_guid=period_guid)
+      )
+    )
+    return [dict(row) for row in res.rows]
+
+  async def journal_summary(
+    self,
+    journal_status: int | None = None,
+    fiscal_year: int | None = None,
+    periods_guid: str | None = None,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      journal_summary_request(
+        JournalSummaryParams(
+          journal_status=journal_status,
+          fiscal_year=fiscal_year,
+          periods_guid=periods_guid,
+        )
+      )
+    )
+    return [dict(row) for row in res.rows]
+
+  async def period_status(self, fiscal_year: int | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(period_status_request(PeriodStatusParams(fiscal_year=fiscal_year)))
+    return [dict(row) for row in res.rows]
+
+  async def credit_lot_summary(self, users_guid: str | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      credit_lot_summary_request(CreditLotSummaryParams(users_guid=users_guid))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def list_account_mappings(self) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_account_map_request(ListAccountMapParams()))
+    return [dict(row) for row in res.rows]
+
+  async def upsert_account_mapping(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = UpsertAccountMapParams(**data)
+    res = await self.db.run(upsert_account_map_request(params))
+    return dict(res.rows[0]) if res.rows else params.model_dump()
+
+  async def delete_account_mapping(self, recid: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(delete_account_map_request(DeleteAccountMapParams(recid=recid)))
+    return {"recid": recid, "deleted": True}
+
+  async def list_vendors(self) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_vendors_request(ListVendorsParams()))
+    return [dict(row) for row in res.rows]
+
+  async def upsert_vendor(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = UpsertVendorParams(**data)
+    res = await self.db.run(upsert_vendor_request(params))
+    return dict(res.rows[0]) if res.rows else params.model_dump()
+
+  async def delete_vendor(self, recid: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(delete_vendor_request(DeleteVendorParams(recid=recid)))
+    return {"recid": recid, "deleted": True}
+
+  async def list_purge_logs(self) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_purge_logs_request(ListPurgeLogsParams()))
+    return [dict(row) for row in res.rows]
+
+  async def list_status_codes(self, domain: str | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_status_codes_request(ListStatusCodesParams(element_domain=domain))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def get_status_code(self, domain: str, code: int) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_status_code_request(
+        GetStatusCodeParams(element_domain=domain, element_code=code)
+      )
+    )
+    if not res.rows:
+      return None
+    return dict(res.rows[0])
+
+  async def get_pipeline_config(self, pipeline: str, key: str) -> str:
+    cache_key = (pipeline, key)
+    if cache_key in self._pipeline_config_cache:
+      return self._pipeline_config_cache[cache_key]
+
+    row = await self.get_pipeline_config_record(pipeline, key)
+    if not row:
+      raise ValueError(f"Missing finance pipeline config: {pipeline}.{key}")
+
+    value = str(row.get("element_value") or "")
+    self._pipeline_config_cache[cache_key] = value
+    return value
+
+  async def get_pipeline_config_record(
+    self,
+    pipeline: str,
+    key: str,
+  ) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_pipeline_config_request(
+        GetPipelineConfigParams(element_pipeline=pipeline, element_key=key)
+      )
+    )
+    if not res.rows:
+      return None
+    return dict(res.rows[0])
+
+  async def list_pipeline_configs(
+    self,
+    pipeline: str | None = None,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_pipeline_configs_request(ListPipelineConfigsParams(element_pipeline=pipeline))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def upsert_pipeline_config(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = UpsertPipelineConfigParams(**data)
+    res = await self.db.run(upsert_pipeline_config_request(params))
+    row = dict(res.rows[0]) if res.rows else params.model_dump()
+    self._pipeline_config_cache[(row["element_pipeline"], row["element_key"])] = str(row["element_value"])
+    return row
+
+  async def delete_pipeline_config(self, recid: int) -> dict[str, Any]:
+    existing = await self.list_pipeline_configs()
+    deleted_key = None
+    for row in existing:
+      if int(row.get("recid") or 0) == recid:
+        deleted_key = (str(row["element_pipeline"]), str(row["element_key"]))
+        break
+
+    assert self.db
+    await self.db.run(delete_pipeline_config_request(DeletePipelineConfigParams(recid=recid)))
+    if deleted_key is not None:
+      self._pipeline_config_cache.pop(deleted_key, None)
+    return {"recid": recid, "deleted": True}
+
   async def list_journals(
     self,
     status: int | None = None,
@@ -761,7 +1053,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if int(period["status"] or 0) != 1:
+      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
         raise ValueError("Cannot post to closed period")
 
     quantified_lines: list[CreateLineParams] = []
@@ -800,7 +1092,7 @@ class FinanceModule(BaseModule):
           periods_guid=periods_guid,
           ledgers_recid=ledgers_recid,
           numbers_recid=journal_numbers_recid,
-          status=0,
+          status=JOURNAL_DRAFT,
         )
       )
     )
@@ -820,7 +1112,7 @@ class FinanceModule(BaseModule):
     journal = await self.get_journal(recid)
     if not journal:
       raise ValueError("Journal not found")
-    if journal["status"] != 0:
+    if journal["status"] != JOURNAL_DRAFT:
       raise ValueError("Only unposted journals can be posted")
 
     periods_guid = journal.get("periods_guid")
@@ -828,7 +1120,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if int(period["status"] or 0) != 1:
+      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
         raise ValueError("Cannot post to closed period")
 
     lines = await self.get_journal_lines(recid)
@@ -848,7 +1140,7 @@ class FinanceModule(BaseModule):
       update_journal_status_request(
         UpdateJournalStatusParams(
           recid=recid,
-          status=1,
+          status=JOURNAL_POSTED,
           posted_by=posted_by,
           posted_on=datetime.now(timezone.utc).isoformat(),
         )
@@ -861,7 +1153,7 @@ class FinanceModule(BaseModule):
     original = await self.get_journal(recid)
     if not original:
       raise ValueError("Journal not found")
-    if original["status"] != 1:
+    if original["status"] != JOURNAL_POSTED:
       raise ValueError("Only posted journals can be reversed")
 
     periods_guid = original.get("periods_guid")
@@ -869,7 +1161,7 @@ class FinanceModule(BaseModule):
       period = await self.get_period(periods_guid)
       if not period:
         raise ValueError("Period not found")
-      if int(period["status"] or 0) != 1:
+      if int(period["status"] or ELEMENT_INACTIVE) != PERIOD_OPEN:
         raise ValueError("Cannot reverse journal into a closed period")
 
     original_lines = await self.get_journal_lines(recid)
@@ -907,7 +1199,7 @@ class FinanceModule(BaseModule):
       update_journal_status_request(
         UpdateJournalStatusParams(
           recid=recid,
-          status=2,
+          status=JOURNAL_REVERSED,
           reversed_by=reversal_recid,
         )
       )
@@ -916,7 +1208,7 @@ class FinanceModule(BaseModule):
       update_journal_status_request(
         UpdateJournalStatusParams(
           recid=reversal_recid,
-          status=1,
+          status=JOURNAL_POSTED,
           reversal_of=recid,
         )
       )
@@ -996,7 +1288,7 @@ class FinanceModule(BaseModule):
           expires_at=expires_at,
           source_id=source_id,
           numbers_recid=numbers_recid,
-          status=1,
+          status=CREDIT_LOT_ACTIVE,
         )
       )
     )
@@ -1094,8 +1386,16 @@ class FinanceModule(BaseModule):
 
     journal: dict[str, Any] | None = None
     if recognized_revenue > Decimal("0"):
-      deferred_revenue_guid = await self._get_account_guid_by_number("2100")
-      recognized_revenue_guid = await self._get_account_guid_by_number("4010")
+      deferred_revenue_account = await self.get_pipeline_config(
+        "credit_consumption",
+        "deferred_revenue_account_number",
+      )
+      recognized_revenue_account = await self.get_pipeline_config(
+        "credit_consumption",
+        "revenue_account_number",
+      )
+      deferred_revenue_guid = await self._get_account_guid_by_number(deferred_revenue_account)
+      recognized_revenue_guid = await self._get_account_guid_by_number(recognized_revenue_account)
       journal = await self.create_journal(
         name=f"REV-{users_guid[:8]}-{credits_needed}",
         source_type="credit_consumption",

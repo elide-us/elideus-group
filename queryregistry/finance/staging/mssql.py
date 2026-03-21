@@ -7,6 +7,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import (
+  IMPORT_APPROVED,
+  IMPORT_COMPLETED,
+  IMPORT_PENDING,
+  IMPORT_REJECTED,
+)
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
@@ -90,7 +96,7 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
     args["metric"],
     args["period_start"],
     args["period_end"],
-    args.get("initial_status", 0),
+    args.get("initial_status", IMPORT_PENDING),
     args.get("requested_by"),
   )
   return await run_json_one(sql, params)
@@ -111,30 +117,30 @@ async def update_import_status_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def approve_import_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SET NOCOUNT ON;
 
     UPDATE finance_staging_imports
-    SET element_status = 1,
+    SET element_status = {IMPORT_COMPLETED},
         element_approved_by = ?,
         element_approved_on = SYSUTCDATETIME(),
         element_modified_on = SYSUTCDATETIME()
-    WHERE recid = ? AND element_status = 4;
+    WHERE recid = ? AND element_status = {IMPORT_APPROVED};
   """
   return await run_exec(sql, (args["approved_by"], args["imports_recid"]))
 
 
 async def reject_import_v1(args: Mapping[str, Any]) -> DBResponse:
-  sql = """
+  sql = f"""
     SET NOCOUNT ON;
 
     UPDATE finance_staging_imports
-    SET element_status = 5,
+    SET element_status = {IMPORT_REJECTED},
         element_approved_by = ?,
         element_approved_on = SYSUTCDATETIME(),
         element_error = ?,
         element_modified_on = SYSUTCDATETIME()
-    WHERE recid = ? AND element_status = 4;
+    WHERE recid = ? AND element_status = {IMPORT_APPROVED};
   """
   return await run_exec(sql, (args["approved_by"], args.get("reason"), args["imports_recid"]))
 
