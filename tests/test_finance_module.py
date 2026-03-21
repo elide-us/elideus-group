@@ -268,3 +268,145 @@ def test_create_and_post_system_journal_blocks_non_open_period_status():
         ],
       )
     )
+
+
+def test_next_formatted_number_rolls_over_to_next_series():
+  calls: list[str] = []
+
+  class FakeDb:
+    async def run(self, request):
+      calls.append(request.op)
+      if request.op == "db:finance:numbers:next_number_by_scope:1":
+        if calls.count(request.op) == 1:
+          return DBResponse(op=request.op, rows=[])
+        return DBResponse(
+          op=request.op,
+          rows=[{
+            "recid": 22,
+            "accounts_guid": "account-guid",
+            "element_prefix": "JRN",
+            "element_account_number": "JRN-CRP",
+            "element_block_start": 1,
+            "element_last_number": 1,
+            "element_max_number": 99999999,
+            "element_allocation_size": 1,
+            "element_sequence_status": 1,
+            "element_sequence_type": "continuous",
+            "element_series_number": 2,
+            "element_scope": "credit_purchase",
+            "element_pattern": "JRN-CRP-{series:03d}-{number:08d}",
+            "element_display_format": "JRN-CRP-###-########",
+          }],
+        )
+      if request.op == "db:finance:numbers:get_by_scope:1":
+        return DBResponse(
+          op=request.op,
+          rows=[{
+            "recid": 21,
+            "accounts_guid": "account-guid",
+            "element_prefix": "JRN",
+            "element_account_number": "JRN-CRP",
+            "element_last_number": 99999999,
+            "element_max_number": 99999999,
+            "element_allocation_size": 1,
+            "element_reset_policy": "Never",
+            "element_sequence_status": 1,
+            "element_sequence_type": "continuous",
+            "element_series_number": 1,
+            "element_scope": "credit_purchase",
+            "element_pattern": "JRN-CRP-{series:03d}-{number:08d}",
+            "element_display_format": "JRN-CRP-###-########",
+          }],
+        )
+      if request.op == "db:finance:numbers:close_sequence:1":
+        return DBResponse(op=request.op, rows=[{"recid": 21}])
+      if request.op == "db:finance:numbers:upsert:1":
+        assert request.payload["series_number"] == 2
+        assert request.payload["scope"] == "credit_purchase"
+        return DBResponse(
+          op=request.op,
+          rows=[{
+            "recid": 22,
+            "accounts_guid": "account-guid",
+            "element_prefix": "JRN",
+            "element_account_number": "JRN-CRP",
+            "element_last_number": 0,
+            "element_max_number": 99999999,
+            "element_allocation_size": 1,
+            "element_reset_policy": "Never",
+            "element_sequence_status": 1,
+            "element_sequence_type": "continuous",
+            "element_series_number": 2,
+            "element_scope": "credit_purchase",
+            "element_pattern": "JRN-CRP-{series:03d}-{number:08d}",
+            "element_display_format": "JRN-CRP-###-########",
+          }],
+        )
+      raise AssertionError(f"Unhandled op: {request.op}")
+
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = FakeDb()
+
+  formatted, recid = asyncio.run(
+    FinanceModule._next_formatted_number(module, "JRN", "credit_purchase")
+  )
+
+  assert formatted == "JRN-CRP-002-00000001"
+  assert recid == 22
+
+
+def test_create_journal_uses_scope_based_sequence_lookup():
+  class FakeDb:
+    async def run(self, request):
+      if request.op == "db:finance:journals:get_by_posting_key:1":
+        return DBResponse(op=request.op, rows=[])
+      if request.op == "db:finance:journals:create:1":
+        return DBResponse(
+          op=request.op,
+          rows=[{
+            "recid": 10,
+            "element_name": "JRN-IMP-001-00000001",
+            "element_description": "desc",
+            "element_posting_key": "JRN-IMP-001-00000001",
+            "element_source_type": "azure_invoice",
+            "element_source_id": "10",
+            "periods_guid": None,
+            "ledgers_recid": None,
+            "numbers_recid": 15,
+            "element_status": 0,
+            "element_posted_by": None,
+            "element_posted_on": None,
+            "element_reversed_by": None,
+            "element_reversal_of": None,
+          }],
+        )
+      if request.op == "db:finance:journal_lines:create_lines_batch:1":
+        return DBResponse(op=request.op, rows=[])
+      raise AssertionError(f"Unhandled op: {request.op}")
+
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = FakeDb()
+
+  async def fake_next_formatted_number(prefix: str, scope: str):
+    assert prefix == "JRN"
+    assert scope == "billing_import"
+    return "JRN-IMP-001-00000001", 15
+
+  module._next_formatted_number = fake_next_formatted_number
+
+  journal = asyncio.run(
+    FinanceModule.create_journal(
+      module,
+      name="ignored",
+      description="desc",
+      source_type="azure_invoice",
+      source_id="10",
+      lines=[
+        {"line_number": 1, "accounts_guid": "expense-guid", "debit": "10", "credit": "0", "dimension_recids": []},
+        {"line_number": 2, "accounts_guid": "ap-guid", "debit": "0", "credit": "10", "dimension_recids": []},
+      ],
+    )
+  )
+
+  assert journal["posting_key"] == "JRN-IMP-001-00000001"
+  assert journal["numbers_recid"] == 15

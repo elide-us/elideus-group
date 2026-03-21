@@ -59,18 +59,20 @@ from queryregistry.finance.dimensions.models import (
 from queryregistry.finance.numbers import (
   close_sequence_request,
   delete_number_request,
-  get_by_prefix_account_number_request,
+  get_by_scope_request,
   get_number_request,
   list_numbers_request,
+  next_number_by_scope_request,
   next_number_request,
   upsert_number_request,
 )
 from queryregistry.finance.numbers.models import (
   CloseSequenceParams,
   DeleteNumberParams,
-  GetByPrefixAndAccountNumberParams,
+  GetByScopeParams,
   GetNumberParams,
   ListNumbersParams,
+  NextNumberByScopeParams,
   NextNumberParams,
   UpsertNumberParams,
 )
@@ -316,6 +318,9 @@ class FinanceModule(BaseModule):
       "allocation_size": row.get("element_allocation_size"),
       "reset_policy": row.get("element_reset_policy"),
       "sequence_status": row.get("element_sequence_status"),
+      "sequence_type": row.get("element_sequence_type"),
+      "series_number": row.get("element_series_number"),
+      "scope": row.get("element_scope"),
       "pattern": row.get("element_pattern"),
       "display_format": row.get("element_display_format"),
       "account_name": row.get("account_name"),
@@ -769,11 +774,7 @@ class FinanceModule(BaseModule):
     return self._map_number(row)
 
   async def shift_sequence(self, data: dict[str, Any]) -> dict[str, Any]:
-    """Close the current active sequence and create a new one for the same account.
-
-    The old sequence is preserved with its consumed numbers.
-    The new sequence starts at 0 with a max derived from the display format.
-    """
+    """Close the current active sequence and create the next series entry."""
     assert self.db
     current_recid = data["current_recid"]
 
@@ -797,8 +798,12 @@ class FinanceModule(BaseModule):
       "allocation_size": data.get("new_allocation_size", 1),
       "reset_policy": "Never",
       "sequence_status": 1,
+      "sequence_type": current.get("sequence_type") or "continuous",
+      "series_number": int(current.get("series_number") or 1) + 1,
+      "scope": current.get("scope"),
       "pattern": data.get("new_pattern") or current.get("pattern"),
       "display_format": data.get("new_display_format") or current.get("display_format"),
+      "max_number": current.get("max_number"),
     }
     new_sequence = await self.upsert_number(new_data)
 
@@ -819,6 +824,81 @@ class FinanceModule(BaseModule):
     if not res.rows:
       raise ValueError(f"Number sequence {recid} is exhausted or inactive")
     return self._map_number(dict(res.rows[0]))
+
+  @staticmethod
+  def _journal_sequence_scope(source_type: str | None) -> str:
+    scope_map = {
+      "azure_invoice": "billing_import",
+      "azure_billing_import": "billing_import",
+      "billing_import": "billing_import",
+      "equity_contribution": "equity_contribution",
+      "credit_purchase": "credit_purchase",
+      "credit_consumption": "credit_consumption",
+      "reversal": "reversal",
+      "refund": "refund",
+      "chargeback": "refund",
+    }
+    return scope_map.get(str(source_type or "").strip(), "general")
+
+  async def _get_number_by_scope(self, prefix: str, scope: str) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_by_scope_request(GetByScopeParams(prefix=prefix, scope=scope))
+    )
+    if not res.rows:
+      return None
+    return dict(res.rows[0])
+
+  async def _rollover_number_sequence(self, prefix: str, scope: str, current: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    close_res = await self.db.run(
+      close_sequence_request(CloseSequenceParams(recid=int(current["recid"])))
+    )
+    if not close_res.rows:
+      replacement = await self._get_number_by_scope(prefix, scope)
+      if replacement:
+        return replacement
+      raise ValueError(
+        f"Failed to close exhausted number sequence {current['recid']} for prefix={prefix} scope={scope}"
+      )
+
+    next_series = int(current.get("element_series_number", 1) or 1) + 1
+    new_sequence = await self.upsert_number(
+      {
+        "accounts_guid": current["accounts_guid"],
+        "prefix": current.get("element_prefix") or prefix,
+        "account_number": current["element_account_number"],
+        "last_number": 0,
+        "max_number": current.get("element_max_number"),
+        "allocation_size": current.get("element_allocation_size", 1),
+        "reset_policy": current.get("element_reset_policy") or "Never",
+        "sequence_status": 1,
+        "sequence_type": current.get("element_sequence_type") or "continuous",
+        "series_number": next_series,
+        "scope": current.get("element_scope") or scope,
+        "pattern": current.get("element_pattern"),
+        "display_format": current.get("element_display_format"),
+      }
+    )
+    rolled = await self._get_number_by_scope(prefix, scope)
+    if rolled:
+      return rolled
+    return {
+      "recid": new_sequence["recid"],
+      "accounts_guid": new_sequence["accounts_guid"],
+      "element_prefix": new_sequence.get("prefix"),
+      "element_account_number": new_sequence["account_number"],
+      "element_last_number": new_sequence["last_number"],
+      "element_max_number": new_sequence.get("max_number"),
+      "element_allocation_size": new_sequence["allocation_size"],
+      "element_reset_policy": new_sequence["reset_policy"],
+      "element_sequence_status": new_sequence["sequence_status"],
+      "element_sequence_type": new_sequence.get("sequence_type"),
+      "element_series_number": new_sequence.get("series_number"),
+      "element_scope": new_sequence.get("scope"),
+      "element_pattern": new_sequence.get("pattern"),
+      "element_display_format": new_sequence.get("display_format"),
+    }
 
   async def list_dimensions(self) -> list[dict[str, Any]]:
     assert self.db
@@ -1118,37 +1198,40 @@ class FinanceModule(BaseModule):
     await self.db.run(delete_lines_by_journal_request(DeleteLinesByJournalParams(journals_recid=journals_recid)))
     return {"journals_recid": journals_recid}
 
-  async def _next_formatted_number(self, prefix: str, account_number: str) -> tuple[str, int]:
-    """Get next number from a sequence and format it using the configured pattern."""
+  async def _next_formatted_number(self, prefix: str, scope: str) -> tuple[str, int]:
+    """Get the next sequence value by scope and return the formatted identifier."""
     assert self.db
-    lookup_res = await self.db.run(
-      get_by_prefix_account_number_request(
-        GetByPrefixAndAccountNumberParams(prefix=prefix, account_number=account_number)
-      )
+    next_res = await self.db.run(
+      next_number_by_scope_request(NextNumberByScopeParams(prefix=prefix, scope=scope))
     )
-    if not lookup_res.rows:
-      raise ValueError(f"Number sequence not found: prefix={prefix} account_number={account_number}")
 
-    seq_row = dict(lookup_res.rows[0])
-    numbers_recid = int(seq_row["recid"])
+    if next_res.rows:
+      result = dict(next_res.rows[0])
+    else:
+      current = await self._get_number_by_scope(prefix, scope)
+      if not current:
+        raise ValueError(f"Number sequence not found: prefix={prefix} scope={scope}")
+      await self._rollover_number_sequence(prefix, scope, current)
+      retry_res = await self.db.run(
+        next_number_by_scope_request(NextNumberByScopeParams(prefix=prefix, scope=scope))
+      )
+      if not retry_res.rows:
+        raise ValueError(f"Number sequence rollover failed: prefix={prefix} scope={scope}")
+      result = dict(retry_res.rows[0])
 
-    next_res = await self.db.run(next_number_request(NextNumberParams(recid=numbers_recid)))
-    if not next_res.rows:
-      raise ValueError(f"Number sequence {numbers_recid} is exhausted or inactive")
-
-    result = dict(next_res.rows[0])
     next_val = int(result.get("element_block_start", result.get("element_last_number", 0)))
-    pattern = seq_row.get("element_pattern") or seq_row.get("element_display_format")
+    pattern = result.get("element_pattern") or result.get("element_display_format")
+    series = int(result.get("element_series_number", 1) or 1)
 
     if pattern and "{number" in pattern:
-      formatted = pattern.format(number=next_val)
+      formatted = pattern.format(series=series, number=next_val)
     elif pattern:
       formatted = f"{pattern}{next_val}"
     else:
-      prefix_str = seq_row.get("element_prefix") or ""
-      formatted = f"{prefix_str}{next_val:06d}"
+      prefix_str = result.get("element_prefix") or prefix
+      formatted = f"{prefix_str}-{series:03d}-{next_val:08d}"
 
-    return formatted, numbers_recid
+    return formatted, int(result["recid"])
 
   async def _validate_journal_period_open(self, periods_guid: str | None) -> None:
     if not periods_guid:
@@ -1195,7 +1278,8 @@ class FinanceModule(BaseModule):
     journal_number = None
     journal_numbers_recid = None
     if not posting_key:
-      journal_number, journal_numbers_recid = await self._next_formatted_number("JRN", "JRN-SEQ")
+      scope = self._journal_sequence_scope(source_type)
+      journal_number, journal_numbers_recid = await self._next_formatted_number("JRN", scope)
       posting_key = journal_number
 
     quantified_lines: list[CreateLineParams] = []
@@ -1478,7 +1562,7 @@ class FinanceModule(BaseModule):
     if credits > 0 and total_paid_decimal > Decimal("0"):
       unit_price = self._quantize_5dp(total_paid_decimal / Decimal(credits))
 
-    lot_number, numbers_recid = await self._next_formatted_number("LOT", "LOT-SEQ")
+    lot_number, numbers_recid = await self._next_formatted_number("LOT", "credit_lot")
     lot_res = await self.db.run(
       create_lot_request(
         CreateLotParams(

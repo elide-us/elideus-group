@@ -9,9 +9,11 @@ from pydantic import BaseModel, ConfigDict
 __all__ = [
   "CloseSequenceParams",
   "DeleteNumberParams",
+  "GetByScopeParams",
   "GetByPrefixAndAccountNumberParams",
   "GetNumberParams",
   "ListNumbersParams",
+  "NextNumberByScopeParams",
   "NextNumberParams",
   "NumberRecord",
   "ShiftNumberParams",
@@ -36,6 +38,13 @@ class GetByPrefixAndAccountNumberParams(BaseModel):
   account_number: str
 
 
+class GetByScopeParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  prefix: str
+  scope: str
+
+
 class UpsertNumberParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
@@ -48,6 +57,9 @@ class UpsertNumberParams(BaseModel):
   allocation_size: int = 1
   reset_policy: str = "Never"
   sequence_status: int = 1
+  sequence_type: str = "continuous"
+  series_number: int = 1
+  scope: str | None = None
   pattern: str | None = None
   display_format: str | None = None
 
@@ -68,6 +80,13 @@ class NextNumberParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   recid: int
+
+
+class NextNumberByScopeParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  prefix: str
+  scope: str
 
 
 class ShiftNumberParams(BaseModel):
@@ -91,6 +110,9 @@ class NumberRecord(TypedDict):
   element_allocation_size: int
   element_reset_policy: str
   element_sequence_status: int
+  element_sequence_type: str
+  element_series_number: int
+  element_scope: str | None
   element_pattern: str | None
   element_display_format: str | None
   element_created_on: str
