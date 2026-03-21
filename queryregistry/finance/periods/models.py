@@ -7,12 +7,18 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "ClosePeriodParams",
   "DeletePeriodParams",
   "GenerateCalendarParams",
   "GetPeriodParams",
+  "ListPeriodCloseBlockersParams",
   "ListPeriodsByYearParams",
   "ListPeriodsParams",
+  "LockPeriodParams",
+  "PeriodCloseBlockerRecord",
   "PeriodRecord",
+  "ReopenPeriodParams",
+  "UnlockPeriodParams",
   "UpsertPeriodParams",
 ]
 
@@ -31,6 +37,38 @@ class GetPeriodParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   guid: str
+
+
+class ClosePeriodParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  guid: str
+  closed_by: str
+
+
+class ReopenPeriodParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  guid: str
+
+
+class LockPeriodParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  guid: str
+  locked_by: str
+
+
+class UnlockPeriodParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  guid: str
+
+
+class ListPeriodCloseBlockersParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  period_guid: str
 
 
 class UpsertPeriodParams(BaseModel):
@@ -81,5 +119,17 @@ class PeriodRecord(TypedDict):
   element_status: int
   numbers_recid: int | None
   element_display_format: str | None
+  element_closed_by: str | None
+  element_closed_on: str | None
+  element_locked_by: str | None
+  element_locked_on: str | None
   element_created_on: str
   element_modified_on: str
+
+
+class PeriodCloseBlockerRecord(TypedDict):
+  period_guid: str
+  blocker_type: str
+  blocker_recid: int
+  blocker_name: str
+  blocker_reason: str

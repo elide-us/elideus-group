@@ -17,6 +17,10 @@ class FinancePeriodsItem1(BaseModel):
   status: int = 1
   numbers_recid: int | None = None
   element_display_format: str | None = None
+  closed_by: str | None = None
+  closed_on: str | None = None
+  locked_by: str | None = None
+  locked_on: str | None = None
 
 
 class FinancePeriodsList1(BaseModel):
@@ -29,6 +33,38 @@ class FinancePeriodsListByYear1(BaseModel):
 
 class FinancePeriodsGet1(BaseModel):
   guid: str
+
+
+class FinancePeriodsClose1(BaseModel):
+  guid: str
+
+
+class FinancePeriodsReopen1(BaseModel):
+  guid: str
+
+
+class FinancePeriodsLock1(BaseModel):
+  guid: str
+
+
+class FinancePeriodsUnlock1(BaseModel):
+  guid: str
+
+
+class FinancePeriodsListCloseBlockers1(BaseModel):
+  guid: str
+
+
+class FinancePeriodsBlockerItem1(BaseModel):
+  period_guid: str
+  blocker_type: str
+  blocker_recid: int
+  blocker_name: str
+  blocker_reason: str
+
+
+class FinancePeriodsBlockerList1(BaseModel):
+  blockers: list[FinancePeriodsBlockerItem1]
 
 
 class FinancePeriodsUpsert1(FinancePeriodsItem1):

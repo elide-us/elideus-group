@@ -90,9 +90,13 @@ class PeriodStatusRecord(TypedDict):
   close_type: int
   period_status: int
   has_closing_week: bool
+  closed_by: str | None
+  closed_on: str | None
+  locked_by: str | None
+  locked_on: str | None
   total_journals: int
   draft_journals: int
-  pending_journals: int
+  pending_approval_journals: int
   posted_journals: int
   reversed_journals: int
 

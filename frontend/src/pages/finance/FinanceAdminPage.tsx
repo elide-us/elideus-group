@@ -19,8 +19,8 @@ import {
     Divider,
     FormControl,
     FormControlLabel,
-    IconButton,
     InputLabel,
+    IconButton,
     MenuItem,
     Paper,
     Select,
@@ -57,7 +57,6 @@ import {
 import {
     fetchGenerateCalendar,
     fetchList as fetchPeriods,
-    fetchUpsert as fetchUpsertPeriod,
 } from "../../rpc/finance/periods/index";
 import { fetchPeriodStatus } from "../../rpc/finance/reporting/index";
 import {
@@ -100,6 +99,10 @@ type FinancePeriod = {
     status: number;
     numbers_recid: number | null;
     element_display_format: string | null;
+    closed_by?: string | null;
+    closed_on?: string | null;
+    locked_by?: string | null;
+    locked_on?: string | null;
 };
 
 type PeriodStatusRow = {
@@ -112,9 +115,13 @@ type PeriodStatusRow = {
     close_type: number;
     period_status: number;
     has_closing_week: boolean;
+    closed_by: string | null;
+    closed_on: string | null;
+    locked_by: string | null;
+    locked_on: string | null;
     total_journals: number;
     draft_journals: number;
-    pending_journals: number;
+    pending_approval_journals: number;
     posted_journals: number;
     reversed_journals: number;
 };
@@ -195,12 +202,6 @@ const ACCOUNT_TYPES: { value: number; label: string }[] = [
     { value: 4, label: "Expense" },
 ];
 
-const PERIOD_STATUS_OPTIONS = [
-    { value: 1, label: "Open" },
-    { value: 2, label: "Closed" },
-    { value: 3, label: "Locked" },
-] as const;
-
 const LEDGER_STATUS_OPTIONS = [
     { value: 1, label: "Active" },
     { value: 0, label: "Inactive" },
@@ -246,10 +247,6 @@ const formatDateTime = (value: string | null | undefined): string => {
         return "—";
     }
     return new Date(value).toLocaleString();
-};
-
-const getPeriodStatusLabel = (status: number): string => {
-    return PERIOD_STATUS_OPTIONS.find((option) => option.value === status)?.label || `Status ${status}`;
 };
 
 const getLedgerStatusLabel = (status: number): string => {
@@ -521,16 +518,14 @@ const FinanceAdminPage = (): JSX.Element => {
         }
     };
 
-    const handlePeriodStatusChange = async (period: FinancePeriod, nextStatus: number): Promise<void> => {
-        if (nextStatus === period.status) {
+    const handleLockToggle = async (period: FinancePeriod): Promise<void> => {
+        if (!period.guid) {
             return;
         }
-        const confirmationMessage =
-            nextStatus === 2
-                ? `Closing period ${period.period_name} will prevent new journal postings. Continue?`
-                : nextStatus === 3
-                    ? `Locking period ${period.period_name} is intended to be permanent. Continue?`
-                    : `Reopen period ${period.period_name}?`;
+        const isLock = period.status === 2;
+        const confirmationMessage = isLock
+            ? `Lock period ${period.period_name}?`
+            : `Unlock period ${period.period_name}?`;
 
         if (!window.confirm(confirmationMessage)) {
             return;
@@ -540,12 +535,10 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            await fetchUpsertPeriod({
-                ...period,
-                guid: period.guid || null,
-                status: nextStatus,
+            await rpcCall(isLock ? "urn:finance:periods:lock:1" : "urn:finance:periods:unlock:1", {
+                guid: period.guid,
             });
-            setSuccessMessage(`Updated ${period.period_name} to ${getPeriodStatusLabel(nextStatus)}.`);
+            setSuccessMessage(`${isLock ? "Locked" : "Unlocked"} ${period.period_name}.`);
             await refreshFinanceAdminData();
         } catch (error: unknown) {
             setPageError(getErrorMessage(error));
@@ -828,11 +821,11 @@ const FinanceAdminPage = (): JSX.Element => {
                                             <TableCell>Quarter</TableCell>
                                             <TableCell>Closing Week</TableCell>
                                             <TableCell>Status</TableCell>
+                                            <TableCell>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {periodsForYear.map((period) => {
-                                            const statusChoices = PERIOD_STATUS_OPTIONS.filter((option) => option.value >= period.status);
                                             return (
                                                 <TableRow key={period.guid || `${period.year}-${period.period_number}`}>
                                                     <TableCell>{period.period_number}</TableCell>
@@ -850,28 +843,36 @@ const FinanceAdminPage = (): JSX.Element => {
                                                     <TableCell>{period.quarter_number}</TableCell>
                                                     <TableCell>{period.has_closing_week ? "Yes" : "No"}</TableCell>
                                                     <TableCell>
-                                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+                                                        <Stack spacing={1}>
                                                             <Chip
                                                                 color={getStatusChipColor(period.status)}
-                                                                label={getPeriodStatusLabel(period.status)}
+                                                                label={period.status === 1 ? "Open" : period.status === 2 ? "Closed" : "Locked"}
                                                             />
-                                                            <FormControl size="small" sx={{ minWidth: 140 }}>
-                                                                <InputLabel id={`period-status-${period.guid}`}>Change</InputLabel>
-                                                                <Select
-                                                                    labelId={`period-status-${period.guid}`}
-                                                                    label="Change"
-                                                                    value={period.status}
-                                                                    onChange={(event) =>
-                                                                        void handlePeriodStatusChange(period, Number(event.target.value))
-                                                                    }
-                                                                >
-                                                                    {statusChoices.map((option) => (
-                                                                        <MenuItem key={option.value} value={option.value}>
-                                                                            {option.label}
-                                                                        </MenuItem>
-                                                                    ))}
-                                                                </Select>
-                                                            </FormControl>
+                                                            {period.closed_by && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    Closed by {period.closed_by} on {formatDateTime(period.closed_on)}
+                                                                </Typography>
+                                                            )}
+                                                            {period.locked_by && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    Locked by {period.locked_by} on {formatDateTime(period.locked_on)}
+                                                                </Typography>
+                                                            )}
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+                                                            {period.status === 2 && (
+                                                                <Button size="small" variant="contained" onClick={() => void handleLockToggle(period)}>
+                                                                    Lock
+                                                                </Button>
+                                                            )}
+                                                            {period.status === 3 && (
+                                                                <Button size="small" color="warning" variant="outlined" onClick={() => void handleLockToggle(period)}>
+                                                                    Unlock
+                                                                </Button>
+                                                            )}
+                                                            {period.status === 1 && <Typography variant="body2">Manager closes periods.</Typography>}
                                                         </Stack>
                                                     </TableCell>
                                                 </TableRow>
@@ -879,7 +880,7 @@ const FinanceAdminPage = (): JSX.Element => {
                                         })}
                                         {periodsForYear.length === 0 && (
                                             <TableRow>
-                                                <TableCell colSpan={8}>
+                                                <TableCell colSpan={9}>
                                                     <Typography variant="body2" color="text.secondary">
                                                         No periods generated for this fiscal year.
                                                     </Typography>
