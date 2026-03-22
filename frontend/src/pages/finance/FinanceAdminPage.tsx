@@ -193,19 +193,61 @@ type NumberFormState = {
     display_format: string;
 };
 
-type ProductJournalConfigItem = {
+type ProductJournalConfig = {
     recid: number;
-    category: string;
-    journal_scope: string;
+    element_category: string;
+    element_journal_scope: string;
     journals_recid: number;
     periods_guid: string;
-    approved_by: string | null;
-    approved_on: string | null;
-    activated_by: string | null;
-    activated_on: string | null;
-    status: number;
-    created_on: string | null;
-    modified_on: string | null;
+    element_approved_by: string | null;
+    element_approved_on: string | null;
+    element_activated_by: string | null;
+    element_activated_on: string | null;
+    element_status: number;
+    element_created_on: string | null;
+    element_modified_on: string | null;
+};
+
+type Product = {
+    recid: number;
+    element_sku: string;
+    element_name: string;
+    element_description: string | null;
+    element_category: string;
+    element_price: string;
+    element_currency: string;
+    element_credits: number;
+    element_enablement_key: string | null;
+    element_is_recurring: boolean;
+    element_sort_order: number;
+    element_status: number;
+};
+
+type ProductFormState = {
+    recid: number | null;
+    element_sku: string;
+    element_name: string;
+    element_description: string;
+    element_category: string;
+    element_price: string;
+    element_currency: string;
+    element_credits: number;
+    element_enablement_key: string;
+    element_is_recurring: boolean;
+    element_sort_order: number;
+    element_status: number;
+};
+
+type FinanceJournalReference = {
+    recid: number;
+    name: string;
+    description: string | null;
+};
+
+type FinancePeriodReference = {
+    guid: string;
+    year: number;
+    period_name: string;
 };
 
 type PeriodSummary = {
@@ -280,6 +322,33 @@ const LEDGER_STATUS_OPTIONS = [
     { value: 0, label: "Inactive" },
 ] as const;
 
+const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
+    credit_purchase: "Credit Purchases",
+    enablement: "Enablement",
+};
+
+const PRODUCT_JOURNAL_CONFIG_STATUS: Record<number, { label: string; color: "default" | "info" | "success" }> = {
+    0: { label: "Draft", color: "default" },
+    1: { label: "Approved", color: "info" },
+    2: { label: "Active", color: "success" },
+    3: { label: "Closed", color: "default" },
+};
+
+const EMPTY_PRODUCT_FORM: ProductFormState = {
+    recid: null,
+    element_sku: "",
+    element_name: "",
+    element_description: "",
+    element_category: "credit_purchase",
+    element_price: "0.00",
+    element_currency: "USD",
+    element_credits: 0,
+    element_enablement_key: "",
+    element_is_recurring: false,
+    element_sort_order: 0,
+    element_status: 1,
+};
+
 const emptyLedgerForm: LedgerFormState = {
     recid: null,
     element_name: "",
@@ -321,6 +390,70 @@ const formatDateTime = (value: string | null | undefined): string => {
     }
     return new Date(value).toLocaleString();
 };
+
+const formatCurrency = (value: string, currency: string): string => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency || "USD",
+    }).format(Number.isFinite(amount) ? amount : 0);
+};
+
+const normalizeProductJournalConfig = (config: {
+    recid: number;
+    category: string;
+    journal_scope: string;
+    journals_recid: number;
+    periods_guid: string;
+    approved_by: string | null;
+    approved_on: string | null;
+    activated_by: string | null;
+    activated_on: string | null;
+    status: number;
+    created_on: string | null;
+    modified_on: string | null;
+}): ProductJournalConfig => ({
+    recid: config.recid,
+    element_category: config.category,
+    element_journal_scope: config.journal_scope,
+    journals_recid: config.journals_recid,
+    periods_guid: config.periods_guid,
+    element_approved_by: config.approved_by,
+    element_approved_on: config.approved_on,
+    element_activated_by: config.activated_by,
+    element_activated_on: config.activated_on,
+    element_status: config.status,
+    element_created_on: config.created_on,
+    element_modified_on: config.modified_on,
+});
+
+const normalizeProduct = (product: {
+    recid: number;
+    sku: string;
+    name: string;
+    description: string | null;
+    category: string;
+    price: string;
+    currency: string;
+    credits: number;
+    enablement_key: string | null;
+    is_recurring: boolean;
+    sort_order: number;
+    status: number;
+}): Product => ({
+    recid: product.recid,
+    element_sku: product.sku,
+    element_name: product.name,
+    element_description: product.description,
+    element_category: product.category,
+    element_price: product.price,
+    element_currency: product.currency,
+    element_credits: product.credits,
+    element_enablement_key: product.enablement_key,
+    element_is_recurring: product.is_recurring,
+    element_sort_order: product.sort_order,
+    element_status: product.status,
+});
 
 const getLedgerStatusLabel = (status: number): string => {
     return LEDGER_STATUS_OPTIONS.find((option) => option.value === status)?.label || `Status ${status}`;
@@ -397,7 +530,14 @@ const FinanceAdminPage = (): JSX.Element => {
         element_description: "",
         element_status: true,
     });
-    const [approvedProductConfigs, setApprovedProductConfigs] = useState<ProductJournalConfigItem[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productFormOpen, setProductFormOpen] = useState(false);
+    const [productForm, setProductForm] = useState<ProductFormState>(EMPTY_PRODUCT_FORM);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [approvedProductConfigs, setApprovedProductConfigs] = useState<ProductJournalConfig[]>([]);
+    const [activeProductConfigs, setActiveProductConfigs] = useState<ProductJournalConfig[]>([]);
+    const [productConfigPeriods, setProductConfigPeriods] = useState<FinancePeriodReference[]>([]);
+    const [productConfigJournals, setProductConfigJournals] = useState<FinanceJournalReference[]>([]);
 
     const loadLedgers = useCallback(async (): Promise<void> => {
         const response = await fetchLedgers();
@@ -434,12 +574,85 @@ const FinanceAdminPage = (): JSX.Element => {
         setNumbers((response.numbers || []) as FinanceNumber[]);
     }, []);
 
+    const loadProducts = useCallback(async (): Promise<void> => {
+        const response = await rpcCall<{ products: Array<{
+            recid: number;
+            sku: string;
+            name: string;
+            description: string | null;
+            category: string;
+            price: string;
+            currency: string;
+            credits: number;
+            enablement_key: string | null;
+            is_recurring: boolean;
+            sort_order: number;
+            status: number;
+        }> }>("urn:finance:products:list:1");
+        setProducts((response.products || []).map(normalizeProduct));
+    }, []);
+
     const loadApprovedProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await rpcCall<{ configs: ProductJournalConfigItem[] }>(
+        const response = await rpcCall<{ configs: Array<{
+            recid: number;
+            category: string;
+            journal_scope: string;
+            journals_recid: number;
+            periods_guid: string;
+            approved_by: string | null;
+            approved_on: string | null;
+            activated_by: string | null;
+            activated_on: string | null;
+            status: number;
+            created_on: string | null;
+            modified_on: string | null;
+        }> }>(
             "urn:finance:product_journal_config:list:1",
             { status: 1 },
         );
-        setApprovedProductConfigs(response.configs || []);
+        setApprovedProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
+    }, []);
+
+    const loadActiveProductConfigs = useCallback(async (): Promise<void> => {
+        const response = await rpcCall<{ configs: Array<{
+            recid: number;
+            category: string;
+            journal_scope: string;
+            journals_recid: number;
+            periods_guid: string;
+            approved_by: string | null;
+            approved_on: string | null;
+            activated_by: string | null;
+            activated_on: string | null;
+            status: number;
+            created_on: string | null;
+            modified_on: string | null;
+        }> }>(
+            "urn:finance:product_journal_config:list:1",
+            { status: 2 },
+        );
+        setActiveProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
+    }, []);
+
+    const loadProductConfigReferences = useCallback(async (): Promise<void> => {
+        const [periodResponse, journalResponse] = await Promise.all([
+            rpcCall<{ periods: FinancePeriod[] }>("urn:finance:periods:list:1"),
+            rpcCall<{ journals: FinanceJournalReference[] }>("urn:finance:journals:list:1"),
+        ]);
+        setProductConfigPeriods(
+            (periodResponse.periods || [])
+                .filter((period) => Boolean(period.guid))
+                .map((period) => ({
+                    guid: period.guid as string,
+                    year: period.year,
+                    period_name: period.period_name,
+                })),
+        );
+        setProductConfigJournals((journalResponse.journals || []).map((journal) => ({
+            recid: journal.recid,
+            name: journal.name,
+            description: journal.description,
+        })));
     }, []);
 
     const loadAccountMappings = useCallback(async (): Promise<void> => {
@@ -486,9 +699,14 @@ const FinanceAdminPage = (): JSX.Element => {
             void loadNumbers();
         }
         if (tab === 7) {
-            void loadApprovedProductConfigs();
+            void Promise.all([
+                loadProducts(),
+                loadApprovedProductConfigs(),
+                loadActiveProductConfigs(),
+                loadProductConfigReferences(),
+            ]);
         }
-    }, [loadAccountMappings, loadApprovedProductConfigs, loadNumbers, loadVendors, tab]);
+    }, [loadAccountMappings, loadActiveProductConfigs, loadApprovedProductConfigs, loadNumbers, loadProductConfigReferences, loadProducts, loadVendors, tab]);
 
     const periodYears = useMemo(() => {
         const years = new Set<number>();
@@ -527,6 +745,26 @@ const FinanceAdminPage = (): JSX.Element => {
         return periods.some((period) => period.year === fiscalYear);
     }, [fiscalYear, periods]);
 
+    const productCategoryOptions = useMemo(() => {
+        const categories = new Set<string>(Object.keys(PRODUCT_CATEGORY_LABELS));
+        products.forEach((product) => {
+            if (product.element_category) {
+                categories.add(product.element_category);
+            }
+        });
+        return Array.from(categories).sort((left, right) => left.localeCompare(right));
+    }, [products]);
+
+    const productConfigPeriodByGuid = useMemo(
+        () => new Map(productConfigPeriods.map((period) => [period.guid, period])),
+        [productConfigPeriods],
+    );
+
+    const productConfigJournalByRecid = useMemo(
+        () => new Map(productConfigJournals.map((journal) => [journal.recid, journal])),
+        [productConfigJournals],
+    );
+
     const closeLedgerDialog = (): void => {
         setLedgerDialogOpen(false);
         setLedgerForm(emptyLedgerForm);
@@ -550,6 +788,86 @@ const FinanceAdminPage = (): JSX.Element => {
             element_status: ledger.element_status,
         });
         setLedgerDialogOpen(true);
+    };
+
+    const closeProductFormDialog = (): void => {
+        setProductFormOpen(false);
+        setProductForm(EMPTY_PRODUCT_FORM);
+    };
+
+    const openCreateProductDialog = (): void => {
+        setPageError(null);
+        setSuccessMessage(null);
+        setProductForm(EMPTY_PRODUCT_FORM);
+        setProductFormOpen(true);
+    };
+
+    const openEditProductDialog = (product: Product): void => {
+        setPageError(null);
+        setSuccessMessage(null);
+        setProductForm({
+            recid: product.recid,
+            element_sku: product.element_sku,
+            element_name: product.element_name,
+            element_description: product.element_description || "",
+            element_category: product.element_category,
+            element_price: product.element_price,
+            element_currency: product.element_currency,
+            element_credits: product.element_credits,
+            element_enablement_key: product.element_enablement_key || "",
+            element_is_recurring: product.element_is_recurring,
+            element_sort_order: product.element_sort_order,
+            element_status: product.element_status,
+        });
+        setProductFormOpen(true);
+    };
+
+    const saveProduct = async (): Promise<void> => {
+        try {
+            setIsBusy(true);
+            setPageError(null);
+            setSuccessMessage(null);
+            await rpcCall("urn:finance:products:upsert:1", {
+                recid: productForm.recid,
+                sku: productForm.element_sku,
+                name: productForm.element_name,
+                description: productForm.element_description || null,
+                category: productForm.element_category,
+                price: productForm.element_price,
+                currency: productForm.element_currency,
+                credits: productForm.element_credits,
+                enablement_key: productForm.element_enablement_key || null,
+                is_recurring: productForm.element_is_recurring,
+                sort_order: productForm.element_sort_order,
+                status: productForm.element_status,
+            });
+            closeProductFormDialog();
+            setSuccessMessage(productForm.recid === null ? "Product created." : "Product updated.");
+            await loadProducts();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        } finally {
+            setIsBusy(false);
+        }
+    };
+
+    const confirmDeleteProduct = async (): Promise<void> => {
+        if (!productToDelete) {
+            return;
+        }
+        try {
+            setIsBusy(true);
+            setPageError(null);
+            setSuccessMessage(null);
+            await rpcCall("urn:finance:products:delete:1", { recid: productToDelete.recid });
+            setSuccessMessage(`Deleted product ${productToDelete.element_sku}.`);
+            setProductToDelete(null);
+            await loadProducts();
+        } catch (error: unknown) {
+            setPageError(getErrorMessage(error));
+        } finally {
+            setIsBusy(false);
+        }
     };
 
     const refreshFinanceAdminData = useCallback(async (): Promise<void> => {
@@ -866,7 +1184,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 <Tab label="Vendors" />
                 <Tab label="Account Mappings" />
                 <Tab label="Number Sequences" />
-                <Tab label="Product Journal Activation" />
+                <Tab label="Product Config" />
             </Tabs>
 
             {tab === 0 && (
@@ -1743,67 +2061,322 @@ const FinanceAdminPage = (): JSX.Element => {
             {tab === 7 && (
                 <Stack spacing={2} sx={{ mt: 2 }}>
                     <Paper sx={{ p: 2 }}>
-                        <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
-                            <Box>
-                                <Typography variant="h6">Product Journal Activation</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Activate approved product journal configurations so purchases flow into the selected journal series.
-                                </Typography>
-                            </Box>
-                            <Button variant="outlined" onClick={() => void loadApprovedProductConfigs()}>Refresh</Button>
+                        <Stack spacing={2}>
+                            <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="h6">Product Catalog</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Manage finance products and their customer-facing pricing metadata.
+                                    </Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1}>
+                                    <Button variant="outlined" onClick={() => void loadProducts()}>Refresh</Button>
+                                    <Button startIcon={<AddIcon />} variant="contained" onClick={openCreateProductDialog}>
+                                        Add Product
+                                    </Button>
+                                </Stack>
+                            </Stack>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>SKU</TableCell>
+                                        <TableCell>Name</TableCell>
+                                        <TableCell>Category</TableCell>
+                                        <TableCell>Price</TableCell>
+                                        <TableCell>Credits</TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell align="right">Actions</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {products.map((product) => (
+                                        <TableRow key={product.recid}>
+                                            <TableCell>{product.element_sku}</TableCell>
+                                            <TableCell>{product.element_name}</TableCell>
+                                            <TableCell>{PRODUCT_CATEGORY_LABELS[product.element_category] || product.element_category}</TableCell>
+                                            <TableCell>{formatCurrency(product.element_price, product.element_currency)}</TableCell>
+                                            <TableCell>{product.element_credits}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    color={product.element_status === 1 ? "success" : "default"}
+                                                    label={product.element_status === 1 ? "Active" : "Inactive"}
+                                                />
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                    <Button size="small" onClick={() => openEditProductDialog(product)}>Edit</Button>
+                                                    <Button size="small" color="error" onClick={() => setProductToDelete(product)}>Delete</Button>
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {products.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={7}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No products have been configured yet.
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </Stack>
                     </Paper>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>RecId</TableCell>
-                                <TableCell>Category</TableCell>
-                                <TableCell>Period</TableCell>
-                                <TableCell>Journal</TableCell>
-                                <TableCell>Scope</TableCell>
-                                <TableCell>Approved On</TableCell>
-                                <TableCell align="right">Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {approvedProductConfigs.map((config) => (
-                                <TableRow key={config.recid}>
-                                    <TableCell>{config.recid}</TableCell>
-                                    <TableCell>{config.category}</TableCell>
-                                    <TableCell>{config.periods_guid}</TableCell>
-                                    <TableCell>{config.journals_recid}</TableCell>
-                                    <TableCell>{config.journal_scope}</TableCell>
-                                    <TableCell>{formatDateTime(config.approved_on)}</TableCell>
-                                    <TableCell align="right">
-                                        <Button
-                                            variant="contained"
-                                            size="small"
-                                            onClick={async () => {
-                                                try {
-                                                    setPageError(null);
-                                                    setSuccessMessage(null);
-                                                    await rpcCall("urn:finance:product_journal_config:activate:1", { recid: config.recid });
-                                                    setSuccessMessage(`Activated product journal configuration ${config.recid}.`);
-                                                    await loadApprovedProductConfigs();
-                                                } catch (error: unknown) {
-                                                    setPageError(getErrorMessage(error));
-                                                }
-                                            }}
-                                        >
-                                            Activate
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {approvedProductConfigs.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={7}>No approved product journal configurations are waiting for activation.</TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+
+                    <Paper sx={{ p: 2 }}>
+                        <Stack spacing={2}>
+                            <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="h6">Journal Config Activation</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Activate approved product journal configurations so purchases can post into the correct journal.
+                                    </Typography>
+                                </Box>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => void Promise.all([loadApprovedProductConfigs(), loadActiveProductConfigs(), loadProductConfigReferences()])}
+                                >
+                                    Refresh
+                                </Button>
+                            </Stack>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Category</TableCell>
+                                        <TableCell>Journal Scope</TableCell>
+                                        <TableCell>Journal</TableCell>
+                                        <TableCell>Period</TableCell>
+                                        <TableCell>Approved By</TableCell>
+                                        <TableCell>Approved On</TableCell>
+                                        <TableCell align="right">Actions</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {approvedProductConfigs.map((config) => (
+                                        <TableRow key={config.recid}>
+                                            <TableCell>{PRODUCT_CATEGORY_LABELS[config.element_category] || config.element_category}</TableCell>
+                                            <TableCell>{config.element_journal_scope}</TableCell>
+                                            <TableCell>
+                                                {productConfigJournalByRecid.get(config.journals_recid)?.name || `Journal #${config.journals_recid}`}
+                                            </TableCell>
+                                            <TableCell>
+                                                {productConfigPeriodByGuid.get(config.periods_guid)
+                                                    ? `FY${productConfigPeriodByGuid.get(config.periods_guid)?.year} — ${productConfigPeriodByGuid.get(config.periods_guid)?.period_name}`
+                                                    : config.periods_guid}
+                                            </TableCell>
+                                            <TableCell>{config.element_approved_by || "—"}</TableCell>
+                                            <TableCell>{formatDateTime(config.element_approved_on)}</TableCell>
+                                            <TableCell align="right">
+                                                <Button
+                                                    variant="contained"
+                                                    size="small"
+                                                    onClick={async () => {
+                                                        try {
+                                                            setPageError(null);
+                                                            setSuccessMessage(null);
+                                                            await rpcCall("urn:finance:product_journal_config:activate:1", { recid: config.recid });
+                                                            setSuccessMessage(`Activated product journal configuration ${config.recid}.`);
+                                                            await Promise.all([loadApprovedProductConfigs(), loadActiveProductConfigs()]);
+                                                        } catch (error: unknown) {
+                                                            setPageError(getErrorMessage(error));
+                                                        }
+                                                    }}
+                                                >
+                                                    Activate
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {approvedProductConfigs.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={7}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No approved product journal configurations are waiting for activation.
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ mb: 1 }}>Active Configurations</Typography>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Category</TableCell>
+                                            <TableCell>Journal Scope</TableCell>
+                                            <TableCell>Journal</TableCell>
+                                            <TableCell>Period</TableCell>
+                                            <TableCell>Approved By</TableCell>
+                                            <TableCell>Status</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {activeProductConfigs.map((config) => (
+                                            <TableRow key={config.recid}>
+                                                <TableCell>{PRODUCT_CATEGORY_LABELS[config.element_category] || config.element_category}</TableCell>
+                                                <TableCell>{config.element_journal_scope}</TableCell>
+                                                <TableCell>
+                                                    {productConfigJournalByRecid.get(config.journals_recid)?.name || `Journal #${config.journals_recid}`}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {productConfigPeriodByGuid.get(config.periods_guid)
+                                                        ? `FY${productConfigPeriodByGuid.get(config.periods_guid)?.year} — ${productConfigPeriodByGuid.get(config.periods_guid)?.period_name}`
+                                                        : config.periods_guid}
+                                                </TableCell>
+                                                <TableCell>{config.element_approved_by || "—"}</TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        label={PRODUCT_JOURNAL_CONFIG_STATUS[config.element_status]?.label || `Status ${config.element_status}`}
+                                                        color={PRODUCT_JOURNAL_CONFIG_STATUS[config.element_status]?.color || "default"}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {activeProductConfigs.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={6}>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        No active product journal configurations are available.
+                                                    </Typography>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        </Stack>
+                    </Paper>
                 </Stack>
             )}
+
+            <Dialog fullWidth maxWidth="sm" open={productFormOpen} onClose={closeProductFormDialog}>
+                <DialogTitle>{productForm.recid === null ? "Add product" : "Edit product"}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            autoFocus
+                            required
+                            label="SKU"
+                            value={productForm.element_sku}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_sku: event.target.value }))}
+                        />
+                        <TextField
+                            required
+                            label="Name"
+                            value={productForm.element_name}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_name: event.target.value }))}
+                        />
+                        <TextField
+                            label="Description"
+                            multiline
+                            minRows={3}
+                            value={productForm.element_description}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_description: event.target.value }))}
+                        />
+                        <TextField
+                            select
+                            label="Category"
+                            value={productForm.element_category}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_category: event.target.value }))}
+                        >
+                            {productCategoryOptions.map((category) => (
+                                <MenuItem key={category} value={category}>
+                                    {PRODUCT_CATEGORY_LABELS[category] || category}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                            <TextField
+                                label="Price"
+                                value={productForm.element_price}
+                                onChange={(event) => setProductForm((previous) => ({ ...previous, element_price: event.target.value }))}
+                                fullWidth
+                            />
+                            <TextField
+                                label="Currency"
+                                value={productForm.element_currency}
+                                onChange={(event) => setProductForm((previous) => ({ ...previous, element_currency: event.target.value.toUpperCase() }))}
+                                fullWidth
+                            />
+                        </Stack>
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                            <TextField
+                                type="number"
+                                label="Credits"
+                                value={productForm.element_credits}
+                                onChange={(event) =>
+                                    setProductForm((previous) => ({ ...previous, element_credits: Number(event.target.value) || 0 }))
+                                }
+                                fullWidth
+                            />
+                            <TextField
+                                type="number"
+                                label="Sort Order"
+                                value={productForm.element_sort_order}
+                                onChange={(event) =>
+                                    setProductForm((previous) => ({ ...previous, element_sort_order: Number(event.target.value) || 0 }))
+                                }
+                                fullWidth
+                            />
+                        </Stack>
+                        <TextField
+                            label="Enablement Key"
+                            value={productForm.element_enablement_key}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_enablement_key: event.target.value }))}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={productForm.element_is_recurring}
+                                    onChange={(event) =>
+                                        setProductForm((previous) => ({ ...previous, element_is_recurring: event.target.checked }))
+                                    }
+                                />
+                            }
+                            label="Recurring product"
+                        />
+                        <TextField
+                            select
+                            label="Status"
+                            value={productForm.element_status}
+                            onChange={(event) => setProductForm((previous) => ({ ...previous, element_status: Number(event.target.value) }))}
+                        >
+                            <MenuItem value={1}>Active</MenuItem>
+                            <MenuItem value={0}>Inactive</MenuItem>
+                        </TextField>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeProductFormDialog}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        disabled={isBusy || !productForm.element_sku.trim() || !productForm.element_name.trim() || !productForm.element_category.trim()}
+                        onClick={() => void saveProduct()}
+                    >
+                        Save
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={productToDelete !== null} onClose={() => setProductToDelete(null)} fullWidth maxWidth="xs">
+                <DialogTitle>Delete product</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2">
+                        {productToDelete
+                            ? `Delete product ${productToDelete.element_sku} — ${productToDelete.element_name}?`
+                            : "Delete this product?"}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setProductToDelete(null)}>Cancel</Button>
+                    <Button color="error" variant="contained" disabled={isBusy || !productToDelete} onClick={() => void confirmDeleteProduct()}>
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog fullWidth maxWidth="sm" open={ledgerDialogOpen} onClose={closeLedgerDialog}>
                 <DialogTitle>{ledgerForm.recid === null ? "Create ledger" : "Edit ledger"}</DialogTitle>
