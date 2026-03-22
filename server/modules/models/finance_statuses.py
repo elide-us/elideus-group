@@ -36,3 +36,22 @@ ELEMENT_ACTIVE = 1
 CREDIT_LOT_ACTIVE = 1
 CREDIT_LOT_EXHAUSTED = 2
 CREDIT_LOT_EXPIRED = 3
+
+
+# Number sequence statuses (finance_numbers.element_sequence_status)
+NUMBER_SEQUENCE_INACTIVE = 0
+NUMBER_SEQUENCE_ACTIVE = 1
+
+# Number sequence types (finance_numbers.element_sequence_type)
+NUMBER_SEQUENCE_CONTINUOUS = 1
+NUMBER_SEQUENCE_NON_CONTINUOUS = 2
+
+# Product statuses (finance_products.element_status)
+PRODUCT_INACTIVE = 0
+PRODUCT_ACTIVE = 1
+
+# Product journal config statuses (finance_product_journal_config.element_status)
+PRODUCT_JOURNAL_CONFIG_DRAFT = 0
+PRODUCT_JOURNAL_CONFIG_APPROVED = 1
+PRODUCT_JOURNAL_CONFIG_ACTIVE = 2
+PRODUCT_JOURNAL_CONFIG_CLOSED = 3
