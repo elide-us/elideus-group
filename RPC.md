@@ -56,6 +56,13 @@ All Users domain calls require `ROLE_REGISTERED`.
 | `urn:users:providers:link_provider:1`   | A user can link additional providers.                  |
 | `urn:users:providers:unlink_provider:1` | A user can unlink providers.                           |
 
+### `products`
+
+| Operation | Description |
+| --- | --- |
+| `urn:users:products:list:1` | List active purchasable products with per-user enablement state. |
+| `urn:users:products:purchase:1` | Purchase a product using the stub payment flow. |
+
 ## Auth Domain
 
 Authentication and session management calls.
@@ -382,6 +389,26 @@ Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 | `urn:finance:periods:upsert:1` | Create or update fiscal period metadata. |
 | `urn:finance:periods:delete:1` | Delete a fiscal period by GUID. |
 | `urn:finance:periods:generate_calendar:1` | Generate the 4-4-5 fiscal calendar for a year, rejecting duplicate generation. |
+
+### `products`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:products:list:1` | List finance products. |
+| `urn:finance:products:get:1` | Get a finance product by `recid` or `sku`. |
+| `urn:finance:products:upsert:1` | Create or update a finance product. |
+| `urn:finance:products:delete:1` | Delete a finance product by `recid`. |
+
+### `product_journal_config`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:product_journal_config:list:1` | List product journal configuration rows. |
+| `urn:finance:product_journal_config:get:1` | Get a product journal configuration row by `recid`. |
+| `urn:finance:product_journal_config:upsert:1` | Create or update a product journal configuration row. |
+| `urn:finance:product_journal_config:approve:1` | Approve a draft product journal configuration. |
+| `urn:finance:product_journal_config:activate:1` | Activate an approved product journal configuration. |
+| `urn:finance:product_journal_config:close:1` | Close an active product journal configuration. |
 
 ### `reporting`
 

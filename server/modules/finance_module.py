@@ -163,6 +163,36 @@ from queryregistry.finance.pipeline_config.models import (
   ListPipelineConfigsParams,
   UpsertPipelineConfigParams,
 )
+from queryregistry.finance.products import (
+  delete_product_request,
+  get_product_request,
+  list_products_request,
+  upsert_product_request,
+)
+from queryregistry.finance.products.models import (
+  DeleteProductParams,
+  GetProductParams,
+  ListProductsParams,
+  UpsertProductParams,
+)
+from queryregistry.finance.product_journal_config import (
+  activate_product_journal_config_request,
+  approve_product_journal_config_request,
+  close_product_journal_config_request,
+  get_active_product_journal_config_request,
+  get_product_journal_config_request,
+  list_product_journal_config_request,
+  upsert_product_journal_config_request,
+)
+from queryregistry.finance.product_journal_config.models import (
+  ActivateProductJournalConfigParams,
+  ApproveProductJournalConfigParams,
+  CloseProductJournalConfigParams,
+  GetActiveConfigParams,
+  GetProductJournalConfigParams,
+  ListProductJournalConfigParams,
+  UpsertProductJournalConfigParams,
+)
 from queryregistry.finance.reporting import (
   credit_lot_summary_request,
   journal_summary_request,
@@ -215,6 +245,16 @@ from queryregistry.finance.vendors.models import (
   ListVendorsParams,
   UpsertVendorParams,
 )
+from queryregistry.identity.enablements import (
+  get_user_enablements_request,
+  upsert_user_enablements_request,
+)
+from queryregistry.identity.enablements.models import (
+  GetUserEnablementsParams,
+  UpsertUserEnablementsParams,
+)
+from queryregistry.identity.profiles import get_roles_request, set_roles_request
+from queryregistry.identity.profiles.models import GuidParams, SetRolesParams
 
 from .models.finance_statuses import (
   CLOSE_TYPE_ANNUAL,
@@ -394,6 +434,40 @@ class FinanceModule(BaseModule):
       "description": row.get("element_description"),
       "actor_guid": row.get("element_actor_guid"),
       "journals_recid": row.get("journals_recid"),
+    }
+
+  def _map_product(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "sku": row.get("element_sku"),
+      "name": row.get("element_name"),
+      "description": row.get("element_description"),
+      "category": row.get("element_category"),
+      "price": str(row.get("element_price") or "0"),
+      "currency": row.get("element_currency"),
+      "credits": int(row.get("element_credits") or 0),
+      "enablement_key": row.get("element_enablement_key"),
+      "is_recurring": bool(row.get("element_is_recurring") or False),
+      "sort_order": int(row.get("element_sort_order") or 0),
+      "status": int(row.get("element_status") or 0),
+      "created_on": row.get("element_created_on"),
+      "modified_on": row.get("element_modified_on"),
+    }
+
+  def _map_product_journal_config(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": int(row.get("recid") or 0),
+      "category": row.get("element_category"),
+      "journal_scope": row.get("element_journal_scope"),
+      "journals_recid": int(row.get("journals_recid") or 0),
+      "periods_guid": str(row.get("periods_guid") or ""),
+      "approved_by": row.get("element_approved_by"),
+      "approved_on": row.get("element_approved_on"),
+      "activated_by": row.get("element_activated_by"),
+      "activated_on": row.get("element_activated_on"),
+      "status": int(row.get("element_status") or 0),
+      "created_on": row.get("element_created_on"),
+      "modified_on": row.get("element_modified_on"),
     }
 
   @staticmethod
@@ -1172,6 +1246,151 @@ class FinanceModule(BaseModule):
       self._pipeline_config_cache.pop(deleted_key, None)
     return {"recid": recid, "deleted": True}
 
+  async def list_products(self, category: str | None = None, status: int | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_products_request(ListProductsParams(category=category, status=status)))
+    return [self._map_product(dict(row)) for row in res.rows]
+
+  async def get_product(self, recid: int | None = None, sku: str | None = None) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(get_product_request(GetProductParams(recid=recid, sku=sku)))
+    if not res.rows:
+      return None
+    return self._map_product(dict(res.rows[0]))
+
+  async def upsert_product(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = UpsertProductParams(**data)
+    res = await self.db.run(upsert_product_request(params))
+    row = dict(res.rows[0]) if res.rows else params.model_dump()
+    return self._map_product(row)
+
+  async def delete_product(self, recid: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(delete_product_request(DeleteProductParams(recid=recid)))
+    return {"recid": recid, "deleted": True}
+
+  async def list_product_journal_configs(
+    self,
+    category: str | None = None,
+    periods_guid: str | None = None,
+    status: int | None = None,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(
+      list_product_journal_config_request(
+        ListProductJournalConfigParams(category=category, periods_guid=periods_guid, status=status)
+      )
+    )
+    return [self._map_product_journal_config(dict(row)) for row in res.rows]
+
+  async def get_product_journal_config(self, recid: int) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_product_journal_config_request(GetProductJournalConfigParams(recid=recid))
+    )
+    if not res.rows:
+      return None
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def get_active_product_journal_config(self, category: str, periods_guid: str) -> dict[str, Any] | None:
+    assert self.db
+    res = await self.db.run(
+      get_active_product_journal_config_request(
+        GetActiveConfigParams(category=category, periods_guid=periods_guid)
+      )
+    )
+    if not res.rows:
+      return None
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def upsert_product_journal_config(self, data: dict[str, Any]) -> dict[str, Any]:
+    assert self.db
+    params = UpsertProductJournalConfigParams(**data)
+    res = await self.db.run(upsert_product_journal_config_request(params))
+    if not res.rows:
+      raise ValueError("Failed to upsert product journal configuration")
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def approve_product_journal_config(self, recid: int, approved_by: str) -> dict[str, Any]:
+    assert self.db
+    res = await self.db.run(
+      approve_product_journal_config_request(
+        ApproveProductJournalConfigParams(recid=recid, approved_by=approved_by)
+      )
+    )
+    if not res.rows:
+      raise ValueError("Only draft product journal configs can be approved")
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def activate_product_journal_config(self, recid: int, activated_by: str) -> dict[str, Any]:
+    assert self.db
+    config = await self.get_product_journal_config(recid)
+    if not config:
+      raise ValueError("Product journal config not found")
+
+    active_configs = await self.list_product_journal_configs(
+      category=config["category"],
+      periods_guid=config["periods_guid"],
+      status=2,
+    )
+    for row in active_configs:
+      if int(row["recid"]) != recid:
+        raise ValueError("An active configuration already exists for this category and period")
+
+    res = await self.db.run(
+      activate_product_journal_config_request(
+        ActivateProductJournalConfigParams(recid=recid, activated_by=activated_by)
+      )
+    )
+    if not res.rows:
+      raise ValueError("Only approved product journal configs can be activated")
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def close_product_journal_config(self, recid: int) -> dict[str, Any]:
+    assert self.db
+    res = await self.db.run(
+      close_product_journal_config_request(CloseProductJournalConfigParams(recid=recid))
+    )
+    if not res.rows:
+      raise ValueError("Only active product journal configs can be closed")
+    return self._map_product_journal_config(dict(res.rows[0]))
+
+  async def get_user_enablements(self, users_guid: str) -> int:
+    assert self.db
+    res = await self.db.run(
+      get_user_enablements_request(GetUserEnablementsParams(users_guid=users_guid))
+    )
+    if not res.rows:
+      return 0
+    row = dict(res.rows[0])
+    return int(str(row.get("element_enablements") or "0") or 0)
+
+  async def set_user_enablements(self, users_guid: str, enablements: int) -> dict[str, Any]:
+    assert self.db
+    res = await self.db.run(
+      upsert_user_enablements_request(
+        UpsertUserEnablementsParams(users_guid=users_guid, element_enablements=str(enablements))
+      )
+    )
+    return dict(res.rows[0]) if res.rows else {"users_guid": users_guid, "element_enablements": str(enablements)}
+
+  async def get_user_roles_mask(self, users_guid: str) -> int:
+    assert self.db
+    res = await self.db.run(get_roles_request(GuidParams(guid=users_guid)))
+    if not res.rows:
+      return 0
+    row = dict(res.rows[0])
+    return int(row.get("roles") or 0)
+
+  async def set_user_roles_mask(self, users_guid: str, roles: int) -> int:
+    assert self.db
+    await self.db.run(set_roles_request(SetRolesParams(guid=users_guid, roles=roles)))
+    auth = getattr(self.app.state, "auth", None)
+    if auth is not None:
+      await auth.refresh_user_roles(users_guid)
+    return roles
+
   async def list_journals(
     self,
     status: int | None = None,
@@ -1542,6 +1761,166 @@ class FinanceModule(BaseModule):
     assert self.db
     total = await self.get_wallet_balance(users_guid)
     await self.db.run(set_credits_request(SetCreditsParams(guid=users_guid, credits=total)))
+
+  async def _process_payment_stub(self, product: dict[str, Any], users_guid: str) -> dict[str, Any]:
+    del users_guid
+    return {
+      "success": True,
+      "transaction_token": f"STUB-{uuid.uuid4()}",
+      "amount": product["price"],
+      "currency": product["currency"],
+    }
+
+  async def _get_current_open_period_guid(self) -> str:
+    today = date.today().isoformat()
+    periods = await self.list_periods()
+    for period in periods:
+      if int(period.get("status") or ELEMENT_INACTIVE) != PERIOD_OPEN:
+        continue
+      start_date = str(period.get("start_date") or "")
+      end_date = str(period.get("end_date") or "")
+      if start_date and end_date and start_date <= today <= end_date:
+        return str(period["guid"])
+    raise ValueError("No open accounting period covers today's date")
+
+  async def _append_balanced_journal_lines(
+    self,
+    *,
+    journals_recid: int,
+    debit_account_guid: str,
+    credit_account_guid: str,
+    amount: str,
+    description: str,
+  ) -> list[dict[str, Any]]:
+    assert self.db
+    existing_lines = await self.get_journal_lines(journals_recid)
+    next_line = max((int(line.get("line_number") or 0) for line in existing_lines), default=0) + 1
+    lines = [
+      CreateLineParams(
+        journals_recid=journals_recid,
+        line_number=next_line,
+        accounts_guid=debit_account_guid,
+        debit=str(self._quantize_5dp(self._to_decimal(amount))),
+        credit="0.00000",
+        description=description,
+      ),
+      CreateLineParams(
+        journals_recid=journals_recid,
+        line_number=next_line + 1,
+        accounts_guid=credit_account_guid,
+        debit="0.00000",
+        credit=str(self._quantize_5dp(self._to_decimal(amount))),
+        description=description,
+      ),
+    ]
+    await self.db.run(
+      create_lines_batch_request(CreateLinesBatchParams(journals_recid=journals_recid, lines=lines))
+    )
+    return [line.model_dump() for line in lines]
+
+  async def purchase_product(
+    self,
+    *,
+    users_guid: str,
+    sku: str,
+    actor_guid: str | None = None,
+    periods_guid: str | None = None,
+  ) -> dict[str, Any]:
+    product = await self.get_product(sku=sku)
+    if not product or int(product.get("status") or 0) != ELEMENT_ACTIVE:
+      raise ValueError("Product is not available for purchase")
+
+    payment = await self._process_payment_stub(product, users_guid)
+    if not payment.get("success"):
+      raise ValueError("Payment processing failed")
+
+    resolved_period_guid = periods_guid or await self._get_current_open_period_guid()
+    transaction_token = str(payment["transaction_token"])
+    amount = str(product["price"])
+    category = str(product.get("category") or "")
+
+    if category == "credit_purchase":
+      config = await self.get_active_product_journal_config("credit_purchase", resolved_period_guid)
+      if not config:
+        raise ValueError("No active journal configuration for credit purchases in the current period")
+
+      lot = await self.create_lot(
+        users_guid=users_guid,
+        source_type="purchase",
+        credits=int(product.get("credits") or 0),
+        total_paid=amount,
+        source_id=transaction_token,
+        actor_guid=actor_guid,
+      )
+
+      payment_clearing_account = await self.get_pipeline_config(
+        "credit_purchase",
+        "payment_clearing_account_number",
+      )
+      deferred_revenue_account = await self.get_pipeline_config(
+        "credit_purchase",
+        "deferred_revenue_account_number",
+      )
+      payment_clearing_guid = await self._get_account_guid_by_number(payment_clearing_account)
+      deferred_revenue_guid = await self._get_account_guid_by_number(deferred_revenue_account)
+      description = (
+        f"Credit purchase: {sku} - {int(product.get('credits') or 0)} credits - {transaction_token}"
+      )
+      await self._append_balanced_journal_lines(
+        journals_recid=int(config["journals_recid"]),
+        debit_account_guid=payment_clearing_guid,
+        credit_account_guid=deferred_revenue_guid,
+        amount=amount,
+        description=description,
+      )
+      return {
+        "product": sku,
+        "credits_granted": int(product.get("credits") or 0),
+        "lot_number": lot["lot_number"],
+        "transaction_token": transaction_token,
+        "journal_lines_added": True,
+      }
+
+    if category == "enablement":
+      enablement_key = str(product.get("enablement_key") or "")
+      if enablement_key == "ROLE_STORAGE":
+        current_enablements = await self.get_user_enablements(users_guid)
+        if current_enablements & 1:
+          raise ValueError("Feature already enabled")
+        await self.set_user_enablements(users_guid, current_enablements | 1)
+      elif enablement_key == "ROLE_DISCORD_BOT":
+        current_roles = await self.get_user_roles_mask(users_guid)
+        if current_roles & 0x10:
+          raise ValueError("Feature already enabled")
+        await self.set_user_roles_mask(users_guid, current_roles | 0x10)
+      else:
+        raise ValueError("Unsupported enablement product")
+
+      if self._to_decimal(amount) > Decimal("0"):
+        config = await self.get_active_product_journal_config("enablement", resolved_period_guid)
+        if not config:
+          raise ValueError("No active journal configuration for enablement purchases in the current period")
+        payment_clearing_account = await self.get_pipeline_config(
+          "credit_purchase",
+          "payment_clearing_account_number",
+        )
+        saas_revenue_guid = await self._get_account_guid_by_number("4100")
+        payment_clearing_guid = await self._get_account_guid_by_number(payment_clearing_account)
+        await self._append_balanced_journal_lines(
+          journals_recid=int(config["journals_recid"]),
+          debit_account_guid=payment_clearing_guid,
+          credit_account_guid=saas_revenue_guid,
+          amount=amount,
+          description=f"Enablement purchase: {sku} - {transaction_token}",
+        )
+
+      return {
+        "product": sku,
+        "enablement_granted": enablement_key,
+        "transaction_token": transaction_token,
+      }
+
+    raise ValueError(f"Unsupported product category: {category}")
 
   async def create_lot(
     self,
