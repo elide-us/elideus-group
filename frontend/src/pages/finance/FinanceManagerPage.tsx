@@ -139,23 +139,39 @@ type FinancePeriodItem = {
 type FinanceJournalItem = {
     recid: number;
     name: string;
+    description: string | null;
     status: number;
     periods_guid: string | null;
 };
 
-type ProductJournalConfigItem = {
+type ProductJournalConfig = {
     recid: number;
-    category: string;
-    journal_scope: string;
+    element_category: string;
+    element_journal_scope: string;
     journals_recid: number;
     periods_guid: string;
-    approved_by: string | null;
-    approved_on: string | null;
-    activated_by: string | null;
-    activated_on: string | null;
-    status: number;
-    created_on: string | null;
-    modified_on: string | null;
+    element_approved_by: string | null;
+    element_approved_on: string | null;
+    element_activated_by: string | null;
+    element_activated_on: string | null;
+    element_status: number;
+    element_created_on: string | null;
+    element_modified_on: string | null;
+};
+
+type Product = {
+    recid: number;
+    element_sku: string;
+    element_name: string;
+    element_description: string | null;
+    element_category: string;
+    element_price: string;
+    element_currency: string;
+    element_credits: number;
+    element_enablement_key: string | null;
+    element_is_recurring: boolean;
+    element_sort_order: number;
+    element_status: number;
 };
 
 const IMPORT_STATUS_CONFIG: Record<number, { label: string; color: "default" | "success" | "error" | "info" | "warning" }> = {
@@ -172,6 +188,18 @@ const JOURNAL_STATUS_CONFIG: Record<number, { label: string; color: "warning" | 
     1: { label: "Pending", color: "info" },
     2: { label: "Posted", color: "success" },
     3: { label: "Reversed", color: "error" },
+};
+
+const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
+    credit_purchase: "Credit Purchases",
+    enablement: "Enablement",
+};
+
+const PRODUCT_JOURNAL_CONFIG_STATUS: Record<number, { label: string; color: "default" | "info" | "success" }> = {
+    0: { label: "Draft", color: "default" },
+    1: { label: "Approved", color: "info" },
+    2: { label: "Active", color: "success" },
+    3: { label: "Closed", color: "default" },
 };
 
 
@@ -202,6 +230,62 @@ const formatDateTime = (value: string | null | undefined): string => {
     }
     return new Date(value).toLocaleString();
 };
+
+const normalizeProductJournalConfig = (config: {
+    recid: number;
+    category: string;
+    journal_scope: string;
+    journals_recid: number;
+    periods_guid: string;
+    approved_by: string | null;
+    approved_on: string | null;
+    activated_by: string | null;
+    activated_on: string | null;
+    status: number;
+    created_on: string | null;
+    modified_on: string | null;
+}): ProductJournalConfig => ({
+    recid: config.recid,
+    element_category: config.category,
+    element_journal_scope: config.journal_scope,
+    journals_recid: config.journals_recid,
+    periods_guid: config.periods_guid,
+    element_approved_by: config.approved_by,
+    element_approved_on: config.approved_on,
+    element_activated_by: config.activated_by,
+    element_activated_on: config.activated_on,
+    element_status: config.status,
+    element_created_on: config.created_on,
+    element_modified_on: config.modified_on,
+});
+
+const normalizeProduct = (product: {
+    recid: number;
+    sku: string;
+    name: string;
+    description: string | null;
+    category: string;
+    price: string;
+    currency: string;
+    credits: number;
+    enablement_key: string | null;
+    is_recurring: boolean;
+    sort_order: number;
+    status: number;
+}): Product => ({
+    recid: product.recid,
+    element_sku: product.sku,
+    element_name: product.name,
+    element_description: product.description,
+    element_category: product.category,
+    element_price: product.price,
+    element_currency: product.currency,
+    element_credits: product.credits,
+    element_enablement_key: product.enablement_key,
+    element_is_recurring: product.is_recurring,
+    element_sort_order: product.sort_order,
+    element_status: product.status,
+});
 
 const FinanceManagerPage = (): JSX.Element => {
     const [tab, setTab] = useState(0);
@@ -236,9 +320,10 @@ const FinanceManagerPage = (): JSX.Element => {
     const [rejectJournalDialogOpen, setRejectJournalDialogOpen] = useState(false);
     const [rejectJournalReason, setRejectJournalReason] = useState("");
 
-    const [productJournalConfigs, setProductJournalConfigs] = useState<ProductJournalConfigItem[]>([]);
+    const [productJournalConfigs, setProductJournalConfigs] = useState<ProductJournalConfig[]>([]);
     const [configPeriods, setConfigPeriods] = useState<FinancePeriodItem[]>([]);
-    const [configJournals, setConfigJournals] = useState<FinanceJournalItem[]>([]);
+    const [draftJournals, setDraftJournals] = useState<FinanceJournalItem[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [configForm, setConfigForm] = useState({
         category: "credit_purchase",
         journal_scope: "credit_purchase",
@@ -292,6 +377,31 @@ const FinanceManagerPage = (): JSX.Element => {
         [openPeriods, reviewPeriodGuid],
     );
 
+    const productCategoryOptions = useMemo(() => {
+        const categories = new Set<string>(Object.keys(PRODUCT_CATEGORY_LABELS));
+        products.forEach((product) => {
+            if (product.element_category) {
+                categories.add(product.element_category);
+            }
+        });
+        return Array.from(categories).sort((left, right) => left.localeCompare(right));
+    }, [products]);
+
+    const availableDraftJournals = useMemo(
+        () => draftJournals.filter((journal) => !configForm.periods_guid || journal.periods_guid === configForm.periods_guid),
+        [configForm.periods_guid, draftJournals],
+    );
+
+    const configJournalByRecid = useMemo(
+        () => new Map(draftJournals.map((journal) => [journal.recid, journal])),
+        [draftJournals],
+    );
+
+    const configPeriodByGuid = useMemo(
+        () => new Map(configPeriods.filter((period) => Boolean(period.guid)).map((period) => [period.guid as string, period])),
+        [configPeriods],
+    );
+
     const loadApprovalQueue = useCallback(async (): Promise<void> => {
         const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1", { status: 4 });
         setApprovalQueue(res.imports || []);
@@ -334,14 +444,56 @@ const FinanceManagerPage = (): JSX.Element => {
     }, [journalPeriodGuid, journalStatus, journalYear]);
 
     const loadProductJournalConfigData = useCallback(async (): Promise<void> => {
-        const [configResponse, periodResponse, journalResponse] = await Promise.all([
-            rpcCall<{ configs: ProductJournalConfigItem[] }>("urn:finance:product_journal_config:list:1"),
+        const [configResponse, periodResponse, journalResponse, productResponse] = await Promise.all([
+            rpcCall<{ configs: Array<{
+                recid: number;
+                category: string;
+                journal_scope: string;
+                journals_recid: number;
+                periods_guid: string;
+                approved_by: string | null;
+                approved_on: string | null;
+                activated_by: string | null;
+                activated_on: string | null;
+                status: number;
+                created_on: string | null;
+                modified_on: string | null;
+            }> }>("urn:finance:product_journal_config:list:1"),
             rpcCall<{ periods: FinancePeriodItem[] }>("urn:finance:periods:list:1"),
-            rpcCall<{ journals: FinanceJournalItem[] }>("urn:finance:journals:list:1"),
+            rpcCall<{ journals: FinanceJournalItem[] }>("urn:finance:journals:list:1", { status: 0 }),
+            rpcCall<{ products: Array<{
+                recid: number;
+                sku: string;
+                name: string;
+                description: string | null;
+                category: string;
+                price: string;
+                currency: string;
+                credits: number;
+                enablement_key: string | null;
+                is_recurring: boolean;
+                sort_order: number;
+                status: number;
+            }> }>("urn:finance:products:list:1"),
         ]);
-        setProductJournalConfigs(configResponse.configs || []);
-        setConfigPeriods((periodResponse.periods || []).filter((period) => period.status === 1));
-        setConfigJournals(journalResponse.journals || []);
+        const openConfigPeriods = (periodResponse.periods || []).filter((period) => period.status === 1 && period.guid);
+        const configRows = (configResponse.configs || []).map(normalizeProductJournalConfig);
+        const draftJournalRows = journalResponse.journals || [];
+        const productRows = (productResponse.products || []).map(normalizeProduct);
+        const availableCategories = Array.from(new Set(productRows.map((product) => product.element_category).filter(Boolean)));
+        const defaultPeriodGuid = openConfigPeriods[0]?.guid || "";
+        const defaultJournal = draftJournalRows.find((journal) => journal.periods_guid === defaultPeriodGuid) || draftJournalRows[0];
+        setProductJournalConfigs(configRows);
+        setConfigPeriods(openConfigPeriods);
+        setDraftJournals(draftJournalRows);
+        setProducts(productRows);
+        setConfigForm((current) => ({
+            ...current,
+            periods_guid: current.periods_guid || defaultPeriodGuid,
+            journals_recid: current.journals_recid || (defaultJournal ? String(defaultJournal.recid) : ""),
+            category: availableCategories.includes(current.category) ? current.category : (availableCategories[0] || current.category),
+            journal_scope: availableCategories.includes(current.category) ? current.journal_scope : (availableCategories[0] || current.journal_scope),
+        }));
         setConfigError(null);
     }, []);
 
@@ -423,7 +575,10 @@ const FinanceManagerPage = (): JSX.Element => {
         if (tab === 4) {
             void loadJournalSummary();
         }
-    }, [tab, loadApprovalQueue, loadJournalSummary, loadPendingJournals, loadPeriodStatus, loadTrialBalance]);
+        if (tab === 5) {
+            void loadProductJournalConfigData();
+        }
+    }, [tab, loadApprovalQueue, loadJournalSummary, loadPendingJournals, loadPeriodStatus, loadProductJournalConfigData, loadTrialBalance]);
 
     const trialTotals = useMemo(
         () => trialRows.reduce(
@@ -995,11 +1150,21 @@ const FinanceManagerPage = (): JSX.Element => {
                                     select
                                     label="Category"
                                     value={configForm.category}
-                                    onChange={(event) => setConfigForm((current) => ({ ...current, category: event.target.value }))}
+                                    onChange={(event) => {
+                                        const nextCategory = event.target.value;
+                                        setConfigForm((current) => ({
+                                            ...current,
+                                            category: nextCategory,
+                                            journal_scope: nextCategory,
+                                        }));
+                                    }}
                                     sx={{ minWidth: 220 }}
                                 >
-                                    <MenuItem value="credit_purchase">credit_purchase</MenuItem>
-                                    <MenuItem value="enablement">enablement</MenuItem>
+                                    {productCategoryOptions.map((category) => (
+                                        <MenuItem key={category} value={category}>
+                                            {PRODUCT_CATEGORY_LABELS[category] || category}
+                                        </MenuItem>
+                                    ))}
                                 </TextField>
                                 <TextField
                                     label="Journal Scope"
@@ -1011,7 +1176,15 @@ const FinanceManagerPage = (): JSX.Element => {
                                     select
                                     label="Period"
                                     value={configForm.periods_guid}
-                                    onChange={(event) => setConfigForm((current) => ({ ...current, periods_guid: event.target.value }))}
+                                    onChange={(event) => {
+                                        const nextPeriodGuid = event.target.value;
+                                        const firstJournalForPeriod = draftJournals.find((journal) => journal.periods_guid === nextPeriodGuid);
+                                        setConfigForm((current) => ({
+                                            ...current,
+                                            periods_guid: nextPeriodGuid,
+                                            journals_recid: firstJournalForPeriod ? String(firstJournalForPeriod.recid) : "",
+                                        }));
+                                    }}
                                     sx={{ minWidth: 220 }}
                                 >
                                     {configPeriods.map((period) => (
@@ -1027,14 +1200,15 @@ const FinanceManagerPage = (): JSX.Element => {
                                     onChange={(event) => setConfigForm((current) => ({ ...current, journals_recid: event.target.value }))}
                                     sx={{ minWidth: 260 }}
                                 >
-                                    {configJournals.map((journal) => (
+                                    {availableDraftJournals.map((journal) => (
                                         <MenuItem key={journal.recid} value={String(journal.recid)}>
-                                            {journal.name} (#{journal.recid})
+                                            {journal.name} — {journal.description || "No description"}
                                         </MenuItem>
                                     ))}
                                 </TextField>
                                 <Button
                                     variant="contained"
+                                    disabled={!configForm.category || !configForm.journal_scope.trim() || !configForm.periods_guid || !configForm.journals_recid}
                                     onClick={async () => {
                                         try {
                                             setConfigError(null);
@@ -1046,14 +1220,14 @@ const FinanceManagerPage = (): JSX.Element => {
                                                 periods_guid: configForm.periods_guid,
                                                 status: 0,
                                             });
-                                            setConfigSuccess("Product journal configuration saved.");
+                                            setConfigSuccess("Product journal configuration created.");
                                             await loadProductJournalConfigData();
                                         } catch (error: unknown) {
                                             setConfigError(getErrorMessage(error));
                                         }
                                     }}
                                 >
-                                    Save draft
+                                    Create
                                 </Button>
                             </Stack>
                         </Stack>
@@ -1065,53 +1239,85 @@ const FinanceManagerPage = (): JSX.Element => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Category</TableCell>
-                                    <TableCell>Period</TableCell>
+                                    <TableCell>Journal Scope</TableCell>
                                     <TableCell>Journal</TableCell>
-                                    <TableCell>Scope</TableCell>
+                                    <TableCell>Period</TableCell>
                                     <TableCell>Status</TableCell>
-                                    <TableCell>Approved</TableCell>
-                                    <TableCell>Activated</TableCell>
+                                    <TableCell>Approved By</TableCell>
                                     <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {productJournalConfigs.map((config) => (
                                     <TableRow key={config.recid}>
-                                        <TableCell>{config.category}</TableCell>
-                                        <TableCell>{config.periods_guid}</TableCell>
-                                        <TableCell>{config.journals_recid}</TableCell>
-                                        <TableCell>{config.journal_scope}</TableCell>
-                                        <TableCell>{config.status}</TableCell>
-                                        <TableCell>{config.approved_on ? formatDateTime(config.approved_on) : "-"}</TableCell>
-                                        <TableCell>{config.activated_on ? formatDateTime(config.activated_on) : "-"}</TableCell>
+                                        <TableCell>{PRODUCT_CATEGORY_LABELS[config.element_category] || config.element_category}</TableCell>
+                                        <TableCell>{config.element_journal_scope}</TableCell>
                                         <TableCell>
-                                            {config.status === 0 ? (
-                                                <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    onClick={async () => {
-                                                        try {
-                                                            setConfigError(null);
-                                                            setConfigSuccess(null);
-                                                            await rpcCall("urn:finance:product_journal_config:approve:1", { recid: config.recid });
-                                                            setConfigSuccess(`Approved configuration ${config.recid}.`);
-                                                            await loadProductJournalConfigData();
-                                                        } catch (error: unknown) {
-                                                            setConfigError(getErrorMessage(error));
-                                                        }
-                                                    }}
-                                                >
-                                                    Approve
-                                                </Button>
-                                            ) : (
-                                                <Typography variant="body2" color="text.secondary">No action</Typography>
-                                            )}
+                                            {configJournalByRecid.get(config.journals_recid)?.name || `Journal #${config.journals_recid}`}
+                                        </TableCell>
+                                        <TableCell>
+                                            {configPeriodByGuid.get(config.periods_guid)
+                                                ? `FY${configPeriodByGuid.get(config.periods_guid)?.year} — ${configPeriodByGuid.get(config.periods_guid)?.period_name}`
+                                                : config.periods_guid}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={PRODUCT_JOURNAL_CONFIG_STATUS[config.element_status]?.label || `Status ${config.element_status}`}
+                                                color={PRODUCT_JOURNAL_CONFIG_STATUS[config.element_status]?.color || "default"}
+                                            />
+                                        </TableCell>
+                                        <TableCell>{config.element_approved_by || "-"}</TableCell>
+                                        <TableCell>
+                                            <Stack direction="row" spacing={1}>
+                                                {config.element_status === 0 && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={async () => {
+                                                            try {
+                                                                setConfigError(null);
+                                                                setConfigSuccess(null);
+                                                                await rpcCall("urn:finance:product_journal_config:approve:1", { recid: config.recid });
+                                                                setConfigSuccess(`Approved configuration ${config.recid}.`);
+                                                                await loadProductJournalConfigData();
+                                                            } catch (error: unknown) {
+                                                                setConfigError(getErrorMessage(error));
+                                                            }
+                                                        }}
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                )}
+                                                {config.element_status === 2 && (
+                                                    <Button
+                                                        size="small"
+                                                        color="warning"
+                                                        variant="outlined"
+                                                        onClick={async () => {
+                                                            try {
+                                                                setConfigError(null);
+                                                                setConfigSuccess(null);
+                                                                await rpcCall("urn:finance:product_journal_config:close:1", { recid: config.recid });
+                                                                setConfigSuccess(`Closed configuration ${config.recid}.`);
+                                                                await loadProductJournalConfigData();
+                                                            } catch (error: unknown) {
+                                                                setConfigError(getErrorMessage(error));
+                                                            }
+                                                        }}
+                                                    >
+                                                        Close
+                                                    </Button>
+                                                )}
+                                                {config.element_status !== 0 && config.element_status !== 2 && (
+                                                    <Typography variant="body2" color="text.secondary">No action</Typography>
+                                                )}
+                                            </Stack>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {productJournalConfigs.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={8}>No product journal configurations created yet.</TableCell>
+                                        <TableCell colSpan={7}>No product journal configurations created yet.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
