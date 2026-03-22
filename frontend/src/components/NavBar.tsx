@@ -65,6 +65,14 @@ const NavBar = (): JSX.Element => {
 	const { userData } = useContext(UserContext);
 	const location = useLocation();
 
+	const productsRoute: NavRoute | null = userData
+		? { path: '/products', name: 'Products', icon: 'ShoppingCart', sequence: 150 }
+		: null;
+
+	const effectiveRoutes = productsRoute
+		? [...routes.filter((route) => route.path !== productsRoute.path), productsRoute]
+		: routes;
+
 	useEffect(() => {
 		void (async () => {
 			try {
@@ -241,7 +249,7 @@ const NavBar = (): JSX.Element => {
 					};
 
 					const sections = new Map<number, NavRoute[]>();
-					const sortedRoutes = [...routes].sort(
+					const sortedRoutes = [...effectiveRoutes].sort(
 						(a, b) => getRouteSequence(a) - getRouteSequence(b),
 					);
 					sortedRoutes.forEach((route) => {

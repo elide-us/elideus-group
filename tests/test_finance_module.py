@@ -410,3 +410,168 @@ def test_create_journal_uses_scope_based_sequence_lookup():
 
   assert journal["posting_key"] == "JRN-IMP-001-00000001"
   assert journal["numbers_recid"] == 15
+
+
+def test_purchase_credit_product_creates_lot_and_journal_lines():
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = object()
+
+  appended: dict[str, object] = {}
+
+  async def fake_get_product(recid=None, sku=None):
+    assert sku == "CRED-5K"
+    return {
+      "sku": "CRED-5K",
+      "name": "Purchase 5,000 AI Credits",
+      "category": "credit_purchase",
+      "price": "50.00000",
+      "currency": "USD",
+      "credits": 5000,
+      "status": 1,
+    }
+
+  async def fake_process_payment_stub(product, users_guid):
+    assert product["sku"] == "CRED-5K"
+    assert users_guid == "user-guid"
+    return {"success": True, "transaction_token": "STUB-123"}
+
+  async def fake_get_active_config(category: str, periods_guid: str):
+    assert category == "credit_purchase"
+    assert periods_guid == "period-guid"
+    return {"journals_recid": 99}
+
+  async def fake_create_lot(**kwargs):
+    assert kwargs["users_guid"] == "user-guid"
+    assert kwargs["credits"] == 5000
+    assert kwargs["source_id"] == "STUB-123"
+    return {"lot_number": "LOT-0001"}
+
+  async def fake_get_pipeline_config(pipeline: str, key: str):
+    values = {
+      ("credit_purchase", "payment_clearing_account_number"): "1300",
+      ("credit_purchase", "deferred_revenue_account_number"): "2100",
+    }
+    return values[(pipeline, key)]
+
+  async def fake_get_account_guid_by_number(number: str):
+    return f"acct-{number}"
+
+  async def fake_append_balanced_journal_lines(**kwargs):
+    appended.update(kwargs)
+    return []
+
+  module.get_product = fake_get_product
+  module._process_payment_stub = fake_process_payment_stub
+  module.get_active_product_journal_config = fake_get_active_config
+  module.create_lot = fake_create_lot
+  module.get_pipeline_config = fake_get_pipeline_config
+  module._get_account_guid_by_number = fake_get_account_guid_by_number
+  module._append_balanced_journal_lines = fake_append_balanced_journal_lines
+
+  result = asyncio.run(
+    FinanceModule.purchase_product(
+      module,
+      users_guid="user-guid",
+      sku="CRED-5K",
+      actor_guid="actor-guid",
+      periods_guid="period-guid",
+    )
+  )
+
+  assert result == {
+    "product": "CRED-5K",
+    "credits_granted": 5000,
+    "lot_number": "LOT-0001",
+    "transaction_token": "STUB-123",
+    "journal_lines_added": True,
+  }
+  assert appended["journals_recid"] == 99
+  assert appended["debit_account_guid"] == "acct-1300"
+  assert appended["credit_account_guid"] == "acct-2100"
+  assert appended["amount"] == "50.00000"
+  assert "STUB-123" in str(appended["description"])
+
+
+
+def test_purchase_credit_product_requires_active_config():
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = object()
+
+  async def fake_get_product(recid=None, sku=None):
+    return {
+      "sku": "CRED-5K",
+      "category": "credit_purchase",
+      "price": "50.00000",
+      "currency": "USD",
+      "credits": 5000,
+      "status": 1,
+    }
+
+  async def fake_process_payment_stub(product, users_guid):
+    return {"success": True, "transaction_token": "STUB-123"}
+
+  async def fake_get_active_config(category: str, periods_guid: str):
+    return None
+
+  module.get_product = fake_get_product
+  module._process_payment_stub = fake_process_payment_stub
+  module.get_active_product_journal_config = fake_get_active_config
+
+  with pytest.raises(ValueError, match="No active journal configuration"):
+    asyncio.run(
+      FinanceModule.purchase_product(
+        module,
+        users_guid="user-guid",
+        sku="CRED-5K",
+        periods_guid="period-guid",
+      )
+    )
+
+
+
+def test_purchase_enablement_updates_user_enablements():
+  module = FinanceModule.__new__(FinanceModule)
+  module.db = object()
+  calls: list[tuple[str, int]] = []
+
+  async def fake_get_product(recid=None, sku=None):
+    return {
+      "sku": "STOR-ENABLE",
+      "category": "enablement",
+      "price": "0.00000",
+      "currency": "USD",
+      "credits": 0,
+      "enablement_key": "ROLE_STORAGE",
+      "status": 1,
+    }
+
+  async def fake_process_payment_stub(product, users_guid):
+    return {"success": True, "transaction_token": "STUB-999"}
+
+  async def fake_get_user_enablements(users_guid: str):
+    return 0
+
+  async def fake_set_user_enablements(users_guid: str, enablements: int):
+    calls.append((users_guid, enablements))
+    return {"users_guid": users_guid, "element_enablements": str(enablements)}
+
+  module.get_product = fake_get_product
+  module._process_payment_stub = fake_process_payment_stub
+  module.get_user_enablements = fake_get_user_enablements
+  module.set_user_enablements = fake_set_user_enablements
+
+  result = asyncio.run(
+    FinanceModule.purchase_product(
+      module,
+      users_guid="user-guid",
+      sku="STOR-ENABLE",
+      periods_guid="period-guid",
+    )
+  )
+
+  assert result == {
+    "product": "STOR-ENABLE",
+    "enablement_granted": "ROLE_STORAGE",
+    "transaction_token": "STUB-999",
+  }
+  assert calls == [("user-guid", 1)]

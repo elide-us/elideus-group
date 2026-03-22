@@ -13,6 +13,8 @@ from .credit_lots.handler import handle_credit_lots_request
 from .credits.handler import handle_credits_request
 from .dimensions.handler import handle_dimensions_request
 from .journal_lines.handler import handle_journal_lines_request
+from .product_journal_config.handler import handle_product_journal_config_request
+from .products.handler import handle_products_request
 from .journals.handler import handle_journals_request
 from .ledgers.handler import handle_ledgers_request
 from .numbers.handler import handle_numbers_request
@@ -35,6 +37,8 @@ HANDLERS = {
   "credits": handle_credits_request,
   "dimensions": handle_dimensions_request,
   "journal_lines": handle_journal_lines_request,
+  "product_journal_config": handle_product_journal_config_request,
+  "products": handle_products_request,
   "journals": handle_journals_request,
   "ledgers": handle_ledgers_request,
   "numbers": handle_numbers_request,

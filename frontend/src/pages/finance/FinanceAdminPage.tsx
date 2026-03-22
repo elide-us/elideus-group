@@ -193,6 +193,21 @@ type NumberFormState = {
     display_format: string;
 };
 
+type ProductJournalConfigItem = {
+    recid: number;
+    category: string;
+    journal_scope: string;
+    journals_recid: number;
+    periods_guid: string;
+    approved_by: string | null;
+    approved_on: string | null;
+    activated_by: string | null;
+    activated_on: string | null;
+    status: number;
+    created_on: string | null;
+    modified_on: string | null;
+};
+
 type PeriodSummary = {
     open: number;
     closed: number;
@@ -382,6 +397,7 @@ const FinanceAdminPage = (): JSX.Element => {
         element_description: "",
         element_status: true,
     });
+    const [approvedProductConfigs, setApprovedProductConfigs] = useState<ProductJournalConfigItem[]>([]);
 
     const loadLedgers = useCallback(async (): Promise<void> => {
         const response = await fetchLedgers();
@@ -416,6 +432,14 @@ const FinanceAdminPage = (): JSX.Element => {
     const loadNumbers = useCallback(async (): Promise<void> => {
         const response = await fetchNumbers();
         setNumbers((response.numbers || []) as FinanceNumber[]);
+    }, []);
+
+    const loadApprovedProductConfigs = useCallback(async (): Promise<void> => {
+        const response = await rpcCall<{ configs: ProductJournalConfigItem[] }>(
+            "urn:finance:product_journal_config:list:1",
+            { status: 1 },
+        );
+        setApprovedProductConfigs(response.configs || []);
     }, []);
 
     const loadAccountMappings = useCallback(async (): Promise<void> => {
@@ -461,7 +485,10 @@ const FinanceAdminPage = (): JSX.Element => {
         if (tab === 6) {
             void loadNumbers();
         }
-    }, [loadAccountMappings, loadNumbers, loadVendors, tab]);
+        if (tab === 7) {
+            void loadApprovedProductConfigs();
+        }
+    }, [loadAccountMappings, loadApprovedProductConfigs, loadNumbers, loadVendors, tab]);
 
     const periodYears = useMemo(() => {
         const years = new Set<number>();
@@ -839,6 +866,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 <Tab label="Vendors" />
                 <Tab label="Account Mappings" />
                 <Tab label="Number Sequences" />
+                <Tab label="Product Journal Activation" />
             </Tabs>
 
             {tab === 0 && (
@@ -1705,6 +1733,71 @@ const FinanceAdminPage = (): JSX.Element => {
                                             No number sequences have been configured yet.
                                         </Typography>
                                     </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </Stack>
+            )}
+
+            {tab === 7 && (
+                <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Paper sx={{ p: 2 }}>
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between">
+                            <Box>
+                                <Typography variant="h6">Product Journal Activation</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Activate approved product journal configurations so purchases flow into the selected journal series.
+                                </Typography>
+                            </Box>
+                            <Button variant="outlined" onClick={() => void loadApprovedProductConfigs()}>Refresh</Button>
+                        </Stack>
+                    </Paper>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>RecId</TableCell>
+                                <TableCell>Category</TableCell>
+                                <TableCell>Period</TableCell>
+                                <TableCell>Journal</TableCell>
+                                <TableCell>Scope</TableCell>
+                                <TableCell>Approved On</TableCell>
+                                <TableCell align="right">Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {approvedProductConfigs.map((config) => (
+                                <TableRow key={config.recid}>
+                                    <TableCell>{config.recid}</TableCell>
+                                    <TableCell>{config.category}</TableCell>
+                                    <TableCell>{config.periods_guid}</TableCell>
+                                    <TableCell>{config.journals_recid}</TableCell>
+                                    <TableCell>{config.journal_scope}</TableCell>
+                                    <TableCell>{formatDateTime(config.approved_on)}</TableCell>
+                                    <TableCell align="right">
+                                        <Button
+                                            variant="contained"
+                                            size="small"
+                                            onClick={async () => {
+                                                try {
+                                                    setPageError(null);
+                                                    setSuccessMessage(null);
+                                                    await rpcCall("urn:finance:product_journal_config:activate:1", { recid: config.recid });
+                                                    setSuccessMessage(`Activated product journal configuration ${config.recid}.`);
+                                                    await loadApprovedProductConfigs();
+                                                } catch (error: unknown) {
+                                                    setPageError(getErrorMessage(error));
+                                                }
+                                            }}
+                                        >
+                                            Activate
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {approvedProductConfigs.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={7}>No approved product journal configurations are waiting for activation.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
