@@ -31,6 +31,7 @@ const AccountUserPanel = lazy(() => import('./pages/AccountUserPanel'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
 
 function App(): JSX.Element {
 	return (
@@ -84,6 +85,7 @@ function App(): JSX.Element {
 									<Route path="/privacy-policy" element={<PrivacyPolicy />} />
 									<Route path="/terms-of-service" element={<TermsOfService />} />
 									<Route path="/profile/:guid" element={<PublicProfile />} />
+									<Route path="/emergent-ethics" element={<EmergentEthicsArticle />} />
 								</Routes>
 							</Suspense>
 						</Box>
