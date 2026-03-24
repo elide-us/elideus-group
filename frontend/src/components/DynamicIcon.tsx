@@ -1,48 +1,16 @@
-import { type ElementType, lazy, memo, Suspense, useMemo } from 'react';
-import { SvgIcon } from '@mui/material';
+import { memo } from 'react';
+import * as MuiIcons from '@mui/icons-material';
 
 interface DynamicIconProps {
-	name: string | null | undefined;
+  name: string | null | undefined;
 }
-
-const iconCache = new Map<string, ElementType>();
-
-function loadIcon(name: string): ElementType {
-	const cached = iconCache.get(name);
-	if (cached) return cached;
-
-	const LazyIcon = lazy(() =>
-		import(
-			/* @vite-ignore */
-			`@mui/icons-material/${name}`
-		).then(
-			(mod) => ({ default: mod.default }),
-			() => import('@mui/icons-material/Adjust').then((mod) => ({ default: mod.default })),
-		),
-	);
-
-	iconCache.set(name, LazyIcon);
-	return LazyIcon;
-}
-
-const FallbackIcon = (): JSX.Element => (
-	<SvgIcon sx={{ fontSize: 'inherit', opacity: 0 }}>
-		<rect />
-	</SvgIcon>
-);
 
 const DynamicIcon = memo(({ name }: DynamicIconProps): JSX.Element => {
-	const IconComponent = useMemo(() => (name ? loadIcon(name) : null), [name]);
+  const IconComponent = name
+    ? (MuiIcons as Record<string, React.ElementType>)[name] ?? MuiIcons.Adjust
+    : MuiIcons.Adjust;
 
-	if (!IconComponent) {
-		return <FallbackIcon />;
-	}
-
-	return (
-		<Suspense fallback={<FallbackIcon />}>
-			<IconComponent />
-		</Suspense>
-	);
+  return <IconComponent />;
 });
 
 DynamicIcon.displayName = 'DynamicIcon';
