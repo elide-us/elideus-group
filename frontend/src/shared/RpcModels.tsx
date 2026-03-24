@@ -7,6 +7,232 @@
 import axios from "axios";
 import { getFingerprint } from "./fingerprint";
 
+export interface SystemModelsDeleteModel1 {
+	recid: number | null;
+	name: string | null;
+}
+export interface SystemModelsList1 {
+	models: SystemModelsModelItem1[];
+	api_providers: string[];
+}
+export interface SystemModelsModelItem1 {
+	recid: number;
+	name: string;
+	api_provider: string;
+	is_active: boolean;
+}
+export interface SystemModelsUpsertModel1 {
+	recid: number | null;
+	name: string;
+	api_provider: string;
+	is_active: boolean;
+}
+export interface BatchJobDelete1 {
+	recid: number;
+}
+export interface BatchJobGet1 {
+	recid: number;
+}
+export interface BatchJobHistoryItem1 {
+	recid: any;
+	jobs_recid: number;
+	started_on: any;
+	ended_on: any;
+	status: number;
+	error: any;
+	result: any;
+}
+export interface BatchJobHistoryList1 {
+	history: BatchJobHistoryItem1[];
+}
+export interface BatchJobItem1 {
+	recid: any;
+	name: string;
+	description: any;
+	class_path: string;
+	parameters: any;
+	cron: string;
+	recurrence_type: number;
+	run_count_limit: any;
+	run_until: any;
+	total_runs: number;
+	is_enabled: boolean;
+	last_run: any;
+	next_run: any;
+	status: number;
+}
+export interface BatchJobList1 {
+	jobs: BatchJobItem1[];
+}
+export interface BatchJobListHistory1 {
+	jobs_recid: number;
+}
+export interface BatchJobRunNow1 {
+	recid: number;
+}
+export interface BatchJobUpsert1 {
+	recid: any;
+	name: string;
+	description: any;
+	class_path: string;
+	parameters: any;
+	cron: string;
+	recurrence_type: number;
+	run_count_limit: any;
+	run_until: any;
+	total_runs: number;
+	is_enabled: boolean;
+	last_run: any;
+	next_run: any;
+	status: number;
+}
+export interface SystemRolesDeleteRole1 {
+	name: string;
+}
+export interface SystemRolesList1 {
+	roles: SystemRolesRoleItem1[];
+}
+export interface SystemRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SystemTaskCancelRequest1 {
+	guid: string;
+}
+export interface SystemTaskEventItem1 {
+	recid: number;
+	tasks_recid: number;
+	element_event_type: string;
+	element_step_name: any;
+	element_detail: any;
+	element_created_on: string;
+}
+export interface SystemTaskEventsList1 {
+	events: SystemTaskEventItem1[];
+}
+export interface SystemTaskEventsRequest1 {
+	guid: string;
+}
+export interface SystemTaskGetRequest1 {
+	guid: string;
+}
+export interface SystemTaskItem1 {
+	recid: number;
+	guid: string;
+	handler_type: string;
+	handler_name: string;
+	payload: any;
+	status: number;
+	result: any;
+	error: any;
+	current_step: any;
+	step_index: number;
+	max_retries: number;
+	retry_count: number;
+	poll_interval_seconds: any;
+	timeout_seconds: any;
+	timeout_at: any;
+	external_id: any;
+	source_type: any;
+	source_id: any;
+	created_by: any;
+	created_on: any;
+	modified_on: any;
+}
+export interface SystemTaskList1 {
+	tasks: SystemTaskItem1[];
+}
+export interface SystemTaskListRequest1 {
+	status: any;
+	handler_type: any;
+	handler_name: any;
+}
+export interface SystemTaskRetryRequest1 {
+	guid: string;
+}
+export interface SystemTaskSubmitRequest1 {
+	handler_name: string;
+	payload: Record<string, any>;
+	source_type: any;
+	source_id: any;
+	timeout_seconds: any;
+	poll_interval_seconds: any;
+	max_retries: number;
+}
+export interface SystemStorageStats1 {
+	file_count: number;
+	total_bytes: number;
+	folder_count: number;
+	user_folder_count: number;
+	db_rows: number;
+}
+export interface SystemConversationsConversationItem1 {
+	recid: number;
+	personas_recid: number;
+	models_recid: number;
+	guild_id: string | null;
+	channel_id: string | null;
+	user_id: string | null;
+	role: string | null;
+	thread_id: string | null;
+	preview: string;
+	tokens: number | null;
+	created_on: string | null;
+	persona_name: string | null;
+}
+export interface SystemConversationsDeleteBefore1 {
+	before: string;
+}
+export interface SystemConversationsDeleteResult1 {
+	deleted: number;
+}
+export interface SystemConversationsDeleteThread1 {
+	thread_id: string;
+}
+export interface SystemConversationsList1 {
+	conversations: SystemConversationsConversationItem1[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+export interface SystemConversationsStats1 {
+	total_rows: number;
+	total_threads: number;
+	oldest_entry: string | null;
+	newest_entry: string | null;
+	total_tokens: number;
+}
+export interface SystemConversationsThread1 {
+	thread_id: string;
+	messages: SystemConversationsThreadMessage1[];
+}
+export interface SystemConversationsThreadMessage1 {
+	recid: number;
+	role: string | null;
+	content: string | null;
+	user_id: string | null;
+	tokens: number | null;
+	created_on: string | null;
+}
+export interface SystemConversationsViewThread1 {
+	thread_id: string;
+}
+export interface SystemConfigConfigItem1 {
+	key: string;
+	value: string;
+}
+export interface SystemConfigDeleteConfig1 {
+	key: string;
+}
+export interface SystemConfigList1 {
+	items: SystemConfigConfigItem1[];
+}
 export interface UsersProvidersCreateFromProvider1 {
 	provider: string;
 	provider_identifier: string;
@@ -34,6 +260,31 @@ export interface UsersProvidersUnlinkProvider1 {
 	provider: string;
 	new_default: any;
 }
+export interface UsersProductItem1 {
+	sku: string;
+	name: string;
+	description: any;
+	category: string;
+	price: string;
+	currency: string;
+	credits: number;
+	sort_order: number;
+	enablement_key: any;
+	already_enabled: boolean;
+}
+export interface UsersProductList1 {
+	products: UsersProductItem1[];
+}
+export interface UsersProductPurchase1 {
+	sku: string;
+}
+export interface UsersProductPurchaseResult1 {
+	product: string;
+	transaction_token: string;
+	credits_granted: any;
+	lot_number: any;
+	enablement_granted: any;
+}
 export interface UsersProfileAuthProvider1 {
 	name: string;
 	display: string;
@@ -60,47 +311,6 @@ export interface UsersProfileSetOptin1 {
 export interface UsersProfileSetProfileImage1 {
 	image_b64: string;
 	provider: string;
-}
-export interface UsersProductItem1 {
-	sku: string;
-	name: string;
-	description: any;
-	category: string;
-	price: string;
-	currency: string;
-	credits: number;
-	sort_order: number;
-	enablement_key: any;
-	already_enabled: boolean;
-}
-export interface UsersProductList1 {
-	products: UsersProductItem1[];
-}
-export interface UsersProductPurchase1 {
-	sku: string;
-}
-export interface UsersProductPurchaseResult1 {
-	product: string;
-	transaction_token: string;
-	credits_granted: any;
-	lot_number: any;
-	enablement_granted: any;
-}
-export interface PublicLinksHomeLinks1 {
-	links: PublicLinksLinkItem1[];
-}
-export interface PublicLinksLinkItem1 {
-	title: string;
-	url: string;
-}
-export interface PublicLinksNavBarRoute1 {
-	path: string;
-	name: string;
-	icon: string | null;
-	sequence: number;
-}
-export interface PublicLinksNavBarRoutes1 {
-	routes: PublicLinksNavBarRoute1[];
 }
 export interface PublicUsersProfile1 {
 	display_name: string;
@@ -134,78 +344,302 @@ export interface PublicVarsVersions1 {
 	ffmpeg_version: any;
 	odbc_version: any;
 }
-export interface JournalApprove1 {
-	recid: number;
+export interface PublicLinksHomeLinks1 {
+	links: PublicLinksLinkItem1[];
 }
-export interface JournalCreate1 {
+export interface PublicLinksLinkItem1 {
+	title: string;
+	url: string;
+}
+export interface PublicLinksNavBarRoute1 {
+	path: string;
 	name: string;
-	description: any;
-	posting_key: any;
-	source_type: any;
-	source_id: any;
-	periods_guid: any;
-	ledgers_recid: any;
-	lines: JournalCreateLine1[];
+	icon: string | null;
+	sequence: number;
 }
-export interface JournalCreateLine1 {
-	line_number: number;
-	accounts_guid: string;
-	debit: string;
-	credit: string;
-	description: any;
-	dimension_recids: number[];
+export interface PublicLinksNavBarRoutes1 {
+	routes: PublicLinksNavBarRoute1[];
 }
-export interface JournalGet1 {
+export interface DiscordCommandGetCreditsRequest1 {
+	discord_id: string;
+}
+export interface DiscordCommandGetCreditsResponse1 {
+	credits: number;
+	reserve: any;
+}
+export interface DiscordCommandGetGuildCreditsRequest1 {
+	guild_id: string;
+}
+export interface DiscordCommandGetGuildCreditsResponse1 {
+	guild_id: string;
+	credits: number;
+}
+export interface DiscordCommandGetRolesResponse1 {
+	roles: string[];
+}
+export interface DiscordCommandRegisterRequest1 {
+	discord_id: string;
+}
+export interface DiscordCommandRegisterResponse1 {
+	success: boolean;
+	message: string;
+	user_guid: any;
+	credits: any;
+}
+export interface DiscordBskyPostRequest1 {
+	message: string;
+}
+export interface DiscordBskyPostResponse1 {
+	uri: string;
+	cid: string;
+	handle: string;
+	display_name: any;
+}
+export interface DiscordGuildsGuildItem1 {
 	recid: number;
-}
-export interface JournalGetLines1 {
-	journals_recid: number;
-}
-export interface JournalItem1 {
-	recid: any;
+	guild_id: string;
 	name: string;
-	description: any;
-	posting_key: any;
-	source_type: any;
-	source_id: any;
-	periods_guid: any;
-	ledgers_recid: any;
-	numbers_recid: any;
+	joined_on: any;
+	member_count: any;
+	owner_id: any;
+	region: any;
+	left_on: any;
+	notes: any;
+	credits: number;
+}
+export interface DiscordGuildsList1 {
+	guilds: DiscordGuildsGuildItem1[];
+}
+export interface DiscordGuildsSyncResult1 {
+	synced: number;
+	guilds: DiscordGuildsGuildItem1[];
+}
+export interface DiscordGuildsUpdateCredits1 {
+	guild_id: string;
+	credits: number;
+}
+export interface DiscordChatPersonaRequest1 {
+	persona: string;
+	message: string;
+	guild_id: number | null;
+	channel_id: number | null;
+	user_id: number | null;
+}
+export interface DiscordChatPersonaResponse1 {
+	persona: string;
+	persona_response_text: string;
+	model: string | null;
+	role: string | null;
+}
+export interface DiscordChatSummarizeChannelRequest1 {
+	channel_id: string;
+}
+export interface DiscordChatSummarizeChannelResponse1 {
+	summary: string;
+	messages_collected: any;
+	token_count_estimate: any;
+	cap_hit: any;
+	model: any;
+	role: any;
+}
+export interface DiscordPersonasDeletePersona1 {
+	recid: number | null;
+	name: string | null;
+}
+export interface DiscordPersonasList1 {
+	personas: DiscordPersonasPersonaItem1[];
+}
+export interface DiscordPersonasModelItem1 {
+	recid: number;
+	name: string;
+}
+export interface DiscordPersonasModels1 {
+	models: DiscordPersonasModelItem1[];
+}
+export interface DiscordPersonasPersonaItem1 {
+	recid: number | null;
+	name: string;
+	prompt: string;
+	tokens: number;
+	models_recid: number;
+	model: string | null;
+	is_active: boolean;
+}
+export interface DiscordPersonasUpsertPersona1 {
+	recid: number | null;
+	name: string;
+	prompt: string;
+	tokens: number;
+	models_recid: number;
+	is_active: boolean;
+}
+export interface FinanceAccountsDelete1 {
+	guid: string;
+}
+export interface FinanceAccountsGet1 {
+	guid: string;
+}
+export interface FinanceAccountsItem1 {
+	guid: any;
+	number: string;
+	name: string;
+	account_type: number;
+	parent: any;
+	is_posting: boolean;
 	status: number;
-	posted_by: any;
-	posted_on: any;
-	reversed_by: any;
-	reversal_of: any;
 }
-export interface JournalLineItem1 {
+export interface FinanceAccountsList1 {
+	accounts: FinanceAccountsItem1[];
+}
+export interface FinanceAccountsListChildren1 {
+	parent_guid: string;
+}
+export interface FinanceAccountsUpsert1 {
+	guid: any;
+	number: string;
+	name: string;
+	account_type: number;
+	parent: any;
+	is_posting: boolean;
+	status: number;
+}
+export interface FinanceStagingAccountMapDelete1 {
+	recid: number;
+}
+export interface FinanceStagingAccountMapDeleteResult1 {
+	recid: number;
+	deleted: boolean;
+}
+export interface FinanceStagingAccountMapItem1 {
 	recid: any;
-	journals_recid: number;
-	line_number: number;
+	vendors_recid: any;
+	vendor_name: any;
+	element_service_pattern: string;
+	element_meter_pattern: any;
 	accounts_guid: string;
-	debit: string;
-	credit: string;
-	description: any;
-	dimension_recids: number[];
+	account_number: any;
+	account_name: any;
+	element_priority: number;
+	element_description: any;
+	element_status: number;
 }
-export interface JournalLineList1 {
-	lines: JournalLineItem1[];
+export interface FinanceStagingAccountMapList1 {
+	mappings: FinanceStagingAccountMapItem1[];
 }
-export interface JournalList1 {
-	journals: JournalItem1[];
+export interface FinanceStagingAccountMapUpsert1 {
+	recid: any;
+	vendors_recid: any;
+	vendor_name: any;
+	element_service_pattern: string;
+	element_meter_pattern: any;
+	accounts_guid: string;
+	element_priority: number;
+	element_description: any;
+	element_status: number;
 }
-export interface JournalListFilter1 {
+export interface FinanceProductJournalConfigActivate1 {
+	recid: number;
+}
+export interface FinanceProductJournalConfigApprove1 {
+	recid: number;
+}
+export interface FinanceProductJournalConfigClose1 {
+	recid: number;
+}
+export interface FinanceProductJournalConfigFilter1 {
+	category: any;
+	periods_guid: any;
 	status: any;
+}
+export interface FinanceProductJournalConfigGet1 {
+	recid: number;
+}
+export interface FinanceProductJournalConfigItem1 {
+	recid: number;
+	category: string;
+	journal_scope: string;
+	journals_recid: number;
+	periods_guid: string;
+	approved_by: any;
+	approved_on: any;
+	activated_by: any;
+	activated_on: any;
+	status: number;
+	created_on: any;
+	modified_on: any;
+}
+export interface FinanceProductJournalConfigList1 {
+	configs: FinanceProductJournalConfigItem1[];
+}
+export interface FinanceProductJournalConfigUpsert1 {
+	recid: any;
+	category: string;
+	journal_scope: string;
+	journals_recid: number;
+	periods_guid: string;
+	status: number;
+}
+export interface FinancePipelineConfigDelete1 {
+	recid: number;
+}
+export interface FinancePipelineConfigDeleteResult1 {
+	recid: number;
+	deleted: boolean;
+}
+export interface FinancePipelineConfigFilter1 {
+	element_pipeline: any;
+}
+export interface FinancePipelineConfigGet1 {
+	element_pipeline: string;
+	element_key: string;
+}
+export interface FinancePipelineConfigItem1 {
+	recid: any;
+	element_pipeline: string;
+	element_key: string;
+	element_value: string;
+	element_description: any;
+	element_status: number;
+	element_created_on: any;
+	element_modified_on: any;
+}
+export interface FinancePipelineConfigList1 {
+	configs: FinancePipelineConfigItem1[];
+}
+export interface FinancePipelineConfigUpsert1 {
+	recid: any;
+	element_pipeline: string;
+	element_key: string;
+	element_value: string;
+	element_description: any;
+	element_status: number;
+}
+export interface CreditLotSummaryFilter1 {
+	users_guid: any;
+}
+export interface CreditLotSummaryList1 {
+	lots: Record<string, any>[];
+}
+export interface JournalSummaryFilter1 {
+	journal_status: any;
+	fiscal_year: any;
 	periods_guid: any;
 }
-export interface JournalReject1 {
-	recid: number;
-	reason: any;
+export interface JournalSummaryList1 {
+	journals: Record<string, any>[];
 }
-export interface JournalReverse1 {
-	recid: number;
+export interface PeriodStatusFilter1 {
+	fiscal_year: any;
 }
-export interface JournalSubmitForApproval1 {
-	recid: number;
+export interface PeriodStatusList1 {
+	periods: Record<string, any>[];
+}
+export interface TrialBalanceFilter1 {
+	fiscal_year: any;
+	period_guid: any;
+}
+export interface TrialBalanceList1 {
+	rows: Record<string, any>[];
 }
 export interface FinanceVendorDelete1 {
 	recid: number;
@@ -230,6 +664,83 @@ export interface FinanceVendorUpsert1 {
 	element_display: any;
 	element_description: any;
 	element_status: number;
+}
+export interface FinanceDimensionsDelete1 {
+	recid: number;
+}
+export interface FinanceDimensionsGet1 {
+	recid: number;
+}
+export interface FinanceDimensionsItem1 {
+	recid: any;
+	name: string;
+	value: string;
+	description: any;
+	status: number;
+}
+export interface FinanceDimensionsList1 {
+	dimensions: FinanceDimensionsItem1[];
+}
+export interface FinanceDimensionsListByName1 {
+	name: string;
+}
+export interface FinanceDimensionsUpsert1 {
+	recid: any;
+	name: string;
+	value: string;
+	description: any;
+	status: number;
+}
+export interface FinanceProductDelete1 {
+	recid: number;
+}
+export interface FinanceProductDeleteResult1 {
+	recid: number;
+	deleted: boolean;
+}
+export interface FinanceProductFilter1 {
+	category: any;
+	status: any;
+}
+export interface FinanceProductGet1 {
+	recid: any;
+	sku: any;
+}
+export interface FinanceProductItem1 {
+	recid: any;
+	sku: string;
+	name: string;
+	description: any;
+	category: string;
+	price: string;
+	currency: string;
+	credits: number;
+	enablement_key: any;
+	is_recurring: boolean;
+	sort_order: number;
+	status: number;
+	created_on: any;
+	modified_on: any;
+}
+export interface FinanceProductList1 {
+	products: FinanceProductItem1[];
+}
+export interface FinanceProductUpsert1 {
+	recid: any;
+	sku: string;
+	name: string;
+	description: any;
+	category: string;
+	price: string;
+	currency: string;
+	credits: number;
+	enablement_key: any;
+	is_recurring: boolean;
+	sort_order: number;
+	status: number;
+}
+export interface StagingPurgeLogList1 {
+	purge_logs: any[];
 }
 export interface FinancePeriodsBlockerItem1 {
 	period_guid: string;
@@ -313,302 +824,6 @@ export interface FinancePeriodsUpsert1 {
 	closed_on: any;
 	locked_by: any;
 	locked_on: any;
-}
-export interface FinanceNumbersDelete1 {
-	recid: number;
-}
-export interface FinanceNumbersItem1 {
-	recid: any;
-	accounts_guid: string;
-	prefix: any;
-	account_number: string;
-	last_number: number;
-	max_number: any;
-	allocation_size: number;
-	reset_policy: string;
-	sequence_status: number;
-	sequence_type: string;
-	series_number: number;
-	scope: any;
-	pattern: any;
-	display_format: any;
-	account_name: any;
-	remaining: any;
-}
-export interface FinanceNumbersList1 {
-	numbers: FinanceNumbersItem1[];
-}
-export interface FinanceNumbersNextNumber1 {
-	recid: number;
-}
-export interface FinanceNumbersShift1 {
-	current_recid: number;
-	new_prefix: any;
-	new_account_number: string;
-	new_display_format: any;
-	new_pattern: any;
-	new_allocation_size: number;
-}
-export interface FinanceNumbersShiftResult1 {
-	closed_sequence: any;
-	new_sequence: FinanceNumbersItem1;
-}
-export interface FinanceNumbersUpsert1 {
-	recid: any;
-	accounts_guid: string;
-	prefix: any;
-	account_number: string;
-	last_number: number;
-	max_number: any;
-	allocation_size: number;
-	reset_policy: string;
-	sequence_status: number;
-	sequence_type: string;
-	series_number: number;
-	scope: any;
-	pattern: any;
-	display_format: any;
-	account_name: any;
-	remaining: any;
-}
-export interface FinanceStagingAccountMapDelete1 {
-	recid: number;
-}
-export interface FinanceStagingAccountMapDeleteResult1 {
-	recid: number;
-	deleted: boolean;
-}
-export interface FinanceStagingAccountMapItem1 {
-	recid: any;
-	vendors_recid: any;
-	vendor_name: any;
-	element_service_pattern: string;
-	element_meter_pattern: any;
-	accounts_guid: string;
-	account_number: any;
-	account_name: any;
-	element_priority: number;
-	element_description: any;
-	element_status: number;
-}
-export interface FinanceStagingAccountMapList1 {
-	mappings: FinanceStagingAccountMapItem1[];
-}
-export interface FinanceStagingAccountMapUpsert1 {
-	recid: any;
-	vendors_recid: any;
-	vendor_name: any;
-	element_service_pattern: string;
-	element_meter_pattern: any;
-	accounts_guid: string;
-	element_priority: number;
-	element_description: any;
-	element_status: number;
-}
-export interface StagingPurgeLogList1 {
-	purge_logs: any[];
-}
-export interface CreditLotSummaryFilter1 {
-	users_guid: any;
-}
-export interface CreditLotSummaryList1 {
-	lots: Record<string, any>[];
-}
-export interface JournalSummaryFilter1 {
-	journal_status: any;
-	fiscal_year: any;
-	periods_guid: any;
-}
-export interface JournalSummaryList1 {
-	journals: Record<string, any>[];
-}
-export interface PeriodStatusFilter1 {
-	fiscal_year: any;
-}
-export interface PeriodStatusList1 {
-	periods: Record<string, any>[];
-}
-export interface TrialBalanceFilter1 {
-	fiscal_year: any;
-	period_guid: any;
-}
-export interface TrialBalanceList1 {
-	rows: Record<string, any>[];
-}
-export interface FinanceProductJournalConfigActivate1 {
-	recid: number;
-}
-export interface FinanceProductJournalConfigApprove1 {
-	recid: number;
-}
-export interface FinanceProductJournalConfigClose1 {
-	recid: number;
-}
-export interface FinanceProductJournalConfigFilter1 {
-	category: any;
-	periods_guid: any;
-	status: any;
-}
-export interface FinanceProductJournalConfigGet1 {
-	recid: number;
-}
-export interface FinanceProductJournalConfigItem1 {
-	recid: number;
-	category: string;
-	journal_scope: string;
-	journals_recid: number;
-	periods_guid: string;
-	approved_by: any;
-	approved_on: any;
-	activated_by: any;
-	activated_on: any;
-	status: number;
-	created_on: any;
-	modified_on: any;
-}
-export interface FinanceProductJournalConfigList1 {
-	configs: FinanceProductJournalConfigItem1[];
-}
-export interface FinanceProductJournalConfigUpsert1 {
-	recid: any;
-	category: string;
-	journal_scope: string;
-	journals_recid: number;
-	periods_guid: string;
-	status: number;
-}
-export interface FinancePipelineConfigDelete1 {
-	recid: number;
-}
-export interface FinancePipelineConfigDeleteResult1 {
-	recid: number;
-	deleted: boolean;
-}
-export interface FinancePipelineConfigFilter1 {
-	element_pipeline: any;
-}
-export interface FinancePipelineConfigGet1 {
-	element_pipeline: string;
-	element_key: string;
-}
-export interface FinancePipelineConfigItem1 {
-	recid: any;
-	element_pipeline: string;
-	element_key: string;
-	element_value: string;
-	element_description: any;
-	element_status: number;
-	element_created_on: any;
-	element_modified_on: any;
-}
-export interface FinancePipelineConfigList1 {
-	configs: FinancePipelineConfigItem1[];
-}
-export interface FinancePipelineConfigUpsert1 {
-	recid: any;
-	element_pipeline: string;
-	element_key: string;
-	element_value: string;
-	element_description: any;
-	element_status: number;
-}
-export interface FinanceDimensionsDelete1 {
-	recid: number;
-}
-export interface FinanceDimensionsGet1 {
-	recid: number;
-}
-export interface FinanceDimensionsItem1 {
-	recid: any;
-	name: string;
-	value: string;
-	description: any;
-	status: number;
-}
-export interface FinanceDimensionsList1 {
-	dimensions: FinanceDimensionsItem1[];
-}
-export interface FinanceDimensionsListByName1 {
-	name: string;
-}
-export interface FinanceDimensionsUpsert1 {
-	recid: any;
-	name: string;
-	value: string;
-	description: any;
-	status: number;
-}
-export interface CreditLotConsume1 {
-	users_guid: string;
-	credits_needed: number;
-	service_type: any;
-	description: any;
-	periods_guid: any;
-}
-export interface CreditLotConsumeResult1 {
-	credits_consumed: number;
-	lots_affected: number;
-	journal_recid: any;
-}
-export interface CreditLotCreate1 {
-	users_guid: string;
-	source_type: string;
-	credits: number;
-	total_paid: string;
-	currency: string;
-	expires_at: any;
-	source_id: any;
-}
-export interface CreditLotEventItem1 {
-	recid: any;
-	lots_recid: number;
-	event_type: string;
-	credits: number;
-	unit_price: string;
-	description: any;
-	actor_guid: any;
-	journals_recid: any;
-}
-export interface CreditLotEventList1 {
-	events: CreditLotEventItem1[];
-}
-export interface CreditLotExpire1 {
-	recid: number;
-}
-export interface CreditLotGet1 {
-	recid: number;
-}
-export interface CreditLotItem1 {
-	recid: any;
-	users_guid: string;
-	lot_number: any;
-	source_type: string;
-	credits_original: number;
-	credits_remaining: number;
-	unit_price: string;
-	total_paid: string;
-	currency: string;
-	expires_at: any;
-	expired: boolean;
-	source_id: any;
-	numbers_recid: any;
-	status: number;
-}
-export interface CreditLotList1 {
-	lots: CreditLotItem1[];
-}
-export interface CreditLotListByUser1 {
-	users_guid: string;
-}
-export interface CreditLotListEvents1 {
-	lots_recid: number;
-}
-export interface CreditLotWalletBalance1 {
-	users_guid: string;
-}
-export interface CreditLotWalletResult1 {
-	users_guid: string;
-	balance: number;
 }
 export interface StagingApprove1 {
 	imports_recid: number;
@@ -704,84 +919,6 @@ export interface StagingRejectResult1 {
 	imports_recid: number;
 	rejected: boolean;
 }
-export interface FinanceAccountsDelete1 {
-	guid: string;
-}
-export interface FinanceAccountsGet1 {
-	guid: string;
-}
-export interface FinanceAccountsItem1 {
-	guid: any;
-	number: string;
-	name: string;
-	account_type: number;
-	parent: any;
-	is_posting: boolean;
-	status: number;
-}
-export interface FinanceAccountsList1 {
-	accounts: FinanceAccountsItem1[];
-}
-export interface FinanceAccountsListChildren1 {
-	parent_guid: string;
-}
-export interface FinanceAccountsUpsert1 {
-	guid: any;
-	number: string;
-	name: string;
-	account_type: number;
-	parent: any;
-	is_posting: boolean;
-	status: number;
-}
-export interface FinanceProductDelete1 {
-	recid: number;
-}
-export interface FinanceProductDeleteResult1 {
-	recid: number;
-	deleted: boolean;
-}
-export interface FinanceProductFilter1 {
-	category: any;
-	status: any;
-}
-export interface FinanceProductGet1 {
-	recid: any;
-	sku: any;
-}
-export interface FinanceProductItem1 {
-	recid: any;
-	sku: string;
-	name: string;
-	description: any;
-	category: string;
-	price: string;
-	currency: string;
-	credits: number;
-	enablement_key: any;
-	is_recurring: boolean;
-	sort_order: number;
-	status: number;
-	created_on: any;
-	modified_on: any;
-}
-export interface FinanceProductList1 {
-	products: FinanceProductItem1[];
-}
-export interface FinanceProductUpsert1 {
-	recid: any;
-	sku: string;
-	name: string;
-	description: any;
-	category: string;
-	price: string;
-	currency: string;
-	credits: number;
-	enablement_key: any;
-	is_recurring: boolean;
-	sort_order: number;
-	status: number;
-}
 export interface FinanceLedgersCreate1 {
 	element_name: string;
 	element_description: any;
@@ -812,15 +949,207 @@ export interface FinanceLedgersUpdate1 {
 	element_chart_of_accounts_guid: any;
 	element_status: number;
 }
-export interface AuthProvidersUnlinkLastProvider1 {
-	guid: string;
-	provider: string;
+export interface FinanceNumbersDelete1 {
+	recid: number;
 }
-export interface AuthMicrosoftOauthLogin1 {
-	sessionToken: string;
-	display_name: string;
+export interface FinanceNumbersItem1 {
+	recid: any;
+	accounts_guid: string;
+	prefix: any;
+	account_number: string;
+	last_number: number;
+	max_number: any;
+	allocation_size: number;
+	reset_policy: string;
+	sequence_status: number;
+	sequence_type: string;
+	series_number: number;
+	scope: any;
+	pattern: any;
+	display_format: any;
+	account_name: any;
+	remaining: any;
+}
+export interface FinanceNumbersList1 {
+	numbers: FinanceNumbersItem1[];
+}
+export interface FinanceNumbersNextNumber1 {
+	recid: number;
+}
+export interface FinanceNumbersShift1 {
+	current_recid: number;
+	new_prefix: any;
+	new_account_number: string;
+	new_display_format: any;
+	new_pattern: any;
+	new_allocation_size: number;
+}
+export interface FinanceNumbersShiftResult1 {
+	closed_sequence: any;
+	new_sequence: FinanceNumbersItem1;
+}
+export interface FinanceNumbersUpsert1 {
+	recid: any;
+	accounts_guid: string;
+	prefix: any;
+	account_number: string;
+	last_number: number;
+	max_number: any;
+	allocation_size: number;
+	reset_policy: string;
+	sequence_status: number;
+	sequence_type: string;
+	series_number: number;
+	scope: any;
+	pattern: any;
+	display_format: any;
+	account_name: any;
+	remaining: any;
+}
+export interface JournalApprove1 {
+	recid: number;
+}
+export interface JournalCreate1 {
+	name: string;
+	description: any;
+	posting_key: any;
+	source_type: any;
+	source_id: any;
+	periods_guid: any;
+	ledgers_recid: any;
+	lines: JournalCreateLine1[];
+}
+export interface JournalCreateLine1 {
+	line_number: number;
+	accounts_guid: string;
+	debit: string;
+	credit: string;
+	description: any;
+	dimension_recids: number[];
+}
+export interface JournalGet1 {
+	recid: number;
+}
+export interface JournalGetLines1 {
+	journals_recid: number;
+}
+export interface JournalItem1 {
+	recid: any;
+	name: string;
+	description: any;
+	posting_key: any;
+	source_type: any;
+	source_id: any;
+	periods_guid: any;
+	ledgers_recid: any;
+	numbers_recid: any;
+	status: number;
+	posted_by: any;
+	posted_on: any;
+	reversed_by: any;
+	reversal_of: any;
+}
+export interface JournalLineItem1 {
+	recid: any;
+	journals_recid: number;
+	line_number: number;
+	accounts_guid: string;
+	debit: string;
+	credit: string;
+	description: any;
+	dimension_recids: number[];
+}
+export interface JournalLineList1 {
+	lines: JournalLineItem1[];
+}
+export interface JournalList1 {
+	journals: JournalItem1[];
+}
+export interface JournalListFilter1 {
+	status: any;
+	periods_guid: any;
+}
+export interface JournalReject1 {
+	recid: number;
+	reason: any;
+}
+export interface JournalReverse1 {
+	recid: number;
+}
+export interface JournalSubmitForApproval1 {
+	recid: number;
+}
+export interface CreditLotConsume1 {
+	users_guid: string;
+	credits_needed: number;
+	service_type: any;
+	description: any;
+	periods_guid: any;
+}
+export interface CreditLotConsumeResult1 {
+	credits_consumed: number;
+	lots_affected: number;
+	journal_recid: any;
+}
+export interface CreditLotCreate1 {
+	users_guid: string;
+	source_type: string;
 	credits: number;
-	profile_image: string | null;
+	total_paid: string;
+	currency: string;
+	expires_at: any;
+	source_id: any;
+}
+export interface CreditLotEventItem1 {
+	recid: any;
+	lots_recid: number;
+	event_type: string;
+	credits: number;
+	unit_price: string;
+	description: any;
+	actor_guid: any;
+	journals_recid: any;
+}
+export interface CreditLotEventList1 {
+	events: CreditLotEventItem1[];
+}
+export interface CreditLotExpire1 {
+	recid: number;
+}
+export interface CreditLotGet1 {
+	recid: number;
+}
+export interface CreditLotItem1 {
+	recid: any;
+	users_guid: string;
+	lot_number: any;
+	source_type: string;
+	credits_original: number;
+	credits_remaining: number;
+	unit_price: string;
+	total_paid: string;
+	currency: string;
+	expires_at: any;
+	expired: boolean;
+	source_id: any;
+	numbers_recid: any;
+	status: number;
+}
+export interface CreditLotList1 {
+	lots: CreditLotItem1[];
+}
+export interface CreditLotListByUser1 {
+	users_guid: string;
+}
+export interface CreditLotListEvents1 {
+	lots_recid: number;
+}
+export interface CreditLotWalletBalance1 {
+	users_guid: string;
+}
+export interface CreditLotWalletResult1 {
+	users_guid: string;
+	balance: number;
 }
 export interface AuthDiscordOauthLogin1 {
 	sessionToken: string;
@@ -848,497 +1177,70 @@ export interface AuthGoogleOauthLoginPayload1 {
 	reauthToken: any;
 	fingerprint: string;
 }
-export interface DiscordCommandGetCreditsRequest1 {
-	discord_id: string;
+export interface AuthProvidersUnlinkLastProvider1 {
+	guid: string;
+	provider: string;
 }
-export interface DiscordCommandGetCreditsResponse1 {
+export interface AuthMicrosoftOauthLogin1 {
+	sessionToken: string;
+	display_name: string;
 	credits: number;
-	reserve: any;
+	profile_image: string | null;
 }
-export interface DiscordCommandGetGuildCreditsRequest1 {
-	guild_id: string;
-}
-export interface DiscordCommandGetGuildCreditsResponse1 {
-	guild_id: string;
-	credits: number;
-}
-export interface DiscordCommandGetRolesResponse1 {
-	roles: string[];
-}
-export interface DiscordCommandRegisterRequest1 {
-	discord_id: string;
-}
-export interface DiscordCommandRegisterResponse1 {
-	success: boolean;
-	message: string;
-	user_guid: any;
-	credits: any;
-}
-export interface DiscordGuildsGuildItem1 {
-	recid: number;
-	guild_id: string;
-	name: string;
-	joined_on: any;
-	member_count: any;
-	owner_id: any;
-	region: any;
-	left_on: any;
-	notes: any;
-	credits: number;
-}
-export interface DiscordGuildsList1 {
-	guilds: DiscordGuildsGuildItem1[];
-}
-export interface DiscordGuildsSyncResult1 {
-	synced: number;
-	guilds: DiscordGuildsGuildItem1[];
-}
-export interface DiscordGuildsUpdateCredits1 {
-	guild_id: string;
-	credits: number;
-}
-export interface DiscordBskyPostRequest1 {
-	message: string;
-}
-export interface DiscordBskyPostResponse1 {
-	uri: string;
-	cid: string;
-	handle: string;
-	display_name: any;
-}
-export interface DiscordChatPersonaRequest1 {
-	persona: string;
-	message: string;
-	guild_id: number | null;
-	channel_id: number | null;
-	user_id: number | null;
-}
-export interface DiscordChatPersonaResponse1 {
-	persona: string;
-	persona_response_text: string;
-	model: string | null;
-	role: string | null;
-}
-export interface DiscordChatSummarizeChannelRequest1 {
-	channel_id: string;
-}
-export interface DiscordChatSummarizeChannelResponse1 {
-	summary: string;
-	messages_collected: any;
-	token_count_estimate: any;
-	cap_hit: any;
-	model: any;
-	role: any;
-}
-export interface DiscordPersonasDeletePersona1 {
-	recid: number | null;
-	name: string | null;
-}
-export interface DiscordPersonasList1 {
-	personas: DiscordPersonasPersonaItem1[];
-}
-export interface DiscordPersonasModelItem1 {
-	recid: number;
-	name: string;
-}
-export interface DiscordPersonasModels1 {
-	models: DiscordPersonasModelItem1[];
-}
-export interface DiscordPersonasPersonaItem1 {
-	recid: number | null;
-	name: string;
-	prompt: string;
-	tokens: number;
-	models_recid: number;
-	model: string | null;
-	is_active: boolean;
-}
-export interface DiscordPersonasUpsertPersona1 {
-	recid: number | null;
-	name: string;
-	prompt: string;
-	tokens: number;
-	models_recid: number;
-	is_active: boolean;
-}
-export interface SystemTaskCancelRequest1 {
-	guid: string;
-}
-export interface SystemTaskEventItem1 {
-	recid: number;
-	tasks_recid: number;
-	element_event_type: string;
-	element_step_name: any;
-	element_detail: any;
-	element_created_on: string;
-}
-export interface SystemTaskEventsList1 {
-	events: SystemTaskEventItem1[];
-}
-export interface SystemTaskEventsRequest1 {
-	guid: string;
-}
-export interface SystemTaskGetRequest1 {
-	guid: string;
-}
-export interface SystemTaskItem1 {
-	recid: number;
-	guid: string;
-	handler_type: string;
-	handler_name: string;
-	payload: any;
-	status: number;
-	result: any;
-	error: any;
-	current_step: any;
-	step_index: number;
-	max_retries: number;
-	retry_count: number;
-	poll_interval_seconds: any;
-	timeout_seconds: any;
-	timeout_at: any;
-	external_id: any;
-	source_type: any;
-	source_id: any;
-	created_by: any;
-	created_on: any;
-	modified_on: any;
-}
-export interface SystemTaskList1 {
-	tasks: SystemTaskItem1[];
-}
-export interface SystemTaskListRequest1 {
-	status: any;
-	handler_type: any;
-	handler_name: any;
-}
-export interface SystemTaskRetryRequest1 {
-	guid: string;
-}
-export interface SystemTaskSubmitRequest1 {
-	handler_name: string;
-	payload: Record<string, any>;
-	source_type: any;
-	source_id: any;
-	timeout_seconds: any;
-	poll_interval_seconds: any;
-	max_retries: number;
-}
-export interface SystemModelsDeleteModel1 {
-	recid: number | null;
-	name: string | null;
-}
-export interface SystemModelsList1 {
-	models: SystemModelsModelItem1[];
-	api_providers: string[];
-}
-export interface SystemModelsModelItem1 {
-	recid: number;
-	name: string;
-	api_provider: string;
-	is_active: boolean;
-}
-export interface SystemModelsUpsertModel1 {
-	recid: number | null;
-	name: string;
-	api_provider: string;
-	is_active: boolean;
-}
-export interface SystemRolesDeleteRole1 {
-	name: string;
-}
-export interface SystemRolesList1 {
-	roles: SystemRolesRoleItem1[];
-}
-export interface SystemRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface SystemConfigConfigItem1 {
-	key: string;
-	value: string;
-}
-export interface SystemConfigDeleteConfig1 {
-	key: string;
-}
-export interface SystemConfigList1 {
-	items: SystemConfigConfigItem1[];
-}
-export interface BatchJobDelete1 {
-	recid: number;
-}
-export interface BatchJobGet1 {
-	recid: number;
-}
-export interface BatchJobHistoryItem1 {
-	recid: any;
-	jobs_recid: number;
-	started_on: any;
-	ended_on: any;
-	status: number;
-	error: any;
-	result: any;
-}
-export interface BatchJobHistoryList1 {
-	history: BatchJobHistoryItem1[];
-}
-export interface BatchJobItem1 {
-	recid: any;
-	name: string;
-	description: any;
-	class_path: string;
-	parameters: any;
-	cron: string;
-	recurrence_type: number;
-	run_count_limit: any;
-	run_until: any;
-	total_runs: number;
-	is_enabled: boolean;
-	last_run: any;
-	next_run: any;
-	status: number;
-}
-export interface BatchJobList1 {
-	jobs: BatchJobItem1[];
-}
-export interface BatchJobListHistory1 {
-	jobs_recid: number;
-}
-export interface BatchJobRunNow1 {
-	recid: number;
-}
-export interface BatchJobUpsert1 {
-	recid: any;
-	name: string;
-	description: any;
-	class_path: string;
-	parameters: any;
-	cron: string;
-	recurrence_type: number;
-	run_count_limit: any;
-	run_until: any;
-	total_runs: number;
-	is_enabled: boolean;
-	last_run: any;
-	next_run: any;
-	status: number;
-}
-export interface SystemConversationsConversationItem1 {
-	recid: number;
-	personas_recid: number;
-	models_recid: number;
-	guild_id: string | null;
-	channel_id: string | null;
-	user_id: string | null;
-	role: string | null;
-	thread_id: string | null;
-	preview: string;
-	tokens: number | null;
-	created_on: string | null;
-	persona_name: string | null;
-}
-export interface SystemConversationsDeleteBefore1 {
-	before: string;
-}
-export interface SystemConversationsDeleteResult1 {
-	deleted: number;
-}
-export interface SystemConversationsDeleteThread1 {
-	thread_id: string;
-}
-export interface SystemConversationsList1 {
-	conversations: SystemConversationsConversationItem1[];
-	total: number;
-	limit: number;
-	offset: number;
-}
-export interface SystemConversationsStats1 {
-	total_rows: number;
-	total_threads: number;
-	oldest_entry: string | null;
-	newest_entry: string | null;
-	total_tokens: number;
-}
-export interface SystemConversationsThread1 {
-	thread_id: string;
-	messages: SystemConversationsThreadMessage1[];
-}
-export interface SystemConversationsThreadMessage1 {
-	recid: number;
-	role: string | null;
-	content: string | null;
-	user_id: string | null;
-	tokens: number | null;
-	created_on: string | null;
-}
-export interface SystemConversationsViewThread1 {
-	thread_id: string;
-}
-export interface SystemStorageStats1 {
-	file_count: number;
-	total_bytes: number;
-	folder_count: number;
-	user_folder_count: number;
-	db_rows: number;
-}
-export interface ServiceRenewalsDelete1 {
-	recid: number;
-}
-export interface ServiceRenewalsDeleteResult1 {
-	recid: number;
-	deleted: boolean;
-}
-export interface ServiceRenewalsItem1 {
-	recid: number;
-	element_guid: any;
-	element_name: string;
-	element_category: string;
-	element_vendor: any;
-	element_reference: any;
-	element_expires_on: any;
-	element_renew_by: any;
-	element_renewal_cost: any;
-	element_currency: any;
-	element_auto_renew: boolean;
-	element_owner: any;
-	element_notes: any;
-	element_status: number;
-	element_created_on: any;
-	element_modified_on: any;
-}
-export interface ServiceRenewalsList1 {
-	renewals: any;
-}
-export interface ServiceRenewalsListParams1 {
-	category: any;
-	status: any;
-}
-export interface ServiceRenewalsUpsert1 {
-	recid: any;
-	element_name: string;
-	element_category: string;
-	element_vendor: any;
-	element_reference: any;
-	element_expires_on: any;
-	element_renew_by: any;
-	element_renewal_cost: any;
-	element_currency: any;
-	element_auto_renew: boolean;
-	element_owner: any;
-	element_notes: any;
-	element_status: number;
-}
-export interface ServiceRolesDeleteRole1 {
-	name: string;
-}
-export interface ServiceRolesList1 {
-	roles: ServiceRolesRoleItem1[];
-}
-export interface ServiceRolesRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface ServiceRolesUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface DescribeTableRequest1 {
-	table_name: string;
-	table_schema: string;
-}
-export interface DescribeTableResponse1 {
-	columns: any;
-	indexes: any;
-	foreign_keys: any;
-}
-export interface DomainsResponse1 {
-	domains: any;
-}
-export interface DumpTableRequest1 {
-	table_name: string;
-	table_schema: string;
-	max_rows: number;
-}
-export interface DumpTableResponse1 {
-	rows: any;
-	truncated: boolean;
-	total_rows: number;
-}
-export interface QueryInfoSchemaRequest1 {
-	view_name: string;
-	filter_column: any;
-	filter_value: any;
-}
-export interface RpcEndpointsResponse1 {
-	endpoints: string[];
-}
-export interface SchemaVersionResponse1 {
-	version: any;
-}
-export interface TableListResponse1 {
-	tables: any;
-}
-export interface ServiceRoutesDeleteRoute1 {
+export interface AccountUserCreateFolder1 {
+	userGuid: string;
 	path: string;
 }
-export interface ServiceRoutesList1 {
-	routes: ServiceRoutesRouteItem1[];
-}
-export interface ServiceRoutesRouteItem1 {
-	path: string;
-	name: string;
-	icon: string | null;
-	sequence: number;
-	required_roles: string[];
-}
-export interface PaymentRequestCreate1 {
-	vendor_name: string;
-	amount: string;
-	currency: string;
-	description: string;
-	service: any;
-	category: any;
-	period_start: string;
-	period_end: string;
-	renewal_recid: any;
-}
-export interface PaymentRequestCreateResult1 {
-	import_recid: number;
-	status: string;
-	message: string;
-}
-export interface SupportUsersCredits1 {
+export interface AccountUserCredits1 {
 	userGuid: string;
 	credits: number;
 }
-export interface SupportUsersDisplayName1 {
+export interface AccountUserDisplayName1 {
 	userGuid: string;
 	displayName: string;
 }
-export interface SupportUsersGuid1 {
+export interface AccountUserGuid1 {
 	userGuid: string;
 }
-export interface SupportUsersSetCredits1 {
+export interface AccountUserSetCredits1 {
 	userGuid: string;
 	credits: number;
 }
-export interface SupportRolesMembers1 {
-	members: SupportRolesUserItem1[];
-	nonMembers: SupportRolesUserItem1[];
+export interface AccountRoleAggregateItem1 {
+	name: string;
+	mask: string;
+	display: any;
+	members: AccountRoleUserItem1[];
+	nonMembers: AccountRoleUserItem1[];
 }
-export interface SupportRolesRoleMemberUpdate1 {
+export interface AccountRoleAggregateList1 {
+	roles: AccountRoleAggregateItem1[];
+}
+export interface AccountRoleDeleteRole1 {
+	name: string;
+}
+export interface AccountRoleList1 {
+	roles: AccountRoleRoleItem1[];
+}
+export interface AccountRoleMemberUpdate1 {
 	role: string;
 	userGuid: string;
 }
-export interface SupportRolesUserItem1 {
+export interface AccountRoleMembers1 {
+	members: AccountRoleUserItem1[];
+	nonMembers: AccountRoleUserItem1[];
+}
+export interface AccountRoleRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface AccountRoleUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface AccountRoleUserItem1 {
 	guid: string;
 	displayName: string;
 }
@@ -1423,50 +1325,158 @@ export interface StorageFilesUsageItem1 {
 	content_type: string;
 	size: number;
 }
-export interface AccountUserCreateFolder1 {
-	userGuid: string;
+export interface ServiceRenewalsDelete1 {
+	recid: number;
+}
+export interface ServiceRenewalsDeleteResult1 {
+	recid: number;
+	deleted: boolean;
+}
+export interface ServiceRenewalsItem1 {
+	recid: number;
+	element_guid: any;
+	element_name: string;
+	element_category: string;
+	element_vendor: any;
+	element_reference: any;
+	element_expires_on: any;
+	element_renew_by: any;
+	element_renewal_cost: any;
+	element_currency: any;
+	element_auto_renew: boolean;
+	element_owner: any;
+	element_notes: any;
+	element_status: number;
+	element_created_on: any;
+	element_modified_on: any;
+}
+export interface ServiceRenewalsList1 {
+	renewals: any;
+}
+export interface ServiceRenewalsListParams1 {
+	category: any;
+	status: any;
+}
+export interface ServiceRenewalsUpsert1 {
+	recid: any;
+	element_name: string;
+	element_category: string;
+	element_vendor: any;
+	element_reference: any;
+	element_expires_on: any;
+	element_renew_by: any;
+	element_renewal_cost: any;
+	element_currency: any;
+	element_auto_renew: boolean;
+	element_owner: any;
+	element_notes: any;
+	element_status: number;
+}
+export interface PaymentRequestCreate1 {
+	vendor_name: string;
+	amount: string;
+	currency: string;
+	description: string;
+	service: any;
+	category: any;
+	period_start: string;
+	period_end: string;
+	renewal_recid: any;
+}
+export interface PaymentRequestCreateResult1 {
+	import_recid: number;
+	status: string;
+	message: string;
+}
+export interface ServiceRoutesDeleteRoute1 {
 	path: string;
 }
-export interface AccountUserCredits1 {
+export interface ServiceRoutesList1 {
+	routes: ServiceRoutesRouteItem1[];
+}
+export interface ServiceRoutesRouteItem1 {
+	path: string;
+	name: string;
+	icon: string | null;
+	sequence: number;
+	required_roles: string[];
+}
+export interface DescribeTableRequest1 {
+	table_name: string;
+	table_schema: string;
+}
+export interface DescribeTableResponse1 {
+	columns: any;
+	indexes: any;
+	foreign_keys: any;
+}
+export interface DomainsResponse1 {
+	domains: any;
+}
+export interface DumpTableRequest1 {
+	table_name: string;
+	table_schema: string;
+	max_rows: number;
+}
+export interface DumpTableResponse1 {
+	rows: any;
+	truncated: boolean;
+	total_rows: number;
+}
+export interface QueryInfoSchemaRequest1 {
+	view_name: string;
+	filter_column: any;
+	filter_value: any;
+}
+export interface RpcEndpointsResponse1 {
+	endpoints: string[];
+}
+export interface SchemaVersionResponse1 {
+	version: any;
+}
+export interface TableListResponse1 {
+	tables: any;
+}
+export interface ServiceRolesDeleteRole1 {
+	name: string;
+}
+export interface ServiceRolesList1 {
+	roles: ServiceRolesRoleItem1[];
+}
+export interface ServiceRolesRoleItem1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface ServiceRolesUpsertRole1 {
+	name: string;
+	mask: string;
+	display: any;
+}
+export interface SupportUsersCredits1 {
 	userGuid: string;
 	credits: number;
 }
-export interface AccountUserDisplayName1 {
+export interface SupportUsersDisplayName1 {
 	userGuid: string;
 	displayName: string;
 }
-export interface AccountUserGuid1 {
+export interface SupportUsersGuid1 {
 	userGuid: string;
 }
-export interface AccountUserSetCredits1 {
+export interface SupportUsersSetCredits1 {
 	userGuid: string;
 	credits: number;
 }
-export interface AccountRoleDeleteRole1 {
-	name: string;
+export interface SupportRolesMembers1 {
+	members: SupportRolesUserItem1[];
+	nonMembers: SupportRolesUserItem1[];
 }
-export interface AccountRoleList1 {
-	roles: AccountRoleRoleItem1[];
-}
-export interface AccountRoleMemberUpdate1 {
+export interface SupportRolesRoleMemberUpdate1 {
 	role: string;
 	userGuid: string;
 }
-export interface AccountRoleMembers1 {
-	members: AccountRoleUserItem1[];
-	nonMembers: AccountRoleUserItem1[];
-}
-export interface AccountRoleRoleItem1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface AccountRoleUpsertRole1 {
-	name: string;
-	mask: string;
-	display: any;
-}
-export interface AccountRoleUserItem1 {
+export interface SupportRolesUserItem1 {
 	guid: string;
 	displayName: string;
 }

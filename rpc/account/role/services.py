@@ -4,6 +4,8 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.role_admin_module import RoleAdminModule
 from .models import (
+  AccountRoleAggregateItem1,
+  AccountRoleAggregateList1,
   AccountRoleRoleItem1,
   AccountRoleList1,
   AccountRoleMemberUpdate1,
@@ -20,6 +22,19 @@ async def account_role_get_roles_v1(request: Request):
   roles_raw = await role_admin.list_roles(auth_ctx.role_mask)
   roles = [AccountRoleRoleItem1(**r) for r in roles_raw]
   payload = AccountRoleList1(roles=roles)
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=payload.model_dump(),
+    version=rpc_request.version,
+  )
+
+
+async def account_role_get_all_role_members_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  role_admin: RoleAdminModule = request.app.state.role_admin
+  roles_raw = await role_admin.get_all_role_members(auth_ctx.role_mask)
+  roles = [AccountRoleAggregateItem1(**r) for r in roles_raw]
+  payload = AccountRoleAggregateList1(roles=roles)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),

@@ -7,6 +7,7 @@
 import { rpcCall } from '../../../shared/RpcModels';
 
 export const fetchRoles = (payload: any = null): Promise<any> => rpcCall('urn:account:role:get_roles:1', payload);
+export const fetchAllRoleMembers = (payload: any = null): Promise<any> => rpcCall('urn:account:role:get_all_role_members:1', payload);
 export const fetchRoleMembers = (payload: any = null): Promise<any> => rpcCall('urn:account:role:get_role_members:1', payload);
 export const fetchAddRoleMember = (payload: any = null): Promise<any> => rpcCall('urn:account:role:add_role_member:1', payload);
 export const fetchRemoveRoleMember = (payload: any = null): Promise<any> => rpcCall('urn:account:role:remove_role_member:1', payload);

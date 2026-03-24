@@ -9,9 +9,17 @@ from .models import ModifyRoleMemberParams, RoleScopeParams
 __all__ = [
   "create_role_membership_request",
   "delete_role_membership_request",
+  "list_all_role_memberships_request",
   "list_role_memberships_request",
   "list_role_non_memberships_request",
 ]
+
+
+def list_all_role_memberships_request() -> DBRequest:
+  return DBRequest(
+    op="db:identity:role_memberships:list_all:1",
+    payload={},
+  )
 
 
 def list_role_memberships_request(params: RoleScopeParams) -> DBRequest:
