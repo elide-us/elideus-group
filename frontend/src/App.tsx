@@ -33,6 +33,7 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
+const EmergentDevelopmentArticle = lazy(() => import('./pages/EmergentDevelopmentArticle'));
 
 function App(): JSX.Element {
 	return (
@@ -88,6 +89,7 @@ function App(): JSX.Element {
 									<Route path="/terms-of-service" element={<TermsOfService />} />
 									<Route path="/profile/:guid" element={<PublicProfile />} />
 									<Route path="/emergent-ethics" element={<EmergentEthicsArticle />} />
+									<Route path="/emergent-development" element={<EmergentDevelopmentArticle />} />
 								</Routes>
 							</Suspense>
 						</Box>
