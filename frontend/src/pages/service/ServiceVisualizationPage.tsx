@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, type MouseEvent } from 'react
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import PageTitle from '../../components/PageTitle';
+import { fetchFullSchema } from '../../rpc/service/reflection';
 
 interface TableDef {
     recid: number;
@@ -13,133 +14,6 @@ interface FKDef {
     to: number;
     col: string;
 }
-
-const TABLES: TableDef[] = [
-    { recid: 1, name: 'auth_providers' },
-    { recid: 2, name: 'account_users' },
-    { recid: 3, name: 'users_sessions' },
-    { recid: 4, name: 'storage_types' },
-    { recid: 5, name: 'users_auth' },
-    { recid: 6, name: 'account_actions' },
-    { recid: 7, name: 'users_storage_cache' },
-    { recid: 8, name: 'frontend_links' },
-    { recid: 9, name: 'frontend_routes' },
-    { recid: 10, name: 'system_config' },
-    { recid: 11, name: 'users_credits' },
-    { recid: 12, name: 'users_enablements' },
-    { recid: 13, name: 'users_profileimg' },
-    { recid: 14, name: 'users_roles' },
-    { recid: 15, name: 'system_roles' },
-    { recid: 16, name: 'discord_guilds' },
-    { recid: 17, name: 'sessions_devices' },
-    { recid: 18, name: 'users_actions_log' },
-    { recid: 19, name: 'assistant_models' },
-    { recid: 20, name: 'assistant_personas' },
-    { recid: 21, name: 'assistant_conversations' },
-    { recid: 22, name: 'service_pages' },
-    { recid: 23, name: 'system_edt_mappings' },
-    { recid: 24, name: 'system_schema_tables' },
-    { recid: 25, name: 'system_schema_columns' },
-    { recid: 26, name: 'system_schema_indexes' },
-    { recid: 27, name: 'system_schema_foreign_keys' },
-    { recid: 28, name: 'builder_categories' },
-    { recid: 29, name: 'finance_accounts' },
-    { recid: 30, name: 'finance_numbers' },
-    { recid: 31, name: 'finance_periods' },
-    { recid: 32, name: 'system_schema_views' },
-    { recid: 33, name: 'discord_channels' },
-    { recid: 34, name: 'finance_dimensions' },
-    { recid: 35, name: 'finance_journals' },
-    { recid: 36, name: 'finance_ledgers' },
-    { recid: 37, name: 'account_api_tokens' },
-    { recid: 38, name: 'account_mcp_agents' },
-    { recid: 39, name: 'account_mcp_agent_tokens' },
-    { recid: 40, name: 'account_mcp_auth_codes' },
-    { recid: 41, name: 'system_batch_jobs' },
-    { recid: 42, name: 'system_batch_job_history' },
-    { recid: 43, name: 'finance_journal_lines' },
-    { recid: 44, name: 'finance_journal_line_dimensions' },
-    { recid: 45, name: 'finance_credit_lots' },
-    { recid: 46, name: 'finance_credit_lot_events' },
-    { recid: 47, name: 'finance_staging_imports' },
-    { recid: 48, name: 'finance_staging_azure_cost_details' },
-    { recid: 49, name: 'system_async_tasks' },
-    { recid: 50, name: 'system_async_task_events' },
-    { recid: 51, name: 'finance_staging_account_map' },
-    { recid: 52, name: 'finance_vendors' },
-    { recid: 53, name: 'finance_staging_line_items' },
-    { recid: 54, name: 'finance_staging_azure_invoices' },
-    { recid: 55, name: 'finance_staging_purge_log' },
-    { recid: 56, name: 'system_renewals' },
-    { recid: 57, name: 'finance_status_codes' },
-    { recid: 58, name: 'finance_pipeline_config' },
-    { recid: 59, name: 'finance_products' },
-    { recid: 60, name: 'finance_product_journal_config' },
-];
-
-const FKS: FKDef[] = [
-    { from: 2, to: 1, col: 'providers_recid' },
-    { from: 3, to: 2, col: 'users_guid' },
-    { from: 5, to: 1, col: 'providers_recid' },
-    { from: 5, to: 2, col: 'users_guid' },
-    { from: 7, to: 6, col: 'moderation_recid' },
-    { from: 7, to: 2, col: 'users_guid' },
-    { from: 7, to: 4, col: 'types_recid' },
-    { from: 11, to: 2, col: 'users_guid' },
-    { from: 12, to: 2, col: 'users_guid' },
-    { from: 13, to: 1, col: 'providers_recid' },
-    { from: 13, to: 2, col: 'users_guid' },
-    { from: 14, to: 2, col: 'users_guid' },
-    { from: 17, to: 1, col: 'providers_recid' },
-    { from: 17, to: 3, col: 'sessions_guid' },
-    { from: 18, to: 6, col: 'action_recid' },
-    { from: 18, to: 2, col: 'users_guid' },
-    { from: 20, to: 19, col: 'models_recid' },
-    { from: 21, to: 19, col: 'models_recid' },
-    { from: 21, to: 20, col: 'personas_recid' },
-    { from: 21, to: 2, col: 'users_guid' },
-    { from: 22, to: 2, col: 'element_created_by' },
-    { from: 22, to: 2, col: 'element_modified_by' },
-    { from: 25, to: 23, col: 'edt_recid' },
-    { from: 25, to: 24, col: 'tables_recid' },
-    { from: 26, to: 24, col: 'tables_recid' },
-    { from: 27, to: 24, col: 'referenced_tables_recid' },
-    { from: 27, to: 24, col: 'tables_recid' },
-    { from: 29, to: 29, col: 'element_parent' },
-    { from: 30, to: 29, col: 'accounts_guid' },
-    { from: 33, to: 16, col: 'guilds_recid' },
-    { from: 35, to: 30, col: 'numbers_recid' },
-    { from: 35, to: 31, col: 'periods_guid' },
-    { from: 35, to: 36, col: 'ledgers_recid' },
-    { from: 35, to: 35, col: 'element_reversed_by' },
-    { from: 35, to: 35, col: 'element_reversal_of' },
-    { from: 36, to: 29, col: 'element_chart_of_accounts_guid' },
-    { from: 37, to: 2, col: 'users_recid' },
-    { from: 38, to: 2, col: 'users_recid' },
-    { from: 39, to: 38, col: 'agents_recid' },
-    { from: 40, to: 38, col: 'agents_recid' },
-    { from: 40, to: 2, col: 'users_recid' },
-    { from: 42, to: 41, col: 'jobs_recid' },
-    { from: 43, to: 35, col: 'journals_recid' },
-    { from: 43, to: 29, col: 'accounts_guid' },
-    { from: 44, to: 43, col: 'lines_recid' },
-    { from: 44, to: 34, col: 'dimensions_recid' },
-    { from: 45, to: 2, col: 'users_guid' },
-    { from: 45, to: 30, col: 'numbers_recid' },
-    { from: 46, to: 45, col: 'lots_recid' },
-    { from: 46, to: 35, col: 'journals_recid' },
-    { from: 50, to: 49, col: 'tasks_recid' },
-    { from: 53, to: 47, col: 'imports_recid' },
-    { from: 53, to: 52, col: 'vendors_recid' },
-    { from: 51, to: 29, col: 'accounts_guid' },
-    { from: 51, to: 52, col: 'vendors_recid' },
-    { from: 54, to: 47, col: 'imports_recid' },
-    { from: 55, to: 52, col: 'vendors_recid' },
-    { from: 48, to: 47, col: 'imports_recid' },
-    { from: 31, to: 30, col: 'numbers_recid' },
-    { from: 60, to: 35, col: 'journals_recid' },
-    { from: 60, to: 31, col: 'periods_guid' },
-];
 
 interface DomainColor {
     fill: string;
@@ -169,6 +43,7 @@ function getDomain(name: string): DomainColor {
 
 interface GraphNode extends TableDef {
     refs: number;
+    selfRefs: number;
     r: number;
     x: number;
     y: number;
@@ -179,12 +54,12 @@ interface GraphNode extends TableDef {
     incoming: { source: number; col: string }[];
 }
 
-function buildGraph(): { nodes: GraphNode[]; edges: FKDef[] } {
+function buildGraph(tables: TableDef[], fks: FKDef[]): { nodes: GraphNode[]; edges: FKDef[] } {
     const refCount: Record<number, number> = {};
-    TABLES.forEach((table) => {
+    tables.forEach((table) => {
         refCount[table.recid] = 0;
     });
-    FKS.forEach((fk) => {
+    fks.forEach((fk) => {
         if (fk.to !== fk.from) {
             refCount[fk.to] = (refCount[fk.to] ?? 0) + 1;
         }
@@ -192,11 +67,11 @@ function buildGraph(): { nodes: GraphNode[]; edges: FKDef[] } {
 
     const outgoing: Record<number, { target: number; col: string }[]> = {};
     const incoming: Record<number, { source: number; col: string }[]> = {};
-    TABLES.forEach((table) => {
+    tables.forEach((table) => {
         outgoing[table.recid] = [];
         incoming[table.recid] = [];
     });
-    FKS.forEach((fk) => {
+    fks.forEach((fk) => {
         if (fk.from !== fk.to) {
             outgoing[fk.from].push({ target: fk.to, col: fk.col });
             incoming[fk.to].push({ source: fk.from, col: fk.col });
@@ -206,15 +81,16 @@ function buildGraph(): { nodes: GraphNode[]; edges: FKDef[] } {
     const maxRef = Math.max(...Object.values(refCount), 1);
     const cx = 500;
     const cy = 400;
-    const nodes: GraphNode[] = TABLES.map((table, index) => {
+    const nodes: GraphNode[] = tables.map((table, index) => {
         const refs = refCount[table.recid] ?? 0;
         const r = 8 + (refs / maxRef) * 34;
-        const angle = (index / TABLES.length) * Math.PI * 2;
+        const angle = (index / tables.length) * Math.PI * 2;
         const spread = 220 + Math.random() * 120;
 
         return {
             ...table,
             refs,
+            selfRefs: fks.filter((fk) => fk.from === table.recid && fk.to === table.recid).length,
             r,
             x: cx + Math.cos(angle) * spread,
             y: cy + Math.sin(angle) * spread,
@@ -226,7 +102,7 @@ function buildGraph(): { nodes: GraphNode[]; edges: FKDef[] } {
         };
     });
 
-    return { nodes, edges: FKS.filter((fk) => fk.from !== fk.to) };
+    return { nodes, edges: fks.filter((fk) => fk.from !== fk.to) };
 }
 
 function simulate(nodes: GraphNode[], edges: FKDef[], iterations = 250): void {
@@ -311,14 +187,40 @@ const ServiceVisualizationPage = (): JSX.Element => {
     const [dragging, setDragging] = useState<GraphNode | null>(null);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [tableCount, setTableCount] = useState(0);
+    const [edgeCount, setEdgeCount] = useState(0);
     const graphRef = useRef<{ nodes: GraphNode[]; edges: FKDef[] } | null>(null);
     const panStart = useRef<{ mx: number; my: number; panX: number; panY: number } | null>(null);
     const dragOffset = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
-        const graph = buildGraph();
-        simulate(graph.nodes, graph.edges);
-        graphRef.current = graph;
+        void (async () => {
+            try {
+                const schema = await fetchFullSchema();
+
+                const tables: TableDef[] = (schema.tables ?? []).map((table: any) => ({
+                    recid: table.recid,
+                    name: table.element_name,
+                }));
+
+                const fks: FKDef[] = (schema.foreign_keys ?? []).map((fk: any) => ({
+                    from: fk.tables_recid,
+                    to: fk.referenced_tables_recid,
+                    col: fk.element_column_name,
+                }));
+
+                const graph = buildGraph(tables, fks);
+                simulate(graph.nodes, graph.edges);
+                graphRef.current = graph;
+                setTableCount(tables.length);
+                setEdgeCount(fks.filter((fk: FKDef) => fk.from !== fk.to).length);
+            } catch (error) {
+                console.error('Failed to load schema:', error);
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, []);
 
     const toWorld = useCallback(
@@ -597,7 +499,13 @@ const ServiceVisualizationPage = (): JSX.Element => {
         });
     }
 
-    const selfRefs = hovered ? FKS.filter((fk) => fk.from === hovered.recid && fk.to === hovered.recid) : [];
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+                <Typography sx={{ color: '#555', fontSize: '0.85rem' }}>Loading schema data...</Typography>
+            </Box>
+        );
+    }
 
     return (
         <Box
@@ -623,7 +531,7 @@ const ServiceVisualizationPage = (): JSX.Element => {
             >
                 <PageTitle>Schema Visualization</PageTitle>
                 <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>
-                    {TABLES.length} tables &middot; {FKS.filter((fk) => fk.from !== fk.to).length} relationships
+                    {tableCount} tables &middot; {edgeCount} relationships
                 </Typography>
                 <Box sx={{ ml: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                     {LEGEND.map((item) => (
@@ -716,11 +624,11 @@ const ServiceVisualizationPage = (): JSX.Element => {
                             </Typography>
                             <Typography variant="body2" sx={{ color: '#888', fontSize: '0.7rem', mt: '4px' }}>
                                 Domain: <span style={{ fontWeight: 600 }}>{hovered.name.split('_')[0]}</span>
-                                {selfRefs.length > 0 && (
+                                {hovered.selfRefs > 0 && (
                                     <>
                                         {' · '}
                                         <span style={{ fontWeight: 600 }}>
-                                            {selfRefs.length} self-ref{selfRefs.length > 1 ? 's' : ''}
+                                            {hovered.selfRefs} self-ref{hovered.selfRefs > 1 ? 's' : ''}
                                         </span>
                                     </>
                                 )}
