@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
 
 from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_one
-
-from .models import (
-  ProfileReadRequestPayload,
-  ProfileUpdateRequestPayload,
-  UpdateIfUneditedRequestPayload,
-)
 
 __all__ = [
   "get_public_profile_v1",
@@ -45,7 +40,7 @@ async def _get_auth_provider_recid(provider: str) -> int:
   return response.rows[0]["recid"]
 
 
-async def read_profile(args: ProfileReadRequestPayload) -> DBResponse:
+async def read_profile(args: Mapping[str, Any]) -> DBResponse:
   guid = str(args["guid"])
   sql = """
     SELECT TOP 1
@@ -142,7 +137,7 @@ async def set_roles_v1(args: dict[str, Any]) -> DBResponse:
   return DBResponse(payload=response.payload, rowcount=response.rowcount)
 
 
-async def update_profile(args: ProfileUpdateRequestPayload) -> DBResponse:
+async def update_profile(args: Mapping[str, Any]) -> DBResponse:
   guid = _normalize_guid(args["guid"])
   rowcount = 0
 
@@ -184,7 +179,7 @@ async def update_profile(args: ProfileUpdateRequestPayload) -> DBResponse:
   return DBResponse(rowcount=rowcount)
 
 
-async def update_if_unedited(args: UpdateIfUneditedRequestPayload) -> DBResponse:
+async def update_if_unedited(args: Mapping[str, Any]) -> DBResponse:
   guid = _normalize_guid(args["guid"])
   email = args.get("email")
   display = args.get("display_name")

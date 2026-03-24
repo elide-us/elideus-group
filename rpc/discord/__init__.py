@@ -1,7 +1,6 @@
 """Discord RPC namespace.
 
-Provides handlers for Discord bot operations (``ROLE_DISCORD_BOT``) and Discord
-administration flows (``ROLE_DISCORD_ADMIN``).
+Provides handlers for Discord RPC operations gated at the domain level.
 """
 
 from .bsky.handler import handle_bsky_request
@@ -16,22 +15,4 @@ HANDLERS: dict[str, callable] = {
   "command": handle_command_request,
   "guilds": handle_guilds_request,
   "personas": handle_personas_request,
-}
-
-
-REQUIRED_ROLES: dict[str, str | None] = {
-  "bsky": "ROLE_DISCORD_BOT",
-  "chat": "ROLE_DISCORD_BOT",
-  "command": None,
-  "guilds": "ROLE_DISCORD_ADMIN",
-  "personas": "ROLE_DISCORD_ADMIN",
-}
-
-
-FORBIDDEN_DETAILS: dict[str, str] = {
-  "bsky": 'You must have the Discord bot role assigned to use this bot.',
-  "chat": 'You must have the Discord bot role assigned to use this bot.',
-  "command": 'You must have the Discord bot role assigned to use this bot.',
-  "guilds": 'Forbidden',
-  "personas": 'Forbidden',
 }

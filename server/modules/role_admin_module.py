@@ -10,8 +10,8 @@ from queryregistry.identity.role_memberships import (
   list_role_non_memberships_request,
 )
 from queryregistry.identity.role_memberships.models import (
-  ModifyRoleMemberPayload,
-  RoleScopePayload,
+  ModifyRoleMemberParams,
+  RoleScopeParams,
 )
 from queryregistry.system.roles import list_system_roles_request
 from server.modules import BaseModule
@@ -80,7 +80,7 @@ class RoleAdminModule(BaseModule):
 
   async def get_role_members(self, role: str) -> tuple[list[dict], list[dict]]:
     provider_name = self.db.provider or "mssql"
-    scope: RoleScopePayload = {"role": role}
+    scope = RoleScopeParams(role=role)
     mem_res = await dispatch_query_request(
       list_role_memberships_request(scope),
       provider=provider_name,
@@ -104,7 +104,7 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
-    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
+    payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
     await dispatch_query_request(
       create_role_membership_request(payload),
       provider=provider_name,
@@ -117,7 +117,7 @@ class RoleAdminModule(BaseModule):
       role_mask = self.auth.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
-    payload: ModifyRoleMemberPayload = {"role": role, "user_guid": user_guid}
+    payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
     await dispatch_query_request(
       delete_role_membership_request(payload),
       provider=provider_name,

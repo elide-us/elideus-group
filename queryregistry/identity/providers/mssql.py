@@ -2,24 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from queryregistry.models import DBResponse
 from queryregistry.providers.mssql import run_exec, run_json_one, transaction
-
-from .models import (
-  CreateFromProviderRequestPayload,
-  GetAnyByProviderIdentifierRequestPayload,
-  GetByProviderIdentifierRequestPayload,
-  GetUserByEmailRequestPayload,
-  LinkProviderRequestPayload,
-  RelinkProviderRequestPayload,
-  SetProviderRequestPayload,
-  SoftDeleteAccountRequestPayload,
-  UnlinkLastProviderRequestPayload,
-  UnlinkProviderRequestPayload,
-)
 
 __all__ = [
   "create_from_provider_v1",
@@ -81,13 +69,13 @@ async def _get_auth_provider_recid(provider: str, *, cursor=None) -> int:
 
 
 async def get_by_provider_identifier(
-  args: GetByProviderIdentifierRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await get_by_provider_identifier_v1(args)
 
 
 async def get_by_provider_identifier_v1(
-  args: GetByProviderIdentifierRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   provider = args["provider"]
   identifier = _normalize_provider_identifier(args["provider_identifier"])
@@ -111,13 +99,13 @@ async def get_by_provider_identifier_v1(
 
 
 async def get_any_by_provider_identifier(
-  args: GetAnyByProviderIdentifierRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await get_any_by_provider_identifier_v1(args)
 
 
 async def get_any_by_provider_identifier_v1(
-  args: GetAnyByProviderIdentifierRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   identifier = _normalize_provider_identifier(args["provider_identifier"])
   sql = """
@@ -134,13 +122,13 @@ async def get_any_by_provider_identifier_v1(
 
 
 async def get_user_by_email(
-  args: GetUserByEmailRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await get_user_by_email_v1(args)
 
 
 async def get_user_by_email_v1(
-  args: GetUserByEmailRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   email = args["email"]
   sql = """
@@ -155,13 +143,13 @@ async def get_user_by_email_v1(
 
 
 async def create_from_provider(
-  args: CreateFromProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await create_from_provider_v1(args)
 
 
 async def create_from_provider_v1(
-  args: CreateFromProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   new_guid = str(uuid4())
   element_rotkey = ""
@@ -226,13 +214,13 @@ async def create_from_provider_v1(
 
 
 async def link_provider(
-  args: LinkProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await link_provider_v1(args)
 
 
 async def link_provider_v1(
-  args: LinkProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   guid = _normalize_guid(args["guid"])
   provider = args["provider"]
@@ -255,13 +243,13 @@ async def link_provider_v1(
 
 
 async def unlink_provider(
-  args: UnlinkProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await unlink_provider_v1(args)
 
 
 async def unlink_provider_v1(
-  args: UnlinkProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   guid = _normalize_guid(args["guid"])
   provider = args["provider"]
@@ -314,13 +302,13 @@ async def unlink_provider_v1(
 
 
 async def unlink_last_provider(
-  args: UnlinkLastProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await unlink_last_provider_v1(args)
 
 
 async def unlink_last_provider_v1(
-  args: UnlinkLastProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   guid = args["guid"]
   provider = args["provider"]
@@ -330,13 +318,13 @@ async def unlink_last_provider_v1(
 
 
 async def set_provider(
-  args: SetProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   return await set_provider_v1(args)
 
 
 async def set_provider_v1(
-  args: SetProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   guid = args["guid"]
   provider = args["provider"]
@@ -349,7 +337,7 @@ async def set_provider_v1(
 
 
 async def relink_provider(
-  args: RelinkProviderRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   provider = args["provider"]
   if provider == "discord":
@@ -373,7 +361,7 @@ async def relink_provider(
 
 
 async def soft_delete_account(
-  args: SoftDeleteAccountRequestPayload,
+  args: Mapping[str, object],
 ) -> DBResponse:
   guid = _normalize_guid(args["guid"])
   sql = """

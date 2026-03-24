@@ -56,6 +56,13 @@ All Users domain calls require `ROLE_REGISTERED`.
 | `urn:users:providers:link_provider:1`   | A user can link additional providers.                  |
 | `urn:users:providers:unlink_provider:1` | A user can unlink providers.                           |
 
+### `products`
+
+| Operation | Description |
+| --- | --- |
+| `urn:users:products:list:1` | List active purchasable products with per-user enablement state. |
+| `urn:users:products:purchase:1` | Purchase a product using the stub payment flow. |
+
 ## Auth Domain
 
 Authentication and session management calls.
@@ -171,6 +178,18 @@ These calls expose system administration functionality. All System domain calls 
 | ----------------------------------- | -------------------------------------------------- |
 | `urn:system:storage:get_stats:1`    | Return counts and sizes for storage and cache.     |
 
+
+### `tasks`
+
+| Operation | Description |
+| --- | --- |
+| `urn:system:tasks:list:1` | List async tasks with optional status/type/handler filters. |
+| `urn:system:tasks:get:1` | Get a single async task by GUID. |
+| `urn:system:tasks:submit:1` | Submit an on-demand async task (human-initiated RPC). |
+| `urn:system:tasks:cancel:1` | Cancel a queued/running/polling/waiting task. |
+| `urn:system:tasks:retry:1` | Retry a failed pipeline task from its failed step. |
+| `urn:system:tasks:events:1` | List event history for an async task GUID. |
+
 ## Service Domain
 
 All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
@@ -198,6 +217,21 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:routes:get_routes:1`   | List application routes.             |
 | `urn:service:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:service:routes:delete_route:1` | Delete a route definition.           |
+
+### `renewals`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:renewals:list:1` | List renewal records with optional category and status filters. |
+| `urn:service:renewals:get:1` | Get a renewal record by `recid`. |
+| `urn:service:renewals:upsert:1` | Create or update a renewal record. |
+| `urn:service:renewals:delete:1` | Delete a renewal record by `recid`. |
+
+### `payment_requests`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:payment_requests:create:1` | Create an accounts payable staging payment request in Pending Approval status for manager review. |
 
 ### `reflection` (planned)
 
@@ -252,12 +286,7 @@ All Moderation domain calls require `ROLE_MODERATOR`.
 
 ## Discord Domain
 
-Discord domain calls require Discord-specific roles depending on the subdomain:
-
-- `chat` and `command` operations require `ROLE_DISCORD_BOT`.
-- `personas` operations require `ROLE_DISCORD_ADMIN`.
-
-Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
+All Discord domain calls require the role mapped to the `discord` RPC domain in `system_roles.element_rpc_domain` (currently `ROLE_DISCORD_ADMIN`). Requests must include the `x-discord-id` (or `x-discord-user-id`) header identifying the caller. If headers cannot be set, provide the identifier as `discord_id` within the request payload.
 
 Currently exposes Discord command, chat, persona, and Bluesky bridge operations.
 
@@ -299,12 +328,129 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 
 ## Finance Domain
 
-All Finance domain calls require `ROLE_FINANCE_ADMIN`.
+Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
+`urn:finance:staging:promote:1`, all `pipeline_config` operations, all `staging_account_map` operations, all `staging_purge_log` operations, and all `vendors` operations require `ROLE_SYSTEM_ADMIN`.
+
+### `journals`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:journals:list:1` | List journals with optional status/period filters. |
+| `urn:finance:journals:get:1` | Get a single journal by record id. |
+| `urn:finance:journals:get_lines:1` | List lines for a journal record id. |
+| `urn:finance:journals:create:1` | Create a draft journal with lines. |
+| `urn:finance:journals:submit_for_approval:1` | Submit a draft journal for manager approval. |
+| `urn:finance:journals:approve:1` | Approve a pending journal and post it to the GL. |
+| `urn:finance:journals:reject:1` | Reject a pending journal back to Draft status. |
+| `urn:finance:journals:reverse:1` | Reverse a posted journal. |
+
+### `ledgers`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:ledgers:list:1` | List all ledgers with fiscal year, status, and timestamps. |
+| `urn:finance:ledgers:get:1` | Get a single ledger by record id. |
+| `urn:finance:ledgers:create:1` | Create a ledger with optional fiscal year and chart-of-accounts association. |
+| `urn:finance:ledgers:update:1` | Update ledger metadata and active status. |
+| `urn:finance:ledgers:delete:1` | Soft-delete a ledger when no journals reference it. |
+
+### `numbers`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:numbers:list:1` | List number sequences. |
+| `urn:finance:numbers:get:1` | Get one number sequence by record id. |
+| `urn:finance:numbers:upsert:1` | Create or update a number sequence. |
+| `urn:finance:numbers:delete:1` | Delete a number sequence by record id. |
+| `urn:finance:numbers:next_number:1` | Consume the next allocated number block from a sequence. |
+| `urn:finance:numbers:shift:1` | Close an active sequence and create a new active sequence for the same account. |
+
+### `pipeline_config`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:pipeline_config:list:1` | List finance pipeline configuration entries, optionally filtered by pipeline name. |
+| `urn:finance:pipeline_config:get:1` | Get a single finance pipeline configuration entry by pipeline and key. |
+| `urn:finance:pipeline_config:upsert:1` | Create or update a finance pipeline configuration entry. |
+| `urn:finance:pipeline_config:delete:1` | Delete a finance pipeline configuration entry by record id. |
+
+### `periods`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:periods:list:1` | List fiscal periods across all fiscal years. |
+| `urn:finance:periods:list_by_year:1` | List periods for one fiscal year. |
+| `urn:finance:periods:get:1` | Get a single fiscal period by GUID. |
+| `urn:finance:periods:close:1` | Close an open fiscal period after all blocking items are resolved. |
+| `urn:finance:periods:reopen:1` | Reopen a closed fiscal period. |
+| `urn:finance:periods:lock:1` | Lock a closed fiscal period. |
+| `urn:finance:periods:unlock:1` | Unlock a locked fiscal period back to closed status. |
+| `urn:finance:periods:list_close_blockers:1` | List blocking journals, imports, and revenue recognition items for period close review. |
+| `urn:finance:periods:upsert:1` | Create or update fiscal period metadata. |
+| `urn:finance:periods:delete:1` | Delete a fiscal period by GUID. |
+| `urn:finance:periods:generate_calendar:1` | Generate the 4-4-5 fiscal calendar for a year, rejecting duplicate generation. |
+
+### `products`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:products:list:1` | List finance products. |
+| `urn:finance:products:get:1` | Get a finance product by `recid` or `sku`. |
+| `urn:finance:products:upsert:1` | Create or update a finance product. |
+| `urn:finance:products:delete:1` | Delete a finance product by `recid`. |
+
+### `product_journal_config`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:product_journal_config:list:1` | List product journal configuration rows. |
+| `urn:finance:product_journal_config:get:1` | Get a product journal configuration row by `recid`. |
+| `urn:finance:product_journal_config:upsert:1` | Create or update a product journal configuration row. |
+| `urn:finance:product_journal_config:approve:1` | Approve a draft product journal configuration. |
+| `urn:finance:product_journal_config:activate:1` | Activate an approved product journal configuration. |
+| `urn:finance:product_journal_config:close:1` | Close an active product journal configuration. |
+
+### `reporting`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:reporting:trial_balance:1` | List trial balance rows by fiscal year or period. |
+| `urn:finance:reporting:journal_summary:1` | List journal totals and status by period. |
+| `urn:finance:reporting:period_status:1` | List period close status metrics for the fiscal calendar. |
+| `urn:finance:reporting:credit_lot_summary:1` | List credit lot balance and usage summaries. |
 
 ### `staging`
 
 | Operation | Description |
 | --- | --- |
-| `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range. |
-| `urn:finance:staging:list_imports:1` | List finance staging import batches. |
+| `urn:finance:staging:delete_import:1` | Delete a finance staging import batch and its staged child rows. |
+| `urn:finance:staging:import:1` | Trigger an Azure billing cost-details import for a date range; successful imports now land in Pending Approval status. |
+| `urn:finance:staging:import_invoices:1` | Trigger an Azure invoice import for a billing month (`YYYY-MM`); successful imports now land in Pending Approval status. |
+| `urn:finance:staging:list_imports:1` | List finance staging import batches, optionally filtered by `status`. |
 | `urn:finance:staging:list_details:1` | List imported cost detail rows for a staging import batch. |
+| `urn:finance:staging:list_line_items:1` | List generalized staging line items for a staging import batch. |
+| `urn:finance:staging:approve:1` | Approve a Pending Approval staging import to Approved status; requires `ROLE_FINANCE_APPR`. |
+| `urn:finance:staging:reject:1` | Reject a Pending Approval staging import and record an optional reason; requires `ROLE_FINANCE_APPR`. |
+| `urn:finance:staging:promote:1` | Submit async promotion of an Approved staging import into a posted journal and return task guid. |
+
+### `staging_account_map`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:staging_account_map:list:1` | List billing service-to-account mapping rules with account metadata. |
+| `urn:finance:staging_account_map:upsert:1` | Create or update a billing service-to-account mapping rule. |
+| `urn:finance:staging_account_map:delete:1` | Delete a billing service-to-account mapping rule. |
+
+### `staging_purge_log`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:staging_purge_log:list:1` | List purge log records used to track staged import purges by vendor and period. |
+
+### `vendors`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:vendors:list:1` | List finance vendors used by billing imports and payment requests. |
+| `urn:finance:vendors:upsert:1` | Create or update a finance vendor. |
+| `urn:finance:vendors:delete:1` | Delete a finance vendor by record id. |

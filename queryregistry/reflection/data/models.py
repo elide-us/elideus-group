@@ -10,6 +10,7 @@ __all__ = [
   "BatchParams",
   "DumpTableParams",
   "UpdateVersionParams",
+  "QueryInfoSchemaParams",
   "VersionParams",
   "VersionRecord",
 ]
@@ -44,6 +45,16 @@ class BatchParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   sql: str
+
+
+class QueryInfoSchemaParams(BaseModel):
+  """Payload for querying INFORMATION_SCHEMA views."""
+
+  model_config = ConfigDict(extra="forbid")
+
+  view_name: str
+  filter_column: str | None = None
+  filter_value: str | None = None
 
 
 class VersionRecord(TypedDict):

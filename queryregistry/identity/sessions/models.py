@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from queryregistry.models import DBResponse
 
 __all__ = [
   "CreateSessionParams",
@@ -19,12 +17,9 @@ __all__ = [
   "RevokeAllDeviceTokensParams",
   "RevokeDeviceTokenParams",
   "RevokeProviderTokensParams",
-  "RotkeyCallable",
   "SessionCreationResult",
   "SessionSnapshotRecord",
-  "SecuritySnapshotCallable",
   "SecuritySnapshotRecord",
-  "SecuritySnapshotRequestPayload",
   "SetRotkeyParams",
   "UpdateDeviceTokenParams",
   "UpdateSessionParams",
@@ -146,16 +141,6 @@ class SetRotkeyParams(GuidParams):
     return _normalize_uuid(value)
 
 
-class SecuritySnapshotRequestPayload(TypedDict):
-  guid: str
-
-
-class RotkeyRequestPayload(TypedDict, total=False):
-  guid: str
-  device_guid: str | None
-  fingerprint: str | None
-
-
 class RotkeyRecord(TypedDict, total=False):
   user_guid: str
   user_rotkey: str
@@ -233,5 +218,3 @@ class SessionSnapshotRecord(TypedDict, total=False):
   element_ip_last_seen: str | None
 
 
-SecuritySnapshotCallable = Callable[[SecuritySnapshotRequestPayload], Awaitable[DBResponse]]
-RotkeyCallable = Callable[[RotkeyRequestPayload], Awaitable[DBResponse]]

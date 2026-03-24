@@ -7,7 +7,6 @@ from fastapi import FastAPI
 import logging
 
 from queryregistry.handler import dispatch_query_request
-from queryregistry.identity.accounts.models import AccountExistsRequestPayload
 from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 from .env_module import EnvModule
@@ -31,6 +30,14 @@ from queryregistry.system.config import get_config_request
 from queryregistry.identity.accounts import account_exists_request
 from queryregistry.helpers import parse_query_operation
 from server.helpers.logging import update_logging_level
+
+
+_QUIET_OPS = frozenset({
+  "db:system:batch_jobs:list_jobs",
+  "db:system:async_tasks:list_tasks",
+  "db:system:async_tasks:update_task",
+  "db:system:async_tasks:create_task_event",
+})
 
 
 class DbModule(BaseModule):
@@ -92,7 +99,11 @@ class DbModule(BaseModule):
     except ValueError:
       raise ValueError(f"Invalid database operation: {op}")
 
-    registry_logger.info("DB completed: %s", op)
+    op_without_version = op.rsplit(":", 1)[0]
+    if op_without_version in _QUIET_OPS:
+      registry_logger.debug("DB completed: %s", op)
+    else:
+      registry_logger.info("DB completed: %s", op)
 
     response = await dispatch_query_request(request, provider=provider_name)
 
@@ -195,8 +206,7 @@ class DbModule(BaseModule):
     await self.run(replace_user_cache_request(params))
 
   async def user_exists(self, user_guid: str) -> bool:
-    params: AccountExistsRequestPayload = {"user_guid": user_guid}
-    request = account_exists_request(params)
+    request = account_exists_request({"user_guid": user_guid})
     provider_name = self.provider or "mssql"
     try:
       res = await dispatch_query_request(request, provider=provider_name)

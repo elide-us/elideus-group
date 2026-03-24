@@ -5,18 +5,26 @@ from __future__ import annotations
 from queryregistry.models import DBRequest
 
 from .models import (
+  AggregateCostByServiceParams,
+  ApproveImportParams,
   CreateImportParams,
+  DeleteImportParams,
   InsertCostDetailBatchParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
+  RejectImportParams,
   UpdateImportStatusParams,
 )
 
 __all__ = [
+  "aggregate_cost_by_service_request",
+  "approve_import_request",
   "create_import_request",
+  "delete_import_request",
   "insert_cost_detail_batch_request",
   "list_cost_details_by_import_request",
   "list_imports_request",
+  "reject_import_request",
   "update_import_status_request",
 ]
 
@@ -27,6 +35,14 @@ def create_import_request(params: CreateImportParams) -> DBRequest:
 
 def update_import_status_request(params: UpdateImportStatusParams) -> DBRequest:
   return DBRequest(op="db:finance:staging:update_import_status:1", payload=params.model_dump())
+
+
+def approve_import_request(params: ApproveImportParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:approve_import:1", payload=params.model_dump())
+
+
+def reject_import_request(params: RejectImportParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:reject_import:1", payload=params.model_dump())
 
 
 def insert_cost_detail_batch_request(params: InsertCostDetailBatchParams) -> DBRequest:
@@ -45,3 +61,11 @@ def list_cost_details_by_import_request(params: ListCostDetailsByImportParams) -
     op="db:finance:staging:list_cost_details_by_import:1",
     payload=params.model_dump(),
   )
+
+
+def delete_import_request(params: DeleteImportParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:delete_import:1", payload=params.model_dump())
+
+
+def aggregate_cost_by_service_request(params: AggregateCostByServiceParams) -> DBRequest:
+  return DBRequest(op="db:finance:staging:aggregate_cost_by_service:1", payload=params.model_dump())

@@ -9,6 +9,8 @@ import sys
 from typing import Iterable
 
 from pydantic import BaseModel
+from colorama import Fore, Style
+import colorama
 
 from common import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
 
@@ -125,7 +127,7 @@ def write_client_bindings(base: list[str], ops: list[dict[str, str]], service_mo
   out_file = os.path.join(out_dir, 'index.ts')
   with open(out_file, 'w') as f:
     f.write(content)
-  print(f"✅ Wrote {out_file}")
+  print(f"Wrote {out_file}")
 
 
 def to_tabs(text: str) -> str:
@@ -142,7 +144,7 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
   try:
     module = load_module(path)
   except Exception as e:
-    print(f"⚠️ Skipping '{path}' due to import error: {e}")
+    print(f"{Fore.YELLOW}[WARN]{Style.RESET_ALL} Skipping '{path}' due to import error: {e}")
     return interfaces
 
   for _, obj in inspect.getmembers(module):
@@ -151,7 +153,7 @@ def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
         continue
       if obj.__name__ in seen:
         continue
-      print(f"🧩 Found model: {obj.__name__}")
+      print(f"Found model: {obj.__name__}")
       seen.add(obj.__name__)
       interfaces.append(to_tabs(model_to_ts(obj)))
 
@@ -179,7 +181,7 @@ def write_interfaces_to_file(interfaces: list[str], output_dir: str) -> None:
     ]
     lines += interfaces + [''] + RPC_CALL_FUNC + ['']
     f.write("\n".join(lines))
-  print(f"✅ Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
+  print(f"Wrote {len(interfaces)} TypeScript interfaces to '{out_path}'")
 
 
 RPC_CALL_FUNC = [
@@ -243,11 +245,12 @@ RPC_CALL_FUNC = [
 
 
 def main() -> None:
-  print('✨ Starting RPC model extraction and TS generation...')
+  colorama.init()
+  print('Starting RPC model extraction and TS generation...')
   interfaces = find_all_interfaces()
   write_interfaces_to_file(interfaces, FRONTEND_SHARED)
 
-  print('\n✨ Starting DISPATCHER-based RPC function generation...')
+  print('\nStarting DISPATCHER-based RPC function generation...')
   for root, dirs, files in os.walk(RPC_ROOT):
     if '__init__.py' not in files:
       continue
@@ -257,23 +260,23 @@ def main() -> None:
     base_parts, ops = parse_dispatchers(init_path)
 
     namespace = '.'.join(base_parts)
-    print(f"\n🧩 Found DISPATCHERS in: {namespace}")
+    print(f"\nFound DISPATCHERS in: {namespace}")
 
     if ops:
       for op in ops:
-        print(f"  • RPC op: {op['op']} (v{op['version']}) → {op['func']}")
+        print(f"  - RPC op: {op['op']} (v{op['version']}) → {op['func']}")
     else:
-      print('  ⚠️ No valid dispatchers found, skipping.')
+      print(f"  {Fore.YELLOW}[WARN]{Style.RESET_ALL} No valid dispatchers found, skipping.")
       continue
 
     service_models = parse_service_models(service_path)
     if service_models:
-      print(f"  📦 Extracted models from services.py: {', '.join(service_models.values())}")
+      print(f"  Extracted models from services.py: {', '.join(service_models.values())}")
     else:
-      print('  ⚠️ No payload models found in services.py')
+      print(f"  {Fore.YELLOW}[WARN]{Style.RESET_ALL} No payload models found in services.py")
 
     write_client_bindings(base_parts, ops, service_models, FRONTEND_RPC)
-  print('\n🏁 RPC function generation complete.')
+  print('\nRPC function generation complete.')
 
 
 if __name__ == '__main__':

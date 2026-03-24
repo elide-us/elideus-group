@@ -1,4 +1,4 @@
-"""Finance status subdomain handler implementations."""
+"""Finance status code subdomain handler implementations."""
 
 from __future__ import annotations
 
@@ -7,12 +7,13 @@ from typing import Sequence
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 
-from ..services import finance_check_status_v1
+from .services import get_status_code_v1, list_status_codes_v1
 
 __all__ = ["handle_status_request"]
 
 DISPATCHERS = {
-  ("check_status", "1"): finance_check_status_v1,
+  ("list", "1"): list_status_codes_v1,
+  ("get_by_domain_code", "1"): get_status_code_v1,
 }
 
 

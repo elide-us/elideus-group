@@ -1,6 +1,6 @@
 """Storage management module for indexing Azure Blob contents."""
 
-import asyncio, logging, re, base64
+import logging, base64
 from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
@@ -37,9 +37,8 @@ from .providers.storage.azure_blob_provider import AzureBlobStorageProvider
 class StorageModule(BaseModule):
   """Module responsible for cataloging files stored in Azure Blob Storage.
 
-  The module maintains a background task that periodically triggers a
-  reindex operation. Database helpers are provided for upserting file
-  metadata and querying indexed data.
+  Database helpers are provided for upserting file metadata and querying
+  indexed data.
   """
 
   def __init__(self, app: FastAPI):
@@ -47,19 +46,8 @@ class StorageModule(BaseModule):
     self.env: EnvModule | None = None
     self.db: DbModule | None = None
     self.connection_string: str | None = None
-    self._reindex_task: asyncio.Task | None = None
-    self.reindex_interval = 15 * 60
     self.discord: DiscordBotModule | None = None
     self.provider: AzureBlobStorageProvider | None = None
-
-  @staticmethod
-  def _parse_duration(value: str) -> int:
-    match = re.fullmatch(r"(\d+)([smhdw])", value.strip().lower())
-    if not match:
-      raise ValueError(f"Invalid duration: {value}")
-    num, unit = match.groups()
-    mult = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
-    return int(num) * mult[unit]
 
   async def startup(self):
     self.env = self.app.state.env
@@ -80,42 +68,16 @@ class StorageModule(BaseModule):
     except Exception as e:
       logging.error("[StorageModule] Failed to load AZURE_BLOB_CONNECTION_STRING: %s", e)
       self.provider = None
-
-    try:
-      res = await self.db.run(get_config_request(ConfigKeyParams(key="StorageCacheTime")))
-      value = res.rows[0]["element_value"] if res.rows else "15m"
-      try:
-        self.reindex_interval = self._parse_duration(value)
-      except Exception:
-        logging.error("[StorageModule] Invalid StorageCacheTime '%s'", value)
-    except Exception as e:
-      logging.error("[StorageModule] Failed to load StorageCacheTime: %s", e)
-    self._reindex_task = asyncio.create_task(self._reindex_loop())
     logging.debug("Storage module loaded")
     self.mark_ready()
 
   async def shutdown(self):
-    if self._reindex_task:
-      self._reindex_task.cancel()
-      try:
-        await self._reindex_task
-      except asyncio.CancelledError:
-        pass
-      self._reindex_task = None
     if self.provider:
       try:
         await self.provider.shutdown()
       except Exception as exc:
         logging.error("[StorageModule] Provider shutdown failed: %s", exc)
       self.provider = None
-
-  async def _reindex_loop(self):
-    while True:
-      await asyncio.sleep(self.reindex_interval)
-      try:
-        await self.reindex()
-      except Exception as e:
-        logging.error("[StorageModule] Reindex failed: %s", e)
 
   def _require_provider(self) -> AzureBlobStorageProvider | None:
     if not self.provider:

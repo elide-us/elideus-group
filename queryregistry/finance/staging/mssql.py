@@ -7,13 +7,23 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import (
+  IMPORT_APPROVED,
+  IMPORT_PENDING,
+  IMPORT_PENDING_APPROVAL,
+  IMPORT_REJECTED,
+)
 from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
+  "aggregate_cost_by_service_v1",
+  "approve_import_v1",
   "create_import_v1",
+  "delete_import_v1",
   "insert_cost_detail_batch_v1",
   "list_cost_details_by_import_v1",
   "list_imports_v1",
+  "reject_import_v1",
   "update_import_status_v1",
 ]
 
@@ -42,6 +52,7 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status int,
       element_row_count int,
       element_error nvarchar(max),
+      element_requested_by nvarchar(128),
       element_created_on datetimeoffset,
       element_modified_on datetimeoffset
     );
@@ -55,6 +66,7 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_row_count,
       element_error,
+      element_requested_by,
       element_created_on,
       element_modified_on
     )
@@ -68,10 +80,11 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_row_count,
       inserted.element_error,
+      inserted.element_requested_by,
       inserted.element_created_on,
       inserted.element_modified_on
     INTO @inserted
-    VALUES (?, ?, ?, ?, ?, 0, 0, NULL, SYSUTCDATETIME(), SYSUTCDATETIME());
+    VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
 
     SELECT *
     FROM @inserted
@@ -83,6 +96,8 @@ async def create_import_v1(args: Mapping[str, Any]) -> DBResponse:
     args["metric"],
     args["period_start"],
     args["period_end"],
+    args.get("initial_status", IMPORT_PENDING),
+    args.get("requested_by"),
   )
   return await run_json_one(sql, params)
 
@@ -99,6 +114,49 @@ async def update_import_status_v1(args: Mapping[str, Any]) -> DBResponse:
   """
   params = (args["status"], args["row_count"], args.get("error"), args["recid"])
   return await run_exec(sql, params)
+
+
+async def approve_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = f"""
+    SET NOCOUNT ON;
+
+    UPDATE finance_staging_imports
+    SET element_status = {IMPORT_APPROVED},
+        element_approved_by = ?,
+        element_approved_on = SYSUTCDATETIME(),
+        element_modified_on = SYSUTCDATETIME()
+    WHERE recid = ? AND element_status = {IMPORT_PENDING_APPROVAL};
+  """
+  return await run_exec(sql, (args["approved_by"], args["imports_recid"]))
+
+
+async def reject_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = f"""
+    SET NOCOUNT ON;
+
+    UPDATE finance_staging_imports
+    SET element_status = {IMPORT_REJECTED},
+        element_approved_by = ?,
+        element_approved_on = SYSUTCDATETIME(),
+        element_error = ?,
+        element_modified_on = SYSUTCDATETIME()
+    WHERE recid = ? AND element_status = {IMPORT_PENDING_APPROVAL};
+  """
+  return await run_exec(sql, (args["approved_by"], args.get("reason"), args["imports_recid"]))
+
+
+async def delete_import_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+    DELETE FROM finance_staging_line_items WHERE imports_recid = ?;
+    DELETE FROM finance_staging_azure_invoices WHERE imports_recid = ?;
+    DELETE FROM finance_staging_azure_cost_details WHERE imports_recid = ?;
+    DELETE FROM finance_staging_imports WHERE recid = ?;
+  """
+  return await run_exec(
+    sql,
+    (args["imports_recid"], args["imports_recid"], args["imports_recid"], args["imports_recid"]),
+  )
 
 
 async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
@@ -118,7 +176,7 @@ async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
     columns_sql = ", ".join(f"[{column}]" for column in columns)
     placeholders_sql = ", ".join("?" for _ in values)
     sql = f"""
-      INSERT INTO finance_staging_cost_details ({columns_sql})
+      INSERT INTO finance_staging_azure_cost_details ({columns_sql})
       VALUES ({placeholders_sql});
     """
     await run_exec(sql, tuple(values))
@@ -128,7 +186,31 @@ async def insert_cost_detail_batch_v1(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
-  del args
+  status = args.get("status")
+  if status is not None:
+    sql = """
+      SELECT
+        recid,
+        element_source,
+        element_scope,
+        element_metric,
+        element_period_start,
+        element_period_end,
+        element_status,
+        element_row_count,
+        element_error,
+        element_requested_by,
+        element_approved_by,
+        element_approved_on,
+        element_created_on,
+        element_modified_on
+      FROM finance_staging_imports
+      WHERE element_status = ?
+      ORDER BY recid DESC
+      FOR JSON PATH, INCLUDE_NULL_VALUES;
+    """
+    return await run_json_many(sql, (status,))
+
   sql = """
     SELECT
       recid,
@@ -140,6 +222,9 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_row_count,
       element_error,
+      element_requested_by,
+      element_approved_by,
+      element_approved_on,
       element_created_on,
       element_modified_on
     FROM finance_staging_imports
@@ -152,8 +237,26 @@ async def list_imports_v1(args: Mapping[str, Any]) -> DBResponse:
 async def list_cost_details_by_import_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT *
-    FROM finance_staging_cost_details
+    FROM finance_staging_azure_cost_details
     WHERE imports_recid = ?
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args["imports_recid"],))
+
+
+async def aggregate_cost_by_service_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      element_consumedService,
+      element_meterCategory,
+      SUM(CAST(element_costInBillingCurrency AS DECIMAL(19,5))) AS element_total_cost,
+      COUNT_BIG(1) AS element_row_count
+    FROM finance_staging_azure_cost_details
+    WHERE imports_recid = ?
+      AND element_costInBillingCurrency IS NOT NULL
+      AND LTRIM(RTRIM(element_costInBillingCurrency)) <> ''
+    GROUP BY element_consumedService, element_meterCategory
+    ORDER BY element_consumedService, element_meterCategory
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["imports_recid"],))

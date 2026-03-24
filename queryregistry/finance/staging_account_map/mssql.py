@@ -1,0 +1,205 @@
+"""MSSQL implementations for finance staging account map query registry services."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from queryregistry.models import DBResponse
+from server.modules.models.finance_statuses import ELEMENT_ACTIVE
+from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
+
+__all__ = [
+  "delete_account_map_v1",
+  "get_account_map_v1",
+  "list_account_map_v1",
+  "resolve_account_v1",
+  "upsert_account_map_v1",
+]
+
+
+async def list_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      map.recid,
+      map.vendors_recid,
+      vendor.element_name AS vendor_name,
+      map.element_service_pattern,
+      map.element_meter_pattern,
+      map.accounts_guid,
+      account.element_number AS account_number,
+      account.element_name AS account_name,
+      map.element_priority,
+      map.element_description,
+      map.element_status,
+      map.element_created_on,
+      map.element_modified_on
+    FROM finance_staging_account_map AS map
+    INNER JOIN finance_accounts AS account
+      ON account.element_guid = map.accounts_guid
+    LEFT JOIN finance_vendors AS vendor
+      ON vendor.recid = map.vendors_recid
+    WHERE (? IS NULL OR map.vendors_recid = ?)
+    ORDER BY map.element_priority DESC, map.recid ASC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  vendors_recid = args.get("vendors_recid")
+  return await run_json_many(sql, (vendors_recid, vendors_recid))
+
+
+async def get_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      map.recid,
+      map.vendors_recid,
+      vendor.element_name AS vendor_name,
+      map.element_service_pattern,
+      map.element_meter_pattern,
+      map.accounts_guid,
+      account.element_number AS account_number,
+      account.element_name AS account_name,
+      map.element_priority,
+      map.element_description,
+      map.element_status,
+      map.element_created_on,
+      map.element_modified_on
+    FROM finance_staging_account_map AS map
+    INNER JOIN finance_accounts AS account
+      ON account.element_guid = map.accounts_guid
+    LEFT JOIN finance_vendors AS vendor
+      ON vendor.recid = map.vendors_recid
+    WHERE map.recid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (args["recid"],))
+
+
+async def upsert_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    MERGE finance_staging_account_map AS target
+    USING (
+      SELECT
+        TRY_CAST(? AS BIGINT) AS recid,
+        TRY_CAST(? AS BIGINT) AS vendors_recid,
+        ? AS element_service_pattern,
+        ? AS element_meter_pattern,
+        TRY_CAST(? AS UNIQUEIDENTIFIER) AS accounts_guid,
+        ? AS element_priority,
+        ? AS element_description,
+        ? AS element_status
+    ) AS source
+    ON target.recid = source.recid
+    WHEN MATCHED THEN
+      UPDATE SET
+        target.vendors_recid = source.vendors_recid,
+        target.element_service_pattern = source.element_service_pattern,
+        target.element_meter_pattern = source.element_meter_pattern,
+        target.accounts_guid = source.accounts_guid,
+        target.element_priority = source.element_priority,
+        target.element_description = source.element_description,
+        target.element_status = source.element_status,
+        target.element_modified_on = SYSUTCDATETIME()
+    WHEN NOT MATCHED THEN
+      INSERT (
+        vendors_recid,
+        element_service_pattern,
+        element_meter_pattern,
+        accounts_guid,
+        element_priority,
+        element_description,
+        element_status,
+        element_created_on,
+        element_modified_on
+      )
+      VALUES (
+        source.vendors_recid,
+        source.element_service_pattern,
+        source.element_meter_pattern,
+        source.accounts_guid,
+        source.element_priority,
+        source.element_description,
+        source.element_status,
+        SYSUTCDATETIME(),
+        SYSUTCDATETIME()
+      )
+    OUTPUT
+      inserted.recid,
+      inserted.vendors_recid,
+      inserted.element_service_pattern,
+      inserted.element_meter_pattern,
+      inserted.accounts_guid,
+      inserted.element_priority,
+      inserted.element_description,
+      inserted.element_status,
+      inserted.element_created_on,
+      inserted.element_modified_on
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  params = (
+    args.get("recid"),
+    args.get("vendors_recid"),
+    args["element_service_pattern"],
+    args.get("element_meter_pattern"),
+    args["accounts_guid"],
+    args["element_priority"],
+    args.get("element_description"),
+    args["element_status"],
+  )
+  return await run_json_one(sql, params)
+
+
+async def delete_account_map_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SET NOCOUNT ON;
+    DELETE FROM finance_staging_account_map
+    WHERE recid = ?;
+  """
+  return await run_exec(sql, (args["recid"],))
+
+
+async def resolve_account_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = f"""
+    SELECT TOP (1)
+      map.accounts_guid,
+      map.vendors_recid,
+      map.element_service_pattern,
+      map.element_meter_pattern,
+      account.element_number AS account_number,
+      account.element_name AS account_name
+    FROM finance_staging_account_map AS map
+    INNER JOIN finance_accounts AS account
+      ON account.element_guid = map.accounts_guid
+    WHERE map.element_status = {ELEMENT_ACTIVE}
+      AND (? IS NULL OR map.vendors_recid = ? OR map.vendors_recid IS NULL)
+      AND (map.element_service_pattern = ? OR map.element_service_pattern = '*')
+      AND (
+        map.element_meter_pattern IS NULL
+        OR ? LIKE REPLACE(map.element_meter_pattern, '*', '%')
+      )
+    ORDER BY
+      CASE
+        WHEN ? IS NOT NULL AND map.vendors_recid = ? THEN 0
+        WHEN map.vendors_recid IS NULL THEN 1
+        ELSE 2
+      END,
+      CASE
+        WHEN map.element_service_pattern = ? THEN 0
+        WHEN map.element_service_pattern = '*' THEN 1
+        ELSE 2
+      END,
+      map.element_priority DESC,
+      map.recid ASC
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  meter_category = args.get("meter_category") or ""
+  vendors_recid = args.get("vendors_recid")
+  params = (
+    vendors_recid,
+    vendors_recid,
+    args["service_name"],
+    meter_category,
+    vendors_recid,
+    vendors_recid,
+    args["service_name"],
+  )
+  return await run_json_one(sql, params)

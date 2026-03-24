@@ -6,24 +6,14 @@ from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
 from .models import (
-  CreateFromProviderCallable,
   CreateFromProviderParams,
-  GetAnyByProviderIdentifierCallable,
   GetAnyByProviderIdentifierParams,
   ProviderIdentifierParams,
-  GetByProviderIdentifierCallable,
   GetUserByEmailParams,
-  GetUserByEmailCallable,
   LinkProviderParams,
-  LinkProviderCallable,
-  RelinkProviderCallable,
   SetProviderParams,
-  SetProviderCallable,
-  SoftDeleteAccountCallable,
   UnlinkLastProviderParams,
-  UnlinkLastProviderCallable,
   UnlinkProviderParams,
-  UnlinkProviderCallable,
 )
 
 __all__ = [
@@ -39,43 +29,43 @@ __all__ = [
   "unlink_provider_v1",
 ]
 
-_GET_BY_PROVIDER_IDENTIFIER_DISPATCHERS: dict[str, GetByProviderIdentifierCallable] = {
+_GET_BY_PROVIDER_IDENTIFIER_DISPATCHERS = {
   "mssql": mssql.get_by_provider_identifier_v1,
 }
 
-_GET_ANY_BY_PROVIDER_IDENTIFIER_DISPATCHERS: dict[str, GetAnyByProviderIdentifierCallable] = {
+_GET_ANY_BY_PROVIDER_IDENTIFIER_DISPATCHERS = {
   "mssql": mssql.get_any_by_provider_identifier_v1,
 }
 
-_GET_USER_BY_EMAIL_DISPATCHERS: dict[str, GetUserByEmailCallable] = {
+_GET_USER_BY_EMAIL_DISPATCHERS = {
   "mssql": mssql.get_user_by_email_v1,
 }
 
-_CREATE_FROM_PROVIDER_DISPATCHERS: dict[str, CreateFromProviderCallable] = {
+_CREATE_FROM_PROVIDER_DISPATCHERS = {
   "mssql": mssql.create_from_provider_v1,
 }
 
-_LINK_PROVIDER_DISPATCHERS: dict[str, LinkProviderCallable] = {
+_LINK_PROVIDER_DISPATCHERS = {
   "mssql": mssql.link_provider_v1,
 }
 
-_UNLINK_PROVIDER_DISPATCHERS: dict[str, UnlinkProviderCallable] = {
+_UNLINK_PROVIDER_DISPATCHERS = {
   "mssql": mssql.unlink_provider_v1,
 }
 
-_UNLINK_LAST_PROVIDER_DISPATCHERS: dict[str, UnlinkLastProviderCallable] = {
+_UNLINK_LAST_PROVIDER_DISPATCHERS = {
   "mssql": mssql.unlink_last_provider_v1,
 }
 
-_SET_PROVIDER_DISPATCHERS: dict[str, SetProviderCallable] = {
+_SET_PROVIDER_DISPATCHERS = {
   "mssql": mssql.set_provider_v1,
 }
 
-_RELINK_PROVIDER_DISPATCHERS: dict[str, RelinkProviderCallable] = {
+_RELINK_PROVIDER_DISPATCHERS = {
   "mssql": mssql.relink_provider,
 }
 
-_SOFT_DELETE_ACCOUNT_DISPATCHERS: dict[str, SoftDeleteAccountCallable] = {
+_SOFT_DELETE_ACCOUNT_DISPATCHERS = {
   "mssql": mssql.soft_delete_account,
 }
 

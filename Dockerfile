@@ -1,11 +1,9 @@
 # ────────────────────────────────────────────────────────────────────────────────
 # Frontend build
 # ────────────────────────────────────────────────────────────────────────────────
-FROM node:20 AS builder
+FROM node:22 AS builder
 
-# Download and install Node 18
-RUN apt-get update && apt-get install -y curl python3 python3-pip python3-venv
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
 WORKDIR /app
 
 COPY requirements.txt ./

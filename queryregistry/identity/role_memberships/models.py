@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from pydantic import BaseModel, ConfigDict
 
 __all__ = [
-  "ModifyRoleMemberPayload",
-  "RoleScopePayload",
+  "ModifyRoleMemberParams",
+  "RoleScopeParams",
 ]
 
 
-class RoleScopePayload(TypedDict):
+class RoleScopeParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
   role: str
 
 
-class ModifyRoleMemberPayload(RoleScopePayload):
+class ModifyRoleMemberParams(RoleScopeParams):
   user_guid: str
