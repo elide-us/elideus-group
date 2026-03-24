@@ -26,11 +26,13 @@ BEGIN
   ALTER TABLE dbo.account_api_tokens ADD users_guid uniqueidentifier NULL;
 END;
 
-UPDATE t
-SET t.users_guid = au.element_guid
-FROM dbo.account_api_tokens t
-JOIN dbo.account_users au ON au.recid = t.users_recid
-WHERE t.users_guid IS NULL;
+EXEC('
+  UPDATE t
+  SET t.users_guid = au.element_guid
+  FROM dbo.account_api_tokens t
+  JOIN dbo.account_users au ON au.recid = t.users_recid
+  WHERE t.users_guid IS NULL;
+');
 
 -- 1b. account_mcp_agents
 IF NOT EXISTS (
@@ -41,11 +43,13 @@ BEGIN
   ALTER TABLE dbo.account_mcp_agents ADD users_guid uniqueidentifier NULL;
 END;
 
-UPDATE t
-SET t.users_guid = au.element_guid
-FROM dbo.account_mcp_agents t
-JOIN dbo.account_users au ON au.recid = t.users_recid
-WHERE t.users_guid IS NULL AND t.users_recid IS NOT NULL;
+EXEC('
+  UPDATE t
+  SET t.users_guid = au.element_guid
+  FROM dbo.account_mcp_agents t
+  JOIN dbo.account_users au ON au.recid = t.users_recid
+  WHERE t.users_guid IS NULL AND t.users_recid IS NOT NULL;
+');
 
 -- 1c. account_mcp_auth_codes
 IF NOT EXISTS (
@@ -56,11 +60,13 @@ BEGIN
   ALTER TABLE dbo.account_mcp_auth_codes ADD users_guid uniqueidentifier NULL;
 END;
 
-UPDATE t
-SET t.users_guid = au.element_guid
-FROM dbo.account_mcp_auth_codes t
-JOIN dbo.account_users au ON au.recid = t.users_recid
-WHERE t.users_guid IS NULL;
+EXEC('
+  UPDATE t
+  SET t.users_guid = au.element_guid
+  FROM dbo.account_mcp_auth_codes t
+  JOIN dbo.account_users au ON au.recid = t.users_recid
+  WHERE t.users_guid IS NULL;
+');
 
 -- ============================================================================
 -- PHASE 2: Drop old FK constraints referencing account_users.recid
@@ -118,18 +124,24 @@ IF EXISTS (
 -- ============================================================================
 
 -- Check all backfills succeeded (no NULLs in non-nullable scenarios)
-IF EXISTS (
-  SELECT 1 FROM dbo.account_api_tokens WHERE users_guid IS NULL
-)
+DECLARE @has_null_api BIT = 0;
+EXEC sp_executesql
+  N'SELECT @out = CASE WHEN EXISTS (SELECT 1 FROM dbo.account_api_tokens WHERE users_guid IS NULL) THEN 1 ELSE 0 END',
+  N'@out BIT OUTPUT',
+  @out = @has_null_api OUTPUT;
+IF @has_null_api = 1
 BEGIN
   RAISERROR('ABORT: account_api_tokens has NULL users_guid after backfill.', 16, 1);
   ROLLBACK TRANSACTION;
   RETURN;
 END;
 
-IF EXISTS (
-  SELECT 1 FROM dbo.account_mcp_auth_codes WHERE users_guid IS NULL
-)
+DECLARE @has_null_auth BIT = 0;
+EXEC sp_executesql
+  N'SELECT @out = CASE WHEN EXISTS (SELECT 1 FROM dbo.account_mcp_auth_codes WHERE users_guid IS NULL) THEN 1 ELSE 0 END',
+  N'@out BIT OUTPUT',
+  @out = @has_null_auth OUTPUT;
+IF @has_null_auth = 1
 BEGIN
   RAISERROR('ABORT: account_mcp_auth_codes has NULL users_guid after backfill.', 16, 1);
   ROLLBACK TRANSACTION;
@@ -137,8 +149,8 @@ BEGIN
 END;
 
 -- Make users_guid NOT NULL where the old column was NOT NULL
-ALTER TABLE dbo.account_api_tokens ALTER COLUMN users_guid uniqueidentifier NOT NULL;
-ALTER TABLE dbo.account_mcp_auth_codes ALTER COLUMN users_guid uniqueidentifier NOT NULL;
+EXEC('ALTER TABLE dbo.account_api_tokens ALTER COLUMN users_guid uniqueidentifier NOT NULL;');
+EXEC('ALTER TABLE dbo.account_mcp_auth_codes ALTER COLUMN users_guid uniqueidentifier NOT NULL;');
 -- account_mcp_agents.users_guid stays nullable (original users_recid was nullable)
 
 -- Drop old columns
