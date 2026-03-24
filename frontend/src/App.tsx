@@ -14,6 +14,7 @@ const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const ServiceRoutesPage = lazy(() => import('./pages/service/ServiceRoutesPage'));
 const ServiceRolesPage = lazy(() => import('./pages/service/ServiceRolesPage'));
 const ServiceRenewalsPage = lazy(() => import('./pages/service/ServiceRenewalsPage'));
+const ServiceVisualizationPage = lazy(() => import('./pages/service/ServiceVisualizationPage'));
 const FileManager = lazy(() => import('./pages/FileManager'));
 const DiscordPersonasPage = lazy(() => import('./pages/DiscordPersonasPage'));
 const DiscordGuildsPage = lazy(() => import('./pages/DiscordGuildsPage'));
@@ -76,6 +77,7 @@ function App(): JSX.Element {
 									<Route path="/finance-acct" element={<FinanceAccountantPage />} />
 									<Route path="/service-roles" element={<ServiceRolesPage />} />
 									<Route path="/service-renewals" element={<ServiceRenewalsPage />} />
+									<Route path="/service-visualization" element={<ServiceVisualizationPage />} />
 									<Route path="/account-roles" element={<AccountRolesPage />} />
 									<Route path="/account-users" element={<AccountUsersPage />} />
 									<Route path="/account-users/:guid" element={<AccountUserPanel />} />
