@@ -13,7 +13,7 @@ from .models import (
   RefreshTokenParams,
   RegisterAgentParams,
   RevokeTokenParams,
-  UserRecidParams,
+  UserGuidParams,
 )
 
 __all__ = [
@@ -50,7 +50,7 @@ def revoke_agent_request(params: ClientIdParams) -> DBRequest:
   return _request("revoke", params.model_dump())
 
 
-def list_user_agents_request(params: UserRecidParams) -> DBRequest:
+def list_user_agents_request(params: UserGuidParams) -> DBRequest:
   return _request("list_by_user", params.model_dump())
 
 
