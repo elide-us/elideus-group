@@ -1,5 +1,0 @@
--- v0.9.1_journal_status.sql
--- HISTORICAL: Originally renumbered journal status codes during the 0.9 feature cycle.
--- These data corrections applied to test transaction data only and are not needed for
--- fresh deployments. Status codes are now seeded correctly by the reset_transactions script.
--- Retained as a placeholder to preserve migration sequence numbering.

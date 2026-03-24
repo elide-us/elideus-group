@@ -486,6 +486,8 @@ def main() -> None:
     )
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_subdomains OFF;")
 
+    # Insert models in two passes to satisfy the self-referential FK constraint.
+    # Pass 1: insert all rows with element_parent_recid = NULL.
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_models ON;")
     insert_many(
       cursor,
@@ -494,7 +496,7 @@ def main() -> None:
         recid, element_name, element_domain, element_subdomain, element_version,
         element_parent_recid, element_status, element_app_version, element_iteration,
         element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, ?, ?, ?, ?, NULL, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
@@ -503,13 +505,25 @@ def main() -> None:
           row["element_domain"],
           row["element_subdomain"],
           row["element_version"],
-          row["element_parent_recid"],
           APP_VERSION,
         )
         for row in model_rows
       ],
     )
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_models OFF;")
+
+    # Pass 2: set element_parent_recid on models that have inheritance.
+    parent_updates = [
+      (row["element_parent_recid"], row["recid"])
+      for row in model_rows
+      if row["element_parent_recid"] is not None
+    ]
+    if parent_updates:
+      cursor.fast_executemany = True
+      cursor.executemany(
+        "UPDATE reflection_rpc_models SET element_parent_recid = ? WHERE recid = ?;",
+        parent_updates,
+      )
 
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_model_fields ON;")
     insert_many(
