@@ -251,6 +251,16 @@ operations under `ROLE_SERVICE_ADMIN`.
 | `urn:service:reflection:list_domains:1` | Enumerate QueryRegistry domains, subdomains, and operations. |
 | `urn:service:reflection:list_rpc_endpoints:1` | List available top-level RPC domain handler names. |
 
+### `rpcdispatch`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:rpcdispatch:list_domains:1` | List domain rows from `reflection_rpc_domains`. |
+| `urn:service:rpcdispatch:list_subdomains:1` | List subdomain rows from `reflection_rpc_subdomains`. |
+| `urn:service:rpcdispatch:list_functions:1` | List function rows from `reflection_rpc_functions`. |
+| `urn:service:rpcdispatch:list_models:1` | List model rows from `reflection_rpc_models`. |
+| `urn:service:rpcdispatch:list_model_fields:1` | List model field rows from `reflection_rpc_model_fields`. |
+
 ## Account Domain
 
 All Account domain calls require `ROLE_ACCOUNT_ADMIN`.
