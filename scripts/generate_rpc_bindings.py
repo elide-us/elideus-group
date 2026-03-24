@@ -3,16 +3,17 @@ from __future__ import annotations
 """Generate RPC bindings for the frontend client and shared models."""
 
 import ast
-import inspect
 import os
 import sys
+from collections import defaultdict
 from typing import Iterable
 
-from pydantic import BaseModel
-from colorama import Fore, Style
 import colorama
+import pyodbc
+from colorama import Fore, Style
+from dotenv import load_dotenv
 
-from common import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
+from common import HEADER_COMMENT, REPO_ROOT, camel_case
 
 # Ensure repo root is on sys.path so RPC modules can be imported with package names.
 sys.path.insert(0, REPO_ROOT)
@@ -130,47 +131,198 @@ def write_client_bindings(base: list[str], ops: list[dict[str, str]], service_mo
   print(f"Wrote {out_file}")
 
 
-def to_tabs(text: str) -> str:
-  lines = []
-  for line in text.splitlines():
-    leading = len(line) - len(line.lstrip(' '))
-    tabs = '\t' * (leading // 2)
-    lines.append(tabs + line.lstrip(' '))
-  return "\n".join(lines)
+def _python_to_ts(py_type: str | None) -> str | None:
+  if not py_type:
+    return None
+  mapping = {
+    'int': 'number',
+    'bool': 'boolean',
+    'str': 'string',
+    'float': 'number',
+    'datetime': 'string',
+    'date': 'string',
+    'Decimal': 'string',
+    'dict': 'Record<string, any>',
+    'UUID': 'string',
+  }
+  return mapping.get(py_type)
 
 
-def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
-  interfaces: list[str] = []
+def _edt_to_ts(edt_name: str | None, python_type: str | None) -> str:
+  by_edt = {
+    'INT8': 'number',
+    'INT32': 'number',
+    'INT64': 'number',
+    'INT64_IDENTITY': 'number',
+    'UUID': 'string',
+    'BOOL': 'boolean',
+    'DATETIME_TZ': 'string',
+    'DATE': 'string',
+    'STRING': 'string',
+    'TEXT': 'string',
+    'DICT': 'Record<string, any>',
+    'DECIMAL_19_5': 'string',
+    'DECIMAL_28_12': 'string',
+  }
+  if edt_name in by_edt:
+    return by_edt[edt_name]
+  return _python_to_ts(python_type) or 'any'
+
+
+def _db_connection_string() -> str:
+  load_dotenv()
+  candidates = [
+    os.getenv('DB_CONNECTION_STRING'),
+    os.getenv('AZURE_SQL_CONNECTION_STRING'),
+  ]
+  for value in candidates:
+    if value:
+      return value
+  raise RuntimeError('Missing DB connection string. Set DB_CONNECTION_STRING or AZURE_SQL_CONNECTION_STRING.')
+
+
+def _sorted_models(models: list[dict[str, object]]) -> list[dict[str, object]]:
+  by_recid = {int(model['recid']): model for model in models}
+  visited: set[int] = set()
+  ordered: list[dict[str, object]] = []
+
+  def visit(recid: int) -> None:
+    if recid in visited:
+      return
+    visited.add(recid)
+    model = by_recid[recid]
+    parent_recid = model.get('element_parent_recid')
+    if parent_recid is not None:
+      parent_int = int(parent_recid)
+      if parent_int in by_recid:
+        visit(parent_int)
+    ordered.append(model)
+
+  for recid in sorted(by_recid.keys()):
+    visit(recid)
+  return ordered
+
+
+def fetch_interfaces_from_db() -> tuple[list[dict[str, object]], dict[int, list[dict[str, object]]], dict[int, dict[str, object]]]:
+  connection = pyodbc.connect(_db_connection_string())
   try:
-    module = load_module(path)
-  except Exception as e:
-    print(f"{Fore.YELLOW}[WARN]{Style.RESET_ALL} Skipping '{path}' due to import error: {e}")
-    return interfaces
+    cursor = connection.cursor()
+    cursor.execute(
+      """
+      SELECT recid, element_name, element_domain, element_subdomain, element_parent_recid
+      FROM dbo.system_schema_rpc_models
+      ORDER BY element_domain, element_subdomain, element_name
+      """
+    )
+    model_rows = cursor.fetchall()
 
-  for _, obj in inspect.getmembers(module):
-    if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
-      if obj.__name__ in {'RPCRequest', 'RPCResponse'}:
-        continue
-      if obj.__name__ in seen:
-        continue
-      print(f"Found model: {obj.__name__}")
-      seen.add(obj.__name__)
-      interfaces.append(to_tabs(model_to_ts(obj)))
+    models: list[dict[str, object]] = []
+    for row in model_rows:
+      models.append(
+        {
+          'recid': row.recid,
+          'element_name': row.element_name,
+          'element_domain': row.element_domain,
+          'element_subdomain': row.element_subdomain,
+          'element_parent_recid': row.element_parent_recid,
+        }
+      )
 
-  return interfaces
+    cursor.execute(
+      """
+      SELECT
+        f.recid,
+        f.models_recid,
+        f.edt_recid,
+        f.element_name,
+        f.element_ordinal,
+        f.element_nullable,
+        f.element_is_list,
+        f.element_nested_model_recid,
+        e.element_name AS edt_name,
+        e.element_python_type AS edt_python_type
+      FROM dbo.system_schema_rpc_model_fields f
+      LEFT JOIN dbo.system_edt_mappings e ON e.recid = f.edt_recid
+      ORDER BY f.models_recid, f.element_ordinal
+      """
+    )
+    field_rows = cursor.fetchall()
+
+    fields_by_model: dict[int, list[dict[str, object]]] = defaultdict(list)
+    for row in field_rows:
+      fields_by_model[int(row.models_recid)].append(
+        {
+          'recid': row.recid,
+          'models_recid': row.models_recid,
+          'edt_recid': row.edt_recid,
+          'element_name': row.element_name,
+          'element_ordinal': row.element_ordinal,
+          'element_nullable': row.element_nullable,
+          'element_is_list': row.element_is_list,
+          'element_nested_model_recid': row.element_nested_model_recid,
+          'edt_name': row.edt_name,
+          'edt_python_type': row.edt_python_type,
+        }
+      )
+  finally:
+    connection.close()
+
+  ordered_models = _sorted_models(models)
+  by_recid = {int(model['recid']): model for model in ordered_models}
+  return ordered_models, fields_by_model, by_recid
 
 
-def find_all_interfaces() -> list[str]:
+def build_ts_interface(
+  model: dict[str, object],
+  fields: list[dict[str, object]],
+  all_models: dict[int, dict[str, object]],
+) -> str:
+  name = str(model['element_name'])
+  parent_recid = model.get('element_parent_recid')
+
+  if parent_recid is not None:
+    parent_model = all_models[int(parent_recid)]
+    parent_name = str(parent_model['element_name'])
+    if not fields:
+      return f'export type {name} = {parent_name};'
+    lines = [f'export interface {name} extends {parent_name} {{']
+  else:
+    lines = [f'export interface {name} {{']
+
+  for field in fields:
+    nested_recid = field.get('element_nested_model_recid')
+    if nested_recid is not None:
+      base_type = str(all_models[int(nested_recid)]['element_name'])
+    else:
+      base_type = _edt_to_ts(
+        field.get('edt_name') if isinstance(field.get('edt_name'), str) else None,
+        field.get('edt_python_type') if isinstance(field.get('edt_python_type'), str) else None,
+      )
+
+    ts_type = base_type
+    if int(field['element_is_list']) == 1:
+      ts_type += '[]'
+    if int(field['element_nullable']) == 1:
+      ts_type += ' | null'
+
+    lines.append(f"\t{field['element_name']}: {ts_type};")
+
+  lines.append('}')
+  return '\n'.join(lines)
+
+
+def write_interfaces_to_file(
+  models: list[dict[str, object]],
+  fields_by_model: dict[int, list[dict[str, object]]],
+  model_by_recid: dict[int, dict[str, object]],
+  output_dir: str,
+) -> None:
   interfaces: list[str] = []
-  seen: set[str] = set()
-  for root, _, files in os.walk(RPC_ROOT):
-    if 'models.py' in files:
-      models_path = os.path.join(root, 'models.py')
-      interfaces.extend(extract_interfaces_from_models_py(models_path, seen))
-  return interfaces
+  for model in models:
+    recid = int(model['recid'])
+    interface_text = build_ts_interface(model, fields_by_model.get(recid, []), model_by_recid)
+    interfaces.append(interface_text)
 
-
-def write_interfaces_to_file(interfaces: list[str], output_dir: str) -> None:
   os.makedirs(output_dir, exist_ok=True)
   out_path = os.path.join(output_dir, 'RpcModels.tsx')
   with open(out_path, 'w') as f:
@@ -247,8 +399,8 @@ RPC_CALL_FUNC = [
 def main() -> None:
   colorama.init()
   print('Starting RPC model extraction and TS generation...')
-  interfaces = find_all_interfaces()
-  write_interfaces_to_file(interfaces, FRONTEND_SHARED)
+  models, fields_by_model, model_by_recid = fetch_interfaces_from_db()
+  write_interfaces_to_file(models, fields_by_model, model_by_recid, FRONTEND_SHARED)
 
   print('\nStarting DISPATCHER-based RPC function generation...')
   for root, dirs, files in os.walk(RPC_ROOT):
