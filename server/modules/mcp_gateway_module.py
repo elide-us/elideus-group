@@ -37,7 +37,7 @@ from queryregistry.identity.mcp_agents.models import (
   RefreshTokenParams,
   RegisterAgentParams,
   RevokeTokenParams,
-  UserRecidParams,
+  UserGuidParams,
 )
 from queryregistry.models import DBRequest
 from queryregistry.system.config import get_config_request, upsert_config_request
@@ -228,17 +228,17 @@ class McpGatewayModule(BaseModule):
     response = await self.db.run(get_agent_by_client_id_request(ClientIdParams(client_id=client_id)))
     return response.rows[0] if response.rows else None
 
-  async def link_client_to_user(self, client_id: str, users_recid: int) -> None:
+  async def link_client_to_user(self, client_id: str, users_guid: str) -> None:
     await self.db.run(
       link_agent_user_request(
-        LinkAgentUserParams(client_id=client_id, users_recid=users_recid),
+        LinkAgentUserParams(client_id=client_id, users_guid=users_guid),
       ),
     )
 
   async def create_authorization_code(
     self,
     agents_recid,
-    users_recid,
+    users_guid: str,
     code_challenge,
     code_method,
     redirect_uri,
@@ -250,7 +250,7 @@ class McpGatewayModule(BaseModule):
       create_auth_code_request(
         CreateAuthCodeParams(
           agents_recid=agents_recid,
-          users_recid=users_recid,
+          users_guid=users_guid,
           code=code,
           code_challenge=code_challenge,
           code_method=code_method,
@@ -282,8 +282,8 @@ class McpGatewayModule(BaseModule):
     if not client.get("element_is_active"):
       raise HTTPException(status_code=401, detail="Client revoked")
 
-    users_recid = code_row.get("users_recid")
-    if users_recid is None:
+    users_guid = code_row.get("users_guid")
+    if users_guid is None:
       raise HTTPException(status_code=400, detail="Authorization code is not linked to a user")
 
     await self.db.run(
@@ -425,8 +425,8 @@ class McpGatewayModule(BaseModule):
   async def check_user_mcp_role(self, user_guid: str) -> bool:
     return await self.auth.user_has_role(user_guid, self.ROLE_MCP_ACCESS_MASK)
 
-  async def list_user_clients(self, users_recid: int) -> list[dict]:
-    response = await self.db.run(list_user_agents_request(UserRecidParams(users_recid=users_recid)))
+  async def list_user_clients(self, users_guid: str) -> list[dict]:
+    response = await self.db.run(list_user_agents_request(UserGuidParams(users_guid=users_guid)))
     return response.rows
 
   async def revoke_client(self, client_id: str):

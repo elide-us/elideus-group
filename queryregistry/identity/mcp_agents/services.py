@@ -18,7 +18,7 @@ from .models import (
   RefreshTokenParams,
   RegisterAgentParams,
   RevokeTokenParams,
-  UserRecidParams,
+  UserGuidParams,
 )
 
 __all__ = [
@@ -112,7 +112,7 @@ async def revoke_v1(request: DBRequest, *, provider: str) -> DBResponse:
 
 async def list_by_user_v1(request: DBRequest, *, provider: str) -> DBResponse:
   dispatcher = _resolve_dispatcher(_LIST_BY_USER_DISPATCHERS, provider=provider)
-  params = UserRecidParams.model_validate(request.payload)
+  params = UserGuidParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rows=result.rows, rowcount=result.rowcount)
 

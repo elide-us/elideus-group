@@ -82,7 +82,7 @@ def test_provider_callback_uses_verifier_and_handles_provider_error():
     async def get_client(self, _client_id):
       return {"recid": 3}
 
-    async def link_client_to_user(self, _client_id, _users_recid):
+    async def link_client_to_user(self, _client_id, _users_guid):
       return None
 
     async def create_authorization_code(self, **_kwargs):
