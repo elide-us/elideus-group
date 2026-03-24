@@ -13,7 +13,7 @@ import {
 import { Menu as MenuIcon } from '@mui/icons-material';
 import type { PublicLinksNavBarRoute1 } from '../shared/RpcModels';
 import { fetchNavbarRoutes } from '../rpc/public/links';
-import { iconMap, defaultIcon } from '../icons';
+import DynamicIcon from './DynamicIcon';
 import UserContext from '../shared/UserContext';
 import Login from './Login';
 import { LAYOUT } from '../shared/theme';
@@ -133,7 +133,6 @@ const NavBar = (): JSX.Element => {
 			>
 				{(() => {
 					const renderItem = (route: NavRoute) => {
-						const IconComp = iconMap[route.icon ?? ''] || defaultIcon;
 						const active = isRouteActive(location.pathname, route.path);
 
 						return (
@@ -168,7 +167,7 @@ const NavBar = (): JSX.Element => {
 										},
 									}}
 								>
-									<IconComp />
+									<DynamicIcon name={route.icon} />
 								</ListItemIcon>
 								{open ? (
 									<ListItemText
