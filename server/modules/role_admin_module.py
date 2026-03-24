@@ -70,7 +70,6 @@ class RoleAdminModule(BaseModule):
         "display": r.get("display"),
       }
       for r in _normalize_payload(res.payload)
-      if r.get("name") != "ROLE_REGISTERED"
     ]
     roles.sort(key=lambda r: int(r.get("mask", 0)))
     if actor_mask is not None:
