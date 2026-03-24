@@ -7,7 +7,7 @@ interface DynamicIconProps {
 
 const DynamicIcon = memo(({ name }: DynamicIconProps): JSX.Element => {
   const IconComponent = name
-    ? (MuiIcons as Record<string, React.ElementType>)[name] ?? MuiIcons.Adjust
+    ? (MuiIcons as Record<string, typeof MuiIcons.Adjust>)[name] ?? MuiIcons.Adjust
     : MuiIcons.Adjust;
 
   return <IconComponent />;
