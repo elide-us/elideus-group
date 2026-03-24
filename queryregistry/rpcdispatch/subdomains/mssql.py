@@ -68,15 +68,18 @@ async def upsert_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
 async def delete_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SET NOCOUNT ON;
-    DECLARE @deleted TABLE (recid bigint);
+    DECLARE @out TABLE (
+      recid bigint,
+      element_name nvarchar(64),
+      element_status int
+    );
 
     DELETE FROM reflection_rpc_subdomains
-    OUTPUT deleted.recid INTO @deleted
+    OUTPUT deleted.recid, deleted.element_name, deleted.element_status INTO @out
     WHERE recid = ?;
 
-    SELECT t.*
-    FROM reflection_rpc_subdomains t
-    JOIN @deleted d ON d.recid = t.recid
+    SELECT *
+    FROM @out
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["recid"],))

@@ -391,5 +391,5 @@ FROM system_schema_tables s CROSS JOIN system_schema_tables r
 WHERE s.element_schema='dbo' AND s.element_name='reflection_rpc_functions' AND r.element_schema='dbo' AND r.element_name='reflection_rpc_models'
 AND NOT EXISTS (SELECT 1 FROM system_schema_foreign_keys fk WHERE fk.tables_recid=s.recid AND fk.element_column_name='element_response_model_recid');
 GO
-UPDATE system_config SET element_value = '0.11.0.0' WHERE element_key = 'SchemaVersion';
+UPDATE system_config SET element_value = '0.10.3.0' WHERE element_key = 'SchemaVersion';
 GO
