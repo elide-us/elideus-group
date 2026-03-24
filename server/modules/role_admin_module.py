@@ -6,6 +6,7 @@ from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.role_memberships import (
   create_role_membership_request,
   delete_role_membership_request,
+  list_all_role_memberships_request,
   list_role_memberships_request,
   list_role_non_memberships_request,
 )
@@ -97,6 +98,40 @@ class RoleAdminModule(BaseModule):
       for r in _normalize_payload(non_res.payload)
     ]
     return members, non_members
+
+  async def get_all_role_members(self, actor_mask: int | None = None) -> list[dict]:
+    """Return all roles with members and non-members in a single query."""
+    provider_name = self.db.provider or "mssql"
+    res = await dispatch_query_request(
+      list_all_role_memberships_request(),
+      provider=provider_name,
+    )
+    roles = []
+    for r in _normalize_payload(res.payload):
+      mask_val = int(r.get("mask", 0))
+      if actor_mask is not None:
+        max_mask = self._max_mask(actor_mask)
+        if mask_val > max_mask:
+          continue
+      members_raw = r.get("members") or []
+      non_members_raw = r.get("non_members") or []
+      roles.append(
+        {
+          "name": r.get("name", ""),
+          "mask": str(mask_val),
+          "display": r.get("display"),
+          "members": [
+            {"guid": m.get("guid", ""), "displayName": m.get("display_name", "")}
+            for m in members_raw
+          ],
+          "nonMembers": [
+            {"guid": m.get("guid", ""), "displayName": m.get("display_name", "")}
+            for m in non_members_raw
+          ],
+        }
+      )
+    roles.sort(key=lambda r: int(r.get("mask", 0)))
+    return roles
 
   async def add_role_member(self, role: str, user_guid: str, actor_mask: int | None = None) -> tuple[list[dict], list[dict]]:
     if actor_mask is not None:
