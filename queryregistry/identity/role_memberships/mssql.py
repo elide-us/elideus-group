@@ -10,6 +10,7 @@ from queryregistry.providers.mssql import run_exec, run_json_many
 
 __all__ = [
   "add_role_member",
+  "list_all_role_memberships",
   "list_role_members",
   "list_role_non_members",
   "remove_role_member",
@@ -24,6 +25,36 @@ async def list_role_members(args: Mapping[str, Any]) -> DBResponse:
 async def list_role_non_members(args: Mapping[str, Any]) -> DBResponse:
   rows = await _get_role_non_members(args["role"])
   return DBResponse(payload=rows)
+
+
+async def list_all_role_memberships(_: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      sr.element_name AS name,
+      sr.element_mask AS mask,
+      sr.element_display AS display,
+      (
+        SELECT au.element_guid AS guid, au.element_display AS display_name
+        FROM account_users au
+        JOIN users_roles ur ON au.element_guid = ur.users_guid
+        WHERE (ur.element_roles & sr.element_mask) > 0
+        ORDER BY au.element_display
+        FOR JSON PATH
+      ) AS members,
+      (
+        SELECT au.element_guid AS guid, au.element_display AS display_name
+        FROM account_users au
+        LEFT JOIN users_roles ur ON au.element_guid = ur.users_guid
+        WHERE (ISNULL(ur.element_roles, 0) & sr.element_mask) = 0
+        ORDER BY au.element_display
+        FOR JSON PATH
+      ) AS non_members
+    FROM system_roles sr
+    ORDER BY sr.element_mask
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  response = await run_json_many(sql)
+  return DBResponse(payload=_normalize_payload(response.rows))
 
 
 async def add_role_member(args: Mapping[str, Any]) -> DBResponse:

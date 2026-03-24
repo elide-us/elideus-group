@@ -9,6 +9,7 @@ from queryregistry.models import DBRequest, DBResponse
 
 from .services import (
   add_role_member_v1,
+  list_all_role_memberships_v1,
   list_role_members_v1,
   list_role_non_members_v1,
   remove_role_member_v1,
@@ -18,6 +19,7 @@ __all__ = ["handle_role_memberships_request"]
 
 DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("list", "1"): list_role_members_v1,
+  ("list_all", "1"): list_all_role_memberships_v1,
   ("list_non_members", "1"): list_role_non_members_v1,
   ("create", "1"): add_role_member_v1,
   ("delete", "1"): remove_role_member_v1,
