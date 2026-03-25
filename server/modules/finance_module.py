@@ -147,9 +147,11 @@ from queryregistry.finance.credit_lots.models import (
   SumRemainingByUserParams,
 )
 from queryregistry.finance.credits import (
+  get_credits_request,
   set_credits_request,
 )
 from queryregistry.finance.credits.models import (
+  GetCreditsParams,
   SetCreditsParams,
 )
 from queryregistry.finance.pipeline_config import (
@@ -314,6 +316,11 @@ class FinanceModule(BaseModule):
     logging.info("[FinanceModule] shutdown")
     self.db = None
     self._pipeline_config_cache = {}
+
+  async def get_user_credits(self, guid: str) -> dict[str, Any]:
+    assert self.db
+    res = await self.db.run(get_credits_request(GetCreditsParams(guid=guid)))
+    return dict(res.rows[0]) if res.rows else {}
 
   def _map_period(self, row: dict[str, Any]) -> dict[str, Any]:
     return {

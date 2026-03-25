@@ -17,6 +17,7 @@ from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.accounts import account_exists_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
 from queryregistry.models import DBRequest, DBResponse
@@ -220,6 +221,38 @@ class AuthModule(BaseModule):
     if self.discord and getattr(self.discord, "auth_module", None) is self:
       self.discord.auth_module = None
     logging.info("Auth module shutdown")
+
+  async def user_exists(self, user_guid: str) -> bool:
+    request = account_exists_request({"user_guid": user_guid})
+    provider_name = self.db.provider or "mssql"
+    try:
+      res = await dispatch_query_request(request, provider=provider_name)
+    except KeyError:
+      logging.getLogger("server" + ".registry").warning(
+        "Query registry handler missing for user lookup",
+        extra={"db_op": request.op, "db_provider": provider_name},
+      )
+      return await self._fallback_user_exists(user_guid=user_guid)
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
+
+  async def _fallback_user_exists(self, *, user_guid: str) -> bool:
+    provider_name = self.db.provider or "mssql"
+    if provider_name != "mssql":
+      logging.getLogger("server" + ".registry").error(
+        "No registry handler for %s and no fallback available", provider_name
+      )
+      return False
+    try:
+      from queryregistry.identity.accounts.mssql import account_exists
+    except ModuleNotFoundError:
+      logging.getLogger("server" + ".registry").error(
+        "MSSQL account exists handler unavailable"
+      )
+      return False
+    response = await account_exists({"user_guid": user_guid})
+    payload = response.payload if isinstance(response.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
 
   @staticmethod
   def _normalize_query_payload(payload: Any | None) -> list[dict[str, Any]]:

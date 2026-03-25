@@ -305,6 +305,10 @@ class DiscordBotModule(BaseModule):
     row = res.rows[0] if res.rows else {}
     return self._map_guild_row(row, guild_id=guild_id)
 
+  async def get_guild_credits(self, guild_id: str) -> int:
+    guild = await self.get_guild_record(guild_id)
+    return int(guild.get("credits", 0) or 0)
+
   async def update_guild_credits(self, guild_id: str, credits: int) -> dict[str, Any]:
     assert self.db
     await self.db.run(
