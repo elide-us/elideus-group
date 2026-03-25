@@ -33,8 +33,7 @@ Patterns to preserve:
   - `run_exec(...)` for command/rowcount-oriented operations.
   - `run_json_one(...)` for single-object JSON payload retrieval.
 - Keep explicit transaction handling via context managers (`commit`/`rollback` behavior).
-- Providers are shared by both registries during migration, but **new operations must target
-  `queryregistry/` contracts**.
+- Providers must route DB operations through **`queryregistry/` contracts**.
 
 ---
 
@@ -52,9 +51,8 @@ Patterns to preserve:
 - Adding provider-side aliases for legacy/new operation names.
 - Silently swallowing provider exceptions; include contextual logs.
 - Embedding domain routing rules in providers.
-- Adding new work that depends on `server/registry/` as a target layer.
+- Adding new work that depends on removed legacy registries as a target layer.
 
 Adjacent guidance:
 - `server/modules/AGENTS.md` for lifecycle and module boundaries.
 - `queryregistry/AGENTS.md` for canonical registry dispatch and contracts.
-- `server/registry/AGENTS.md` for legacy/deprecation constraints.
