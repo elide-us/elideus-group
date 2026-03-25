@@ -4,7 +4,7 @@ from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.db_module import DbModule
+from server.modules.conversations_module import ConversationsModule
 
 from .models import (
   SystemConversationsConversationItem1,
@@ -24,9 +24,9 @@ async def system_conversations_list_v1(request: Request):
   payload = rpc_request.payload or {}
   limit = int(payload.get("limit", 100))
   offset = int(payload.get("offset", 0))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  rows = await db.list_conversations(limit=limit, offset=offset)
+  module: ConversationsModule = request.app.state.conversations
+  await module.on_ready()
+  rows = await module.list_conversations(limit=limit, offset=offset)
   conversations = [
     SystemConversationsConversationItem1(
       recid=row.get("recid", 0),
@@ -55,9 +55,9 @@ async def system_conversations_list_v1(request: Request):
 
 async def system_conversations_stats_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  row = await db.get_conversation_stats()
+  module: ConversationsModule = request.app.state.conversations
+  await module.on_ready()
+  row = await module.get_conversation_stats()
   stats = SystemConversationsStats1(
     total_rows=int(row.get("total_rows", 0)),
     total_threads=int(row.get("total_threads", 0)),
@@ -71,9 +71,9 @@ async def system_conversations_stats_v1(request: Request):
 async def system_conversations_view_thread_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = SystemConversationsViewThread1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  rows = await db.list_conversation_thread(payload.thread_id)
+  module: ConversationsModule = request.app.state.conversations
+  await module.on_ready()
+  rows = await module.list_conversation_thread(payload.thread_id)
   messages = [
     SystemConversationsThreadMessage1(
       recid=row.get("recid", 0),
@@ -92,9 +92,9 @@ async def system_conversations_view_thread_v1(request: Request):
 async def system_conversations_delete_thread_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = SystemConversationsDeleteThread1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  deleted = await db.delete_conversation_thread(payload.thread_id)
+  module: ConversationsModule = request.app.state.conversations
+  await module.on_ready()
+  deleted = await module.delete_conversation_thread(payload.thread_id)
   logging.info(
     "[system_conversations_delete_thread_v1] deleted thread",
     extra={"user_guid": auth_ctx.user_guid, "thread_id": payload.thread_id, "rowcount": deleted},
@@ -106,9 +106,9 @@ async def system_conversations_delete_thread_v1(request: Request):
 async def system_conversations_delete_before_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = SystemConversationsDeleteBefore1(**(rpc_request.payload or {}))
-  db: DbModule = request.app.state.db
-  await db.on_ready()
-  deleted = await db.delete_conversations_before(payload.before)
+  module: ConversationsModule = request.app.state.conversations
+  await module.on_ready()
+  deleted = await module.delete_conversations_before(payload.before)
   logging.info(
     "[system_conversations_delete_before_v1] deleted conversations before %s",
     payload.before,

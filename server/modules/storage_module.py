@@ -9,13 +9,27 @@ from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.config import get_config_request
 from queryregistry.content.cache import (
   count_rows_request,
+  delete_cache_folder_request,
+  delete_cache_item_request,
+  list_cache_request,
   list_public_request,
   list_reported_request,
+  replace_user_cache_request,
   set_gallery_request,
   set_reported_request,
+  upsert_cache_item_request,
 )
-from queryregistry.content.cache.models import SetGalleryParams, SetReportedParams
+from queryregistry.content.cache.models import (
+  CacheItemKey,
+  DeleteCacheFolderParams,
+  ListCacheParams,
+  ReplaceUserCacheParams,
+  SetGalleryParams,
+  SetReportedParams,
+  UpsertCacheItemParams,
+)
 from . import BaseModule
+from .auth_module import AuthModule
 from .env_module import EnvModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
@@ -45,6 +59,7 @@ class StorageModule(BaseModule):
     super().__init__(app)
     self.env: EnvModule | None = None
     self.db: DbModule | None = None
+    self.auth: AuthModule | None = None
     self.connection_string: str | None = None
     self.discord: DiscordBotModule | None = None
     self.provider: AzureBlobStorageProvider | None = None
@@ -54,6 +69,8 @@ class StorageModule(BaseModule):
     await self.env.on_ready()
     self.db = self.app.state.db
     await self.db.on_ready()
+    self.auth = self.app.state.auth
+    await self.auth.on_ready()
     self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
@@ -95,6 +112,32 @@ class StorageModule(BaseModule):
       logging.error("[StorageModule] AzureBlobContainerName missing")
     return container_name
 
+  async def list_storage_cache(self, user_guid: str) -> list[dict[str, Any]]:
+    assert self.db
+    params = ListCacheParams(user_guid=user_guid)
+    res = await self.db.run(list_cache_request(params))
+    return list(res.rows or [])
+
+  async def replace_storage_cache(self, user_guid: str, items: list[dict[str, Any]]):
+    assert self.db
+    params = ReplaceUserCacheParams(user_guid=user_guid, items=items)
+    await self.db.run(replace_user_cache_request(params))
+
+  async def upsert_storage_cache(self, item: dict[str, Any]):
+    assert self.db
+    params = UpsertCacheItemParams.model_validate(item)
+    return await self.db.run(upsert_cache_item_request(params))
+
+  async def delete_storage_cache(self, user_guid: str, path: str, filename: str):
+    assert self.db
+    params = CacheItemKey(user_guid=user_guid, path=path, filename=filename)
+    await self.db.run(delete_cache_item_request(params))
+
+  async def delete_storage_cache_folder(self, user_guid: str, path: str):
+    assert self.db
+    params = DeleteCacheFolderParams(user_guid=user_guid, path=path)
+    await self.db.run(delete_cache_folder_request(params))
+
   async def reindex(self, user_guid: str | None = None):
     """Perform a scan of storage and update database cache."""
     logging.info(
@@ -114,12 +157,13 @@ class StorageModule(BaseModule):
     missing_users: set[str] = set()
 
     async def ensure_user(guid: str) -> bool:
+      assert self.auth
       if guid in valid_users:
         return True
       if guid in missing_users:
         return False
       try:
-        exists = await self.db.user_exists(guid)
+        exists = await self.auth.user_exists(guid)
       except Exception as exc:
         logging.error("[StorageModule] Failed to validate user %s: %s", guid, exc)
         missing_users.add(guid)
@@ -164,7 +208,7 @@ class StorageModule(BaseModule):
       filename = parts[-1]
       path = "/".join(parts[1:-1])
       if guid not in public_map:
-        rows = await self.db.list_storage_cache(guid)
+        rows = await self.list_storage_cache(guid)
         public_map[guid] = {
           (r.get("path") or "", r.get("filename")): r.get("public", 0)
           for r in rows
@@ -178,7 +222,7 @@ class StorageModule(BaseModule):
           logging.debug(
             "[StorageModule] indexing folder %s/%s", parent or ".", folder_name
           )
-          res = await self.db.upsert_storage_cache({
+          res = await self.upsert_storage_cache({
             "user_guid": guid,
             "path": parent,
             "filename": folder_name,
@@ -205,7 +249,7 @@ class StorageModule(BaseModule):
           logging.debug(
             "[StorageModule] indexing folder %s/%s", path or ".", filename
           )
-          res = await self.db.upsert_storage_cache({
+          res = await self.upsert_storage_cache({
             "user_guid": guid,
             "path": path,
             "filename": filename,
@@ -236,7 +280,7 @@ class StorageModule(BaseModule):
         "[StorageModule] indexing file %s/%s", path or ".", filename
       )
       public_val = public_map.get(guid, {}).get((path, filename), 0)
-      res = await self.db.upsert_storage_cache({
+      res = await self.upsert_storage_cache({
         "user_guid": guid,
         "path": path,
         "filename": filename,
@@ -262,13 +306,13 @@ class StorageModule(BaseModule):
       existing = public_map.get(user_guid, {})
       for key in list(existing.keys()):
         if key not in files_seen.get(user_guid, set()):
-          await self.db.delete_storage_cache(user_guid, key[0], key[1])
+          await self.delete_storage_cache(user_guid, key[0], key[1])
     else:
       for guid, items_seen in files_seen.items():
         existing = public_map.get(guid, {})
         for key in list(existing.keys()):
           if key not in items_seen:
-            await self.db.delete_storage_cache(guid, key[0], key[1])
+            await self.delete_storage_cache(guid, key[0], key[1])
 
     logging.debug(
       "[StorageModule] Reindex found %d files and %d folders%s",
@@ -284,7 +328,7 @@ class StorageModule(BaseModule):
   async def upsert_file_record(self, user_guid: str, path: str, filename: str, file_type: str, **kwargs):
     """Upsert a file record into the ``users_storage_cache`` table."""
     assert self.db
-    res = await self.db.upsert_storage_cache({
+    res = await self.upsert_storage_cache({
       "user_guid": user_guid,
       "path": path,
       "filename": filename,
@@ -306,7 +350,7 @@ class StorageModule(BaseModule):
   async def list_files_by_user(self, user_guid: str):
     """Return files belonging to ``user_guid``."""
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    rows = await self.list_storage_cache(user_guid)
     out = []
     for row in rows:
       if row.get("content_type") == "path/folder":
@@ -326,7 +370,7 @@ class StorageModule(BaseModule):
   async def list_folder(self, user_guid: str, folder: str):
     """Return files and subfolders under ``folder`` for ``user_guid``."""
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    rows = await self.list_storage_cache(user_guid)
     folder = folder.strip("/")
     prefix = f"{folder}/" if folder else ""
     files: list[dict[str, str | None]] = []
@@ -420,7 +464,7 @@ class StorageModule(BaseModule):
       path = "/".join(name.split("/")[:-1])
       filename = name.split("/")[-1]
       try:
-        res = await self.db.upsert_storage_cache({
+        res = await self.upsert_storage_cache({
           "user_guid": user_guid,
           "path": path,
           "filename": filename,
@@ -471,7 +515,7 @@ class StorageModule(BaseModule):
     for rel in response.deleted:
       path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
       try:
-        await self.db.delete_storage_cache(user_guid, path, filename)
+        await self.delete_storage_cache(user_guid, path, filename)
       except Exception as exc:
         logging.error(
           "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -517,7 +561,7 @@ class StorageModule(BaseModule):
     relative = result.relative_path
     parent, folder_name = relative.rsplit("/", 1) if "/" in relative else ("", relative)
     try:
-      await self.db.upsert_storage_cache({
+      await self.upsert_storage_cache({
         "user_guid": user_guid,
         "path": parent,
         "filename": folder_name,
@@ -565,7 +609,7 @@ class StorageModule(BaseModule):
         continue
       file_path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
       try:
-        await self.db.delete_storage_cache(user_guid, file_path, filename)
+        await self.delete_storage_cache(user_guid, file_path, filename)
       except Exception as exc:
         logging.error(
           "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -574,7 +618,7 @@ class StorageModule(BaseModule):
           exc,
         )
     try:
-      await self.db.delete_storage_cache_folder(user_guid, normalized)
+      await self.delete_storage_cache_folder(user_guid, normalized)
     except Exception as exc:
       logging.error(
         "[StorageModule] Failed to delete folder cache for %s/%s: %s",
@@ -613,7 +657,7 @@ class StorageModule(BaseModule):
     src_path, src_filename = normalized_src.rsplit("/", 1) if "/" in normalized_src else ("", normalized_src)
     dst_path, dst_filename = normalized_dst.rsplit("/", 1) if "/" in normalized_dst else ("", normalized_dst)
     try:
-      await self.db.delete_storage_cache(user_guid, src_path, src_filename)
+      await self.delete_storage_cache(user_guid, src_path, src_filename)
     except Exception as exc:
       logging.error(
         "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -623,7 +667,7 @@ class StorageModule(BaseModule):
       )
     props = result.properties
     try:
-      await self.db.upsert_storage_cache({
+      await self.upsert_storage_cache({
         "user_guid": user_guid,
         "path": dst_path,
         "filename": dst_filename,
@@ -648,7 +692,7 @@ class StorageModule(BaseModule):
     rel = (name or "").strip("/")
     path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    rows = await self.list_storage_cache(user_guid)
     for row in rows:
       row_path = row.get("path") or ""
       row_filename = row.get("filename") or ""
@@ -672,7 +716,7 @@ class StorageModule(BaseModule):
     old_path, old_filename = old_rel.rsplit("/", 1) if "/" in old_rel else ("", old_rel)
     new_path, new_filename = new_rel.rsplit("/", 1) if "/" in new_rel else ("", new_rel)
     try:
-      await self.db.delete_storage_cache(user_guid, old_path, old_filename)
+      await self.delete_storage_cache(user_guid, old_path, old_filename)
     except Exception as exc:
       logging.error(
         "[StorageModule] Failed to delete cache for %s/%s: %s",
@@ -697,7 +741,7 @@ class StorageModule(BaseModule):
       if base and rel:
         url = f"{base}/{rel}"
     try:
-      await self.db.upsert_storage_cache({
+      await self.upsert_storage_cache({
         "user_guid": user_guid,
         "path": new_path,
         "filename": new_filename,
@@ -734,7 +778,7 @@ class StorageModule(BaseModule):
       return
     if old_rel == new_rel:
       return
-    cache_rows = await self.db.list_storage_cache(user_guid)
+    cache_rows = await self.list_storage_cache(user_guid)
     cache_map: dict[str, dict[str, Any]] = {}
     for row in cache_rows:
       path = row.get("path") or ""
@@ -801,7 +845,7 @@ class StorageModule(BaseModule):
     rel = (name or "").strip("/")
     path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
     assert self.db
-    rows = await self.db.list_storage_cache(user_guid)
+    rows = await self.list_storage_cache(user_guid)
     for row in rows:
       if (row.get("path") or "") == path and (row.get("filename") or "") == filename:
         return {
