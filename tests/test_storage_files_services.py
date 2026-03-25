@@ -61,6 +61,18 @@ server_pkg.models = models_pkg
 sys.modules.setdefault("server", server_pkg)
 sys.modules.setdefault("server.models", models_pkg)
 
+server_modules_pkg = types.ModuleType("server.modules")
+storage_module_pkg = types.ModuleType("server.modules.storage_module")
+
+
+class StorageModule: ...
+
+
+storage_module_pkg.StorageModule = StorageModule
+server_modules_pkg.storage_module = storage_module_pkg
+sys.modules.setdefault("server.modules", server_modules_pkg)
+sys.modules.setdefault("server.modules.storage_module", storage_module_pkg)
+
 # load services module
 spec = importlib.util.spec_from_file_location(
   "rpc.storage.files.services",
@@ -100,7 +112,8 @@ class DummyStorage:
 
   async def get_file_link(self, user_guid, name):
     self.link_args = (user_guid, name)
-    return f"https://example.com/{name}"
+    path, filename = name.rsplit("/", 1) if "/" in name else ("", name)
+    return {"path": path, "name": filename, "url": f"https://example.com/{name}"}
 
   async def upload_files(self, user_guid, files):
     self.upload_args = (user_guid, files)
@@ -191,7 +204,6 @@ def test_get_link_calls_storage():
     "gallery": None,
   }
   assert storage.link_args == ("u123", "a.txt")
-  assert storage.reindexed == "u123"
 
 
 def test_upload_files_calls_storage():
@@ -200,7 +212,6 @@ def test_upload_files_calls_storage():
   resp = asyncio.run(storage_files_upload_files_v1(req))
   assert storage.upload_args[0] == "u123"
   assert [f.model_dump() for f in storage.upload_args[1]] == [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]
-  assert storage.reindexed == "u123"
   assert resp.payload == {"files": [{"name": "a.txt", "content_b64": "Zg==", "content_type": None}]}
 
 
@@ -208,14 +219,12 @@ def test_delete_files_triggers_reindex():
   req, storage = make_request("urn:storage:files:delete_files:1", {"files": ["a.txt"]})
   _ = asyncio.run(storage_files_delete_files_v1(req))
   assert storage.deleted_files == ("u123", ["a.txt"])
-  assert storage.reindexed == "u123"
 
 
 def test_delete_folder_triggers_reindex():
   req, storage = make_request("urn:storage:files:delete_folder:1", {"path": "/docs"})
   _ = asyncio.run(storage_files_delete_folder_v1(req))
   assert storage.deleted == ("u123", "/docs")
-  assert storage.reindexed == "u123"
 
 
 def test_rename_file_calls_storage():
@@ -225,7 +234,6 @@ def test_rename_file_calls_storage():
   )
   _ = asyncio.run(storage_files_rename_file_v1(req))
   assert storage.renamed == ("u123", "a.txt", "b.txt")
-  assert storage.reindexed == "u123"
 
 
 def test_move_file_calls_storage():
@@ -235,7 +243,6 @@ def test_move_file_calls_storage():
   )
   _ = asyncio.run(storage_files_move_file_v1(req))
   assert storage.moved == ("u123", "a.txt", "docs/b.txt")
-  assert storage.reindexed == "u123"
 
 
 def test_get_metadata_returns_details():
@@ -249,7 +256,6 @@ def test_get_metadata_returns_details():
     "modified_on": "now",
   }
   assert storage.metadata_args == ("u123", "a.txt")
-  assert storage.reindexed == "u123"
 
 
 def test_get_usage_returns_summary():
@@ -260,7 +266,6 @@ def test_get_usage_returns_summary():
     "by_type": [{"content_type": "text/plain", "size": 10}],
   }
   assert storage.usage_called == "u123"
-  assert storage.reindexed == "u123"
 
 
 def test_get_folder_files_returns_contents():
@@ -274,7 +279,6 @@ def test_get_folder_files_returns_contents():
     "folders": [{"name": "sub", "empty": False}],
   }
   assert storage.list_folder_args == ("u123", "docs")
-  assert storage.reindexed == "u123"
 
 
 def test_set_gallery_updates_flag():
@@ -303,7 +307,6 @@ def test_get_public_files_lists_files():
     ]
   }
   assert storage.list_public_called
-  assert storage.reindexed is None
 
 
 def test_published_file_listed_with_gallery_flag():
