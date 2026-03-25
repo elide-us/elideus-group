@@ -21,6 +21,8 @@ from queryregistry.identity.accounts import account_exists_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
 from queryregistry.models import DBRequest, DBResponse
+from queryregistry.system.config import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
@@ -163,6 +165,11 @@ class AuthModule(BaseModule):
   def _user_roles(self) -> dict[str, tuple[list[str], int]]:
     return self.role_cache._user_roles
 
+  async def _read_config_value(self, key: str) -> str | None:
+    """Read a single system_config value by key."""
+    res = await self.db.run(get_config_request(ConfigKeyParams(key=key)))
+    return res.rows[0]["element_value"] if res.rows else None
+
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
@@ -178,14 +185,22 @@ class AuthModule(BaseModule):
         register(self)
     self.role_cache.db = self.db
     self.jwt_secret = self.env.get("JWT_SECRET")
-    self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
+    cache_raw = await self._read_config_value("JwksCacheTime")
+    if cache_raw is None:
+      raise ValueError("Missing config value for key: JwksCacheTime")
+    self.jwks_cache_minutes = int(cache_raw)
 
-    providers_cfg = await self.db.get_auth_providers()
+    providers_raw = await self._read_config_value("AuthProviders")
+    if providers_raw is None:
+      raise ValueError("Missing config value for key: AuthProviders")
+    providers_cfg = [provider.strip() for provider in providers_raw.split(",") if provider.strip()]
     logging.debug(f"[AuthModule] Provider configuration: {providers_cfg}")
     try:
       if "microsoft" in providers_cfg:
         logging.debug("[AuthModule] Loading Microsoft provider")
-        ms_api_id = await self.db.get_ms_api_id()
+        ms_api_id = await self._read_config_value("MsApiId")
+        if not ms_api_id:
+          raise ValueError("Missing config value for key: MsApiId")
         logging.debug("[AuthModule] MsApiId=%s", ms_api_id)
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider.startup()
@@ -193,7 +208,13 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Microsoft provider ready")
       if "google" in providers_cfg:
         logging.debug("[AuthModule] Loading Google provider")
-        google_client_id = await self.db.get_google_client_id()
+        google_client_id = await self._read_config_value("GoogleClientId")
+        if not google_client_id:
+          raise ValueError("Missing config value for key: GoogleClientId")
+        google_secret = self.env.get("GOOGLE_AUTH_SECRET")
+        if not google_secret:
+          raise ValueError("Missing env value for key: GOOGLE_AUTH_SECRET")
+        logging.debug("[AuthModule] GoogleAuthSecret loaded: %s", bool(google_secret))
         logging.debug("[AuthModule] GoogleClientId=%s", google_client_id)
         provider = await GoogleAuthProvider.create(api_id=google_client_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider.startup()
@@ -201,7 +222,9 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Google provider ready")
       if "discord" in providers_cfg:
         logging.debug("[AuthModule] Loading Discord provider")
-        discord_client_id = await self.db.get_discord_client_id()
+        discord_client_id = await self._read_config_value("DiscordClientId")
+        if not discord_client_id:
+          raise ValueError("Missing config value for key: DiscordClientId")
         logging.debug("[AuthModule] DiscordClientId=%s", discord_client_id)
         provider = DiscordAuthProvider()
         provider.audience = discord_client_id
