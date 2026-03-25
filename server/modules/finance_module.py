@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -207,17 +208,21 @@ from queryregistry.finance.reporting.models import (
 )
 from queryregistry.finance.staging import (
   approve_import_request,
+  create_import_request,
   delete_import_request,
   list_cost_details_by_import_request,
   list_imports_request,
   reject_import_request,
+  update_import_status_request,
 )
 from queryregistry.finance.staging.models import (
   ApproveImportParams,
+  CreateImportParams,
   DeleteImportParams,
   ListCostDetailsByImportParams,
   ListImportsParams,
   RejectImportParams,
+  UpdateImportStatusParams,
 )
 from queryregistry.finance.staging_account_map import (
   delete_account_map_request,
@@ -229,18 +234,26 @@ from queryregistry.finance.staging_account_map.models import (
   ListAccountMapParams,
   UpsertAccountMapParams,
 )
-from queryregistry.finance.staging_line_items import list_line_items_by_import_request
-from queryregistry.finance.staging_line_items.models import ListLineItemsByImportParams
+from queryregistry.finance.staging_line_items import (
+  insert_line_items_batch_request,
+  list_line_items_by_import_request,
+)
+from queryregistry.finance.staging_line_items.models import (
+  InsertLineItemsBatchParams,
+  ListLineItemsByImportParams,
+)
 from queryregistry.finance.staging_purge_log import list_purge_logs_request
 from queryregistry.finance.staging_purge_log.models import ListPurgeLogsParams
 from queryregistry.finance.status import get_status_code_request, list_status_codes_request
 from queryregistry.finance.status.models import GetStatusCodeParams, ListStatusCodesParams
 from queryregistry.finance.vendors import (
   delete_vendor_request,
+  get_vendor_by_name_request,
   list_vendors_request,
   upsert_vendor_request,
 )
 from queryregistry.finance.vendors.models import (
+  GetVendorByNameParams,
   DeleteVendorParams,
   ListVendorsParams,
   UpsertVendorParams,
@@ -1163,6 +1176,80 @@ class FinanceModule(BaseModule):
     await self.db.run(delete_vendor_request(DeleteVendorParams(recid=recid)))
     return {"recid": recid, "deleted": True}
 
+  async def create_payment_request(self, payload: dict[str, Any], requested_by: str) -> dict[str, Any]:
+    assert self.db
+    vendor_name = str(payload.get("vendor_name") or "").strip()
+    if not vendor_name:
+      raise ValueError("vendor_name is required")
+
+    vendor_result = await self.db.run(
+      get_vendor_by_name_request(GetVendorByNameParams(element_name=vendor_name)),
+    )
+    if not vendor_result.rows:
+      raise ValueError(f"Unknown vendor: {vendor_name}")
+    vendor_recid = int(vendor_result.rows[0]["recid"])
+
+    create_result = await self.db.run(
+      create_import_request(
+        CreateImportParams(
+          source="payment_request",
+          scope=f"vendor/{vendor_name}",
+          metric="PaymentRequest",
+          period_start=payload.get("period_start"),
+          period_end=payload.get("period_end"),
+          requested_by=requested_by,
+          initial_status=IMPORT_PENDING_APPROVAL,
+        ),
+      ),
+    )
+    if not create_result.rows:
+      raise RuntimeError("Failed to create staging import record")
+    import_recid = int(create_result.rows[0]["recid"])
+
+    raw_data = {
+      "vendor_name": vendor_name,
+      "description": payload.get("description"),
+    }
+    if payload.get("renewal_recid") is not None:
+      raw_data["renewal_recid"] = payload.get("renewal_recid")
+
+    line_item = {
+      "element_date": payload.get("period_start"),
+      "element_service": payload.get("service") or vendor_name,
+      "element_category": payload.get("category") or "PaymentRequest",
+      "element_description": payload.get("description"),
+      "element_quantity": "1.0",
+      "element_unit_price": payload.get("amount"),
+      "element_amount": payload.get("amount"),
+      "element_currency": payload.get("currency"),
+      "element_raw_json": json.dumps(raw_data),
+      "element_record_type": "payment_request",
+    }
+    await self.db.run(
+      insert_line_items_batch_request(
+        InsertLineItemsBatchParams(
+          imports_recid=import_recid,
+          vendors_recid=vendor_recid,
+          rows=[line_item],
+        ),
+      ),
+    )
+    await self.db.run(
+      update_import_status_request(
+        UpdateImportStatusParams(
+          recid=import_recid,
+          status=IMPORT_PENDING_APPROVAL,
+          row_count=1,
+          error=None,
+        ),
+      ),
+    )
+    return {
+      "import_recid": import_recid,
+      "status": "pending_approval",
+      "message": f"Payment request for {vendor_name} ({payload.get('amount')} {payload.get('currency')}) submitted for approval.",
+    }
+
   async def list_purge_logs(self) -> list[dict[str, Any]]:
     assert self.db
     res = await self.db.run(list_purge_logs_request(ListPurgeLogsParams()))
@@ -1250,6 +1337,21 @@ class FinanceModule(BaseModule):
     assert self.db
     res = await self.db.run(list_products_request(ListProductsParams(category=category, status=status)))
     return [self._map_product(dict(row)) for row in res.rows]
+
+  async def list_products_with_enablement(self, users_guid: str) -> list[dict[str, Any]]:
+    products = await self.list_products(status=1)
+    user_enablements = await self.get_user_enablements(users_guid)
+    user_roles = await self.get_user_roles_mask(users_guid)
+    out: list[dict[str, Any]] = []
+    for product in products:
+      already_enabled = False
+      enablement_key = product.get("enablement_key")
+      if enablement_key == "ROLE_STORAGE":
+        already_enabled = bool(user_enablements & 1)
+      elif enablement_key == "ROLE_DISCORD_BOT":
+        already_enabled = bool(user_roles & 0x10)
+      out.append({**product, "already_enabled": already_enabled})
+    return out
 
   async def get_product(self, recid: int | None = None, sku: str | None = None) -> dict[str, Any] | None:
     assert self.db

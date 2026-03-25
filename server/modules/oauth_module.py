@@ -47,6 +47,8 @@ from queryregistry.identity.sessions import (
   revoke_provider_tokens_request,
   update_device_token_request,
 )
+from queryregistry.finance.credits import set_credits_request
+from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.system.config import get_config_request
 
 
@@ -327,6 +329,54 @@ class OauthModule(BaseModule):
     )
     rows = self._normalize_query_payload(res.payload)
     return rows[0] if rows else None
+
+  async def register_discord_user(self, discord_id: str) -> dict:
+    auth: AuthModule = self.app.state.auth
+    await auth.on_ready()
+    guid, _, _ = await auth.get_discord_user_security(discord_id)
+    if guid:
+      return {
+        "success": True,
+        "message": "You are already registered.",
+        "user_guid": guid,
+        "credits": None,
+      }
+
+    provider_identifier = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
+    discord_module = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
+    bot = getattr(discord_module, "bot", None)
+    try:
+      if bot is None:
+        raise RuntimeError("Discord bot is unavailable")
+      user = await bot.fetch_user(int(discord_id))
+      display_name = user.display_name or str(discord_id)
+    except Exception:
+      logging.exception(
+        "[OauthModule] failed to fetch discord profile",
+        extra={"discord_id": discord_id},
+      )
+      display_name = str(discord_id)
+
+    created = await self.create_user_from_provider(
+      provider="discord",
+      provider_identifier=provider_identifier,
+      provider_email=f"{discord_id}@discord.placeholder",
+      provider_displayname=display_name,
+    )
+    if not created or not created.get("guid"):
+      raise HTTPException(status_code=500, detail="Unable to create user")
+    new_user_guid = created["guid"]
+    await self.db.run(set_credits_request(SetCreditsParams(guid=new_user_guid, credits=50)))
+    logging.info(
+      "[OauthModule] registered discord user",
+      extra={"discord_id": discord_id, "user_guid": new_user_guid},
+    )
+    return {
+      "success": True,
+      "message": "Registration complete. You have been granted 50 credits.",
+      "user_guid": new_user_guid,
+      "credits": 50,
+    }
 
   async def exchange_code_for_tokens(
     self,

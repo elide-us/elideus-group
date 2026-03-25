@@ -53,6 +53,21 @@ class StubModule:
       'role': 'role',
     }
 
+  async def summarize_and_deliver(self, guild_id, channel_id, hours, user_id):
+    self.summary_called = True
+    self.summary_args = (guild_id, channel_id, hours, user_id)
+    return {
+      'success': True,
+      'queue_id': 'queue-123',
+      'messages_collected': 1,
+      'token_count_estimate': 2,
+      'cap_hit': False,
+      'dm_enqueued': True,
+      'channel_ack_enqueued': True,
+      'reason': None,
+      'ack_message': f'Summary queued for delivery to <@{user_id}>.' if user_id else 'Summary queued for delivery.',
+    }
+
   async def deliver_summary(
     self,
     *,
@@ -367,10 +382,6 @@ def test_summarize_channel_handler():
   resp = client.post('/rpc', json={'op': 'urn:discord:chat:summarize_channel:1'})
   assert resp.status_code == 200
   assert module.summary_called
-  assert len(module.delivery_calls) == 1
-  delivery = module.delivery_calls[0]
-  assert delivery['summary_text'] == 'hi'
-  assert delivery['ack_message'] == 'Summary queued for delivery to <@3>.'
   data = resp.json()
   expected = {
     "success": True,

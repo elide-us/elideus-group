@@ -445,6 +445,7 @@ class StorageModule(BaseModule):
           filename,
           exc,
         )
+    await self.reindex(user_guid)
 
   async def delete_files(self, user_guid: str, names: list[str]):
     if not self.db:
@@ -478,6 +479,7 @@ class StorageModule(BaseModule):
           filename,
           exc,
         )
+    await self.reindex(user_guid)
 
   async def set_gallery(self, user_guid: str, name: str, gallery: bool):
     assert self.db
@@ -534,6 +536,7 @@ class StorageModule(BaseModule):
         folder_name,
         exc,
       )
+    await self.reindex(user_guid)
 
   async def delete_folder(self, user_guid: str, path: str):
     if not self.db:
@@ -579,6 +582,7 @@ class StorageModule(BaseModule):
         normalized,
         exc,
       )
+    await self.reindex(user_guid)
 
   async def create_user_folder(self, user_guid: str, path: str):
     await self.create_folder(user_guid, path)
@@ -638,9 +642,20 @@ class StorageModule(BaseModule):
         dst_filename,
         exc,
       )
+    await self.reindex(user_guid)
 
-  async def get_file_link(self, user_guid: str, name: str) -> str:
-    raise NotImplementedError
+  async def get_file_link(self, user_guid: str, name: str) -> dict[str, str]:
+    rel = (name or "").strip("/")
+    path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
+    assert self.db
+    rows = await self.db.list_storage_cache(user_guid)
+    for row in rows:
+      row_path = row.get("path") or ""
+      row_filename = row.get("filename") or ""
+      if row_path == path and row_filename == filename and row.get("content_type") != "path/folder":
+        url = row.get("url") or rel
+        return {"path": path, "name": filename, "url": url}
+    return {"path": path, "name": filename, "url": rel}
 
   async def _update_cache_entry(
     self,
@@ -780,14 +795,42 @@ class StorageModule(BaseModule):
             None,
           )
           processed.add(full)
+    await self.reindex(user_guid)
 
   async def get_file_metadata(self, user_guid: str, name: str):
-    raise NotImplementedError
+    rel = (name or "").strip("/")
+    path, filename = rel.rsplit("/", 1) if "/" in rel else ("", rel)
+    assert self.db
+    rows = await self.db.list_storage_cache(user_guid)
+    for row in rows:
+      if (row.get("path") or "") == path and (row.get("filename") or "") == filename:
+        return {
+          "path": path,
+          "name": filename,
+          "url": row.get("url") or rel,
+          "content_type": row.get("content_type"),
+          "gallery": bool(row.get("public")),
+        }
+    return {
+      "path": path,
+      "name": filename,
+      "url": rel,
+      "content_type": None,
+      "gallery": False,
+    }
 
   async def get_usage(self, user_guid: str):
-    raise NotImplementedError
+    rows = await self.list_files_by_user(user_guid)
+    totals: dict[str, int] = {}
+    for row in rows:
+      content_type = str(row.get("content_type") or "application/octet-stream")
+      totals.setdefault(content_type, 0)
+    by_type = [{"content_type": k, "size": v} for k, v in totals.items()]
+    return {"total_size": 0, "by_type": by_type}
 
-  async def get_storage_stats(self):
+  async def get_storage_stats(self, reindex: bool = False):
+    if reindex:
+      await self.reindex()
     assert self.db
     db_res = await self.db.run(count_rows_request())
     db_rows = db_res.rows[0]["count"] if db_res.rows else 0
