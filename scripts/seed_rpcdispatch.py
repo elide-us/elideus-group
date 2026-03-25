@@ -340,10 +340,23 @@ def discover_subdomains(domains: list[str]) -> list[tuple[str, str]]:
   return rows
 
 
-def discover_models() -> tuple[list[dict[str, Any]], dict[str, int], dict[str, type[BaseModel]]]:
+def resolve_alias_name(name: str, alias_map: dict[str, str]) -> str:
+  resolved = name
+  while resolved in alias_map:
+    resolved = alias_map[resolved]
+  return resolved
+
+
+def discover_models() -> tuple[
+  list[dict[str, Any]],
+  dict[str, int],
+  dict[str, type[BaseModel]],
+  dict[str, str],
+]:
   model_rows: list[dict[str, Any]] = []
   model_map: dict[str, int] = {}
   model_classes: dict[str, type[BaseModel]] = {}
+  alias_map: dict[str, str] = {}
 
   recid = 1
   for models_file in sorted(RPC_ROOT.glob("**/models.py")):
@@ -372,7 +385,9 @@ def discover_models() -> tuple[list[dict[str, Any]], dict[str, int], dict[str, t
           "element_domain": domain,
           "element_subdomain": subdomain,
           "element_version": version,
-          "element_parent_recid": None,
+          "parent_name": None,
+          "is_alias": False,
+          "flatten_fields": False,
           "model_class": obj,
         }
       )
@@ -385,15 +400,36 @@ def discover_models() -> tuple[list[dict[str, Any]], dict[str, int], dict[str, t
     for base in cls.__bases__:
       if base is BaseModel:
         continue
-      parent_recid = model_map.get(base.__name__)
-      if parent_recid is not None:
-        row["element_parent_recid"] = parent_recid
+      parent_name = base.__name__
+      if parent_name in model_map:
+        row["parent_name"] = parent_name
         break
 
-  return model_rows, model_map, model_classes
+  for row in model_rows:
+    parent_name = row["parent_name"]
+    if not parent_name:
+      continue
+    cls = row["model_class"]
+    parent_cls = model_classes[parent_name]
+    child_only_fields = [name for name in cls.model_fields if name not in parent_cls.model_fields]
+    if not child_only_fields:
+      row["is_alias"] = True
+      alias_map[row["element_name"]] = parent_name
+      continue
+    if 1 <= len(parent_cls.model_fields) <= 3:
+      row["flatten_fields"] = True
+
+  filtered_rows = [row for row in model_rows if not row["is_alias"]]
+  filtered_map = {row["element_name"]: row["recid"] for row in filtered_rows}
+
+  return filtered_rows, filtered_map, model_classes, alias_map
 
 
-def resolve_annotation(annotation: Any, model_map: dict[str, int]) -> dict[str, Any]:
+def resolve_annotation(
+  annotation: Any,
+  model_map: dict[str, int],
+  alias_map: dict[str, str],
+) -> dict[str, Any]:
   info = {
     "element_edt_recid": None,
     "element_is_nullable": 0,
@@ -431,7 +467,8 @@ def resolve_annotation(annotation: Any, model_map: dict[str, int]) -> dict[str, 
       return
 
     if inspect.isclass(ann) and issubclass(ann, BaseModel):
-      ref_recid = model_map.get(ann.__name__)
+      ref_model_name = resolve_alias_name(ann.__name__, alias_map)
+      ref_recid = model_map.get(ref_model_name)
       if ref_recid is not None:
         info["element_ref_model_recid"] = ref_recid
       return
@@ -469,7 +506,12 @@ def default_value_for_field(field_info: Any) -> str | None:
   return None
 
 
-def discover_model_fields(model_rows: list[dict[str, Any]], model_map: dict[str, int]) -> list[dict[str, Any]]:
+def discover_model_fields(
+  model_rows: list[dict[str, Any]],
+  model_map: dict[str, int],
+  model_classes: dict[str, type[BaseModel]],
+  alias_map: dict[str, str],
+) -> list[dict[str, Any]]:
   rows: list[dict[str, Any]] = []
   recid = 1
 
@@ -478,10 +520,32 @@ def discover_model_fields(model_rows: list[dict[str, Any]], model_map: dict[str,
     model_recid = model["recid"]
     sort_order = 0
 
-    for field_name, field_info in model_class.model_fields.items():
+    fields_to_insert: list[tuple[str, Any]]
+    parent_name = model["parent_name"]
+    if model["flatten_fields"] and parent_name:
+      parent_class = model_classes[parent_name]
+      parent_fields = [
+        (field_name, field_info)
+        for field_name, field_info in parent_class.model_fields.items()
+        if field_name != "API_PROVIDERS"
+      ]
+      child_only_fields = [
+        (field_name, field_info)
+        for field_name, field_info in model_class.model_fields.items()
+        if field_name != "API_PROVIDERS" and field_name not in parent_class.model_fields
+      ]
+      fields_to_insert = parent_fields + child_only_fields
+    else:
+      fields_to_insert = [
+        (field_name, field_info)
+        for field_name, field_info in model_class.model_fields.items()
+        if field_name != "API_PROVIDERS"
+      ]
+
+    for field_name, field_info in fields_to_insert:
       if field_name == "API_PROVIDERS":
         continue
-      details = resolve_annotation(field_info.annotation, model_map)
+      details = resolve_annotation(field_info.annotation, model_map, alias_map)
       row = {
         "recid": recid,
         "models_recid": model_recid,
@@ -570,6 +634,7 @@ def discover_functions(
   subdomains: list[tuple[str, str]],
   subdomain_recids: dict[tuple[str, str], int],
   model_map: dict[str, int],
+  alias_map: dict[str, str],
 ) -> list[dict[str, Any]]:
   rows: list[dict[str, Any]] = []
   recid = 1
@@ -589,6 +654,10 @@ def discover_functions(
       method_name = METHOD_NAME_OVERRIDES.get(override_key) or meta.get("method_name") or operation["op"]
       request_model = REQUEST_MODEL_OVERRIDES.get(override_key) or meta.get("request_model")
       response_model = meta.get("response_model")
+      if request_model:
+        request_model = resolve_alias_name(request_model, alias_map)
+      if response_model:
+        response_model = resolve_alias_name(response_model, alias_map)
 
       rows.append(
         {
@@ -641,15 +710,15 @@ def main() -> None:
 
   domains = discover_domains()
   subdomains = discover_subdomains(domains)
-  model_rows, model_map, _ = discover_models()
-  field_rows = discover_model_fields(model_rows, model_map)
+  model_rows, model_map, model_classes, alias_map = discover_models()
+  field_rows = discover_model_fields(model_rows, model_map, model_classes, alias_map)
 
   domain_recids: dict[str, int] = {name: idx for idx, name in enumerate(domains, start=1)}
   subdomain_recids: dict[tuple[str, str], int] = {
     (domain, subdomain): idx
     for idx, (domain, subdomain) in enumerate(subdomains, start=1)
   }
-  function_rows = discover_functions(subdomains, subdomain_recids, model_map)
+  function_rows = discover_functions(subdomains, subdomain_recids, model_map, alias_map)
 
   conn = connect()
   try:
@@ -716,8 +785,6 @@ def main() -> None:
     )
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_subdomains OFF;")
 
-    # Insert models in two passes to satisfy the self-referential FK constraint.
-    # Pass 1: insert all rows with element_parent_recid = NULL.
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_models ON;")
     insert_many(
       cursor,
@@ -741,19 +808,6 @@ def main() -> None:
       ],
     )
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_models OFF;")
-
-    # Pass 2: set element_parent_recid on models that have inheritance.
-    parent_updates = [
-      (row["element_parent_recid"], row["recid"])
-      for row in model_rows
-      if row["element_parent_recid"] is not None
-    ]
-    if parent_updates:
-      cursor.fast_executemany = True
-      cursor.executemany(
-        "UPDATE reflection_rpc_models SET element_parent_recid = ? WHERE recid = ?;",
-        parent_updates,
-      )
 
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_model_fields ON;")
     insert_many(
