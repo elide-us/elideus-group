@@ -401,7 +401,7 @@ def connect() -> pyodbc.Connection:
   dsn = os.environ.get("AZURE_SQL_CONNECTION_STRING_DEV") or os.environ.get("AZURE_SQL_CONNECTION_STRING")
   if not dsn:
     raise RuntimeError("Missing AZURE_SQL_CONNECTION_STRING_DEV/AZURE_SQL_CONNECTION_STRING in environment")
-  return pyodbc.connect(dsn)
+  return pyodbc.connect(dsn, autocommit=True)
 
 
 def main() -> None:
