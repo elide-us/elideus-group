@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import logging
-import os
+from os import getenv
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -21,8 +21,8 @@ from server.models import AuthContext
 if TYPE_CHECKING:
   from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
-_MCP_TOKEN = os.environ.get("MCP_AGENT_TOKEN", "")
-_hostname = os.environ.get("MCP_HOSTNAME", "localhost")
+_MCP_TOKEN = getenv("MCP_AGENT_TOKEN", "")
+_hostname = "localhost"
 _gateway_resolver: Callable[[], Any] | None = None
 _AUTH_CONTEXT: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar("mcp_auth", default=None)
 

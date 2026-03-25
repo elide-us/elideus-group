@@ -135,7 +135,7 @@ class McpGatewayModule(BaseModule):
 
   async def refresh_runtime_config(self):
     self.dcr_enabled = await self.is_dcr_enabled(refresh=True)
-    self.hostname = await self._get_config_value("McpHostname", fallback="")
+    self.hostname = await self._get_config_value("Hostname", fallback="")
     self.register_ip_limit = await self._get_config_int("MCP_RATE_LIMIT_REGISTER_IP", fallback=5)
     self.register_global_limit = await self._get_config_int(
       "MCP_RATE_LIMIT_REGISTER_GLOBAL", fallback=50
