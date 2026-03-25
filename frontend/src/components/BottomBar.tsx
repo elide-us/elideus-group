@@ -11,7 +11,7 @@ const BottomBar = ({ info }: Props): JSX.Element => {
 			{info ? (
 				<>
 					<Typography variant="body1">
-						{info.version} running on {info.hostname}
+						{info.version} running on https://{info.hostname}
 					</Typography>
 					{info.ffmpeg_version && (
 						<Typography variant="body1" sx={{ marginTop: '4px' }}>
