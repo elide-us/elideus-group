@@ -112,7 +112,7 @@ class OauthModule(BaseModule):
   async def _get_redirect_uri(self, provider: str) -> str:
     if self._redirect_uri:
       return self._redirect_uri
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="Hostname")))
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="RedirectUri")))
     if not res.rows:
       raise HTTPException(
         status_code=500,
