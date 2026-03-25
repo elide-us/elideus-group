@@ -15,65 +15,25 @@ import {
     Typography,
 } from '@mui/material';
 import PageTitle from '../../components/PageTitle';
-import { rpcCall } from '../../shared/RpcModels';
-
-type DomainItem = {
-    recid: number;
-    element_name: string;
-    element_required_role: string | null;
-    element_is_auth_exempt: boolean;
-    element_is_public: boolean;
-    element_is_discord: boolean;
-    element_status: number;
-    element_app_version: string | null;
-    element_iteration: number;
-};
-
-type SubdomainItem = {
-    recid: number;
-    domains_recid: number;
-    element_name: string;
-    element_entitlement_mask: number;
-    element_status: number;
-    element_app_version: string | null;
-    element_iteration: number;
-};
-
-type FunctionItem = {
-    recid: number;
-    subdomains_recid: number;
-    element_name: string;
-    element_version: number;
-    element_module_attr: string;
-    element_method_name: string;
-    element_request_model_recid: number | null;
-    element_response_model_recid: number | null;
-    element_status: number;
-};
-
-type ModelItem = {
-    recid: number;
-    element_name: string;
-    element_domain: string;
-    element_subdomain: string;
-    element_version: number;
-    element_parent_recid: number | null;
-    element_status: number;
-    element_app_version: string | null;
-};
-
-type ModelFieldItem = {
-    recid: number;
-    models_recid: number;
-    element_name: string;
-    element_edt_recid: number | null;
-    element_is_nullable: boolean;
-    element_is_list: boolean;
-    element_is_dict: boolean;
-    element_ref_model_recid: number | null;
-    element_default_value: string | null;
-    element_sort_order: number;
-};
+import {
+    ServiceRpcdispatchDomainItem1,
+    ServiceRpcdispatchDomainList1,
+    ServiceRpcdispatchFunctionItem1,
+    ServiceRpcdispatchFunctionList1,
+    ServiceRpcdispatchModelFieldItem1,
+    ServiceRpcdispatchModelFieldList1,
+    ServiceRpcdispatchModelItem1,
+    ServiceRpcdispatchModelList1,
+    ServiceRpcdispatchSubdomainItem1,
+    ServiceRpcdispatchSubdomainList1,
+} from '../../shared/RpcModels';
+import {
+    fetchListDomains,
+    fetchListFunctions,
+    fetchListModelFields,
+    fetchListModels,
+    fetchListSubdomains,
+} from '../../rpc/service/rpcdispatch/index';
 
 const EDT_NAME_BY_RECID: Record<number, string> = {
     1: 'INT32',
@@ -106,11 +66,11 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
     const [tabIndex, setTabIndex] = useState(0);
     const [forbidden, setForbidden] = useState(false);
 
-    const [domains, setDomains] = useState<DomainItem[]>([]);
-    const [subdomains, setSubdomains] = useState<SubdomainItem[]>([]);
-    const [functions, setFunctions] = useState<FunctionItem[]>([]);
-    const [models, setModels] = useState<ModelItem[]>([]);
-    const [fields, setFields] = useState<ModelFieldItem[]>([]);
+    const [domains, setDomains] = useState<ServiceRpcdispatchDomainItem1[]>([]);
+    const [subdomains, setSubdomains] = useState<ServiceRpcdispatchSubdomainItem1[]>([]);
+    const [functions, setFunctions] = useState<ServiceRpcdispatchFunctionItem1[]>([]);
+    const [models, setModels] = useState<ServiceRpcdispatchModelItem1[]>([]);
+    const [fields, setFields] = useState<ServiceRpcdispatchModelFieldItem1[]>([]);
 
     const [loading, setLoading] = useState(false);
 
@@ -127,7 +87,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const loadDomains = useCallback(async (): Promise<void> => {
         try {
-            const response = await rpcCall<{ domains: DomainItem[] }>('urn:service:rpcdispatch:list_domains:1');
+            const response = await fetchListDomains() as ServiceRpcdispatchDomainList1 & { domains: ServiceRpcdispatchDomainItem1[] };
             setDomains(response.domains || []);
             setForbidden(false);
         } catch (error: any) {
@@ -137,7 +97,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const loadSubdomains = useCallback(async (): Promise<void> => {
         try {
-            const response = await rpcCall<{ subdomains: SubdomainItem[] }>('urn:service:rpcdispatch:list_subdomains:1');
+            const response = await fetchListSubdomains() as ServiceRpcdispatchSubdomainList1 & { subdomains: ServiceRpcdispatchSubdomainItem1[] };
             setSubdomains(response.subdomains || []);
             setForbidden(false);
         } catch (error: any) {
@@ -147,7 +107,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const loadFunctions = useCallback(async (): Promise<void> => {
         try {
-            const response = await rpcCall<{ functions: FunctionItem[] }>('urn:service:rpcdispatch:list_functions:1');
+            const response = await fetchListFunctions() as ServiceRpcdispatchFunctionList1 & { functions: ServiceRpcdispatchFunctionItem1[] };
             setFunctions(response.functions || []);
             setForbidden(false);
         } catch (error: any) {
@@ -157,7 +117,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const loadModels = useCallback(async (): Promise<void> => {
         try {
-            const response = await rpcCall<{ models: ModelItem[] }>('urn:service:rpcdispatch:list_models:1');
+            const response = await fetchListModels() as ServiceRpcdispatchModelList1 & { models: ServiceRpcdispatchModelItem1[] };
             setModels(response.models || []);
             setForbidden(false);
         } catch (error: any) {
@@ -167,7 +127,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const loadModelFields = useCallback(async (): Promise<void> => {
         try {
-            const response = await rpcCall<{ fields: ModelFieldItem[] }>('urn:service:rpcdispatch:list_model_fields:1');
+            const response = await fetchListModelFields() as ServiceRpcdispatchModelFieldList1 & { fields: ServiceRpcdispatchModelFieldItem1[] };
             setFields(response.fields || []);
             setForbidden(false);
         } catch (error: any) {

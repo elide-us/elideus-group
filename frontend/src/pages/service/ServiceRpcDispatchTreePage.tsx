@@ -4,65 +4,25 @@ import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import PageTitle from '../../components/PageTitle';
-import { rpcCall } from '../../shared/RpcModels';
-
-type DomainItem = {
-    recid: number;
-    element_name: string;
-    element_required_role: string | null;
-    element_is_auth_exempt: boolean;
-    element_is_public: boolean;
-    element_is_discord: boolean;
-    element_status: number;
-    element_app_version: string | null;
-    element_iteration: number;
-};
-
-type SubdomainItem = {
-    recid: number;
-    domains_recid: number;
-    element_name: string;
-    element_entitlement_mask: number;
-    element_status: number;
-    element_app_version: string | null;
-    element_iteration: number;
-};
-
-type FunctionItem = {
-    recid: number;
-    subdomains_recid: number;
-    element_name: string;
-    element_version: number;
-    element_module_attr: string;
-    element_method_name: string;
-    element_request_model_recid: number | null;
-    element_response_model_recid: number | null;
-    element_status: number;
-};
-
-type ModelItem = {
-    recid: number;
-    element_name: string;
-    element_domain: string;
-    element_subdomain: string;
-    element_version: number;
-    element_parent_recid: number | null;
-    element_status: number;
-    element_app_version: string | null;
-};
-
-type ModelFieldItem = {
-    recid: number;
-    models_recid: number;
-    element_name: string;
-    element_edt_recid: number | null;
-    element_is_nullable: boolean;
-    element_is_list: boolean;
-    element_is_dict: boolean;
-    element_ref_model_recid: number | null;
-    element_default_value: string | null;
-    element_sort_order: number;
-};
+import {
+    ServiceRpcdispatchDomainItem1,
+    ServiceRpcdispatchDomainList1,
+    ServiceRpcdispatchFunctionItem1,
+    ServiceRpcdispatchFunctionList1,
+    ServiceRpcdispatchModelFieldItem1,
+    ServiceRpcdispatchModelFieldList1,
+    ServiceRpcdispatchModelItem1,
+    ServiceRpcdispatchModelList1,
+    ServiceRpcdispatchSubdomainItem1,
+    ServiceRpcdispatchSubdomainList1,
+} from '../../shared/RpcModels';
+import {
+    fetchListDomains,
+    fetchListFunctions,
+    fetchListModelFields,
+    fetchListModels,
+    fetchListSubdomains,
+} from '../../rpc/service/rpcdispatch/index';
 
 const EDT_NAMES: Record<number, string> = {
     1: 'INT32',
@@ -80,7 +40,7 @@ const EDT_NAMES: Record<number, string> = {
     15: 'JSON',
 };
 
-function describeFieldType(field: ModelFieldItem, modelMap: Map<number, string>): string {
+function describeFieldType(field: ServiceRpcdispatchModelFieldItem1, modelMap: Map<number, string>): string {
     const parts: string[] = [];
 
     if (field.element_ref_model_recid) {
@@ -123,11 +83,11 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     const [forbidden, setForbidden] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    const [domains, setDomains] = useState<DomainItem[]>([]);
-    const [subdomains, setSubdomains] = useState<SubdomainItem[]>([]);
-    const [functions, setFunctions] = useState<FunctionItem[]>([]);
-    const [models, setModels] = useState<ModelItem[]>([]);
-    const [fields, setFields] = useState<ModelFieldItem[]>([]);
+    const [domains, setDomains] = useState<ServiceRpcdispatchDomainItem1[]>([]);
+    const [subdomains, setSubdomains] = useState<ServiceRpcdispatchSubdomainItem1[]>([]);
+    const [functions, setFunctions] = useState<ServiceRpcdispatchFunctionItem1[]>([]);
+    const [models, setModels] = useState<ServiceRpcdispatchModelItem1[]>([]);
+    const [fields, setFields] = useState<ServiceRpcdispatchModelFieldItem1[]>([]);
 
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -142,19 +102,23 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
         setLoading(true);
         try {
             const [domainRes, subdomainRes, functionRes, modelRes, fieldRes] = await Promise.all([
-                rpcCall<{ domains: DomainItem[] }>('urn:service:rpcdispatch:list_domains:1'),
-                rpcCall<{ subdomains: SubdomainItem[] }>('urn:service:rpcdispatch:list_subdomains:1'),
-                rpcCall<{ functions: FunctionItem[] }>('urn:service:rpcdispatch:list_functions:1'),
-                rpcCall<{ models: ModelItem[] }>('urn:service:rpcdispatch:list_models:1'),
-                rpcCall<{ fields: ModelFieldItem[] }>('urn:service:rpcdispatch:list_model_fields:1'),
+                fetchListDomains() as Promise<ServiceRpcdispatchDomainList1 & { domains: ServiceRpcdispatchDomainItem1[] }>,
+                fetchListSubdomains() as Promise<ServiceRpcdispatchSubdomainList1 & { subdomains: ServiceRpcdispatchSubdomainItem1[] }>,
+                fetchListFunctions() as Promise<ServiceRpcdispatchFunctionList1 & { functions: ServiceRpcdispatchFunctionItem1[] }>,
+                fetchListModels() as Promise<ServiceRpcdispatchModelList1 & { models: ServiceRpcdispatchModelItem1[] }>,
+                fetchListModelFields() as Promise<ServiceRpcdispatchModelFieldList1 & { fields: ServiceRpcdispatchModelFieldItem1[] }>,
             ]);
 
-            const nextDomains = domainRes.domains || [];
+            const nextDomains = (domainRes.domains || []) as ServiceRpcdispatchDomainItem1[];
+            const nextSubdomains = (subdomainRes.subdomains || []) as ServiceRpcdispatchSubdomainItem1[];
+            const nextFunctions = (functionRes.functions || []) as ServiceRpcdispatchFunctionItem1[];
+            const nextModels = (modelRes.models || []) as ServiceRpcdispatchModelItem1[];
+            const nextFields = (fieldRes.fields || []) as ServiceRpcdispatchModelFieldItem1[];
             setDomains(nextDomains);
-            setSubdomains(subdomainRes.subdomains || []);
-            setFunctions(functionRes.functions || []);
-            setModels(modelRes.models || []);
-            setFields(fieldRes.fields || []);
+            setSubdomains(nextSubdomains);
+            setFunctions(nextFunctions);
+            setModels(nextModels);
+            setFields(nextFields);
             setForbidden(false);
             setExpandedItems(nextDomains.map((domain) => `domain-${domain.recid}`));
         } catch (error: any) {
@@ -171,7 +135,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     const modelNameByRecid = useMemo(() => new Map(models.map((model) => [model.recid, model.element_name])), [models]);
 
     const fieldsByModel = useMemo(() => {
-        const grouped = new Map<number, ModelFieldItem[]>();
+        const grouped = new Map<number, ServiceRpcdispatchModelFieldItem1[]>();
         fields.forEach((field) => {
             if (!grouped.has(field.models_recid)) {
                 grouped.set(field.models_recid, []);
@@ -183,7 +147,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     }, [fields]);
 
     const subdomainsByDomain = useMemo(() => {
-        const grouped = new Map<number, SubdomainItem[]>();
+        const grouped = new Map<number, ServiceRpcdispatchSubdomainItem1[]>();
         subdomains.forEach((subdomain) => {
             if (!grouped.has(subdomain.domains_recid)) {
                 grouped.set(subdomain.domains_recid, []);
@@ -195,7 +159,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     }, [subdomains]);
 
     const functionsBySubdomain = useMemo(() => {
-        const grouped = new Map<number, FunctionItem[]>();
+        const grouped = new Map<number, ServiceRpcdispatchFunctionItem1[]>();
         functions.forEach((fn) => {
             if (!grouped.has(fn.subdomains_recid)) {
                 grouped.set(fn.subdomains_recid, []);
