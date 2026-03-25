@@ -52,7 +52,7 @@ async def list_renewals_v1(args: Mapping[str, Any]) -> DBResponse:
       element_name ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return await run_json_many(sql, tuple(params) if params else None)
+  return await run_json_many(sql, tuple(params))
 
 
 async def get_renewal_v1(args: Mapping[str, Any]) -> DBResponse:

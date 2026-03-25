@@ -7,6 +7,7 @@ def _rowdict(cols: Iterable[str], row: Iterable[Any]):
   return dict(zip(cols, row))
 
 async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = False, stream: bool = False) -> DBResponse | AsyncIterator[dict]:
+  params = params or ()
   assert logic._pool, "MSSQL pool not initialized"
   async def _ensure_result_set(cur) -> bool:
     if cur.description is not None:
@@ -52,6 +53,7 @@ async def fetch_rows(query: str, params: tuple[Any, ...] = (), *, one: bool = Fa
     return DBResponse()
 
 async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = False) -> DBResponse:
+  params = params or ()
   assert logic._pool, "MSSQL pool not initialized"
   try:
     async with logic._pool.acquire() as conn:
@@ -74,6 +76,7 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
     raise
 
 async def exec_query(query: str, params: tuple[Any, ...] = ()) -> DBResponse:
+  params = params or ()
   assert logic._pool, "MSSQL pool not initialized"
   try:
     async with logic._pool.acquire() as conn:
