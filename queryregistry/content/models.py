@@ -1,3 +1,3 @@
-"""Content query registry models placeholder."""
+"""Content query registry models."""
 
 __all__ = []

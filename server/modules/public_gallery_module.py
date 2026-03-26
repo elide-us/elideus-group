@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
-from queryregistry.content.cache import list_public_request
+from queryregistry.content.indexing import list_public_request
 
 class PublicGalleryModule(BaseModule):
   def __init__(self, app: FastAPI):
