@@ -9,6 +9,14 @@ class UsersWikiCreateVersion1(BaseModel):
   edit_summary: Optional[str] = None
 
 
+class UsersWikiCreatePage1(BaseModel):
+  slug: str
+  title: str
+  content: str
+  parent_slug: Optional[str] = None
+  edit_summary: Optional[str] = None
+
+
 class UsersWikiListVersions1(BaseModel):
   slug: str
 

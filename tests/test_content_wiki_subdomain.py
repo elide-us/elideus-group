@@ -144,6 +144,7 @@ def test_public_wiki_dispatchers_registered():
 def test_users_wiki_dispatchers_registered():
   module = importlib.import_module("rpc.users.wiki")
   dispatchers = module.DISPATCHERS
+  assert ("create_page", "1") in dispatchers
   assert ("create_version", "1") in dispatchers
   assert ("list_versions", "1") in dispatchers
   assert ("get_version", "1") in dispatchers
