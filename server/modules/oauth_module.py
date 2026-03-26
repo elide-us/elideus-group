@@ -31,7 +31,7 @@ except Exception:
   DEFAULT_SESSION_TOKEN_EXPIRY = 15
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from queryregistry.identity.providers import (
+from queryregistry.identity.auth import (
   create_from_provider_request,
   get_any_by_provider_identifier_request,
   get_by_provider_identifier_request,

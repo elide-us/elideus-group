@@ -1,4 +1,4 @@
-"""Identity providers handler implementations."""
+"""Identity auth handler implementations."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .services import (
   unlink_provider_v1,
 )
 
-__all__ = ["handle_providers_request"]
+__all__ = ["handle_auth_request"]
 
 DISPATCHERS = {
   ("get_by_provider_identifier", "1"): get_by_provider_identifier_v1,
@@ -36,7 +36,7 @@ DISPATCHERS = {
 }
 
 
-async def handle_providers_request(
+async def handle_auth_request(
   path: Sequence[str],
   request: DBRequest,
   *,
@@ -47,5 +47,5 @@ async def handle_providers_request(
     request,
     provider=provider,
     dispatchers=DISPATCHERS,
-    detail="Unknown identity providers operation",
+    detail="Unknown identity auth operation",
   )

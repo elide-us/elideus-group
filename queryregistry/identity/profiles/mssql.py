@@ -11,12 +11,10 @@ from queryregistry.providers.mssql import run_exec, run_json_one
 
 __all__ = [
   "get_public_profile_v1",
-  "get_roles_v1",
   "read_profile",
   "set_display_v1",
   "set_optin_v1",
   "set_profile_image_v1",
-  "set_roles_v1",
   "update_if_unedited",
   "update_if_unedited_v1",
   "update_profile",
@@ -73,15 +71,6 @@ async def read_profile(args: Mapping[str, Any]) -> DBResponse:
   return DBResponse(payload=response.payload)
 
 
-async def get_roles_v1(args: dict[str, Any]) -> DBResponse:
-  guid = str(args["guid"])
-  response = await run_json_one(
-    "SELECT element_roles AS roles FROM users_roles WHERE users_guid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
-    (guid,),
-  )
-  return DBResponse(payload=response.payload, rowcount=response.rowcount)
-
-
 async def set_display_v1(args: dict[str, Any]) -> DBResponse:
   guid = str(args["guid"])
   display_name = args["display_name"]
@@ -115,24 +104,6 @@ async def set_profile_image_v1(args: dict[str, Any]) -> DBResponse:
     response = await run_exec(
       "INSERT INTO users_profileimg (users_guid, element_base64, providers_recid) VALUES (?, ?, ?);",
       (guid, image_b64, ap_recid),
-    )
-  return DBResponse(payload=response.payload, rowcount=response.rowcount)
-
-
-async def set_roles_v1(args: dict[str, Any]) -> DBResponse:
-  guid = str(args["guid"])
-  roles = int(args["roles"])
-  if roles == 0:
-    response = await run_exec("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
-    return DBResponse(payload=response.payload, rowcount=response.rowcount)
-  response = await run_exec(
-    "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
-    (roles, guid),
-  )
-  if response.rowcount == 0:
-    response = await run_exec(
-      "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
-      (guid, roles),
     )
   return DBResponse(payload=response.payload, rowcount=response.rowcount)
 

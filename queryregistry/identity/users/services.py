@@ -1,4 +1,4 @@
-"""Identity accounts query registry service dispatchers."""
+"""Identity users query registry service dispatchers."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from queryregistry.models import DBRequest, DBResponse
 from . import mssql
 __all__ = [
   "account_exists_v1",
-  "read_accounts_v1",
+  "read_users_v1",
   "read_discord_security_v1",
 ]
 
@@ -25,14 +25,14 @@ _DISCORD_SECURITY_DISPATCHERS = {
 }
 
 
-async def read_accounts_v1(
+async def read_users_v1(
   request: DBRequest,
   *,
   provider: str,
 ) -> DBResponse:
   dispatcher = _READ_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity accounts registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity users registry")
   result = await dispatcher(request.payload)
   return DBResponse(op=request.op, payload=result.payload)
 
@@ -44,7 +44,7 @@ async def account_exists_v1(
 ) -> DBResponse:
   dispatcher = _EXISTS_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity accounts registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity users registry")
   result = await dispatcher(request.payload)
   return DBResponse(op=request.op, payload=result.payload)
 
@@ -56,6 +56,6 @@ async def read_discord_security_v1(
 ) -> DBResponse:
   dispatcher = _DISCORD_SECURITY_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity accounts registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity users registry")
   result = await dispatcher(request.payload)
   return DBResponse(op=request.op, payload=result.payload)

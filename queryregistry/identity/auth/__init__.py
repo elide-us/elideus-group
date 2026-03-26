@@ -1,4 +1,4 @@
-"""Identity providers query registry helpers."""
+"""Identity auth query registry helpers."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def get_by_provider_identifier_request(
   provider_identifier: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:get_by_provider_identifier:1",
+    op="db:identity:auth:get_by_provider_identifier:1",
     payload={
       "provider": provider,
       "provider_identifier": provider_identifier,
@@ -39,7 +39,7 @@ def get_any_by_provider_identifier_request(
   provider_identifier: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:get_any_by_provider_identifier:1",
+    op="db:identity:auth:get_any_by_provider_identifier:1",
     payload={
       "provider_identifier": provider_identifier,
     },
@@ -51,7 +51,7 @@ def get_user_by_email_request(
   email: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:get_user_by_email:1",
+    op="db:identity:auth:get_user_by_email:1",
     payload={"email": email},
   )
 
@@ -72,7 +72,7 @@ def create_from_provider_request(
   }
   if profile_image is not None:
     payload["profile_image"] = profile_image
-  return DBRequest(op="db:identity:providers:create_from_provider:1", payload=payload)
+  return DBRequest(op="db:identity:auth:create_from_provider:1", payload=payload)
 
 
 def link_provider_request(
@@ -82,7 +82,7 @@ def link_provider_request(
   provider_identifier: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:link_provider:1",
+    op="db:identity:auth:link_provider:1",
     payload={
       "guid": guid,
       "provider": provider,
@@ -103,7 +103,7 @@ def unlink_provider_request(
   }
   if new_provider_recid is not None:
     payload["new_provider_recid"] = new_provider_recid
-  return DBRequest(op="db:identity:providers:unlink_provider:1", payload=payload)
+  return DBRequest(op="db:identity:auth:unlink_provider:1", payload=payload)
 
 
 def unlink_last_provider_request(
@@ -112,7 +112,7 @@ def unlink_last_provider_request(
   provider: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:unlink_last_provider:1",
+    op="db:identity:auth:unlink_last_provider:1",
     payload={
       "guid": guid,
       "provider": provider,
@@ -126,7 +126,7 @@ def set_provider_request(
   provider: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:set_provider:1",
+    op="db:identity:auth:set_provider:1",
     payload={
       "guid": guid,
       "provider": provider,
@@ -156,7 +156,7 @@ def relink_provider_request(
     payload["confirm"] = confirm
   if reauth_token is not None:
     payload["reauth_token"] = reauth_token
-  return DBRequest(op="db:identity:providers:relink:1", payload=payload)
+  return DBRequest(op="db:identity:auth:relink:1", payload=payload)
 
 
 def soft_delete_account_request(
@@ -164,6 +164,6 @@ def soft_delete_account_request(
   guid: str,
 ) -> DBRequest:
   return DBRequest(
-    op="db:identity:providers:soft_delete_account:1",
+    op="db:identity:auth:soft_delete_account:1",
     payload={"guid": guid},
   )

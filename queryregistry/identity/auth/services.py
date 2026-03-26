@@ -1,4 +1,4 @@
-"""Identity providers query registry service dispatchers."""
+"""Identity auth query registry service dispatchers."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ async def get_by_provider_identifier_v1(
 ) -> DBResponse:
   dispatcher = _GET_BY_PROVIDER_IDENTIFIER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = ProviderIdentifierParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -90,7 +90,7 @@ async def get_any_by_provider_identifier_v1(
 ) -> DBResponse:
   dispatcher = _GET_ANY_BY_PROVIDER_IDENTIFIER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = GetAnyByProviderIdentifierParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -103,7 +103,7 @@ async def get_user_by_email_v1(
 ) -> DBResponse:
   dispatcher = _GET_USER_BY_EMAIL_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = GetUserByEmailParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -116,7 +116,7 @@ async def create_from_provider_v1(
 ) -> DBResponse:
   dispatcher = _CREATE_FROM_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = CreateFromProviderParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump(exclude_none=True))
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -129,7 +129,7 @@ async def link_provider_v1(
 ) -> DBResponse:
   dispatcher = _LINK_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = LinkProviderParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -142,7 +142,7 @@ async def unlink_provider_v1(
 ) -> DBResponse:
   dispatcher = _UNLINK_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = UnlinkProviderParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump(exclude_none=True))
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -155,7 +155,7 @@ async def unlink_last_provider_v1(
 ) -> DBResponse:
   dispatcher = _UNLINK_LAST_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = UnlinkLastProviderParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -168,7 +168,7 @@ async def set_provider_v1(
 ) -> DBResponse:
   dispatcher = _SET_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   params = SetProviderParams.model_validate(request.payload)
   result = await dispatcher(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
@@ -181,7 +181,7 @@ async def relink_provider_v1(
 ) -> DBResponse:
   dispatcher = _RELINK_PROVIDER_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   result = await dispatcher(request.payload)
   return DBResponse(op=request.op, payload=result.payload)
 
@@ -193,6 +193,6 @@ async def soft_delete_account_v1(
 ) -> DBResponse:
   dispatcher = _SOFT_DELETE_ACCOUNT_DISPATCHERS.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for identity providers registry")
+    raise KeyError(f"Unsupported provider '{provider}' for identity auth registry")
   result = await dispatcher(request.payload)
   return DBResponse(op=request.op, payload=result.payload)

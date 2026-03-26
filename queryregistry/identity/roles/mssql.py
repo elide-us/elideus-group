@@ -1,4 +1,4 @@
-"""MSSQL implementations for identity role memberships query registry services."""
+"""MSSQL implementations for identity roles query registry services."""
 
 from __future__ import annotations
 
@@ -6,14 +6,16 @@ from collections.abc import Mapping
 from typing import Any
 
 from queryregistry.models import DBResponse
-from queryregistry.providers.mssql import run_exec, run_json_many
+from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 __all__ = [
   "add_role_member",
+  "get_roles_v1",
   "list_all_role_memberships",
   "list_role_members",
   "list_role_non_members",
   "remove_role_member",
+  "set_roles_v1",
 ]
 
 
@@ -65,6 +67,33 @@ async def add_role_member(args: Mapping[str, Any]) -> DBResponse:
 async def remove_role_member(args: Mapping[str, Any]) -> DBResponse:
   rowcount = await _remove_role_member(args["role"], args["user_guid"])
   return DBResponse(payload={"rowcount": rowcount})
+
+
+async def get_roles_v1(args: dict[str, Any]) -> DBResponse:
+  guid = str(args["guid"])
+  response = await run_json_one(
+    "SELECT element_roles AS roles FROM users_roles WHERE users_guid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;",
+    (guid,),
+  )
+  return DBResponse(payload=response.payload, rowcount=response.rowcount)
+
+
+async def set_roles_v1(args: dict[str, Any]) -> DBResponse:
+  guid = str(args["guid"])
+  roles = int(args["roles"])
+  if roles == 0:
+    response = await run_exec("DELETE FROM users_roles WHERE users_guid = ?;", (guid,))
+    return DBResponse(payload=response.payload, rowcount=response.rowcount)
+  response = await run_exec(
+    "UPDATE users_roles SET element_roles = ? WHERE users_guid = ?;",
+    (roles, guid),
+  )
+  if response.rowcount == 0:
+    response = await run_exec(
+      "INSERT INTO users_roles (users_guid, element_roles) VALUES (?, ?);",
+      (guid, roles),
+    )
+  return DBResponse(payload=response.payload, rowcount=response.rowcount)
 
 
 def _normalize_payload(rows: list[Any]) -> list[dict[str, Any]]:

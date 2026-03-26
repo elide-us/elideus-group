@@ -10,7 +10,6 @@ from .models import (
   SetDisplayParams,
   SetOptInParams,
   SetProfileImageParams,
-  SetRolesParams,
   UpdateIfUneditedParams,
   UpdateProfileParams,
 )
@@ -18,11 +17,9 @@ from .models import (
 __all__ = [
   "get_public_profile_request",
   "get_profile_request",
-  "get_roles_request",
   "set_display_request",
   "set_optin_request",
   "set_profile_image_request",
-  "set_roles_request",
   "update_if_unedited_request",
   "update_profile_request",
 ]
@@ -33,10 +30,6 @@ def get_profile_request(params: GuidParams) -> DBRequest:
     op="db:identity:profiles:read:1",
     payload=params.model_dump(),
   )
-
-
-def get_roles_request(params: GuidParams) -> DBRequest:
-  return DBRequest(op="db:identity:profiles:get_roles:1", payload=params.model_dump())
 
 
 def set_display_request(params: SetDisplayParams) -> DBRequest:
@@ -51,10 +44,6 @@ def set_optin_request(params: SetOptInParams) -> DBRequest:
 
 def set_profile_image_request(params: SetProfileImageParams) -> DBRequest:
   return DBRequest(op="db:identity:profiles:set_profile_image:1", payload=params.model_dump())
-
-
-def set_roles_request(params: SetRolesParams) -> DBRequest:
-  return DBRequest(op="db:identity:profiles:set_roles:1", payload=params.model_dump())
 
 
 def update_profile_request(params: UpdateProfileParams) -> DBRequest:
