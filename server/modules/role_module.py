@@ -14,6 +14,7 @@ from queryregistry.system.roles import (
   update_system_role_request,
 )
 from queryregistry.system.roles.models import DeleteRoleParams, UpsertRoleParams
+from server.models import ContentAccess
 
 from . import BaseModule
 from .db_module import DbModule
@@ -142,3 +143,39 @@ class RoleModule(BaseModule):
 
   async def refresh_user_roles(self, guid: str):
     await self.get_user_roles(guid, refresh=True)
+
+  def check_content_access(
+    self,
+    *,
+    user_guid: str | None = None,
+    role_mask: int = 0,
+    owner_guid: str | None = None,
+    admin_mask: int | None = None,
+  ) -> ContentAccess:
+    """Compute capability flags for a user against a content resource.
+
+    Args:
+      user_guid: The authenticated user's GUID, or None if anonymous.
+      role_mask: The authenticated user's role bitmask.
+      owner_guid: The GUID of the resource's creator/owner.
+      admin_mask: The role bitmask required for admin override access.
+        If None, defaults to ROLE_SERVICE_ADMIN mask.
+
+    Returns:
+      ContentAccess with computed capability flags.
+    """
+
+    if admin_mask is None:
+      admin_mask = self.roles.get("ROLE_SERVICE_ADMIN", 0)
+
+    is_authenticated = user_guid is not None
+    is_owner = is_authenticated and owner_guid is not None and user_guid == owner_guid
+    is_admin = is_authenticated and bool(role_mask & admin_mask) if admin_mask else False
+
+    return ContentAccess(
+      can_view=True,
+      can_edit=is_owner or is_admin,
+      can_delete=is_admin,
+      is_owner=is_owner,
+      is_admin=is_admin,
+    )
