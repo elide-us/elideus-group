@@ -22,14 +22,14 @@ if TYPE_CHECKING:
 def _to_page_item(row: dict) -> ServicePagesPageItem1:
   return ServicePagesPageItem1(
     recid=row["recid"],
-    slug=row["slug"],
-    title=row["title"],
-    page_type=row["page_type"],
-    category=row.get("category"),
-    roles=row.get("roles", 0),
-    is_active=row.get("is_active", True),
-    is_pinned=row.get("is_pinned", False),
-    sequence=row.get("sequence", 0),
+    slug=row["element_slug"],
+    title=row["element_title"],
+    page_type=row["element_page_type"],
+    category=row.get("element_category"),
+    roles=row.get("element_roles", 0),
+    is_active=row.get("element_is_active", True),
+    is_pinned=row.get("element_is_pinned", False),
+    sequence=row.get("element_sequence", 0),
     element_created_on=row.get("element_created_on"),
     element_modified_on=row.get("element_modified_on"),
   )
