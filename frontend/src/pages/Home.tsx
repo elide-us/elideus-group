@@ -84,10 +84,10 @@ const Home = (): JSX.Element => {
 						flexWrap: 'wrap',
 					}}
 				>
-					<Button component={RouterLink} to="/terms-of-service" variant="outlined">
+					<Button component={RouterLink} to="/pages/terms-of-service" variant="outlined">
 						Terms of Service
 					</Button>
-					<Button component={RouterLink} to="/privacy-policy" variant="outlined">
+					<Button component={RouterLink} to="/pages/privacy-policy" variant="outlined">
 						Privacy Policy
 					</Button>
 				</Box>
