@@ -233,6 +233,16 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:service:routes:delete_route:1` | Delete a route definition.           |
 
+
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:pages:list:1` | List all content pages (including inactive) for administration. |
+| `urn:service:pages:create:1` | Create a content page with initial content/version. |
+| `urn:service:pages:update:1` | Update page metadata fields by `recid`. |
+| `urn:service:pages:delete:1` | Soft-delete a page by `recid`. |
+
 ### `renewals`
 
 | Operation | Description |
