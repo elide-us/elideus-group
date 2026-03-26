@@ -6,14 +6,20 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 
-from .models import PublicPagesGetPage1, PublicPagesListPages1, PublicPagesPageItem1
+from .models import (
+  PublicPagesGetPage1,
+  PublicPagesListPages1,
+  PublicPagesPageItem1,
+  PublicPagesPermissions1,
+)
 
 if TYPE_CHECKING:
   from server.modules.content_pages_module import ContentPagesModule
 
 
 async def public_pages_list_pages_v1(request: Request):
-  rpc_request, _auth_ctx, _user_ctx = await unbox_request(request)
+  rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
+  _ = auth_ctx
   payload = rpc_request.payload or {}
   page_type = payload.get("page_type")
 
@@ -43,7 +49,7 @@ async def public_pages_list_pages_v1(request: Request):
 
 
 async def public_pages_get_page_v1(request: Request):
-  rpc_request, _auth_ctx, _user_ctx = await unbox_request(request)
+  rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
   payload = rpc_request.payload or {}
   slug = payload.get("slug")
   if not slug:
@@ -54,6 +60,19 @@ async def public_pages_get_page_v1(request: Request):
   if not row or not row.get("element_is_active"):
     raise HTTPException(status_code=404, detail="Page not found")
 
+  role_module = request.app.state.role
+  access = role_module.check_content_access(
+    user_guid=auth_ctx.user_guid,
+    role_mask=auth_ctx.role_mask,
+    owner_guid=row.get("element_created_by"),
+  )
+
+  permissions = PublicPagesPermissions1(
+    can_edit=access.can_edit,
+    can_delete=access.can_delete,
+    is_owner=access.is_owner,
+  )
+
   page = PublicPagesGetPage1(
     slug=row["element_slug"],
     title=row["element_title"],
@@ -63,6 +82,7 @@ async def public_pages_get_page_v1(request: Request):
     version=row.get("element_version"),
     element_created_on=row.get("element_created_on"),
     element_modified_on=row.get("element_modified_on"),
+    permissions=permissions,
   )
 
   return RPCResponse(

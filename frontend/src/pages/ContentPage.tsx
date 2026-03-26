@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Typography } from '@mui/material';
+import { Edit as EditIcon } from '@mui/icons-material';
+import { Box, Button, Typography } from '@mui/material';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
@@ -13,6 +14,11 @@ type PublicPageResponse = {
 	page_type: string;
 	element_created_on: string | null;
 	element_modified_on: string | null;
+	permissions?: {
+		can_edit: boolean;
+		can_delete: boolean;
+		is_owner: boolean;
+	};
 };
 
 const formatDisplayDate = (isoDate: string | null): string => {
@@ -105,13 +111,29 @@ const ContentPage = (): JSX.Element => {
 
 	return (
 		<Box sx={{ p: 2, maxWidth: 800 }}>
-			<PageTitle>{page.title}</PageTitle>
+			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+				<Box>
+					<PageTitle>{page.title}</PageTitle>
 
-			{modifiedDate && (
-				<Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-					{modifiedDate}
-				</Typography>
-			)}
+					{modifiedDate && (
+						<Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+							{modifiedDate}
+						</Typography>
+					)}
+				</Box>
+				{page.permissions?.can_edit && (
+					<Button
+						variant="outlined"
+						size="small"
+						startIcon={<EditIcon />}
+						onClick={() => {
+							// TODO: wire to MarkdownEditor
+						}}
+					>
+						Edit
+					</Button>
+				)}
+			</Box>
 
 			<Box
 				sx={{

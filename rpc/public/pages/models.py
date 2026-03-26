@@ -1,5 +1,6 @@
 from typing import Optional
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
 
 
 class PublicPagesPageItem1(BaseModel):
@@ -21,6 +22,14 @@ class PublicPagesListPages1(BaseModel):
   pages: list[PublicPagesPageItem1]
 
 
+class PublicPagesPermissions1(BaseModel):
+  """Content access flags for the requesting user."""
+
+  can_edit: bool = False
+  can_delete: bool = False
+  is_owner: bool = False
+
+
 class PublicPagesGetPage1(BaseModel):
   """Response for get_page — includes content from latest version."""
 
@@ -32,3 +41,4 @@ class PublicPagesGetPage1(BaseModel):
   version: Optional[int] = None
   element_created_on: Optional[str] = None
   element_modified_on: Optional[str] = None
+  permissions: PublicPagesPermissions1 = Field(default_factory=PublicPagesPermissions1)
