@@ -7,7 +7,7 @@ from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule
 from queryregistry.handler import dispatch_query_request
-from queryregistry.system.links import (
+from queryregistry.system.public import (
   get_home_links_request,
   get_navbar_routes_request,
 )

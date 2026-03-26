@@ -23,7 +23,7 @@ from queryregistry.system.conversations.models import (
   ListChannelMessagesParams,
   ListThreadParams,
 )
-from queryregistry.system.models_registry import list_models_request
+from queryregistry.system.personas import list_models_request
 from queryregistry.system.personas import (
   delete_persona_request,
   get_persona_by_name_request,

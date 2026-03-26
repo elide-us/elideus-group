@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from fastapi import FastAPI
 
-from queryregistry.system.routes import (
+from queryregistry.system.public import (
   delete_route_request,
   get_routes_request,
   upsert_route_request,
 )
-from queryregistry.system.routes.models import RoutePathParams, UpsertRouteParams
+from queryregistry.system.public.models import RoutePathParams, UpsertRouteParams
 
 from . import BaseModule
 from .auth_module import AuthModule

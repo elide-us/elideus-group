@@ -1,4 +1,4 @@
-"""System integrations handler implementations."""
+"""Content pages handler implementations (stub — near-term implementation target)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
 from queryregistry.stubs import build_stub_dispatchers
 
-__all__ = ["handle_integrations_request"]
+__all__ = ["handle_pages_request"]
 
-DISPATCHERS = build_stub_dispatchers("system.integrations")
+DISPATCHERS = build_stub_dispatchers("content.pages")
 
 
-async def handle_integrations_request(
+async def handle_pages_request(
   path: Sequence[str],
   request: DBRequest,
   *,
@@ -24,5 +24,5 @@ async def handle_integrations_request(
     request,
     provider=provider,
     dispatchers=DISPATCHERS,
-    detail="Unknown system integrations operation",
+    detail="Unknown content pages operation",
   )

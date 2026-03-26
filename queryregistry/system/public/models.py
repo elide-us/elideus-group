@@ -1,4 +1,4 @@
-"""System routes query registry service models."""
+"""System public query registry service models."""
 
 from __future__ import annotations
 
