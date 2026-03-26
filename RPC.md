@@ -128,6 +128,13 @@ User focused calls used by the React application.
 | `urn:public:users:get_profile:1`            | Retrieve a user's public profile.                |
 | `urn:public:users:get_published_files:1`    | List files a user has published to the gallery including content type.  |
 
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:public:pages:list_pages:1` | List active published pages, optionally filtered by page_type. |
+| `urn:public:pages:get_page:1` | Get a page by slug including latest version content. Returns 404 if not found or inactive. |
+
 ## Storage Domain
 
 Calls for user storage management. All Storage domain calls require `ROLE_STORAGE`.
