@@ -5,11 +5,8 @@ from . import BaseModule
 from .db_module import DbModule
 from .auth_module import AuthModule
 from .discord_bot_module import DiscordBotModule
-from queryregistry.system.public_vars import (
-  get_hostname_request,
-  get_repo_request,
-  get_version_request,
-)
+from queryregistry.system.config import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
 
 class PublicVarsModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -46,23 +43,23 @@ class PublicVarsModule(BaseModule):
 
   async def get_version(self) -> str:
     assert self.db
-    res = await self.db.run(get_version_request())
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="version")))
     if res.rows:
-      return res.rows[0].get("version", "")
+      return res.rows[0].get("element_value", "")
     return ""
 
   async def get_hostname(self) -> str:
     assert self.db
-    res = await self.db.run(get_hostname_request())
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="hostname")))
     if res.rows:
-      return res.rows[0].get("hostname", "")
+      return res.rows[0].get("element_value", "")
     return ""
 
   async def get_repo(self) -> str:
     assert self.db
-    res = await self.db.run(get_repo_request())
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="repo")))
     if res.rows:
-      return res.rows[0].get("repo", "")
+      return res.rows[0].get("element_value", "")
     return ""
 
   async def get_ffmpeg_version(self) -> str:

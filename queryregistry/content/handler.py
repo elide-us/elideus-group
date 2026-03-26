@@ -10,12 +10,14 @@ from queryregistry.models import DBRequest, DBResponse
 
 from .cache.handler import handle_cache_request
 from .indexing.handler import handle_indexing_request
+from .pages.handler import handle_pages_request
 
 __all__ = ["handle_content_request"]
 
 HANDLERS = {
   "cache": handle_cache_request,
   "indexing": handle_indexing_request,
+  "pages": handle_pages_request,
 }
 
 

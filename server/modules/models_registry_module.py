@@ -6,12 +6,12 @@ from fastapi import FastAPI
 
 from queryregistry.system.config import get_config_request
 from queryregistry.system.config.models import ConfigKeyParams
-from queryregistry.system.models_registry import (
+from queryregistry.system.personas import (
   delete_model_request,
   list_models_request,
   upsert_model_request,
 )
-from queryregistry.system.models_registry.models import DeleteModelParams, UpsertModelParams
+from queryregistry.system.personas.models import DeleteModelParams, UpsertModelParams
 
 from . import BaseModule
 from .db_module import DbModule
