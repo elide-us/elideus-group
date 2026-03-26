@@ -3,6 +3,7 @@ from .vars.handler import handle_vars_request
 from .users.handler import handle_users_request
 from .gallery.handler import handle_gallery_request
 from .pages.handler import handle_pages_request
+from .wiki.handler import handle_wiki_request
 
 
 HANDLERS: dict[str, callable] = {
@@ -11,5 +12,6 @@ HANDLERS: dict[str, callable] = {
   "users": handle_users_request,
   "gallery": handle_gallery_request,
   "pages": handle_pages_request,
+  "wiki": handle_wiki_request,
 }
 
