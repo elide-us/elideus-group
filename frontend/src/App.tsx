@@ -36,6 +36,7 @@ const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
 const EmergentDevelopmentArticle = lazy(() => import('./pages/EmergentDevelopmentArticle'));
+const ContentPage = lazy(() => import('./pages/ContentPage'));
 
 function App(): JSX.Element {
 	return (
@@ -94,6 +95,7 @@ function App(): JSX.Element {
 									<Route path="/profile/:guid" element={<PublicProfile />} />
 									<Route path="/emergent-ethics" element={<EmergentEthicsArticle />} />
 									<Route path="/emergent-development" element={<EmergentDevelopmentArticle />} />
+									<Route path="/pages/:slug" element={<ContentPage />} />
 								</Routes>
 							</Suspense>
 						</Box>
