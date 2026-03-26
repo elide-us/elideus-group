@@ -1,4 +1,4 @@
-"""Identity providers query registry service models."""
+"""Identity auth query registry service models."""
 
 from __future__ import annotations
 

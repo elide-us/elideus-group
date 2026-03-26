@@ -14,18 +14,15 @@ from .models import (
   SetDisplayParams,
   SetOptInParams,
   SetProfileImageParams,
-  SetRolesParams,
   UpdateIfUneditedParams,
 )
 
 __all__ = [
   "read_profile_v1",
   "get_public_profile_v1",
-  "get_roles_v1",
   "set_display_v1",
   "set_optin_v1",
   "set_profile_image_v1",
-  "set_roles_v1",
   "update_profile_v1",
   "update_profile_if_unedited_v1",
 ]
@@ -44,9 +41,6 @@ _UPDATE_IF_UNEDITED_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.update_if_unedited,
 }
 
-_GET_ROLES_DISPATCHERS: dict[str, _Dispatcher] = {
-  "mssql": mssql.get_roles_v1,
-}
 
 _SET_DISPLAY_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.set_display_v1,
@@ -60,9 +54,6 @@ _SET_PROFILE_IMAGE_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.set_profile_image_v1,
 }
 
-_SET_ROLES_DISPATCHERS: dict[str, _Dispatcher] = {
-  "mssql": mssql.set_roles_v1,
-}
 
 _UPDATE_IF_UNEDITED_V1_DISPATCHERS: dict[str, _Dispatcher] = {
   "mssql": mssql.update_if_unedited_v1,
@@ -138,12 +129,6 @@ async def update_profile_if_unedited_v1(
   )
 
 
-async def get_roles_v1(request: DBRequest, *, provider: str) -> DBResponse:
-  params = GuidParams.model_validate(request.payload)
-  result = await _select_dispatcher(provider, _GET_ROLES_DISPATCHERS)(params.model_dump())
-  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
-
-
 async def set_display_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = SetDisplayParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _SET_DISPLAY_DISPATCHERS)(params.model_dump())
@@ -161,12 +146,6 @@ async def set_optin_v1(request: DBRequest, *, provider: str) -> DBResponse:
 async def set_profile_image_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = SetProfileImageParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _SET_PROFILE_IMAGE_DISPATCHERS)(params.model_dump())
-  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
-
-
-async def set_roles_v1(request: DBRequest, *, provider: str) -> DBResponse:
-  params = SetRolesParams.model_validate(request.payload)
-  result = await _select_dispatcher(provider, _SET_ROLES_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 

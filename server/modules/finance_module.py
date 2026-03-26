@@ -268,8 +268,8 @@ from queryregistry.identity.enablements.models import (
   GetUserEnablementsParams,
   UpsertUserEnablementsParams,
 )
-from queryregistry.identity.profiles import get_roles_request, set_roles_request
-from queryregistry.identity.profiles.models import GuidParams, SetRolesParams
+from queryregistry.identity.roles import get_roles_request, set_roles_request
+from queryregistry.identity.roles.models import SetRolesParams, UserGuidParams
 
 from .models.finance_statuses import (
   CLOSE_TYPE_ANNUAL,
@@ -1486,7 +1486,7 @@ class FinanceModule(BaseModule):
 
   async def get_user_roles_mask(self, users_guid: str) -> int:
     assert self.db
-    res = await self.db.run(get_roles_request(GuidParams(guid=users_guid)))
+    res = await self.db.run(get_roles_request(UserGuidParams(guid=users_guid)))
     if not res.rows:
       return 0
     row = dict(res.rows[0])

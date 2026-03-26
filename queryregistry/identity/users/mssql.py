@@ -1,4 +1,4 @@
-"""MSSQL implementations for identity accounts query registry services."""
+"""MSSQL implementations for identity users query registry services."""
 
 from __future__ import annotations
 
