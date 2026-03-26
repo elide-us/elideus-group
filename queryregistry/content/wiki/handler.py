@@ -1,4 +1,4 @@
-"""Content wiki handler implementations (stub)."""
+"""Content wiki subdomain handler implementations."""
 
 from __future__ import annotations
 
@@ -6,11 +6,36 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-from queryregistry.stubs import build_stub_dispatchers
+
+from .services import (
+  create_v1,
+  create_version_v1,
+  delete_v1,
+  get_by_route_context_v1,
+  get_by_slug_v1,
+  get_v1,
+  get_version_v1,
+  list_children_v1,
+  list_v1,
+  list_versions_v1,
+  update_v1,
+)
 
 __all__ = ["handle_wiki_request"]
 
-DISPATCHERS = build_stub_dispatchers("content.wiki")
+DISPATCHERS = {
+  ("list", "1"): list_v1,
+  ("get", "1"): get_v1,
+  ("get_by_slug", "1"): get_by_slug_v1,
+  ("get_by_route_context", "1"): get_by_route_context_v1,
+  ("list_children", "1"): list_children_v1,
+  ("create", "1"): create_v1,
+  ("update", "1"): update_v1,
+  ("delete", "1"): delete_v1,
+  ("create_version", "1"): create_version_v1,
+  ("list_versions", "1"): list_versions_v1,
+  ("get_version", "1"): get_version_v1,
+}
 
 
 async def handle_wiki_request(

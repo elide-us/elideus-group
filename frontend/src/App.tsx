@@ -37,6 +37,7 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
 const EmergentDevelopmentArticle = lazy(() => import('./pages/EmergentDevelopmentArticle'));
 const ContentPage = lazy(() => import('./pages/ContentPage'));
+const WikiPage = lazy(() => import('./pages/WikiPage'));
 
 function App(): JSX.Element {
 	return (
@@ -96,6 +97,7 @@ function App(): JSX.Element {
 									<Route path="/emergent-ethics" element={<EmergentEthicsArticle />} />
 									<Route path="/emergent-development" element={<EmergentDevelopmentArticle />} />
 									<Route path="/pages/:slug" element={<ContentPage />} />
+									<Route path="/wiki/*" element={<WikiPage />} />
 								</Routes>
 							</Suspense>
 						</Box>
