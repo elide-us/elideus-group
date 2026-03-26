@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { Edit as EditIcon, History as HistoryIcon, RestoreRounded as RestoreIcon } from '@mui/icons-material';
 import {
@@ -24,6 +24,7 @@ import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from '../components/MarkdownEditor';
 import PageTitle from '../components/PageTitle';
 import { rpcCall } from '../shared/RpcModels';
+import UserContext from '../shared/UserContext';
 
 type VersionItem = {
 	recid: number;
@@ -99,6 +100,7 @@ const resolveWikiSlug = (pathname: string): string => {
 
 const WikiPage = (): JSX.Element => {
 	const location = useLocation();
+	const { userData } = useContext(UserContext);
 	const slug = useMemo(() => resolveWikiSlug(location.pathname), [location.pathname]);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<string | null>(null);
@@ -110,6 +112,24 @@ const WikiPage = (): JSX.Element => {
 	const [versions, setVersions] = useState<VersionItem[] | null>(null);
 	const [showVersions, setShowVersions] = useState(false);
 	const [isRestoringVersion, setIsRestoringVersion] = useState<number | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
+	const [createTitle, setCreateTitle] = useState('');
+	const [createContent, setCreateContent] = useState('');
+	const [createSummary, setCreateSummary] = useState('');
+	const [isCreatingSaving, setIsCreatingSaving] = useState(false);
+
+	const parentSlug = useMemo(() => {
+		const lastSlash = slug.lastIndexOf('/');
+		return lastSlash > 0 ? slug.substring(0, lastSlash) : null;
+	}, [slug]);
+
+	const defaultTitle = useMemo(() => {
+		const lastSegment = slug.split('/').pop() ?? slug;
+		return lastSegment
+			.split('-')
+			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+			.join(' ');
+	}, [slug]);
 
 	const loadPage = async (requestedSlug: string): Promise<PublicWikiResponse> => {
 		const res = await rpcCall<PublicWikiResponse>('urn:public:wiki:get_page:1', { slug: requestedSlug });
@@ -135,6 +155,10 @@ const WikiPage = (): JSX.Element => {
 			setEditSummary('');
 			setVersions(null);
 			setShowVersions(false);
+			setIsCreating(false);
+			setCreateTitle('');
+			setCreateContent('');
+			setCreateSummary('');
 
 			try {
 				const res = await rpcCall<PublicWikiResponse>('urn:public:wiki:get_page:1', { slug });
@@ -223,6 +247,32 @@ const WikiPage = (): JSX.Element => {
 		}
 	};
 
+	const handleCreate = async (): Promise<void> => {
+		if (!slug || !createTitle.trim() || !createContent.trim()) {
+			return;
+		}
+		setIsCreatingSaving(true);
+		setError(null);
+		try {
+			await rpcCall('urn:users:wiki:create_page:1', {
+				slug,
+				title: createTitle,
+				content: createContent,
+				parent_slug: parentSlug,
+				edit_summary: createSummary || null,
+			});
+			await loadPage(slug);
+			setIsCreating(false);
+			setCreateTitle('');
+			setCreateContent('');
+			setCreateSummary('');
+		} catch {
+			setError('Unable to create the page. Please try again.');
+		} finally {
+			setIsCreatingSaving(false);
+		}
+	};
+
 	const handleRestoreVersion = async (versionNumber: number): Promise<void> => {
 		if (!page || !slug) {
 			return;
@@ -254,6 +304,76 @@ const WikiPage = (): JSX.Element => {
 	}
 
 	if (error && !page) {
+		if (userData && error === 'Page not found') {
+			return (
+				<Box sx={{ p: 2, maxWidth: 800 }}>
+					{isCreating ? (
+						<>
+							<PageTitle>Create: {slug}</PageTitle>
+							<TextField
+								size="small"
+								fullWidth
+								sx={{ mt: 2 }}
+								label="Page title"
+								value={createTitle}
+								onChange={(event) => {
+									setCreateTitle(event.target.value);
+								}}
+							/>
+							<Box sx={{ mt: 2 }}>
+								<MarkdownEditor
+									value={createContent}
+									onChange={setCreateContent}
+									minHeight={300}
+									placeholder="Write your page content here..."
+								/>
+							</Box>
+							<TextField
+								size="small"
+								fullWidth
+								sx={{ mt: 2 }}
+								placeholder="Edit summary (optional)"
+								value={createSummary}
+								onChange={(event) => {
+									setCreateSummary(event.target.value);
+								}}
+							/>
+							<Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+								<Button
+									variant="contained"
+									onClick={() => void handleCreate()}
+									disabled={isCreatingSaving || !createTitle.trim() || !createContent.trim()}
+								>
+									Create Page
+								</Button>
+								<Button variant="outlined" onClick={() => setIsCreating(false)} disabled={isCreatingSaving}>
+									Cancel
+								</Button>
+							</Box>
+						</>
+					) : (
+						<>
+							<PageTitle>This page does not exist yet</PageTitle>
+							<Typography variant="body1" sx={{ mt: 2 }}>
+								The wiki page <strong>{slug}</strong> has not been created.
+							</Typography>
+							<Button
+								variant="contained"
+								sx={{ mt: 2 }}
+								startIcon={<EditIcon />}
+								onClick={() => {
+									setCreateTitle(defaultTitle);
+									setIsCreating(true);
+								}}
+							>
+								Create this page
+							</Button>
+						</>
+					)}
+				</Box>
+			);
+		}
+
 		return (
 			<Box sx={{ p: 2, maxWidth: 800 }}>
 				<PageTitle>{error}</PageTitle>
