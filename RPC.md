@@ -56,6 +56,14 @@ All Users domain calls require `ROLE_REGISTERED`.
 | `urn:users:providers:link_provider:1`   | A user can link additional providers.                  |
 | `urn:users:providers:unlink_provider:1` | A user can unlink providers.                           |
 
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:users:pages:create_version:1` | Create a new page version for an editable page identified by slug. |
+| `urn:users:pages:list_versions:1` | List version history for an editable page identified by slug. |
+| `urn:users:pages:get_version:1` | Fetch a specific page version for an editable page identified by slug. |
+
 ### `products`
 
 | Operation | Description |
