@@ -1,7 +1,7 @@
 """Discord bot event handlers."""
 
 # Discord security chain verified: discord_id → auth.get_discord_user_security()
-# → db:identity:accounts:read:1 → get_security_profile (mssql) → users_auth join
+# → db:identity:users:read:1 → get_security_profile (mssql) → users_auth join
 # Chain complete as of this commit.
 
 import logging

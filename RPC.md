@@ -56,6 +56,14 @@ All Users domain calls require `ROLE_REGISTERED`.
 | `urn:users:providers:link_provider:1`   | A user can link additional providers.                  |
 | `urn:users:providers:unlink_provider:1` | A user can unlink providers.                           |
 
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:users:pages:create_version:1` | Create a new page version for an editable page identified by slug. |
+| `urn:users:pages:list_versions:1` | List version history for an editable page identified by slug. |
+| `urn:users:pages:get_version:1` | Fetch a specific page version for an editable page identified by slug. |
+
 ### `products`
 
 | Operation | Description |
@@ -127,6 +135,13 @@ User focused calls used by the React application.
 | ------------------------------------------- | ------------------------------------------------ |
 | `urn:public:users:get_profile:1`            | Retrieve a user's public profile.                |
 | `urn:public:users:get_published_files:1`    | List files a user has published to the gallery including content type.  |
+
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:public:pages:list_pages:1` | List active published pages, optionally filtered by page_type. |
+| `urn:public:pages:get_page:1` | Get a page by slug including latest version content. Returns 404 if not found or inactive. |
 
 ## Storage Domain
 
@@ -218,6 +233,16 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | `urn:service:routes:upsert_route:1` | Create or update a route definition. |
 | `urn:service:routes:delete_route:1` | Delete a route definition.           |
 
+
+### `pages`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:pages:list:1` | List all content pages (including inactive) for administration. |
+| `urn:service:pages:create:1` | Create a content page with initial content/version. |
+| `urn:service:pages:update:1` | Update page metadata fields by `recid`. |
+| `urn:service:pages:delete:1` | Soft-delete a page by `recid`. |
+
 ### `renewals`
 
 | Operation | Description |
@@ -250,6 +275,16 @@ operations under `ROLE_SERVICE_ADMIN`.
 | `urn:service:reflection:query_info_schema:1` | Query whitelisted INFORMATION_SCHEMA views. |
 | `urn:service:reflection:list_domains:1` | Enumerate QueryRegistry domains, subdomains, and operations. |
 | `urn:service:reflection:list_rpc_endpoints:1` | List available top-level RPC domain handler names. |
+
+### `rpcdispatch`
+
+| Operation | Description |
+| --- | --- |
+| `urn:service:rpcdispatch:list_domains:1` | List domain rows from `reflection_rpc_domains`. |
+| `urn:service:rpcdispatch:list_subdomains:1` | List subdomain rows from `reflection_rpc_subdomains`. |
+| `urn:service:rpcdispatch:list_functions:1` | List function rows from `reflection_rpc_functions`. |
+| `urn:service:rpcdispatch:list_models:1` | List model rows from `reflection_rpc_models`. |
+| `urn:service:rpcdispatch:list_model_fields:1` | List model field rows from `reflection_rpc_model_fields`. |
 
 ## Account Domain
 

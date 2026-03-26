@@ -1,4 +1,4 @@
-"""Content cache handler implementations."""
+"""Content cache handler implementations (stub — reserved for future use)."""
 
 from __future__ import annotations
 
@@ -6,38 +6,11 @@ from typing import Sequence
 
 from queryregistry.dispatch import dispatch_subdomain_request
 from queryregistry.models import DBRequest, DBResponse
-
-from .services import (
-  count_rows_v1,
-  delete_folder_v1,
-  delete_v1,
-  get_published_files_v1,
-  list_public_v1,
-  list_reported_v1,
-  list_v1,
-  replace_user_v1,
-  set_gallery_v1,
-  set_public_v1,
-  set_reported_v1,
-  upsert_v1,
-)
+from queryregistry.stubs import build_stub_dispatchers
 
 __all__ = ["handle_cache_request"]
 
-DISPATCHERS = {
-  ("list", "1"): list_v1,
-  ("list_public", "1"): list_public_v1,
-  ("list_reported", "1"): list_reported_v1,
-  ("replace_user", "1"): replace_user_v1,
-  ("upsert", "1"): upsert_v1,
-  ("delete", "1"): delete_v1,
-  ("delete_folder", "1"): delete_folder_v1,
-  ("set_public", "1"): set_public_v1,
-  ("set_reported", "1"): set_reported_v1,
-  ("count_rows", "1"): count_rows_v1,
-  ("set_gallery", "1"): set_gallery_v1,
-  ("get_published_files", "1"): get_published_files_v1,
-}
+DISPATCHERS = build_stub_dispatchers("content.cache")
 
 
 async def handle_cache_request(

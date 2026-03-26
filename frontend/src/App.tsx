@@ -12,8 +12,12 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const UserPage = lazy(() => import('./pages/UserPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const ServiceRoutesPage = lazy(() => import('./pages/service/ServiceRoutesPage'));
+const ServicePagesPage = lazy(() => import('./pages/service/ServicePagesPage'));
 const ServiceRolesPage = lazy(() => import('./pages/service/ServiceRolesPage'));
 const ServiceRenewalsPage = lazy(() => import('./pages/service/ServiceRenewalsPage'));
+const ServiceVisualizationPage = lazy(() => import('./pages/service/ServiceVisualizationPage'));
+const ServiceRpcDispatchPage = lazy(() => import('./pages/service/ServiceRpcDispatchPage'));
+const ServiceRpcDispatchTreePage = lazy(() => import('./pages/service/ServiceRpcDispatchTreePage'));
 const FileManager = lazy(() => import('./pages/FileManager'));
 const DiscordPersonasPage = lazy(() => import('./pages/DiscordPersonasPage'));
 const DiscordGuildsPage = lazy(() => import('./pages/DiscordGuildsPage'));
@@ -32,6 +36,9 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
+const EmergentDevelopmentArticle = lazy(() => import('./pages/EmergentDevelopmentArticle'));
+const ContentPage = lazy(() => import('./pages/ContentPage'));
+const WikiPage = lazy(() => import('./pages/WikiPage'));
 
 function App(): JSX.Element {
 	return (
@@ -66,6 +73,7 @@ function App(): JSX.Element {
 									<Route path="/userpage" element={<UserPage />} />
 									<Route path="/products" element={<ProductsPage />} />
 									<Route path="/service-routes" element={<ServiceRoutesPage />} />
+									<Route path="/service-pages" element={<ServicePagesPage />} />
 									<Route path="/system-config" element={<SystemConfigPage />} />
 									<Route path="/system-models" element={<SystemModelsPage />} />
 									<Route path="/system-conversations" element={<SystemConversationsPage />} />
@@ -76,6 +84,9 @@ function App(): JSX.Element {
 									<Route path="/finance-acct" element={<FinanceAccountantPage />} />
 									<Route path="/service-roles" element={<ServiceRolesPage />} />
 									<Route path="/service-renewals" element={<ServiceRenewalsPage />} />
+									<Route path="/service-visualization" element={<ServiceVisualizationPage />} />
+									<Route path="/service-rpcdispatch" element={<ServiceRpcDispatchPage />} />
+									<Route path="/service-rpcdispatch-tree" element={<ServiceRpcDispatchTreePage />} />
 									<Route path="/account-roles" element={<AccountRolesPage />} />
 									<Route path="/account-users" element={<AccountUsersPage />} />
 									<Route path="/account-users/:guid" element={<AccountUserPanel />} />
@@ -86,6 +97,9 @@ function App(): JSX.Element {
 									<Route path="/terms-of-service" element={<TermsOfService />} />
 									<Route path="/profile/:guid" element={<PublicProfile />} />
 									<Route path="/emergent-ethics" element={<EmergentEthicsArticle />} />
+									<Route path="/emergent-development" element={<EmergentDevelopmentArticle />} />
+									<Route path="/pages/:slug" element={<ContentPage />} />
+									<Route path="/wiki/*" element={<WikiPage />} />
 								</Routes>
 							</Suspense>
 						</Box>

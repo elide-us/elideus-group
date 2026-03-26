@@ -35,7 +35,6 @@ Guidance for runtime services under `server/modules/`.
 Adjacent guidance:
 - `server/modules/providers/AGENTS.md` for provider boundaries.
 - `queryregistry/AGENTS.md` for canonical query operation and dispatcher patterns.
-- `server/registry/AGENTS.md` for legacy/deprecation context.
 
 ---
 
@@ -48,7 +47,7 @@ Adjacent guidance:
   - file: `snake_case_module.py`
   - class: `CamelCaseModule`
 - For new query work, dispatch through `queryregistry` flows
-  (`dispatch_query_request` / canonical DB ops), not direct `server/registry` calls.
+  (`dispatch_query_request` / canonical DB ops), not direct legacy-registry calls.
 
 ---
 

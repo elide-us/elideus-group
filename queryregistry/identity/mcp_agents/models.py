@@ -16,7 +16,7 @@ __all__ = [
   "RefreshTokenParams",
   "RegisterAgentParams",
   "RevokeTokenParams",
-  "UserRecidParams",
+  "UserGuidParams",
 ]
 
 
@@ -48,20 +48,20 @@ class LinkAgentUserParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   client_id: str
-  users_recid: int
+  users_guid: str
 
 
-class UserRecidParams(BaseModel):
+class UserGuidParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
-  users_recid: int
+  users_guid: str
 
 
 class CreateAuthCodeParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   agents_recid: int
-  users_recid: int
+  users_guid: str
   code: str
   code_challenge: str
   code_method: str = "S256"

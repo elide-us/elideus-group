@@ -7,9 +7,13 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "DeleteModelParams",
   "DeletePersonaParams",
+  "ModelNameParams",
+  "ModelRecord",
   "PersonaNameParams",
   "PersonaRecord",
+  "UpsertModelParams",
   "UpsertPersonaParams",
 ]
 
@@ -55,3 +59,36 @@ class PersonaRecord(TypedDict):
   model: str | None
   element_created_on: str
   element_modified_on: str
+
+
+class ModelNameParams(BaseModel):
+  """Payload targeting a single assistant model by name."""
+
+  model_config = ConfigDict(extra="forbid")
+
+  name: str
+
+
+class UpsertModelParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  recid: int | None = None
+  name: str
+  api_provider: str = "openai"
+  is_active: bool = True
+
+
+class DeleteModelParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  recid: int | None = None
+  name: str | None = None
+
+
+class ModelRecord(TypedDict):
+  """Record representation returned by model queries."""
+
+  recid: int
+  name: str
+  api_provider: str
+  is_active: bool

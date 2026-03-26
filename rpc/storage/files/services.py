@@ -36,7 +36,6 @@ async def storage_files_get_files_v1(request: Request):
   files = await storage.list_files_by_user(user_guid)
   items = [StorageFilesFileItem1(**f) for f in files]
   payload = StorageFilesFiles1(files=items)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -52,7 +51,6 @@ async def storage_files_upload_files_v1(request: Request):
   data = StorageFilesUploadFiles1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.upload_files(user_guid, data.files)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -68,7 +66,6 @@ async def storage_files_delete_files_v1(request: Request):
   data = StorageFilesDeleteFiles1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.delete_files(user_guid, data.files)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -99,7 +96,6 @@ async def storage_files_create_folder_v1(request: Request):
   data = StorageFilesCreateFolder1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.create_folder(user_guid, data.path)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -115,7 +111,6 @@ async def storage_files_move_file_v1(request: Request):
   data = StorageFilesMoveFile1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.move_file(user_guid, data.src, data.dst)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -131,7 +126,6 @@ async def storage_files_rename_file_v1(request: Request):
   data = StorageFilesRenameFile1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.rename_file(user_guid, data.old_name, data.new_name)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -146,10 +140,8 @@ async def storage_files_get_link_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
   data = StorageFilesGetLink1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
-  url = await storage.get_file_link(user_guid, data.name)
-  path, filename = data.name.rsplit('/', 1) if '/' in data.name else ('', data.name)
-  item = StorageFilesFileItem1(path=path, name=filename, url=url)
-  await storage.reindex(user_guid)
+  result = await storage.get_file_link(user_guid, data.name)
+  item = StorageFilesFileItem1(**result)
   return RPCResponse(
     op=rpc_request.op,
     payload=item.model_dump(),
@@ -166,7 +158,6 @@ async def storage_files_get_metadata_v1(request: Request):
   storage: StorageModule = request.app.state.storage
   meta = await storage.get_file_metadata(user_guid, data.name)
   item = StorageFilesFileMetadata1(**meta)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=item.model_dump(),
@@ -185,7 +176,6 @@ async def storage_files_get_folder_files_v1(request: Request):
   items = [StorageFilesFileItem1(**f) for f in res.get("files", [])]
   folders = [StorageFilesFolderItem1(**f) for f in res.get("folders", [])]
   payload = StorageFilesFolderListing1(path=res.get("path", ""), files=items, folders=folders)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -201,7 +191,6 @@ async def storage_files_delete_folder_v1(request: Request):
   data = StorageFilesDeleteFolder1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.delete_folder(user_guid, data.path)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -217,7 +206,6 @@ async def storage_files_create_user_folder_v1(request: Request):
   data = StorageFilesCreateUserFolder1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.create_user_folder(user_guid, data.path)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -234,7 +222,6 @@ async def storage_files_get_usage_v1(request: Request):
   usage = await storage.get_usage(user_guid)
   items = [StorageFilesUsageItem1(**u) for u in usage.get("by_type", [])]
   payload = StorageFilesUsage1(total_size=usage.get("total_size", 0), by_type=items)
-  await storage.reindex(user_guid)
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -247,7 +234,6 @@ async def storage_files_report_file_v1(request: Request):
   data = StorageFilesReportFile1(**(rpc_request.payload or {}))
   storage: StorageModule = request.app.state.storage
   await storage.report_file(data.guid, data.name)
-  await storage.reindex()
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -261,7 +247,6 @@ async def storage_files_get_public_files_v1(request: Request):
   files = await storage.list_public_files()
   items = [StorageFilesFileItem1(**f) for f in files]
   payload = StorageFilesFiles1(files=items)
-  await storage.reindex()
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),
@@ -275,7 +260,6 @@ async def storage_files_get_moderation_files_v1(request: Request):
   files = await storage.list_flagged_for_moderation()
   items = [StorageFilesFileItem1(**f) for f in files]
   payload = StorageFilesFiles1(files=items)
-  await storage.reindex()
   return RPCResponse(
     op=rpc_request.op,
     payload=payload.model_dump(),

@@ -365,31 +365,18 @@ async def get_oauth_provider_callback(
   if not client:
     raise HTTPException(status_code=400, detail="Unknown OAuth client")
 
-  users_recid = user.get("recid")
-  if users_recid is None:
-    user_guid_val = user.get("guid") or user.get("user_guid") or user.get("element_guid")
-    if user_guid_val:
-      from queryregistry.models import DBRequest
-
-      lookup = await gateway.db.run(
-        DBRequest(op="db:identity:accounts:read:1", payload={"guid": str(user_guid_val)})
-      )
-      if lookup.rows:
-        users_recid = lookup.rows[0].get("recid")
-  if users_recid is None:
-    users_recid = client.get("users_recid")
   logging.info(
-    "[MCP OAuth] Resolved users_recid=%s for client '%s'",
-    users_recid,
+    "[MCP OAuth] Resolved users_guid=%s for client '%s'",
+    user_guid,
     client.get("element_client_name"),
   )
-  if users_recid is None:
+  if not user_guid:
     raise HTTPException(status_code=400, detail="User account record is missing")
 
-  await gateway.link_client_to_user(client_id, int(users_recid))
+  await gateway.link_client_to_user(client_id, user_guid)
   auth_code = await gateway.create_authorization_code(
     agents_recid=int(client["recid"]),
-    users_recid=int(users_recid),
+    users_guid=user_guid,
     code_challenge=str(flow.get("code_challenge") or ""),
     code_method=str(flow.get("code_challenge_method") or "S256"),
     redirect_uri=str(flow.get("redirect_uri") or ""),

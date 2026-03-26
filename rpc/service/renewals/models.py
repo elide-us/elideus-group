@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ServiceRenewalsItem1(BaseModel):
+  model_config = ConfigDict(coerce_numbers_to_str=True)
+
   recid: int
   element_guid: str | None = None
   element_name: str

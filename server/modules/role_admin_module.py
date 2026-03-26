@@ -3,20 +3,21 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from queryregistry.handler import dispatch_query_request
-from queryregistry.identity.role_memberships import (
+from queryregistry.identity.roles import (
   create_role_membership_request,
   delete_role_membership_request,
+  list_all_role_memberships_request,
   list_role_memberships_request,
   list_role_non_memberships_request,
 )
-from queryregistry.identity.role_memberships.models import (
+from queryregistry.identity.roles.models import (
   ModifyRoleMemberParams,
   RoleScopeParams,
 )
 from queryregistry.system.roles import list_system_roles_request
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
-from server.modules.auth_module import AuthModule
+from server.modules.role_module import RoleModule
 from server.modules.discord_bot_module import DiscordBotModule
 
 
@@ -38,8 +39,8 @@ class RoleAdminModule(BaseModule):
   async def startup(self):
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.auth: AuthModule = self.app.state.auth
-    await self.auth.on_ready()
+    self.role: RoleModule = self.app.state.role
+    await self.role.on_ready()
     self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
       await self.discord.on_ready()
@@ -70,7 +71,6 @@ class RoleAdminModule(BaseModule):
         "display": r.get("display"),
       }
       for r in _normalize_payload(res.payload)
-      if r.get("name") != "ROLE_REGISTERED"
     ]
     roles.sort(key=lambda r: int(r.get("mask", 0)))
     if actor_mask is not None:
@@ -99,9 +99,43 @@ class RoleAdminModule(BaseModule):
     ]
     return members, non_members
 
+  async def get_all_role_members(self, actor_mask: int | None = None) -> list[dict]:
+    """Return all roles with members and non-members in a single query."""
+    provider_name = self.db.provider or "mssql"
+    res = await dispatch_query_request(
+      list_all_role_memberships_request(),
+      provider=provider_name,
+    )
+    roles = []
+    for r in _normalize_payload(res.payload):
+      mask_val = int(r.get("mask", 0))
+      if actor_mask is not None:
+        max_mask = self._max_mask(actor_mask)
+        if mask_val > max_mask:
+          continue
+      members_raw = r.get("members") or []
+      non_members_raw = r.get("non_members") or []
+      roles.append(
+        {
+          "name": r.get("name", ""),
+          "mask": str(mask_val),
+          "display": r.get("display"),
+          "members": [
+            {"guid": m.get("guid", ""), "displayName": m.get("display_name", "")}
+            for m in members_raw
+          ],
+          "nonMembers": [
+            {"guid": m.get("guid", ""), "displayName": m.get("display_name", "")}
+            for m in non_members_raw
+          ],
+        }
+      )
+    roles.sort(key=lambda r: int(r.get("mask", 0)))
+    return roles
+
   async def add_role_member(self, role: str, user_guid: str, actor_mask: int | None = None) -> tuple[list[dict], list[dict]]:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      role_mask = self.role.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
     payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
@@ -109,12 +143,12 @@ class RoleAdminModule(BaseModule):
       create_role_membership_request(payload),
       provider=provider_name,
     )
-    await self.auth.refresh_user_roles(user_guid)
+    await self.role.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def remove_role_member(self, role: str, user_guid: str, actor_mask: int | None = None) -> tuple[list[dict], list[dict]]:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(role, 0)
+      role_mask = self.role.roles.get(role, 0)
       self._ensure_can_manage(actor_mask, role_mask)
     provider_name = self.db.provider or "mssql"
     payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
@@ -122,16 +156,16 @@ class RoleAdminModule(BaseModule):
       delete_role_membership_request(payload),
       provider=provider_name,
     )
-    await self.auth.refresh_user_roles(user_guid)
+    await self.role.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
   async def upsert_role(self, name: str, mask: int, display: str | None, actor_mask: int | None = None) -> None:
     if actor_mask is not None:
       self._ensure_can_manage(actor_mask, mask)
-    await self.auth.upsert_role(name, mask, display)
+    await self.role.upsert_role(name, mask, display)
 
   async def delete_role(self, name: str, actor_mask: int | None = None) -> None:
     if actor_mask is not None:
-      role_mask = self.auth.roles.get(name, 0)
+      role_mask = self.role.roles.get(name, 0)
       self._ensure_can_manage(actor_mask, role_mask)
-    await self.auth.delete_role(name)
+    await self.role.delete_role(name)

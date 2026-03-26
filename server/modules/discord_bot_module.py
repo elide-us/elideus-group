@@ -20,6 +20,18 @@ from .env_module import EnvModule
 from .db_module import DbModule
 from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.config import get_config_request
+from queryregistry.discord.guilds import (
+  get_guild_request,
+  list_guilds_request,
+  upsert_guild_request,
+  update_credits_request,
+)
+from queryregistry.discord.guilds.models import (
+  GuildIdParams,
+  ListGuildsParams,
+  UpsertGuildParams,
+  UpdateGuildCreditsParams,
+)
 
 from server.helpers.logging import configure_discord_logging, remove_discord_logging, update_logging_level
 from server.routers.discord_events import register_discord_event_handlers
@@ -267,6 +279,70 @@ class DiscordBotModule(BaseModule):
       from server.helpers.logging import split_message
       for part in split_message(message):
         await channel.send(part)
+
+  def _map_guild_row(self, row: dict[str, Any], guild_id: str = "") -> dict[str, Any]:
+    return {
+      "recid": row.get("recid", 0),
+      "guild_id": row.get("element_guild_id", guild_id),
+      "name": row.get("element_name", ""),
+      "joined_on": row.get("element_joined_on"),
+      "member_count": row.get("element_member_count"),
+      "owner_id": row.get("element_owner_id"),
+      "region": row.get("element_region"),
+      "left_on": row.get("element_left_on"),
+      "notes": row.get("element_notes"),
+      "credits": int(row.get("element_credits", 0) or 0),
+    }
+
+  async def list_guild_records(self) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_guilds_request(ListGuildsParams(include_inactive=True)))
+    return [self._map_guild_row(row) for row in (res.rows or [])]
+
+  async def get_guild_record(self, guild_id: str) -> dict[str, Any]:
+    assert self.db
+    res = await self.db.run(get_guild_request(GuildIdParams(guild_id=guild_id)))
+    row = res.rows[0] if res.rows else {}
+    return self._map_guild_row(row, guild_id=guild_id)
+
+  async def get_guild_credits(self, guild_id: str) -> int:
+    guild = await self.get_guild_record(guild_id)
+    return int(guild.get("credits", 0) or 0)
+
+  async def update_guild_credits(self, guild_id: str, credits: int) -> dict[str, Any]:
+    assert self.db
+    await self.db.run(
+      update_credits_request(UpdateGuildCreditsParams(guild_id=guild_id, credits=credits))
+    )
+    return {"guild_id": guild_id, "credits": credits}
+
+  async def sync_guild_records(self) -> dict[str, Any]:
+    if not self.bot:
+      logging.warning("[DiscordBotModule] Discord bot not available")
+      return {"synced": 0, "guilds": []}
+    assert self.db
+    synced = 0
+    for guild in self.bot.guilds:
+      try:
+        await self.db.run(
+          upsert_guild_request(
+            UpsertGuildParams(
+              guild_id=str(guild.id),
+              name=guild.name,
+              member_count=guild.member_count,
+              owner_id=str(guild.owner_id) if guild.owner_id else None,
+            )
+          )
+        )
+        synced += 1
+      except Exception:
+        logging.exception(
+          "[DiscordBotModule] failed to upsert guild",
+          extra={"guild_id": guild.id, "guild_name": guild.name},
+        )
+    guilds = await self.list_guild_records()
+    logging.info("[DiscordBotModule] synced %d guilds", synced)
+    return {"synced": synced, "guilds": guilds}
 
 class DiscordModule(DiscordBotModule):
   """Backward-compatible alias for the DiscordBotModule."""

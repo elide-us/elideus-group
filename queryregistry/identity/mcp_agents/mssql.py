@@ -17,7 +17,7 @@ from .models import (
   RefreshTokenParams,
   RegisterAgentParams,
   RevokeTokenParams,
-  UserRecidParams,
+  UserGuidParams,
 )
 
 __all__ = [
@@ -92,13 +92,13 @@ async def get_by_client_id_v1(args: dict[str, Any]) -> DBResponse:
       a.element_client_name,
       a.element_scopes,
       a.element_roles,
-      a.users_recid,
+      a.users_guid,
       a.element_is_active,
       a.element_revoked_at,
       a.element_redirect_uris,
-      au.element_guid AS user_guid
+      a.users_guid AS user_guid
     FROM account_mcp_agents a
-    LEFT JOIN account_users au ON au.recid = a.users_recid
+    LEFT JOIN account_users au ON au.element_guid = a.users_guid
     WHERE a.element_client_id = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
@@ -114,13 +114,13 @@ async def get_by_recid_v1(args: dict[str, Any]) -> DBResponse:
       a.element_client_name,
       a.element_scopes,
       a.element_roles,
-      a.users_recid,
+      a.users_guid,
       a.element_is_active,
       a.element_revoked_at,
       a.element_redirect_uris,
-      au.element_guid AS user_guid
+      a.users_guid AS user_guid
     FROM account_mcp_agents a
-    LEFT JOIN account_users au ON au.recid = a.users_recid
+    LEFT JOIN account_users au ON au.element_guid = a.users_guid
     WHERE a.recid = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
@@ -131,10 +131,10 @@ async def link_user_v1(args: dict[str, Any]) -> DBResponse:
   params = LinkAgentUserParams.model_validate(args)
   sql = """
     UPDATE account_mcp_agents
-    SET users_recid = ?, element_modified_on = SYSUTCDATETIME()
+    SET users_guid = ?, element_modified_on = SYSUTCDATETIME()
     WHERE element_client_id = ?;
   """
-  return await run_exec(sql, (params.users_recid, params.client_id))
+  return await run_exec(sql, (params.users_guid, params.client_id))
 
 
 async def revoke_v1(args: dict[str, Any]) -> DBResponse:
@@ -150,7 +150,7 @@ async def revoke_v1(args: dict[str, Any]) -> DBResponse:
 
 
 async def list_by_user_v1(args: dict[str, Any]) -> DBResponse:
-  params = UserRecidParams.model_validate(args)
+  params = UserGuidParams.model_validate(args)
   sql = """
     SELECT
       recid,
@@ -161,17 +161,17 @@ async def list_by_user_v1(args: dict[str, Any]) -> DBResponse:
       element_response_types,
       element_scopes,
       element_roles,
-      users_recid,
+      users_guid,
       element_is_active,
       element_revoked_at,
       element_created_on,
       element_modified_on
     FROM account_mcp_agents
-    WHERE users_recid = ?
+    WHERE users_guid = ?
     ORDER BY recid DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return await run_json_many(sql, (params.users_recid,))
+  return await run_json_many(sql, (params.users_guid,))
 
 
 async def create_auth_code_v1(args: dict[str, Any]) -> DBResponse:
@@ -181,14 +181,14 @@ async def create_auth_code_v1(args: dict[str, Any]) -> DBResponse:
     DECLARE @inserted TABLE (
       recid bigint,
       agents_recid bigint,
-      users_recid bigint,
+      users_guid uniqueidentifier,
       element_code nvarchar(256),
       element_expires_on datetimeoffset(7)
     );
 
     INSERT INTO account_mcp_auth_codes (
       agents_recid,
-      users_recid,
+      users_guid,
       element_code,
       element_code_challenge,
       element_code_method,
@@ -199,7 +199,7 @@ async def create_auth_code_v1(args: dict[str, Any]) -> DBResponse:
     OUTPUT
       inserted.recid,
       inserted.agents_recid,
-      inserted.users_recid,
+      inserted.users_guid,
       inserted.element_code,
       inserted.element_expires_on
     INTO @inserted
@@ -213,7 +213,7 @@ async def create_auth_code_v1(args: dict[str, Any]) -> DBResponse:
     sql,
     (
       params.agents_recid,
-      params.users_recid,
+      params.users_guid,
       params.code,
       params.code_challenge,
       params.code_method,
@@ -231,7 +231,7 @@ async def consume_auth_code_v1(args: dict[str, Any]) -> DBResponse:
     DECLARE @consumed TABLE (
       recid bigint,
       agents_recid bigint,
-      users_recid bigint,
+      users_guid uniqueidentifier,
       element_code_challenge nvarchar(256),
       element_code_method nvarchar(16),
       element_redirect_uri nvarchar(2048),
@@ -244,7 +244,7 @@ async def consume_auth_code_v1(args: dict[str, Any]) -> DBResponse:
     OUTPUT
       inserted.recid,
       inserted.agents_recid,
-      inserted.users_recid,
+      inserted.users_guid,
       inserted.element_code_challenge,
       inserted.element_code_method,
       inserted.element_redirect_uri,
@@ -321,12 +321,11 @@ async def get_token_v1(args: dict[str, Any]) -> DBResponse:
       t.element_scopes,
       t.element_revoked_at,
       a.element_client_id,
-      a.users_recid,
+      a.users_guid,
       a.element_is_active,
-      au.element_guid AS user_guid
+      a.users_guid AS user_guid
     FROM account_mcp_agent_tokens t
     JOIN account_mcp_agents a ON a.recid = t.agents_recid
-    LEFT JOIN account_users au ON au.recid = a.users_recid
     WHERE t.element_refresh_token = ?
       AND t.element_revoked_at IS NULL
     ORDER BY t.recid DESC

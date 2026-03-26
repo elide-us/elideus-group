@@ -7,132 +7,24 @@ from fastapi import FastAPI, HTTPException, status
 from jose import jwt, JWTError, ExpiredSignatureError
 from typing import Any, Dict
 
-from queryregistry.system.roles.models import DeleteRoleParams, UpsertRoleParams
 from server.modules import BaseModule
 from server.modules.env_module import EnvModule
 from server.modules.db_module import DbModule
+from server.modules.role_module import RoleModule
 from server.modules.providers import AuthProviderBase
 from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvider
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.handler import dispatch_query_request
+from queryregistry.identity.users import account_exists_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
-from queryregistry.models import DBRequest, DBResponse
+from queryregistry.system.config import get_config_request
+from queryregistry.system.config.models import ConfigKeyParams
 
 DEFAULT_SESSION_TOKEN_EXPIRY = 15 # minutes
 DEFAULT_ROTATION_TOKEN_EXPIRY = 90 # days
-
-
-class RoleCache:
-  def __init__(self, db: DbModule | None = None):
-    self.db = db
-    self.roles: dict[str, int] = {}
-    self.role_names: list[str] = []
-    self.role_registered: int = 0
-    self._user_roles: dict[str, tuple[list[str], int]] = {}
-
-  @staticmethod
-  def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
-    if payload is None:
-      return []
-    if isinstance(payload, list):
-      return [dict(item) for item in payload]
-    if isinstance(payload, Mapping):
-      return [dict(payload)]
-    return [dict(payload)]
-
-  async def _dispatch_system_role_request(self, request: DBRequest) -> DBResponse:
-    if not self.db:
-      raise RuntimeError("RoleCache database module not configured")
-    return await self.db.run(request)
-
-  async def load_roles(self):
-    logging.debug("[RoleCache] Loading roles from database")
-    try:
-      result = await self._dispatch_system_role_request(
-        DBRequest(op="db:system:roles:list:1", payload={}),
-      )
-    except Exception as e:
-      logging.error("[RoleCache] Failed to load roles: %s", e)
-      return
-    rows = self._normalize_payload(result.payload)
-    if not rows:
-      logging.debug("[RoleCache] No roles returned")
-      return
-    self.roles.clear()
-    for r in rows:
-      name = r.get("name")
-      if not name:
-        continue
-      self.roles[name] = int(r.get("mask", 0) or 0)
-    self.role_registered = self.roles.get("ROLE_REGISTERED", 0)
-    self.role_names = [n for n in self.roles.keys() if n != "ROLE_REGISTERED"]
-    self._user_roles.clear()
-    logging.debug("[RoleCache] Loaded roles: %s", self.roles)
-
-  async def refresh_role_cache(self):
-    logging.debug("[RoleCache] Refreshing role cache")
-    await self.load_roles()
-
-  async def upsert_role(self, name: str, mask: int, display: str | None):
-    payload = UpsertRoleParams(name=name, mask=mask, display=display)
-    await self._dispatch_system_role_request(
-      DBRequest(op="db:system:roles:update:1", payload=payload.model_dump()),
-    )
-    await self.refresh_role_cache()
-
-  async def delete_role(self, name: str):
-    payload = DeleteRoleParams(name=name)
-    await self._dispatch_system_role_request(
-      DBRequest(op="db:system:roles:delete:1", payload=payload.model_dump()),
-    )
-    await self.refresh_role_cache()
-
-  def mask_to_names(self, mask: int) -> list[str]:
-    return [name for name, bit in self.roles.items() if mask & bit]
-
-  def names_to_mask(self, names: list[str]) -> int:
-    mask = 0
-    for name in names:
-      mask |= self.roles.get(name, 0)
-    return mask
-
-  def get_role_names(self, exclude_registered: bool = False) -> list[str]:
-    if exclude_registered:
-      return [n for n in self.role_names]
-    return list(self.roles.keys())
-
-  async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
-    if not refresh and guid in self._user_roles:
-      logging.debug("[RoleCache] Returning cached roles for %s", guid)
-      return self._user_roles[guid]
-    logging.debug("[RoleCache] Fetching roles for %s", guid)
-    if not self.db:
-      raise RuntimeError("RoleCache database module not configured")
-    response = await self.db.run(
-      DBRequest(op="db:identity:accounts:read:1", payload={"guid": guid}),
-    )
-    rows = self._normalize_payload(response.rows)
-    row = rows[0] if rows else {}
-    mask = int(row.get("user_roles") or row.get("element_roles") or 0)
-    names = self.mask_to_names(mask)
-    self._user_roles[guid] = (names, mask)
-    logging.debug("[RoleCache] Roles for %s: %s (mask=%#018x)", guid, names, mask)
-    return names, mask
-
-  async def user_has_role(self, guid: str, required_mask: int) -> bool:
-    if not required_mask:
-      return True
-    if not guid:
-      return False
-    _, mask = await self.get_user_roles(guid)
-    return bool(mask & required_mask)
-
-  async def refresh_user_roles(self, guid: str):
-    logging.debug("[RoleCache] Refreshing user roles for %s", guid)
-    await self.get_user_roles(guid, refresh=True)
 
 
 class AuthModule(BaseModule):
@@ -142,32 +34,36 @@ class AuthModule(BaseModule):
     self.jwt_secret: str | None = None
     self.jwt_algo_int: str = "HS256"
     self.jwks_cache_minutes: int = 60
-    self.role_cache = RoleCache()
+    self.role: RoleModule | None = None
     self.domain_role_map: dict[str, int] = {}
     self.discord: DiscordBotModule | None = None
 
   @property
   def roles(self) -> dict[str, int]:
-    return self.role_cache.roles
+    assert self.role
+    return self.role.roles
 
   @property
   def role_names(self) -> list[str]:
-    return self.role_cache.role_names
+    assert self.role
+    return self.role.role_names
 
   @property
   def role_registered(self) -> int:
-    return self.role_cache.role_registered
+    assert self.role
+    return self.role.role_registered
 
-  @property
-  def _user_roles(self) -> dict[str, tuple[list[str], int]]:
-    return self.role_cache._user_roles
+
+  async def _read_config_value(self, key: str) -> str | None:
+    """Read a single system_config value by key."""
+    res = await self.db.run(get_config_request(ConfigKeyParams(key=key)))
+    return res.rows[0]["element_value"] if res.rows else None
 
   async def startup(self):
     self.env: EnvModule = self.app.state.env
     await self.env.on_ready()
     self.db: DbModule = self.app.state.db
     await self.db.on_ready()
-    self.domain_role_map: dict[str, int] = {}
     self.discord = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
     self.discord = getattr(self.app.state, "discord_bot", None)
     if self.discord:
@@ -175,16 +71,26 @@ class AuthModule(BaseModule):
       register = getattr(self.discord, "register_auth_module", None)
       if register:
         register(self)
-    self.role_cache.db = self.db
+    self.role = self.app.state.role
+    await self.role.on_ready()
+    self.domain_role_map = self.role.domain_role_map
     self.jwt_secret = self.env.get("JWT_SECRET")
-    self.jwks_cache_minutes = await self.db.get_jwks_cache_time()
+    cache_raw = await self._read_config_value("JwksCacheTime")
+    if cache_raw is None:
+      raise ValueError("Missing config value for key: JwksCacheTime")
+    self.jwks_cache_minutes = int(cache_raw)
 
-    providers_cfg = await self.db.get_auth_providers()
+    providers_raw = await self._read_config_value("AuthProviders")
+    if providers_raw is None:
+      raise ValueError("Missing config value for key: AuthProviders")
+    providers_cfg = [provider.strip() for provider in providers_raw.split(",") if provider.strip()]
     logging.debug(f"[AuthModule] Provider configuration: {providers_cfg}")
     try:
       if "microsoft" in providers_cfg:
         logging.debug("[AuthModule] Loading Microsoft provider")
-        ms_api_id = await self.db.get_ms_api_id()
+        ms_api_id = await self._read_config_value("MsApiId")
+        if not ms_api_id:
+          raise ValueError("Missing config value for key: MsApiId")
         logging.debug("[AuthModule] MsApiId=%s", ms_api_id)
         provider = await MicrosoftAuthProvider.create(api_id=ms_api_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider.startup()
@@ -192,7 +98,13 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Microsoft provider ready")
       if "google" in providers_cfg:
         logging.debug("[AuthModule] Loading Google provider")
-        google_client_id = await self.db.get_google_client_id()
+        google_client_id = await self._read_config_value("GoogleClientId")
+        if not google_client_id:
+          raise ValueError("Missing config value for key: GoogleClientId")
+        google_secret = self.env.get("GOOGLE_AUTH_SECRET")
+        if not google_secret:
+          raise ValueError("Missing env value for key: GOOGLE_AUTH_SECRET")
+        logging.debug("[AuthModule] GoogleAuthSecret loaded: %s", bool(google_secret))
         logging.debug("[AuthModule] GoogleClientId=%s", google_client_id)
         provider = await GoogleAuthProvider.create(api_id=google_client_id, jwks_expiry=timedelta(minutes=self.jwks_cache_minutes))
         await provider.startup()
@@ -200,15 +112,15 @@ class AuthModule(BaseModule):
         logging.debug("[AuthModule] Google provider ready")
       if "discord" in providers_cfg:
         logging.debug("[AuthModule] Loading Discord provider")
-        discord_client_id = await self.db.get_discord_client_id()
+        discord_client_id = await self._read_config_value("DiscordClientId")
+        if not discord_client_id:
+          raise ValueError("Missing config value for key: DiscordClientId")
         logging.debug("[AuthModule] DiscordClientId=%s", discord_client_id)
         provider = DiscordAuthProvider()
         provider.audience = discord_client_id
         await provider.startup()
         self.providers["discord"] = provider
         logging.debug("[AuthModule] Discord provider ready")
-      await self.role_cache.load_roles()
-      await self.load_domain_role_map()
       logging.debug("Auth module loaded")
       self.mark_ready()
     except Exception as e:
@@ -220,6 +132,38 @@ class AuthModule(BaseModule):
     if self.discord and getattr(self.discord, "auth_module", None) is self:
       self.discord.auth_module = None
     logging.info("Auth module shutdown")
+
+  async def user_exists(self, user_guid: str) -> bool:
+    request = account_exists_request({"user_guid": user_guid})
+    provider_name = self.db.provider or "mssql"
+    try:
+      res = await dispatch_query_request(request, provider=provider_name)
+    except KeyError:
+      logging.getLogger("server" + ".registry").warning(
+        "Query registry handler missing for user lookup",
+        extra={"db_op": request.op, "db_provider": provider_name},
+      )
+      return await self._fallback_user_exists(user_guid=user_guid)
+    payload = res.payload if isinstance(res.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
+
+  async def _fallback_user_exists(self, *, user_guid: str) -> bool:
+    provider_name = self.db.provider or "mssql"
+    if provider_name != "mssql":
+      logging.getLogger("server" + ".registry").error(
+        "No registry handler for %s and no fallback available", provider_name
+      )
+      return False
+    try:
+      from queryregistry.identity.users.mssql import account_exists
+    except ModuleNotFoundError:
+      logging.getLogger("server" + ".registry").error(
+        "MSSQL account exists handler unavailable"
+      )
+      return False
+    response = await account_exists({"user_guid": user_guid})
+    payload = response.payload if isinstance(response.payload, dict) else {}
+    return bool(payload.get("exists_flag"))
 
   @staticmethod
   def _normalize_query_payload(payload: Any | None) -> list[dict[str, Any]]:
@@ -352,52 +296,42 @@ class AuthModule(BaseModule):
       logging.error("[AuthModule] Failed to decode rotation token")
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid rotation token")
 
-  async def load_roles(self):
-    await self.role_cache.load_roles()
-
-  async def load_domain_role_map(self):
-    """Load RPC domain → required role mask mapping from system_roles."""
-    logging.debug("[AuthModule] Loading RPC domain role map")
-    result = await self.db.run(DBRequest(op="db:system:roles:list:1", payload={}))
-    rows = self._normalize_query_payload(result.payload)
-    self.domain_role_map = {}
-    for row in rows:
-      domain = row.get("element_rpc_domain")
-      if not domain:
-        continue
-      self.domain_role_map[str(domain)] = int(row.get("mask", 0) or 0)
-    logging.debug("[AuthModule] Loaded RPC domain role map: %s", self.domain_role_map)
 
   async def refresh_role_cache(self):
-    await self.role_cache.refresh_role_cache()
+    assert self.role
+    await self.role.refresh_role_cache()
 
   async def check_domain_access(self, domain: str, user_guid: str) -> None:
     """Check if a user has the required role for an RPC domain."""
-    required_mask = self.domain_role_map.get(domain)
+    domain_role_map = self.role.domain_role_map if self.role else self.domain_role_map
+    required_mask = domain_role_map.get(domain)
     if required_mask is None:
       raise HTTPException(status_code=403, detail="Domain access not configured")
     if not await self.user_has_role(user_guid, required_mask):
       raise HTTPException(status_code=403, detail="Forbidden")
 
   async def upsert_role(self, name: str, mask: int, display: str | None):
-    await self.role_cache.upsert_role(name, mask, display)
-    await self.load_domain_role_map()
+    assert self.role
+    await self.role.upsert_role(name, mask, display)
 
   async def delete_role(self, name: str):
-    await self.role_cache.delete_role(name)
-    await self.load_domain_role_map()
+    assert self.role
+    await self.role.delete_role(name)
 
   def mask_to_names(self, mask: int) -> list[str]:
-    return self.role_cache.mask_to_names(mask)
+    assert self.role
+    return self.role.mask_to_names(mask)
 
   def names_to_mask(self, names: list[str]) -> int:
-    return self.role_cache.names_to_mask(names)
+    assert self.role
+    return self.role.names_to_mask(names)
 
   def get_role_names(self, exclude_registered: bool = False) -> list[str]:
-    return self.role_cache.get_role_names(exclude_registered)
+    assert self.role
+    return self.role.get_role_names(exclude_registered)
 
   async def get_discord_user_security(self, discord_id: str) -> tuple[str, list[str], int]:
-    from queryregistry.identity.accounts import read_by_discord_request
+    from queryregistry.identity.users import read_by_discord_request
 
     res = await self.db.run(read_by_discord_request(discord_id))
     rows = res.rows
@@ -408,14 +342,18 @@ class AuthModule(BaseModule):
     if not guid:
       return "", [], 0
     mask = int(row.get("user_roles", 0) or 0)
-    names = self.role_cache.mask_to_names(mask)
+    assert self.role
+    names = self.role.mask_to_names(mask)
     return guid, names, mask
 
   async def get_user_roles(self, guid: str, refresh: bool = False) -> tuple[list[str], int]:
-    return await self.role_cache.get_user_roles(guid, refresh)
+    assert self.role
+    return await self.role.get_user_roles(guid, refresh)
 
   async def user_has_role(self, guid: str, required_mask: int) -> bool:
-    return await self.role_cache.user_has_role(guid, required_mask)
+    assert self.role
+    return await self.role.user_has_role(guid, required_mask)
 
   async def refresh_user_roles(self, guid: str):
-    await self.role_cache.refresh_user_roles(guid)
+    assert self.role
+    await self.role.refresh_user_roles(guid)

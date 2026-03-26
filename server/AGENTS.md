@@ -28,8 +28,8 @@ other top-level server concerns.
 
 - Do **not** bypass module boundaries from routers/RPC handlers.
 - Do **not** perform blocking startup work without async-aware patterns.
-- Do **not** add new query handlers to `server/registry/`; use
-  `queryregistry/` for all new data access.
+- Do **not** add compatibility layers for removed legacy registries; use
+  `queryregistry/` for all data access.
 
 ---
 
@@ -38,8 +38,6 @@ other top-level server concerns.
 - `server/modules/AGENTS.md` - module lifecycle and business logic patterns.
 - `server/modules/providers/AGENTS.md` - provider boundaries and connection
   management.
-- `server/registry/AGENTS.md` - **DEPRECATED** legacy registry (migration
-  context only).
 - `queryregistry/AGENTS.md` - canonical data-access translation layer.
 
 ---
@@ -49,6 +47,4 @@ other top-level server concerns.
 - If editing a `*_module.py` file → read `server/modules/AGENTS.md` first.
 - If editing under `server/modules/providers/` → read
   `server/modules/providers/AGENTS.md` first.
-- If editing under `server/registry/` → read `server/registry/AGENTS.md` first
-  (deprecation rules).
 - If adding new data access operations → read `queryregistry/AGENTS.md` first.

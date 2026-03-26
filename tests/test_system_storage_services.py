@@ -69,10 +69,8 @@ class DummyStorageModule:
   def __init__(self):
     self.reindex_called = False
 
-  async def reindex(self):
-    self.reindex_called = True
-
-  async def get_storage_stats(self):
+  async def get_storage_stats(self, reindex: bool = False):
+    self.reindex_called = reindex
     return {
       'file_count': 5,
       'total_bytes': 10,

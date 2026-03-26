@@ -15,7 +15,6 @@ __all__ = [
   "SetDisplayParams",
   "SetOptInParams",
   "SetProfileImageParams",
-  "SetRolesParams",
   "UpdateProfileParams",
   "UpdateIfUneditedParams",
 ]
@@ -55,12 +54,6 @@ class SetProfileImageParams(GuidParams):
 
   provider: str
   image_b64: str | None
-
-
-class SetRolesParams(GuidParams):
-  """Parameters used to update the user's role mask."""
-
-  roles: int
 
 
 class UpdateIfUneditedParams(GuidParams):
