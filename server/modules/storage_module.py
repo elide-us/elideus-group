@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import FastAPI
 from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.config import get_config_request
-from queryregistry.content.cache import (
+from queryregistry.content.indexing import (
   count_rows_request,
   delete_cache_folder_request,
   delete_cache_item_request,
@@ -19,7 +19,7 @@ from queryregistry.content.cache import (
   set_reported_request,
   upsert_cache_item_request,
 )
-from queryregistry.content.cache.models import (
+from queryregistry.content.indexing.models import (
   CacheItemKey,
   DeleteCacheFolderParams,
   ListCacheParams,

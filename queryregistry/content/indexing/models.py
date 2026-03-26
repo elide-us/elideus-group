@@ -1,4 +1,4 @@
-"""Pydantic models for content cache query registry interactions."""
+"""Pydantic models for content indexing query registry interactions."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _coerce_flag(value: Any) -> int:
 
 
 class ContentCacheItem(BaseModel):
-  """Typed representation of a content cache row."""
+  """Typed representation of a content indexing row."""
 
   model_config = ConfigDict(extra="allow")
 
@@ -54,11 +54,11 @@ class ContentCacheItem(BaseModel):
     data: MutableMapping[str, Any] = dict(value)
     user_guid = data.get("user_guid") or data.get("users_guid")
     if not user_guid:
-      raise ValueError("user_guid is required for content cache items")
+      raise ValueError("user_guid is required for content indexing items")
     data["user_guid"] = user_guid
     name = data.get("filename") or data.get("name")
     if name is None:
-      raise ValueError("filename is required for content cache items")
+      raise ValueError("filename is required for content indexing items")
     data["filename"] = name
     data["path"] = data.get("path") or ""
     data["content_type"] = data.get("content_type") or "application/octet-stream"

@@ -2,8 +2,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from queryregistry.identity.profiles import get_public_profile_request
 from queryregistry.identity.profiles.models import GetPublicProfileParams
-from queryregistry.content.cache import get_published_files_request
-from queryregistry.content.cache.models import GetPublishedFilesParams
+from queryregistry.content.indexing import get_published_files_request
+from queryregistry.content.indexing.models import GetPublishedFilesParams
 from . import BaseModule
 from .db_module import DbModule
 from .discord_bot_module import DiscordBotModule

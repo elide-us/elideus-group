@@ -1,4 +1,4 @@
-"""MSSQL implementations for content cache query registry services."""
+"""MSSQL implementations for content indexing query registry services."""
 
 from __future__ import annotations
 

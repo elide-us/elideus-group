@@ -1,4 +1,4 @@
-"""Content cache query registry service dispatchers."""
+"""Content indexing query registry service dispatchers."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ _GET_PUBLISHED_FILES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_p
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
   dispatcher = dispatchers.get(provider)
   if dispatcher is None:
-    raise KeyError(f"Unsupported provider '{provider}' for content cache registry")
+    raise KeyError(f"Unsupported provider '{provider}' for content indexing registry")
   return dispatcher
 
 

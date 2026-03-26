@@ -1,3 +1,3 @@
-"""Content MSSQL provider placeholder."""
+"""Content MSSQL provider."""
 
 __all__ = []
