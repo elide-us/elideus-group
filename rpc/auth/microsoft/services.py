@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -14,41 +12,23 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   req_payload = rpc_request.payload or {}
 
-  provider = req_payload.get("provider", "microsoft")
-  id_token = req_payload.get("idToken") or req_payload.get("id_token")
-  access_token = req_payload.get("accessToken") or req_payload.get("access_token")
-  confirm = req_payload.get("confirm")
-  reauth_token = req_payload.get("reauthToken") or req_payload.get("reAuthToken")
-  fingerprint = req_payload.get("fingerprint")
-  logging.debug(f"[auth_microsoft_oauth_login_v1] provider={provider}")
-  logging.debug(
-    f"[auth_microsoft_oauth_login_v1] id_token={id_token[:40] if id_token else None}"
-  )
-  logging.debug(
-    f"[auth_microsoft_oauth_login_v1] access_token={access_token[:40] if access_token else None}"
-  )
-
   module: OauthModule = request.app.state.oauth
+  await module.on_ready()
 
-  user_agent = request.headers.get("user-agent")
-  ip_address = request.client.host if request.client else None
   result = await module.login_provider(
-    provider,
-    id_token=id_token,
-    access_token=access_token,
-    fingerprint=fingerprint,
-    confirm=confirm,
-    reauth_token=reauth_token,
-    user_agent=user_agent,
-    ip_address=ip_address,
+    req_payload.get("provider", "microsoft"),
+    id_token=req_payload.get("idToken") or req_payload.get("id_token"),
+    access_token=req_payload.get("accessToken") or req_payload.get("access_token"),
+    fingerprint=req_payload.get("fingerprint"),
+    confirm=req_payload.get("confirm"),
+    reauth_token=req_payload.get("reauthToken") or req_payload.get("reAuthToken"),
+    user_agent=request.headers.get("user-agent"),
+    ip_address=request.client.host if request.client else None,
   )
-  user = result["user"]
-  session_token = result["session_token"]
-  rotation_token = result["rotation_token"]
-  rot_exp = result["rotation_exp"]
 
+  user = result["user"]
   payload = AuthMicrosoftOauthLogin1(
-    sessionToken=session_token,
+    sessionToken=result["session_token"],
     display_name=user["display_name"],
     credits=user["credits"],
     profile_image=user.get("profile_image"),
@@ -57,10 +37,10 @@ async def auth_microsoft_oauth_login_v1(request: Request):
   response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
-    rotation_token,
+    result["rotation_token"],
     httponly=True,
     secure=is_secure_request(request),
     samesite="lax",
-    expires=rot_exp,
+    expires=result["rotation_exp"],
   )
   return response

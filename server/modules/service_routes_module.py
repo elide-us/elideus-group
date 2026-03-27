@@ -13,11 +13,6 @@ from queryregistry.system.public.models import RoutePathParams, UpsertRouteParam
 from . import BaseModule
 from .auth_module import AuthModule
 from .db_module import DbModule
-from .models.service_routes import (
-  ServiceRouteCollection,
-  ServiceRouteDelete,
-  ServiceRouteItem,
-)
 
 
 class ServiceRoutesModule(BaseModule):
@@ -41,7 +36,7 @@ class ServiceRoutesModule(BaseModule):
     self,
     user_guid: str,
     roles: list[str],
-  ) -> ServiceRouteCollection:
+  ) -> list[dict]:
     logging.debug(
       "[service_routes_get_routes_v1] user=%s roles=%s",
       user_guid,
@@ -50,51 +45,51 @@ class ServiceRoutesModule(BaseModule):
     if not self.db or not self.auth:
       raise RuntimeError("ServiceRoutesModule not ready")
     res = await self.db.run(get_routes_request())
-    routes: list[ServiceRouteItem] = []
+    routes: list[dict] = []
     for row in res.rows:
       mask = int(row.get("element_roles", 0))
       required_roles = self.auth.mask_to_names(mask)
-      route = ServiceRouteItem(
-        path=row.get("element_path", ""),
-        name=row.get("element_name", ""),
-        icon=row.get("element_icon"),
-        sequence=int(row.get("element_sequence", 0)),
-        required_roles=required_roles,
-      )
-      routes.append(route)
+      routes.append({
+        "path": row.get("element_path", ""),
+        "name": row.get("element_name", ""),
+        "icon": row.get("element_icon"),
+        "sequence": int(row.get("element_sequence", 0)),
+        "required_roles": required_roles,
+      })
     logging.debug(
       "[service_routes_get_routes_v1] returning %d routes",
       len(routes),
     )
-    return ServiceRouteCollection(routes=routes)
+    return routes
 
   async def upsert_route(
     self,
     user_guid: str,
     roles: list[str],
-    route: ServiceRouteItem,
-  ) -> ServiceRouteItem:
+    route: dict,
+  ) -> dict:
     logging.debug(
       "[service_routes_upsert_route_v1] user=%s roles=%s payload=%s",
       user_guid,
       roles,
-      route.to_dict(),
+      route,
     )
     if not self.db or not self.auth:
       raise RuntimeError("ServiceRoutesModule not ready")
-    mask = self.auth.names_to_mask(route.required_roles)
+    required_roles = route.get("required_roles", [])
+    mask = self.auth.names_to_mask(required_roles)
     await self.db.run(
       upsert_route_request(UpsertRouteParams(
-        path=route.path,
-        name=route.name,
-        icon=route.icon,
-        sequence=route.sequence,
+        path=route["path"],
+        name=route["name"],
+        icon=route.get("icon"),
+        sequence=route.get("sequence", 0),
         roles=mask,
       ))
     )
     logging.debug(
       "[service_routes_upsert_route_v1] upserted route %s",
-      route.path,
+      route["path"],
     )
     return route
 
@@ -103,7 +98,7 @@ class ServiceRoutesModule(BaseModule):
     user_guid: str,
     roles: list[str],
     path: str,
-  ) -> ServiceRouteDelete:
+  ) -> dict:
     logging.debug(
       "[service_routes_delete_route_v1] user=%s roles=%s payload={'path': %s}",
       user_guid,
@@ -117,4 +112,4 @@ class ServiceRoutesModule(BaseModule):
       "[service_routes_delete_route_v1] deleted route %s",
       path,
     )
-    return ServiceRouteDelete(path=path)
+    return {"path": path}

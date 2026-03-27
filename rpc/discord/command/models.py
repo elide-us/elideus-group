@@ -1,10 +1,6 @@
 from pydantic import BaseModel
 
 
-class DiscordCommandGetRolesResponse1(BaseModel):
-  roles: list[str]
-
-
 class DiscordCommandGetCreditsRequest1(BaseModel):
   discord_id: str
 

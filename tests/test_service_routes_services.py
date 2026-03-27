@@ -74,9 +74,6 @@ sys.modules['server.modules.models.service_routes'] = service_routes_models
 modules_models_pkg.service_routes = service_routes_models
 service_routes_models_spec.loader.exec_module(service_routes_models)
 
-ServiceRouteCollection = service_routes_models.ServiceRouteCollection
-ServiceRouteDelete = service_routes_models.ServiceRouteDelete
-ServiceRouteItem = service_routes_models.ServiceRouteItem
 
 service_routes_module_pkg = types.ModuleType('server.modules.service_routes_module')
 
@@ -90,14 +87,13 @@ class StubServiceRoutesModule:
 
   async def get_routes(self, user_guid, roles):
     self.calls.append(('get_routes', user_guid, tuple(roles)))
-    route = ServiceRouteItem(
-      path='/a',
-      name='A',
-      icon='home',
-      sequence=1,
-      required_roles=['ROLE_SERVICE_ADMIN'],
-    )
-    return ServiceRouteCollection(routes=[route])
+    return [{
+      "path": "/a",
+      "name": "A",
+      "icon": "home",
+      "sequence": 1,
+      "required_roles": ["ROLE_SERVICE_ADMIN"],
+    }]
 
   async def upsert_route(self, user_guid, roles, route):
     self.calls.append(('upsert_route', user_guid, tuple(roles), route))
@@ -105,7 +101,7 @@ class StubServiceRoutesModule:
 
   async def delete_route(self, user_guid, roles, path):
     self.calls.append(('delete_route', user_guid, tuple(roles), path))
-    return ServiceRouteDelete(path=path)
+    return {"path": path}
 
 
 service_routes_module_pkg.ServiceRoutesModule = StubServiceRoutesModule
@@ -187,5 +183,5 @@ def test_upsert_and_delete_route_service():
   assert resp.status_code == 200
   resp = client.post('/rpc', json={'op': 'urn:service:routes:delete_route:1', 'payload': {'path': '/a'}})
   assert resp.status_code == 200
-  assert any(call[0] == 'upsert_route' and call[3].path == '/a' for call in module.calls)
+  assert any(call[0] == 'upsert_route' and call[3]['path'] == '/a' for call in module.calls)
   assert ('delete_route', 'u1', ('ROLE_SERVICE_ADMIN',), '/a') in module.calls
