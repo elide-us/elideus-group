@@ -13,7 +13,7 @@ class TestSystemHandlerRegistration:
     from queryregistry.system.handler import HANDLERS
     expected = {
       "async_tasks", "batch_jobs", "config", "conversations",
-      "personas", "public", "renewals", "roles",
+      "personas", "public", "renewals", "roles", "workflows",
     }
     assert set(HANDLERS.keys()) == expected
 
@@ -162,6 +162,34 @@ class TestServicePagesMovedToContent:
     import importlib
     with pytest.raises(ImportError):
       importlib.import_module("queryregistry.system.service_pages")
+
+
+
+
+class TestWorkflowsSubdomain:
+  """Verify workflows subdomain registration and request builder ops."""
+
+  def test_workflow_dispatchers(self):
+    from queryregistry.system.workflows.handler import DISPATCHERS
+    expected = {
+      ("get_active_workflow", "1"),
+      ("list_workflow_steps", "1"),
+      ("create_workflow_run", "1"),
+      ("get_workflow_run", "1"),
+      ("list_workflow_runs", "1"),
+      ("update_workflow_run", "1"),
+      ("create_workflow_run_step", "1"),
+      ("update_workflow_run_step", "1"),
+      ("list_workflow_run_steps", "1"),
+    }
+    assert set(DISPATCHERS.keys()) == expected
+
+  def test_workflow_request_builders(self):
+    from queryregistry.system.workflows import get_active_workflow_request
+    from queryregistry.system.workflows.models import GetActiveWorkflowParams
+
+    req = get_active_workflow_request(GetActiveWorkflowParams(name="conversation.persona"))
+    assert req.op == "db:system:workflows:get_active_workflow:1"
 
 
 class TestConfigurationRemoved:

@@ -16,6 +16,7 @@ from .personas.handler import handle_personas_request
 from .public.handler import handle_public_request
 from .renewals.handler import handle_renewals_request
 from .roles.handler import handle_roles_request
+from .workflows.handler import handle_workflows_request
 
 __all__ = ["handle_system_request"]
 
@@ -28,6 +29,7 @@ HANDLERS = {
   "public": handle_public_request,
   "renewals": handle_renewals_request,
   "roles": handle_roles_request,
+  "workflows": handle_workflows_request,
 }
 
 
