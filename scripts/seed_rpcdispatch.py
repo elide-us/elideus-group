@@ -18,7 +18,12 @@ from pydantic_core import PydanticUndefined
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from scripts.common import REPO_ROOT, load_module
+from scripts.common import (
+  REPO_ROOT,
+  find_all_model_classes,
+  parse_dispatchers,
+  parse_service_models,
+)
 
 load_dotenv(os.path.join(REPO_ROOT, ".env"))
 
@@ -65,39 +70,6 @@ def parse_dict_keys(path: Path, dict_name: str) -> list[str]:
   return []
 
 
-def parse_dispatchers(path: Path) -> list[dict[str, Any]]:
-  tree = ast.parse(path.read_text(), filename=str(path))
-  operations: list[dict[str, Any]] = []
-  for node in tree.body:
-    value = None
-    if isinstance(node, ast.Assign):
-      targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
-      if "DISPATCHERS" in targets:
-        value = node.value
-    elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-      if node.target.id == "DISPATCHERS":
-        value = node.value
-    if isinstance(value, ast.Dict):
-      for key, val in zip(value.keys, value.values):
-        if not isinstance(key, ast.Tuple) or len(key.elts) != 2:
-          continue
-        left, right = key.elts
-        if not isinstance(left, ast.Constant) or not isinstance(right, ast.Constant):
-          continue
-        if not isinstance(left.value, str):
-          continue
-        function_name = val.id if isinstance(val, ast.Name) else None
-        operations.append(
-          {
-            "op": left.value,
-            "version": int(right.value),
-            "service_function": function_name,
-          }
-        )
-      return operations
-  return operations
-
-
 def discover_domains() -> list[str]:
   return parse_dict_keys(RPC_ROOT / "__init__.py", "HANDLERS")
 
@@ -130,41 +102,32 @@ def discover_models() -> tuple[
   alias_map: dict[str, str] = {}
 
   recid = 1
-  for models_file in sorted(RPC_ROOT.glob("**/models.py")):
-    module = load_module(str(models_file))
-    rel = models_file.relative_to(RPC_ROOT)
-    parts = rel.parts
-    domain = parts[0] if len(parts) > 1 else ""
-    subdomain = parts[1] if len(parts) > 2 else ""
-
-    for name, obj in inspect.getmembers(module, inspect.isclass):
-      if not issubclass(obj, BaseModel) or obj is BaseModel:
-        continue
-      if name in {"RPCRequest", "RPCResponse"}:
-        continue
-      if obj.__module__ != module.__name__:
-        continue
-      if name in model_map:
-        continue
-
-      match = re.search(r"(\d+)$", name)
-      version = int(match.group(1)) if match else 1
-      model_rows.append(
-        {
-          "recid": recid,
-          "element_name": name,
-          "element_domain": domain,
-          "element_subdomain": subdomain,
-          "element_version": version,
-          "parent_name": None,
-          "is_alias": False,
-          "flatten_fields": False,
-          "model_class": obj,
-        }
-      )
-      model_map[name] = recid
-      model_classes[name] = obj
-      recid += 1
+  raw_classes = find_all_model_classes(str(RPC_ROOT))
+  for name, obj, domain, subdomain in raw_classes:
+    if name in model_map:
+      continue
+    if not inspect.isclass(obj) or not issubclass(obj, BaseModel) or obj is BaseModel:
+      continue
+    if name in {"RPCRequest", "RPCResponse"}:
+      continue
+    match = re.search(r"(\d+)$", name)
+    version = int(match.group(1)) if match else 1
+    model_rows.append(
+      {
+        "recid": recid,
+        "element_name": name,
+        "element_domain": domain,
+        "element_subdomain": subdomain,
+        "element_version": version,
+        "parent_name": None,
+        "is_alias": False,
+        "flatten_fields": False,
+        "model_class": obj,
+      }
+    )
+    model_map[name] = recid
+    model_classes[name] = obj
+    recid += 1
 
   for row in model_rows:
     cls = row["model_class"]
@@ -338,7 +301,7 @@ def discover_model_fields(
   return rows
 
 
-def parse_service_function_metadata(path: Path) -> dict[str, dict[str, Any]]:
+def parse_service_module_metadata(path: Path) -> dict[str, dict[str, Any]]:
   if not path.exists():
     return {}
 
@@ -351,8 +314,6 @@ def parse_service_function_metadata(path: Path) -> dict[str, dict[str, Any]]:
 
     module_attr: str | None = None
     method_name: str | None = None
-    request_model: str | None = None
-    response_model: str | None = None
 
     for child in ast.walk(node):
       if isinstance(child, ast.Attribute):
@@ -370,32 +331,12 @@ def parse_service_function_metadata(path: Path) -> dict[str, dict[str, Any]]:
       if isinstance(child, ast.Await) and isinstance(child.value, ast.Call):
         fn = child.value.func
         if isinstance(fn, ast.Attribute):
-          if isinstance(fn.value, ast.Name) and fn.value.id in {"module", "oauth", "storage"}:
+          if isinstance(fn.value, ast.Name) and fn.value.id == "module":
             method_name = fn.attr
-            if module_attr is None:
-              if fn.value.id == "oauth":
-                module_attr = "auth"
-              elif fn.value.id == "storage":
-                module_attr = "storage"
-
-    for stmt in node.body:
-      if not isinstance(stmt, ast.Assign):
-        continue
-      if isinstance(stmt.value, ast.Call) and isinstance(stmt.value.func, ast.Name):
-        class_name = stmt.value.func.id
-        if not class_name[:1].isupper():
-          continue
-        target_names = [target.id for target in stmt.targets if isinstance(target, ast.Name)]
-        if any(name in {"input_payload", "data", "req"} for name in target_names):
-          request_model = class_name
-        if any(name in {"payload", "item"} for name in target_names):
-          response_model = class_name
 
     metadata[node.name] = {
       "module_attr": module_attr,
       "method_name": method_name,
-      "request_model": request_model,
-      "response_model": response_model,
     }
 
   return metadata
@@ -413,31 +354,27 @@ def discover_functions(
   for domain, subdomain in subdomains:
     init_file = RPC_ROOT / domain / subdomain / "__init__.py"
     services_file = RPC_ROOT / domain / subdomain / "services.py"
-    operations = parse_dispatchers(init_file)
-    service_meta = parse_service_function_metadata(services_file)
+    _, operations = parse_dispatchers(str(init_file))
+    service_models = parse_service_models(str(services_file))
+    service_meta = parse_service_module_metadata(services_file)
 
     for operation in operations:
-      service_function = operation["service_function"]
+      service_function = operation["func"]
       meta = service_meta.get(service_function or "", {})
-      module_attr = meta.get("module_attr")
-      method_name = meta.get("method_name")
-      request_model = meta.get("request_model")
-      response_model = meta.get("response_model")
+      request_model = service_models.get(service_function)
       if request_model:
         request_model = resolve_alias_name(request_model, alias_map)
-      if response_model:
-        response_model = resolve_alias_name(response_model, alias_map)
 
       rows.append(
         {
           "recid": recid,
           "subdomains_recid": subdomain_recids[(domain, subdomain)],
           "element_name": operation["op"],
-          "element_version": operation["version"],
-          "element_module_attr": module_attr,
-          "element_method_name": method_name,
+          "element_version": int(operation["version"]),
+          "element_module_attr": meta.get("module_attr"),
+          "element_method_name": meta.get("method_name"),
           "element_request_model_recid": model_map.get(request_model) if request_model else None,
-          "element_response_model_recid": model_map.get(response_model) if response_model else None,
+          "element_response_model_recid": None,
           "element_status": 1,
           "element_app_version": APP_VERSION,
           "element_iteration": 1,

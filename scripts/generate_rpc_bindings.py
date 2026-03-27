@@ -2,17 +2,22 @@ from __future__ import annotations
 
 """Generate RPC bindings for the frontend client and shared models."""
 
-import ast
-import inspect
 import os
 import sys
 from typing import Iterable
 
-from pydantic import BaseModel
 from colorama import Fore, Style
 import colorama
 
-from common import HEADER_COMMENT, REPO_ROOT, camel_case, load_module, model_to_ts
+from common import (
+  HEADER_COMMENT,
+  REPO_ROOT,
+  camel_case,
+  find_all_model_classes,
+  model_to_ts,
+  parse_dispatchers,
+  parse_service_models,
+)
 
 # Ensure repo root is on sys.path so RPC modules can be imported with package names.
 sys.path.insert(0, REPO_ROOT)
@@ -29,69 +34,6 @@ def urn_to_func(op: str, version: str) -> str:
   if version != '1':
     name += version
   return name
-
-
-def parse_dispatchers(path: str) -> tuple[list[str], list[dict[str, str]]]:
-  with open(path, 'r') as f:
-    tree = ast.parse(f.read(), filename=path)
-
-  operations: list[dict[str, str]] = []
-  for node in tree.body:
-    if isinstance(node, ast.Assign):
-      targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-      value = node.value
-    elif isinstance(node, ast.AnnAssign):
-      targets = [node.target.id] if isinstance(node.target, ast.Name) else []
-      value = node.value
-    else:
-      continue
-    if 'DISPATCHERS' in targets and isinstance(value, ast.Dict):
-      for key, val in zip(value.keys, value.values):
-        if not (isinstance(key, ast.Tuple) and len(key.elts) == 2):
-          continue
-        k0, k1 = key.elts
-        if not (isinstance(k0, ast.Constant) and isinstance(k1, ast.Constant)):
-          continue
-        op, ver = k0.value, k1.value
-        if isinstance(val, ast.Name):
-          func = val.id
-          operations.append({'op': op, 'version': ver, 'func': func})
-  rel_dir = os.path.relpath(os.path.dirname(path), RPC_ROOT)
-  parts = [] if rel_dir == '.' else rel_dir.split(os.sep)
-  return parts, operations
-
-
-def _annotation_to_str(node: ast.AST) -> str:
-  if isinstance(node, ast.Name):
-    return node.id
-  if isinstance(node, ast.Attribute):
-    return node.attr
-  if isinstance(node, ast.Subscript):
-    return _annotation_to_str(node.slice)
-  if isinstance(node, ast.Index):  # type: ignore[attr-defined]
-    return _annotation_to_str(node.value)
-  if isinstance(node, ast.Constant):
-    return str(node.value)
-  return 'any'
-
-
-def parse_service_models(path: str) -> dict[str, str]:
-  models: dict[str, str] = {}
-  if not os.path.exists(path):
-    return models
-  with open(path, 'r') as f:
-    tree = ast.parse(f.read(), filename=path)
-  for node in tree.body:
-    if isinstance(node, ast.AsyncFunctionDef):
-      defaults = [None] * (len(node.args.args) - len(node.args.defaults)) + node.args.defaults
-      for arg, _default in zip(node.args.args, defaults):
-        if arg.arg != 'payload':
-          continue
-        if arg.annotation is None:
-          continue
-        model = _annotation_to_str(arg.annotation)
-        models[node.name] = model
-  return models
 
 
 def generate_client_ts(base: Iterable[str], ops: list[dict[str, str]], service_models: dict[str, str]) -> str:
@@ -139,35 +81,9 @@ def to_tabs(text: str) -> str:
   return "\n".join(lines)
 
 
-def extract_interfaces_from_models_py(path: str, seen: set[str]) -> list[str]:
-  interfaces: list[str] = []
-  try:
-    module = load_module(path)
-  except Exception as e:
-    print(f"{Fore.YELLOW}[WARN]{Style.RESET_ALL} Skipping '{path}' due to import error: {e}")
-    return interfaces
-
-  for _, obj in inspect.getmembers(module):
-    if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
-      if obj.__name__ in {'RPCRequest', 'RPCResponse'}:
-        continue
-      if obj.__name__ in seen:
-        continue
-      print(f"Found model: {obj.__name__}")
-      seen.add(obj.__name__)
-      interfaces.append(to_tabs(model_to_ts(obj)))
-
-  return interfaces
-
-
 def find_all_interfaces() -> list[str]:
-  interfaces: list[str] = []
-  seen: set[str] = set()
-  for root, _, files in os.walk(RPC_ROOT):
-    if 'models.py' in files:
-      models_path = os.path.join(root, 'models.py')
-      interfaces.extend(extract_interfaces_from_models_py(models_path, seen))
-  return interfaces
+  model_classes = find_all_model_classes(RPC_ROOT)
+  return [to_tabs(model_to_ts(cls)) for _, cls, _, _ in model_classes]
 
 
 def write_interfaces_to_file(interfaces: list[str], output_dir: str) -> None:

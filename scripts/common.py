@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
+import inspect
 import os
 import types
 from datetime import datetime
@@ -43,6 +45,100 @@ def load_module(path: str) -> types.ModuleType:
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)
   return module
+
+
+def parse_dispatchers(path: str) -> tuple[list[str], list[dict[str, str]]]:
+  with open(path, 'r') as f:
+    tree = ast.parse(f.read(), filename=path)
+
+  operations: list[dict[str, str]] = []
+  for node in tree.body:
+    if isinstance(node, ast.Assign):
+      targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+      value = node.value
+    elif isinstance(node, ast.AnnAssign):
+      targets = [node.target.id] if isinstance(node.target, ast.Name) else []
+      value = node.value
+    else:
+      continue
+    if 'DISPATCHERS' in targets and isinstance(value, ast.Dict):
+      for key, val in zip(value.keys, value.values):
+        if not (isinstance(key, ast.Tuple) and len(key.elts) == 2):
+          continue
+        k0, k1 = key.elts
+        if not (isinstance(k0, ast.Constant) and isinstance(k1, ast.Constant)):
+          continue
+        op, ver = k0.value, k1.value
+        if isinstance(val, ast.Name):
+          func = val.id
+          operations.append({'op': op, 'version': ver, 'func': func})
+  rel_dir = os.path.relpath(os.path.dirname(path), os.path.join(REPO_ROOT, 'rpc'))
+  parts = [] if rel_dir == '.' else rel_dir.split(os.sep)
+  return parts, operations
+
+
+def _annotation_to_str(node: ast.AST) -> str:
+  if isinstance(node, ast.Name):
+    return node.id
+  if isinstance(node, ast.Attribute):
+    return node.attr
+  if isinstance(node, ast.Subscript):
+    return _annotation_to_str(node.slice)
+  if isinstance(node, ast.Index):  # type: ignore[attr-defined]
+    return _annotation_to_str(node.value)
+  if isinstance(node, ast.Constant):
+    return str(node.value)
+  return 'any'
+
+
+def parse_service_models(path: str) -> dict[str, str]:
+  models: dict[str, str] = {}
+  if not os.path.exists(path):
+    return models
+  with open(path, 'r') as f:
+    tree = ast.parse(f.read(), filename=path)
+  for node in tree.body:
+    if isinstance(node, ast.AsyncFunctionDef):
+      defaults = [None] * (len(node.args.args) - len(node.args.defaults)) + node.args.defaults
+      for arg, _default in zip(node.args.args, defaults):
+        if arg.arg != 'payload':
+          continue
+        if arg.annotation is None:
+          continue
+        model = _annotation_to_str(arg.annotation)
+        models[node.name] = model
+  return models
+
+
+def find_all_model_classes(rpc_root: str) -> list[tuple[str, type[BaseModel], str, str]]:
+  model_classes: list[tuple[str, type[BaseModel], str, str]] = []
+  seen: set[str] = set()
+  for root, _, files in os.walk(rpc_root):
+    if 'models.py' not in files:
+      continue
+    models_path = os.path.join(root, 'models.py')
+    try:
+      module = load_module(models_path)
+    except Exception:
+      continue
+
+    rel_path = os.path.relpath(models_path, rpc_root)
+    parts = rel_path.split(os.sep)
+    domain = parts[0] if len(parts) > 1 else ""
+    subdomain = parts[1] if len(parts) > 2 else ""
+
+    for _, obj in inspect.getmembers(module):
+      if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
+        if obj.__name__ in {'RPCRequest', 'RPCResponse'}:
+          continue
+        if obj.__module__ != module.__name__:
+          continue
+        if obj.__name__ in seen:
+          continue
+        seen.add(obj.__name__)
+        model_classes.append((obj.__name__, obj, domain, subdomain))
+
+  return model_classes
 
 
 def _py_to_ts(py_type: Any) -> str:
