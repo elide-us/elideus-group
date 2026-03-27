@@ -1,52 +1,37 @@
-import logging
-
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
 from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
 from server.modules.oauth_module import OauthModule
 from .models import AuthGoogleOauthLogin1, AuthGoogleOauthLoginPayload1
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
+
 
 async def auth_google_oauth_login_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   try:
-    req_payload = AuthGoogleOauthLoginPayload1(**(rpc_request.payload or {}))
+    data = AuthGoogleOauthLoginPayload1(**(rpc_request.payload or {}))
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
 
-  provider = req_payload.provider
-  code = req_payload.code
-  confirm = req_payload.confirm
-  reauth_token = req_payload.reauthToken or (rpc_request.payload or {}).get("reAuthToken")
-  logging.debug(f"[auth_google_oauth_login_v1] provider={provider}")
-  logging.debug(
-    f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
-  )
-
   module: OauthModule = request.app.state.oauth
+  await module.on_ready()
 
-  fingerprint = req_payload.fingerprint
-  user_agent = request.headers.get("user-agent")
-  ip_address = request.client.host if request.client else None
   result = await module.login_provider(
-    provider,
-    code=code,
-    fingerprint=fingerprint,
-    confirm=confirm,
-    reauth_token=reauth_token,
-    user_agent=user_agent,
-    ip_address=ip_address,
+    data.provider,
+    code=data.code,
+    fingerprint=data.fingerprint,
+    confirm=data.confirm,
+    reauth_token=data.reauthToken or (rpc_request.payload or {}).get("reAuthToken"),
+    user_agent=request.headers.get("user-agent"),
+    ip_address=request.client.host if request.client else None,
   )
-  user = result["user"]
-  session_token = result["session_token"]
-  rotation_token = result["rotation_token"]
-  rot_exp = result["rotation_exp"]
 
+  user = result["user"]
   payload = AuthGoogleOauthLogin1(
-    sessionToken=session_token,
+    sessionToken=result["session_token"],
     display_name=user["display_name"],
     credits=user["credits"],
     profile_image=user.get("profile_image"),
@@ -55,10 +40,10 @@ async def auth_google_oauth_login_v1(request: Request):
   response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
-    rotation_token,
+    result["rotation_token"],
     httponly=True,
     secure=is_secure_request(request),
     samesite="lax",
-    expires=rot_exp,
+    expires=result["rotation_exp"],
   )
   return response

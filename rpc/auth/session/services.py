@@ -8,31 +8,37 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
   from server.modules.session_module import SessionModule
 
+
 async def auth_session_get_token_v1(request: Request):
-  body = await request.json()
-  provider = body.get("provider")
-  id_token = body.get("id_token")
-  access_token = body.get("access_token")
-  fingerprint = body.get("fingerprint")
-  confirm = body.get("confirm")
-  reauth_token = body.get("reauthToken") or body.get("reAuthToken")
+  rpc_request, _, _ = await unbox_request(request)
+  req_payload = rpc_request.payload or {}
+
+  provider = req_payload.get("provider")
+  id_token = req_payload.get("id_token")
+  access_token = req_payload.get("access_token")
+  fingerprint = req_payload.get("fingerprint")
+  confirm = req_payload.get("confirm")
+  reauth_token = req_payload.get("reauthToken") or req_payload.get("reAuthToken")
+
   if not provider or not id_token or not access_token or not fingerprint:
     raise HTTPException(status_code=400, detail="Missing credentials or fingerprint")
+
   module: 'SessionModule' = request.app.state.session
-  user_agent = request.headers.get("user-agent")
-  ip_address = request.client.host if request.client else None
+  await module.on_ready()
+
   session_token, rotation_token, rot_exp, profile = await module.issue_token(
     provider,
     id_token,
     access_token,
     fingerprint,
-    user_agent,
-    ip_address,
+    request.headers.get("user-agent"),
+    request.client.host if request.client else None,
     confirm,
     reauth_token,
   )
+
   payload = {"token": session_token, "profile": profile}
-  rpc_resp = RPCResponse(op="urn:auth:session:get_token:1", payload=payload, version=1)
+  rpc_resp = RPCResponse(op=rpc_request.op, payload=payload, version=rpc_request.version)
   response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
@@ -44,6 +50,7 @@ async def auth_session_get_token_v1(request: Request):
   )
   return response
 
+
 async def auth_session_refresh_token_v1(request: Request):
   rpc_request, _auth_ctx, _ = await unbox_request(request)
   req_payload = rpc_request.payload or {}
@@ -54,6 +61,7 @@ async def auth_session_refresh_token_v1(request: Request):
   if not fingerprint:
     raise HTTPException(status_code=400, detail="Missing fingerprint")
   module: 'SessionModule' = request.app.state.session
+  await module.on_ready()
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_token = await module.refresh_token(
@@ -64,13 +72,16 @@ async def auth_session_refresh_token_v1(request: Request):
   )
   return RPCResponse(op=rpc_request.op, payload={"token": session_token}, version=rpc_request.version)
 
+
 async def auth_session_invalidate_token_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   if not auth_ctx.user_guid:
     raise HTTPException(status_code=401, detail="Missing or invalid session token")
   module: 'SessionModule' = request.app.state.session
+  await module.on_ready()
   await module.invalidate_token(auth_ctx.user_guid)
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
+
 
 async def auth_session_logout_device_v1(request: Request):
   rpc_request, _auth_ctx, _ = await unbox_request(request)
@@ -79,8 +90,10 @@ async def auth_session_logout_device_v1(request: Request):
     raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
   token = header.split(" ", 1)[1].strip()
   module: 'SessionModule' = request.app.state.session
+  await module.on_ready()
   await module.logout_device(token)
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
+
 
 async def auth_session_get_session_v1(request: Request):
   rpc_request, _auth_ctx, _ = await unbox_request(request)
@@ -89,6 +102,7 @@ async def auth_session_get_session_v1(request: Request):
     raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
   token = header.split(" ", 1)[1].strip()
   module: 'SessionModule' = request.app.state.session
+  await module.on_ready()
   ip_address = request.client.host if request.client else None
   user_agent = request.headers.get("user-agent")
   payload = await module.get_session(token, ip_address, user_agent)

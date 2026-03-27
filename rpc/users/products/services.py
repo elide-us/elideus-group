@@ -2,6 +2,7 @@ from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
+from server.modules.finance_module import FinanceModule
 
 from .models import (
   UsersProductItem1,
@@ -13,7 +14,7 @@ from .models import (
 
 async def users_products_list_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  module = request.app.state.finance
+  module: FinanceModule = request.app.state.finance
   await module.on_ready()
   products = await module.list_products_with_enablement(auth_ctx.user_guid)
   items = [UsersProductItem1(**product) for product in products]
@@ -24,7 +25,7 @@ async def users_products_list_v1(request: Request):
 async def users_products_purchase_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = UsersProductPurchase1(**(rpc_request.payload or {}))
-  module = request.app.state.finance
+  module: FinanceModule = request.app.state.finance
   await module.on_ready()
   try:
     result = await module.purchase_product(
