@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Dict, List
 
 from fastapi import HTTPException, Request
 
@@ -12,22 +11,6 @@ from .models import (
   DiscordChatPersonaRequest1,
   DiscordChatPersonaResponse1,
 )
-
-
-def _persona_stub_response(rpc_request, detail: str) -> RPCResponse:
-  logging.info("[discord_chat_persona_stub] %s", detail)
-  payload = {
-    "success": False,
-    "reason": "not_implemented",
-    "detail": detail,
-    "ack_message": "Persona chat is currently unavailable.",
-  }
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=payload,
-    version=rpc_request.version,
-  )
-
 
 async def discord_chat_summarize_channel_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
@@ -86,10 +69,6 @@ async def discord_chat_persona_command_v1(request: Request):
   persona = (payload.get("persona") or "").strip()
   message = (payload.get("message") or "").strip()
   if not persona or not message:
-    logging.warning(
-      "[discord_chat_persona_command_v1] invalid usage",
-      extra={"persona": persona, "has_message": bool(message)},
-    )
     return RPCResponse(
       op=rpc_request.op,
       payload={
@@ -100,23 +79,18 @@ async def discord_chat_persona_command_v1(request: Request):
       version=rpc_request.version,
     )
 
-  logging.info(
-    "[discord_chat_persona_command_v1] received persona command",
-    extra={
-      "persona": persona,
-      "guild_id": payload.get("guild_id"),
-      "channel_id": payload.get("channel_id"),
-      "user_id": payload.get("user_id"),
-    },
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
+  result = await module.handle_persona_command(
+    guild_id=int(payload.get("guild_id") or 0),
+    channel_id=int(payload.get("channel_id") or 0),
+    user_id=int(payload.get("user_id") or 0),
+    command_text=f"{persona} {message}",
   )
 
   return RPCResponse(
     op=rpc_request.op,
-    payload={
-      "success": True,
-      "persona": persona,
-      "message": message,
-    },
+    payload=result,
     version=rpc_request.version,
   )
 

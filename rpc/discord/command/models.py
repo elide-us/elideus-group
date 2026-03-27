@@ -5,17 +5,6 @@ class DiscordCommandGetRolesResponse1(BaseModel):
   roles: list[str]
 
 
-class DiscordCommandRegisterRequest1(BaseModel):
-  discord_id: str
-
-
-class DiscordCommandRegisterResponse1(BaseModel):
-  success: bool
-  message: str
-  user_guid: str | None = None
-  credits: int | None = None
-
-
 class DiscordCommandGetCreditsRequest1(BaseModel):
   discord_id: str
 

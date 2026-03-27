@@ -6,7 +6,6 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.finance_module import FinanceModule
-from server.modules.oauth_module import OauthModule
 
 from .models import (
   DiscordCommandGetCreditsRequest1,
@@ -14,8 +13,6 @@ from .models import (
   DiscordCommandGetGuildCreditsRequest1,
   DiscordCommandGetGuildCreditsResponse1,
   DiscordCommandGetRolesResponse1,
-  DiscordCommandRegisterRequest1,
-  DiscordCommandRegisterResponse1,
 )
 
 
@@ -27,16 +24,6 @@ async def discord_command_get_roles_v1(request: Request):
     payload=payload.model_dump(),
     version=rpc_request.version,
   )
-
-
-async def discord_command_register_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = DiscordCommandRegisterRequest1.model_validate(rpc_request.payload or {})
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  result = await oauth.register_discord_user(payload.discord_id)
-  response = DiscordCommandRegisterResponse1(**result)
-  return RPCResponse(op=rpc_request.op, payload=response.model_dump(), version=rpc_request.version)
 
 
 async def discord_command_get_credits_v1(request: Request):

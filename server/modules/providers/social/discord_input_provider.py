@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json, logging, time
+import logging, time
 from typing import TYPE_CHECKING
 
 from discord.ext import commands
@@ -44,9 +44,6 @@ class DiscordInputProvider(SocialInputProvider):
     assert self.bot
     for name in list(self._registered.keys()):
       self.bot.remove_command(name)
-    @commands.command(name="rpc")
-    async def rpc_command(ctx, *, op: str):
-      await self._handle_rpc_command(ctx, op=op)
 
     @commands.command(name="summarize")
     async def summarize_command(ctx, hours: str):
@@ -56,10 +53,6 @@ class DiscordInputProvider(SocialInputProvider):
     async def persona_command(ctx, *, request: str | None = None):
       await self._handle_persona_command(ctx, request)
 
-    @commands.command(name="register")
-    async def register_command(ctx):
-      await self._handle_register_command(ctx)
-
     @commands.command(name="credits")
     async def credits_command(ctx):
       await self._handle_credits_command(ctx)
@@ -68,72 +61,16 @@ class DiscordInputProvider(SocialInputProvider):
     async def guildcredits_command(ctx):
       await self._handle_guildcredits_command(ctx)
 
-    self.bot.add_command(rpc_command)
     self.bot.add_command(summarize_command)
     self.bot.add_command(persona_command)
-    self.bot.add_command(register_command)
     self.bot.add_command(credits_command)
     self.bot.add_command(guildcredits_command)
     self._registered = {
-      "rpc": rpc_command,
       "summarize": summarize_command,
       "persona": persona_command,
-      "register": register_command,
       "credits": credits_command,
       "guildcredits": guildcredits_command,
     }
-
-  async def _handle_rpc_command(self, ctx, *, op: str):
-    from rpc.handler import dispatch_rpc_op
-
-    start = time.perf_counter()
-    guild_id = getattr(ctx.guild, "id", 0)
-    user_id = getattr(ctx.author, "id", 0)
-    if guild_id and user_id:
-      self.discord.bump_rate_limits(guild_id, user_id)
-    metadata = {
-      "guild_id": guild_id,
-      "channel_id": getattr(ctx.channel, "id", 0),
-      "user_id": user_id,
-    }
-
-    try:
-      resp = await dispatch_rpc_op(
-        self.discord.app,
-        op,
-        None,
-        discord_ctx=metadata,
-      )
-      payload = resp.payload
-      if hasattr(payload, "model_dump"):
-        data = json.dumps(payload.model_dump())
-      else:
-        data = str(payload)
-      await self._queue_channel_notice(ctx, data, reason="rpc_command")
-      elapsed = time.perf_counter() - start
-      logging.info(
-        "[DiscordInputProvider] rpc",
-        extra={
-          "guild_id": guild_id,
-          "channel_id": ctx.channel.id,
-          "user_id": user_id,
-          "op": op,
-          "elapsed": elapsed,
-        },
-      )
-    except Exception as exc:
-      elapsed = time.perf_counter() - start
-      logging.exception(
-        "[DiscordInputProvider] rpc failed",
-        extra={
-          "guild_id": guild_id,
-          "channel_id": getattr(ctx.channel, "id", 0),
-          "user_id": user_id,
-          "op": op,
-          "elapsed": elapsed,
-        },
-      )
-      await self._queue_channel_notice(ctx, f"Error: {exc}", reason="rpc_command_error")
 
   async def _handle_summarize_command(self, ctx, hours: str):
     from rpc.handler import dispatch_rpc_op
@@ -229,54 +166,6 @@ class DiscordInputProvider(SocialInputProvider):
         },
       )
       await self._queue_channel_notice(ctx, "Failed to fetch messages. Please try again later.", reason="rpc_failure")
-
-  async def _handle_register_command(self, ctx):
-    from rpc.handler import dispatch_rpc_op
-
-    start = time.perf_counter()
-    guild_id = getattr(ctx.guild, "id", 0)
-    user_id = getattr(ctx.author, "id", 0)
-    channel_id = getattr(ctx.channel, "id", 0)
-    if guild_id and user_id:
-      self.discord.bump_rate_limits(guild_id, user_id)
-    metadata = {
-      "guild_id": guild_id,
-      "channel_id": channel_id,
-      "user_id": user_id,
-    }
-
-    try:
-      resp = await dispatch_rpc_op(
-        self.discord.app,
-        "urn:discord:command:register:1",
-        {"discord_id": str(user_id)},
-        discord_ctx=metadata,
-      )
-      payload = resp.payload if isinstance(resp.payload, dict) else {}
-      message = payload.get("message") or "Registration completed."
-      await self._queue_channel_notice(ctx, message, reason="register_command")
-      elapsed = time.perf_counter() - start
-      logging.info(
-        "[DiscordInputProvider] register",
-        extra={
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-          "elapsed": elapsed,
-        },
-      )
-    except Exception as exc:
-      elapsed = time.perf_counter() - start
-      logging.exception(
-        "[DiscordInputProvider] register failed",
-        extra={
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-          "elapsed": elapsed,
-        },
-      )
-      await self._queue_channel_notice(ctx, f"Error: {exc}", reason="register_command_error")
 
   async def _handle_credits_command(self, ctx):
     from rpc.handler import dispatch_rpc_op
@@ -383,6 +272,8 @@ class DiscordInputProvider(SocialInputProvider):
       await self._queue_channel_notice(ctx, f"Error: {exc}", reason="guildcredits_command_error")
 
   async def _handle_persona_command(self, ctx, request: str | None):
+    from rpc.handler import dispatch_rpc_op
+
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
     user_id = getattr(ctx.author, "id", 0)
@@ -392,21 +283,43 @@ class DiscordInputProvider(SocialInputProvider):
     if not request or not request.strip():
       await self._queue_channel_notice(ctx, "Usage: !persona <persona> <message>", reason="invalid_persona_usage")
       return
-    module = getattr(self.discord.app.state, "discord_chat", None)
-    if not module:
-      await self._queue_channel_notice(ctx, "Persona chat is currently unavailable.", reason="persona_module_unavailable")
-      return
-    try:
-      await module.on_ready()
-      result = await module.handle_persona_command(
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        command_text=request,
-      )
-    except ValueError:
+    parts = request.strip().split(None, 1)
+    if len(parts) < 2:
       await self._queue_channel_notice(ctx, "Usage: !persona <persona> <message>", reason="invalid_persona_usage")
       return
+
+    persona = parts[0].strip()
+    message = parts[1].strip()
+    metadata = {
+      "guild_id": guild_id,
+      "channel_id": channel_id,
+      "user_id": user_id,
+    }
+
+    try:
+      resp = await dispatch_rpc_op(
+        self.discord.app,
+        "urn:discord:chat:persona_command:1",
+        {
+          "persona": persona,
+          "message": message,
+          "guild_id": guild_id,
+          "channel_id": channel_id,
+          "user_id": user_id,
+        },
+        discord_ctx=metadata,
+      )
+      payload = resp.payload
+      if hasattr(payload, "model_dump"):
+        data = payload.model_dump()
+      elif isinstance(payload, dict):
+        data = dict(payload)
+      else:
+        data = {"success": bool(payload)}
+
+      if not data.get("success"):
+        ack = data.get("ack_message") or "Persona chat is currently unavailable."
+        await self._queue_channel_notice(ctx, ack, reason=data.get("reason") or "persona_failed")
     except Exception:
       elapsed = time.perf_counter() - start
       logging.exception(
@@ -421,8 +334,7 @@ class DiscordInputProvider(SocialInputProvider):
       )
       await self._queue_channel_notice(ctx, "Persona chat is currently unavailable.", reason="persona_rpc_failure")
       return
-    ack_message = result.get("ack_message")
-    reason = result.get("reason") or ("persona_response" if result.get("success") else "persona_failed")
+
     elapsed = time.perf_counter() - start
     logging.info(
       "[DiscordInputProvider] persona",
@@ -430,26 +342,12 @@ class DiscordInputProvider(SocialInputProvider):
         "guild_id": guild_id,
         "channel_id": channel_id,
         "user_id": user_id,
-        "persona": result.get("persona"),
-        "success": result.get("success"),
-        "reason": reason,
+        "persona": persona,
+        "success": data.get("success"),
+        "reason": data.get("reason"),
         "elapsed": elapsed,
       },
     )
-    if not ack_message:
-      return
-    try:
-      await self.discord.send_channel_message(channel_id, ack_message)
-    except Exception:
-      logging.exception(
-        "[DiscordInputProvider] failed to send persona acknowledgement",
-        extra={
-          "channel_id": channel_id,
-          "guild_id": guild_id,
-          "user_id": user_id,
-          "reason": reason,
-        },
-      )
 
   async def _queue_channel_notice(self, ctx, message: str, *, reason: str | None = None) -> None:
     channel_id = getattr(ctx.channel, "id", 0)
@@ -493,4 +391,3 @@ class DiscordInputProvider(SocialInputProvider):
         "[DiscordInputProvider] failed to send channel message",
         extra={"channel_id": channel_id},
       )
-
