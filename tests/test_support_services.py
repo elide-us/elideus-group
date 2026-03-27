@@ -24,9 +24,7 @@ helpers = importlib.util.module_from_spec(spec_helpers)
 spec_helpers.loader.exec_module(helpers)
 sys.modules["rpc.helpers"] = helpers
 
-account_mod = importlib.import_module("rpc.account.user.services")
 support_mod = importlib.import_module("rpc.support.users.services")
-importlib.reload(account_mod)
 importlib.reload(support_mod)
 
 
@@ -49,14 +47,15 @@ class DummyUserAdmin:
     self.calls.append(("reset_display", guid))
 
 
-
 class DummyState:
   def __init__(self, user_admin):
     self.user_admin = user_admin
 
+
 class DummyApp:
   def __init__(self, state):
     self.state = state
+
 
 class DummyRequest:
   def __init__(self, state):
@@ -68,51 +67,6 @@ def _make_rpc(op, payload=None):
   return RPCRequest(op=op, payload=payload, version=1)
 
 
-def test_support_routes_reuse_account_routes():
-  calls = []
-
-  async def fake_displayname(request):
-    calls.append("get_displayname")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_displayname = account_mod.account_user_get_displayname_v1
-  account_mod.account_user_get_displayname_v1 = fake_displayname
-  asyncio.run(support_mod.support_users_get_displayname_v1(None))
-  account_mod.account_user_get_displayname_v1 = orig_displayname
-  assert "get_displayname" in calls
-
-  async def fake_credits(request):
-    calls.append("get_credits")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_credits = account_mod.account_user_get_credits_v1
-  account_mod.account_user_get_credits_v1 = fake_credits
-  asyncio.run(support_mod.support_users_get_credits_v1(None))
-  account_mod.account_user_get_credits_v1 = orig_credits
-  assert "get_credits" in calls
-
-  async def fake_set_credits(request):
-    calls.append("set_credits")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_set_credits = account_mod.account_user_set_credits_v1
-  account_mod.account_user_set_credits_v1 = fake_set_credits
-  asyncio.run(support_mod.support_users_set_credits_v1(None))
-  account_mod.account_user_set_credits_v1 = orig_set_credits
-  assert "set_credits" in calls
-
-  async def fake_reset_display(request):
-    calls.append("reset_display")
-    return RPCResponse(op="o", payload={}, version=1)
-
-  orig_reset_display = account_mod.account_user_reset_display_v1
-  account_mod.account_user_reset_display_v1 = fake_reset_display
-  asyncio.run(support_mod.support_users_reset_display_v1(None))
-  account_mod.account_user_reset_display_v1 = orig_reset_display
-  assert "reset_display" in calls
-
-
-
 def test_support_users_calls_user_admin():
   ua = DummyUserAdmin()
   state = DummyState(ua)
@@ -120,31 +74,26 @@ def test_support_users_calls_user_admin():
 
   async def fake_get_displayname(request):
     return _make_rpc("urn:support:users:get_displayname:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_get_displayname
-  account_mod.unbox_request = fake_get_displayname
+  support_mod.unbox_request = fake_get_displayname
   resp = asyncio.run(support_mod.support_users_get_displayname_v1(req))
   assert ("get_displayname", "u1") in ua.calls
   assert isinstance(resp, RPCResponse)
 
   async def fake_get_credits(request):
     return _make_rpc("urn:support:users:get_credits:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_get_credits
-  account_mod.unbox_request = fake_get_credits
+  support_mod.unbox_request = fake_get_credits
   resp2 = asyncio.run(support_mod.support_users_get_credits_v1(req))
   assert ("get_credits", "u1") in ua.calls
   assert isinstance(resp2, RPCResponse)
 
   async def fake_set_credits(request):
     return _make_rpc("urn:support:users:set_credits:1", {"userGuid": "u1", "credits": 5}), None, None
-  helpers.unbox_request = fake_set_credits
-  account_mod.unbox_request = fake_set_credits
+  support_mod.unbox_request = fake_set_credits
   asyncio.run(support_mod.support_users_set_credits_v1(req))
   assert ("set_credits", "u1", 5) in ua.calls
 
   async def fake_reset_display(request):
     return _make_rpc("urn:support:users:reset_display:1", {"userGuid": "u1"}), None, None
-  helpers.unbox_request = fake_reset_display
-  account_mod.unbox_request = fake_reset_display
+  support_mod.unbox_request = fake_reset_display
   asyncio.run(support_mod.support_users_reset_display_v1(req))
   assert ("reset_display", "u1") in ua.calls
-
