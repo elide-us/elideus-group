@@ -108,8 +108,7 @@ async def _resolve_auth_context(app, rpc_request: RPCRequest, discord_ctx) -> Au
     discord_id = str(discord_id)
     guid, roles, mask = await auth.get_discord_user_security(discord_id)
     if not guid:
-      rpc_request.discord_id = discord_id
-      return auth_ctx
+      raise HTTPException(status_code=401, detail='Discord account not linked')
     auth_ctx.user_guid = guid
     auth_ctx.roles = roles
     auth_ctx.role_mask = mask
