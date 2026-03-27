@@ -4,12 +4,9 @@ from fastapi.encoders import jsonable_encoder
 from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
   from server.modules.session_module import SessionModule
-
-
-def _get_session_module(request: Request) -> 'SessionModule':
-  return request.app.state.session
 
 async def auth_session_get_token_v1(request: Request):
   body = await request.json()
@@ -21,10 +18,10 @@ async def auth_session_get_token_v1(request: Request):
   reauth_token = body.get("reauthToken") or body.get("reAuthToken")
   if not provider or not id_token or not access_token or not fingerprint:
     raise HTTPException(status_code=400, detail="Missing credentials or fingerprint")
-  session_mod = _get_session_module(request)
+  module: 'SessionModule' = request.app.state.session
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token, rotation_token, rot_exp, profile = await session_mod.issue_token(
+  session_token, rotation_token, rot_exp, profile = await module.issue_token(
     provider,
     id_token,
     access_token,
@@ -56,10 +53,10 @@ async def auth_session_refresh_token_v1(request: Request):
   fingerprint = req_payload.get("fingerprint")
   if not fingerprint:
     raise HTTPException(status_code=400, detail="Missing fingerprint")
-  session_mod = _get_session_module(request)
+  module: 'SessionModule' = request.app.state.session
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  session_token = await session_mod.refresh_token(
+  session_token = await module.refresh_token(
     rotation_token,
     fingerprint,
     user_agent,
@@ -71,8 +68,8 @@ async def auth_session_invalidate_token_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   if not auth_ctx.user_guid:
     raise HTTPException(status_code=401, detail="Missing or invalid session token")
-  session_mod = _get_session_module(request)
-  await session_mod.invalidate_token(auth_ctx.user_guid)
+  module: 'SessionModule' = request.app.state.session
+  await module.invalidate_token(auth_ctx.user_guid)
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
 
 async def auth_session_logout_device_v1(request: Request):
@@ -81,8 +78,8 @@ async def auth_session_logout_device_v1(request: Request):
   if not header or not header.lower().startswith("bearer "):
     raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
   token = header.split(" ", 1)[1].strip()
-  session_mod = _get_session_module(request)
-  await session_mod.logout_device(token)
+  module: 'SessionModule' = request.app.state.session
+  await module.logout_device(token)
   return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
 
 async def auth_session_get_session_v1(request: Request):
@@ -91,8 +88,8 @@ async def auth_session_get_session_v1(request: Request):
   if not header or not header.lower().startswith("bearer "):
     raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
   token = header.split(" ", 1)[1].strip()
-  session_mod = _get_session_module(request)
+  module: 'SessionModule' = request.app.state.session
   ip_address = request.client.host if request.client else None
   user_agent = request.headers.get("user-agent")
-  payload = await session_mod.get_session(token, ip_address, user_agent)
+  payload = await module.get_session(token, ip_address, user_agent)
   return RPCResponse(op=rpc_request.op, payload=payload, version=rpc_request.version)

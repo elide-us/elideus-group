@@ -2,6 +2,7 @@ from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
+from server.modules.discord_bot_module import DiscordBotModule
 
 from .models import (
   DiscordGuildsGuildItem1,
@@ -13,7 +14,7 @@ from .models import (
 
 async def discord_guilds_list_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  module = getattr(request.app.state, "discord_bot", None) or getattr(request.app.state, "discord", None)
+  module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
   guilds = await module.list_guild_records()
   payload = DiscordGuildsList1(guilds=[DiscordGuildsGuildItem1(**row) for row in guilds])
@@ -24,7 +25,7 @@ async def discord_guilds_get_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   guild_id = payload_dict.get("guild_id", "")
-  module = getattr(request.app.state, "discord_bot", None) or getattr(request.app.state, "discord", None)
+  module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
   guild = await module.get_guild_record(guild_id)
   response = DiscordGuildsGuildItem1(**guild)
@@ -34,7 +35,7 @@ async def discord_guilds_get_v1(request: Request):
 async def discord_guilds_update_credits_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = DiscordGuildsUpdateCredits1(**(rpc_request.payload or {}))
-  module = getattr(request.app.state, "discord_bot", None) or getattr(request.app.state, "discord", None)
+  module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
   result = await module.update_guild_credits(payload.guild_id, payload.credits)
   response = DiscordGuildsUpdateCredits1(**result)
@@ -43,7 +44,7 @@ async def discord_guilds_update_credits_v1(request: Request):
 
 async def discord_guilds_sync_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  module = getattr(request.app.state, "discord_bot", None) or getattr(request.app.state, "discord", None)
+  module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
   synced = await module.sync_guild_records()
   payload = DiscordGuildsSyncResult1(

@@ -26,12 +26,12 @@ async def auth_google_oauth_login_v1(request: Request):
     f"[auth_google_oauth_login_v1] code={code[:40] if code else None}"
   )
 
-  oauth: OauthModule = request.app.state.oauth
+  module: OauthModule = request.app.state.oauth
 
   fingerprint = req_payload.fingerprint
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  result = await oauth.login_provider(
+  result = await module.login_provider(
     provider,
     code=code,
     fingerprint=fingerprint,

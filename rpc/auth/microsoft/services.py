@@ -28,11 +28,11 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     f"[auth_microsoft_oauth_login_v1] access_token={access_token[:40] if access_token else None}"
   )
 
-  oauth: OauthModule = request.app.state.oauth
+  module: OauthModule = request.app.state.oauth
 
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
-  result = await oauth.login_provider(
+  result = await module.login_provider(
     provider,
     id_token=id_token,
     access_token=access_token,
