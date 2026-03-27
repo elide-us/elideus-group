@@ -10,7 +10,6 @@ from queryregistry.providers.mssql import run_json_many, run_json_one
 async def get_active_workflow_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT TOP 1
-      recid,
       element_guid,
       element_name,
       element_description,
@@ -21,7 +20,7 @@ async def get_active_workflow_v1(args: Mapping[str, Any]) -> DBResponse:
     FROM system_workflows
     WHERE element_name = ?
       AND element_status = 1
-    ORDER BY element_version DESC, recid DESC
+    ORDER BY element_version DESC, element_guid DESC
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["name"],))
@@ -30,7 +29,6 @@ async def get_active_workflow_v1(args: Mapping[str, Any]) -> DBResponse:
 async def list_workflow_steps_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      recid,
       element_guid,
       workflows_guid,
       element_name,
@@ -46,7 +44,7 @@ async def list_workflow_steps_v1(args: Mapping[str, Any]) -> DBResponse:
       element_modified_on
     FROM system_workflow_steps
     WHERE workflows_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
-    ORDER BY element_sequence ASC, recid ASC
+    ORDER BY element_sequence ASC, element_guid ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["workflows_guid"],))

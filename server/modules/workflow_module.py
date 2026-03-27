@@ -308,7 +308,6 @@ class WorkflowModule(BaseModule):
       return None
     row = dict(res.rows[0])
     return {
-      "recid": row.get("recid"),
       "guid": row.get("element_guid"),
       "name": row.get("element_name"),
       "description": row.get("element_description"),
@@ -323,7 +322,6 @@ class WorkflowModule(BaseModule):
     for row in res.rows:
       mapped.append(
         {
-          "recid": row.get("recid"),
           "guid": row.get("element_guid"),
           "workflows_guid": row.get("workflows_guid"),
           "name": row.get("element_name"),

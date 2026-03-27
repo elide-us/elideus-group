@@ -4,7 +4,6 @@ GO
 IF OBJECT_ID('dbo.system_workflows', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.system_workflows (
-    recid BIGINT IDENTITY(1,1) NOT NULL,
     element_guid UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_system_workflows_guid DEFAULT NEWID(),
     element_name NVARCHAR(128) NOT NULL,
     element_description NVARCHAR(1024) NULL,
@@ -12,8 +11,7 @@ BEGIN
     element_status TINYINT NOT NULL CONSTRAINT DF_system_workflows_status DEFAULT 1,
     element_created_on DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_system_workflows_created_on DEFAULT SYSUTCDATETIME(),
     element_modified_on DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_system_workflows_modified_on DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT PK_system_workflows PRIMARY KEY CLUSTERED (recid),
-    CONSTRAINT UQ_system_workflows_guid UNIQUE (element_guid),
+    CONSTRAINT PK_system_workflows PRIMARY KEY CLUSTERED (element_guid),
     CONSTRAINT UQ_system_workflows_name_version UNIQUE (element_name, element_version)
   );
 END;
@@ -22,7 +20,6 @@ GO
 IF OBJECT_ID('dbo.system_workflow_steps', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.system_workflow_steps (
-    recid BIGINT IDENTITY(1,1) NOT NULL,
     element_guid UNIQUEIDENTIFIER NOT NULL CONSTRAINT DF_system_workflow_steps_guid DEFAULT NEWID(),
     workflows_guid UNIQUEIDENTIFIER NOT NULL,
     element_name NVARCHAR(128) NOT NULL,
@@ -36,8 +33,7 @@ BEGIN
     element_config NVARCHAR(MAX) NULL,
     element_created_on DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_system_workflow_steps_created_on DEFAULT SYSUTCDATETIME(),
     element_modified_on DATETIMEOFFSET(7) NOT NULL CONSTRAINT DF_system_workflow_steps_modified_on DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT PK_system_workflow_steps PRIMARY KEY CLUSTERED (recid),
-    CONSTRAINT UQ_system_workflow_steps_guid UNIQUE (element_guid),
+    CONSTRAINT PK_system_workflow_steps PRIMARY KEY CLUSTERED (element_guid),
     CONSTRAINT UQ_system_workflow_steps_workflow_sequence UNIQUE (workflows_guid, element_sequence),
     CONSTRAINT UQ_system_workflow_steps_workflow_name UNIQUE (workflows_guid, element_name),
     CONSTRAINT FK_system_workflow_steps_workflows FOREIGN KEY (workflows_guid) REFERENCES dbo.system_workflows (element_guid)
@@ -121,21 +117,19 @@ GO
 
 DECLARE @t_system_workflows BIGINT = (SELECT recid FROM dbo.system_schema_tables WHERE element_name = 'system_workflows' AND element_schema = 'dbo');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 3, 'recid', 1, 0, NULL, NULL, 1, 1 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'recid');
+SELECT @t_system_workflows, 4, 'element_guid', 1, 0, '(newid())', NULL, 1, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_guid');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 4, 'element_guid', 2, 0, '(newid())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_guid');
+SELECT @t_system_workflows, 8, 'element_name', 2, 0, NULL, 128, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_name');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 8, 'element_name', 3, 0, NULL, 128, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_name');
+SELECT @t_system_workflows, 8, 'element_description', 3, 1, NULL, 1024, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_description');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 8, 'element_description', 4, 1, NULL, 1024, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_description');
+SELECT @t_system_workflows, 1, 'element_version', 4, 0, '((1))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_version');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 1, 'element_version', 5, 0, '((1))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_version');
+SELECT @t_system_workflows, 11, 'element_status', 5, 0, '((1))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_status');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 11, 'element_status', 6, 0, '((1))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_status');
+SELECT @t_system_workflows, 7, 'element_created_on', 6, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_created_on');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 7, 'element_created_on', 7, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_created_on');
-INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflows, 7, 'element_modified_on', 8, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_modified_on');
+SELECT @t_system_workflows, 7, 'element_modified_on', 7, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflows AND element_name = 'element_modified_on');
 GO
 
 INSERT INTO dbo.system_schema_tables (element_name, element_schema)
@@ -145,33 +139,31 @@ GO
 
 DECLARE @t_system_workflow_steps BIGINT = (SELECT recid FROM dbo.system_schema_tables WHERE element_name = 'system_workflow_steps' AND element_schema = 'dbo');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 3, 'recid', 1, 0, NULL, NULL, 1, 1 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'recid');
+SELECT @t_system_workflow_steps, 4, 'element_guid', 1, 0, '(newid())', NULL, 1, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_guid');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 4, 'element_guid', 2, 0, '(newid())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_guid');
+SELECT @t_system_workflow_steps, 4, 'workflows_guid', 2, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'workflows_guid');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 4, 'workflows_guid', 3, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'workflows_guid');
+SELECT @t_system_workflow_steps, 8, 'element_name', 3, 0, NULL, 128, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_name');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 8, 'element_name', 4, 0, NULL, 128, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_name');
+SELECT @t_system_workflow_steps, 8, 'element_description', 4, 1, NULL, 1024, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_description');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 8, 'element_description', 5, 1, NULL, 1024, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_description');
+SELECT @t_system_workflow_steps, 8, 'element_step_type', 5, 0, '''pipe''', 16, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_step_type');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 8, 'element_step_type', 6, 0, '''pipe''', 16, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_step_type');
+SELECT @t_system_workflow_steps, 8, 'element_disposition', 6, 0, '''harmless''', 16, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_disposition');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 8, 'element_disposition', 7, 0, '''harmless''', 16, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_disposition');
+SELECT @t_system_workflow_steps, 8, 'element_class_path', 7, 0, NULL, 512, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_class_path');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 8, 'element_class_path', 8, 0, NULL, 512, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_class_path');
+SELECT @t_system_workflow_steps, 1, 'element_sequence', 8, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_sequence');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 1, 'element_sequence', 9, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_sequence');
+SELECT @t_system_workflow_steps, 5, 'element_is_optional', 9, 0, '((0))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_is_optional');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 5, 'element_is_optional', 10, 0, '((0))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_is_optional');
+SELECT @t_system_workflow_steps, 1, 'element_timeout_seconds', 10, 1, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_timeout_seconds');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 1, 'element_timeout_seconds', 11, 1, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_timeout_seconds');
+SELECT @t_system_workflow_steps, 9, 'element_config', 11, 1, NULL, -1, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_config');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 9, 'element_config', 12, 1, NULL, -1, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_config');
+SELECT @t_system_workflow_steps, 7, 'element_created_on', 12, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_created_on');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 7, 'element_created_on', 13, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_created_on');
-INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_steps, 7, 'element_modified_on', 14, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_modified_on');
+SELECT @t_system_workflow_steps, 7, 'element_modified_on', 13, 0, '(sysutcdatetime())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_steps AND element_name = 'element_modified_on');
 GO
 
 INSERT INTO dbo.system_schema_tables (element_name, element_schema)
@@ -185,7 +177,7 @@ SELECT @t_system_workflow_runs, 3, 'recid', 1, 0, NULL, NULL, 1, 1 WHERE NOT EXI
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
 SELECT @t_system_workflow_runs, 4, 'element_guid', 2, 0, '(newid())', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_runs AND element_name = 'element_guid');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
-SELECT @t_system_workflow_runs, 4, 'workflows_guid', 3, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_runs AND element_name = 'workflows_guid');
+SELECT @t_system_workflow_runs, 4, 'workflows_guid', 2, 0, NULL, NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_runs AND element_name = 'workflows_guid');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
 SELECT @t_system_workflow_runs, 11, 'element_status', 4, 0, '((0))', NULL, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM dbo.system_schema_columns WHERE tables_recid = @t_system_workflow_runs AND element_name = 'element_status');
 INSERT INTO dbo.system_schema_columns (tables_recid, edt_recid, element_name, element_ordinal, element_nullable, element_default, element_max_length, element_is_primary_key, element_is_identity)
@@ -251,15 +243,10 @@ SELECT @t_system_workflow_run_steps, 7, 'element_modified_on', 13, 0, '(sysutcda
 GO
 
 INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
-SELECT t.recid, 'PK_system_workflows', 'recid', 1
+SELECT t.recid, 'PK_system_workflows', 'element_guid', 1
 FROM dbo.system_schema_tables t
 WHERE t.element_name = 'system_workflows' AND t.element_schema = 'dbo'
   AND NOT EXISTS (SELECT 1 FROM dbo.system_schema_indexes i WHERE i.tables_recid = t.recid AND i.element_name = 'PK_system_workflows');
-INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
-SELECT t.recid, 'UQ_system_workflows_guid', 'element_guid', 1
-FROM dbo.system_schema_tables t
-WHERE t.element_name = 'system_workflows' AND t.element_schema = 'dbo'
-  AND NOT EXISTS (SELECT 1 FROM dbo.system_schema_indexes i WHERE i.tables_recid = t.recid AND i.element_name = 'UQ_system_workflows_guid');
 INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
 SELECT t.recid, 'UQ_system_workflows_name_version', 'element_name,element_version', 1
 FROM dbo.system_schema_tables t
@@ -268,15 +255,10 @@ WHERE t.element_name = 'system_workflows' AND t.element_schema = 'dbo'
 GO
 
 INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
-SELECT t.recid, 'PK_system_workflow_steps', 'recid', 1
+SELECT t.recid, 'PK_system_workflow_steps', 'element_guid', 1
 FROM dbo.system_schema_tables t
 WHERE t.element_name = 'system_workflow_steps' AND t.element_schema = 'dbo'
   AND NOT EXISTS (SELECT 1 FROM dbo.system_schema_indexes i WHERE i.tables_recid = t.recid AND i.element_name = 'PK_system_workflow_steps');
-INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
-SELECT t.recid, 'UQ_system_workflow_steps_guid', 'element_guid', 1
-FROM dbo.system_schema_tables t
-WHERE t.element_name = 'system_workflow_steps' AND t.element_schema = 'dbo'
-  AND NOT EXISTS (SELECT 1 FROM dbo.system_schema_indexes i WHERE i.tables_recid = t.recid AND i.element_name = 'UQ_system_workflow_steps_guid');
 INSERT INTO dbo.system_schema_indexes (tables_recid, element_name, element_columns, element_is_unique)
 SELECT t.recid, 'UQ_system_workflow_steps_workflow_sequence', 'workflows_guid,element_sequence', 1
 FROM dbo.system_schema_tables t
