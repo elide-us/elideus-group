@@ -64,6 +64,14 @@ class AsyncTaskModule(BaseModule):
       from server.jobs.billing_import_pipeline import BillingImportPipelineHandler
 
       self.register_handler("finance.billing.import_pipeline", BillingImportPipelineHandler())
+
+    openai = getattr(self.app.state, "openai", None)
+    if openai is not None:
+      await openai.on_ready()
+      from server.jobs.persona_conversation_pipeline import PersonaConversationPipelineHandler
+
+      self.register_handler("discord.chat.persona_pipeline", PersonaConversationPipelineHandler())
+
     logging.debug("[AsyncTaskModule] loaded")
     self.mark_ready()
 
