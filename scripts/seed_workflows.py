@@ -92,12 +92,9 @@ def seed_workflow(force: bool) -> None:
           element_step_type,
           element_disposition,
           element_class_path,
-          element_is_optional,
-          element_status,
-          element_created_on,
-          element_modified_on
+          element_is_optional
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME());
+        VALUES (?, ?, ?, ?, ?, ?, ?);
         """,
         [workflow_guid, sequence, name, step_type, disposition, class_path, is_optional],
       )
