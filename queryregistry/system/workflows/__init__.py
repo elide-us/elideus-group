@@ -7,6 +7,7 @@ from .models import (
   CreateWorkflowRunStepParams,
   GetActiveWorkflowParams,
   GetWorkflowRunParams,
+  ListWorkflowsParams,
   ListWorkflowRunStepsParams,
   ListWorkflowRunsParams,
   ListWorkflowStepsParams,
@@ -17,6 +18,10 @@ from .models import (
 
 def get_active_workflow_request(params: GetActiveWorkflowParams) -> DBRequest:
   return DBRequest(op="db:system:workflows:get_active_workflow:1", payload=params.model_dump())
+
+
+def list_workflows_request(params: ListWorkflowsParams) -> DBRequest:
+  return DBRequest(op="db:system:workflows:list_workflows:1", payload=params.model_dump())
 
 
 def list_workflow_steps_request(params: ListWorkflowStepsParams) -> DBRequest:

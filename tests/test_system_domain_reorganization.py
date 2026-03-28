@@ -173,6 +173,7 @@ class TestWorkflowsSubdomain:
     from queryregistry.system.workflows.handler import DISPATCHERS
     expected = {
       ("get_active_workflow", "1"),
+      ("list_workflows", "1"),
       ("list_workflow_steps", "1"),
       ("create_workflow_run", "1"),
       ("get_workflow_run", "1"),
@@ -185,11 +186,18 @@ class TestWorkflowsSubdomain:
     assert set(DISPATCHERS.keys()) == expected
 
   def test_workflow_request_builders(self):
-    from queryregistry.system.workflows import get_active_workflow_request
-    from queryregistry.system.workflows.models import GetActiveWorkflowParams
+    from queryregistry.system.workflows import (
+      get_active_workflow_request,
+      list_workflows_request,
+    )
+    from queryregistry.system.workflows.models import (
+      GetActiveWorkflowParams,
+      ListWorkflowsParams,
+    )
 
     req = get_active_workflow_request(GetActiveWorkflowParams(name="conversation.persona"))
     assert req.op == "db:system:workflows:get_active_workflow:1"
+    assert list_workflows_request(ListWorkflowsParams(status=1)).op == "db:system:workflows:list_workflows:1"
 
 
 class TestConfigurationRemoved:

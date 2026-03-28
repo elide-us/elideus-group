@@ -26,6 +26,29 @@ async def get_active_workflow_v1(args: Mapping[str, Any]) -> DBResponse:
   return await run_json_one(sql, (args["name"],))
 
 
+async def list_workflows_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      w.element_guid,
+      w.element_name,
+      w.element_description,
+      w.element_version,
+      w.element_status,
+      w.element_created_on,
+      w.element_modified_on,
+      (
+        SELECT COUNT(*)
+        FROM system_workflow_steps s
+        WHERE s.workflows_guid = w.element_guid
+      ) AS step_count
+    FROM system_workflows w
+    WHERE (? IS NULL OR w.element_status = ?)
+    ORDER BY w.element_name, w.element_version DESC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args.get("status"), args.get("status")))
+
+
 async def list_workflow_steps_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT

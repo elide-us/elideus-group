@@ -10,6 +10,7 @@ from .models.handler import handle_models_request
 from .roles.handler import handle_roles_request
 from .storage.handler import handle_storage_request
 from .tasks.handler import handle_tasks_request
+from .workflows.handler import handle_workflows_request
 
 HANDLERS: dict[str, callable] = {
   "batch_jobs": handle_batch_jobs_request,
@@ -19,5 +20,5 @@ HANDLERS: dict[str, callable] = {
   "roles": handle_roles_request,
   "storage": handle_storage_request,
   "tasks": handle_tasks_request,
+  "workflows": handle_workflows_request,
 }
-
