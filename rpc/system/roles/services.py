@@ -19,8 +19,9 @@ async def system_roles_get_roles_v1(request: Request):
     auth_ctx.user_guid,
     auth_ctx.roles,
   )
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  roles_raw = await role_admin.list_roles()
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  roles_raw = await module.list_roles()
   roles = [SystemRolesRoleItem1(**r) for r in roles_raw]
   payload = SystemRolesList1(roles=roles)
   logging.debug(
@@ -43,8 +44,9 @@ async def system_roles_upsert_role_v1(request: Request):
     rpc_request.payload,
   )
   data = SystemRolesUpsertRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.upsert_role(data.name, int(data.mask), data.display)
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  await module.upsert_role(data.name, int(data.mask), data.display)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -61,8 +63,9 @@ async def system_roles_delete_role_v1(request: Request):
     rpc_request.payload,
   )
   data = SystemRolesDeleteRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.delete_role(data.name)
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  await module.delete_role(data.name)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
