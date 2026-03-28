@@ -16,8 +16,8 @@ from .models import (
 
 async def public_links_get_home_links_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  links_mod: PublicLinksModule = request.app.state.public_links
-  rows = await links_mod.get_home_links()
+  module: PublicLinksModule = request.app.state.public_links
+  rows = await module.get_home_links()
   links = [PublicLinksLinkItem1(**row) for row in rows]
   payload = PublicLinksHomeLinks1(links=links)
   return RPCResponse(
@@ -28,8 +28,8 @@ async def public_links_get_home_links_v1(request: Request):
 
 async def public_links_get_navbar_routes_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  links_mod: PublicLinksModule = request.app.state.public_links
-  rows = await links_mod.get_navbar_routes(auth_ctx.role_mask)
+  module: PublicLinksModule = request.app.state.public_links
+  rows = await module.get_navbar_routes(auth_ctx.role_mask)
   routes = [PublicLinksNavBarRoute1(**row) for row in rows]
   payload = PublicLinksNavBarRoutes1(routes=routes)
   return RPCResponse(

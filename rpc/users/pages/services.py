@@ -26,8 +26,8 @@ def _ensure_authenticated(user_guid: str | None):
 
 
 async def _resolve_editable_page(request: Request, slug: str, user_guid: str, role_mask: int):
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  page = await pages_module.get_page_by_slug(slug)
+  module: ContentPagesModule = request.app.state.content_pages
+  page = await module.get_page_by_slug(slug)
   if not page:
     raise HTTPException(status_code=404, detail="Page not found")
 
@@ -50,8 +50,8 @@ async def users_pages_create_version_v1(request: Request):
   payload = UsersPagesCreateVersion1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  version = await pages_module.create_version(
+  module: ContentPagesModule = request.app.state.content_pages
+  version = await module.create_version(
     pages_recid=page["recid"],
     content=payload.content,
     created_by=auth_ctx.user_guid,
@@ -81,8 +81,8 @@ async def users_pages_list_versions_v1(request: Request):
   payload = UsersPagesListVersions1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  versions = await pages_module.list_versions(page["recid"])
+  module: ContentPagesModule = request.app.state.content_pages
+  versions = await module.list_versions(page["recid"])
 
   result = UsersPagesVersionList1(
     versions=[
@@ -111,8 +111,8 @@ async def users_pages_get_version_v1(request: Request):
   payload = UsersPagesGetVersion1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  version = await pages_module.get_version(pages_recid=page["recid"], version=payload.version)
+  module: ContentPagesModule = request.app.state.content_pages
+  version = await module.get_version(pages_recid=page["recid"], version=payload.version)
   if not version:
     raise HTTPException(status_code=404, detail="Version not found")
 

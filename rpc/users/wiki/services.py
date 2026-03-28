@@ -27,8 +27,8 @@ def _ensure_authenticated(user_guid: str | None):
 
 
 async def _resolve_editable_page(request: Request, slug: str, user_guid: str, role_mask: int):
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  page = await wiki_module.get_page_by_slug(slug)
+  module: ContentWikiModule = request.app.state.content_wiki
+  page = await module.get_page_by_slug(slug)
   if not page:
     raise HTTPException(status_code=404, detail="Page not found")
 
@@ -51,8 +51,8 @@ async def users_wiki_create_version_v1(request: Request):
   payload = UsersWikiCreateVersion1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  version = await wiki_module.create_version(
+  module: ContentWikiModule = request.app.state.content_wiki
+  version = await module.create_version(
     wiki_recid=page["recid"],
     content=payload.content,
     created_by=auth_ctx.user_guid,
@@ -77,12 +77,12 @@ async def users_wiki_create_page_v1(request: Request):
 
   payload = UsersWikiCreatePage1(**(rpc_request.payload or {}))
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  existing = await wiki_module.get_page_by_slug(payload.slug)
+  module: ContentWikiModule = request.app.state.content_wiki
+  existing = await module.get_page_by_slug(payload.slug)
   if existing:
     raise HTTPException(status_code=409, detail="Page already exists")
 
-  page = await wiki_module.create_page(
+  page = await module.create_page(
     slug=payload.slug,
     title=payload.title,
     content=payload.content,
@@ -110,8 +110,8 @@ async def users_wiki_list_versions_v1(request: Request):
   payload = UsersWikiListVersions1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  versions = await wiki_module.list_versions(page["recid"])
+  module: ContentWikiModule = request.app.state.content_wiki
+  versions = await module.list_versions(page["recid"])
 
   result = UsersWikiVersionList1(
     versions=[
@@ -136,8 +136,8 @@ async def users_wiki_get_version_v1(request: Request):
   payload = UsersWikiGetVersion1(**(rpc_request.payload or {}))
   page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  version = await wiki_module.get_version(wiki_recid=page["recid"], version=payload.version)
+  module: ContentWikiModule = request.app.state.content_wiki
+  version = await module.get_version(wiki_recid=page["recid"], version=payload.version)
   if not version:
     raise HTTPException(status_code=404, detail="Version not found")
 

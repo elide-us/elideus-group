@@ -16,12 +16,12 @@ from .models import (
 
 
 async def _require_finance_admin(request: Request, user_guid: str) -> None:
-  auth: AuthModule = request.app.state.auth
-  required_mask = auth.roles.get("ROLE_FINANCE_ADMIN", 0)
+  module: AuthModule = request.app.state.module
+  required_mask = module.roles.get("ROLE_FINANCE_ADMIN", 0)
   if required_mask == 0:
     return
 
-  if not await auth.user_has_role(user_guid, required_mask):
+  if not await module.user_has_role(user_guid, required_mask):
     raise HTTPException(status_code=403, detail="Finance Admin role required")
 
 

@@ -10,8 +10,8 @@ from .models import PublicGalleryFileItem1, PublicGalleryFiles1
 
 async def public_gallery_get_public_files_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  gallery: PublicGalleryModule = request.app.state.public_gallery
-  rows = await gallery.list_public_files()
+  module: PublicGalleryModule = request.app.state.public_gallery
+  rows = await module.list_public_files()
   files = [PublicGalleryFileItem1(**row) for row in rows]
   payload = PublicGalleryFiles1(files=files)
   return RPCResponse(

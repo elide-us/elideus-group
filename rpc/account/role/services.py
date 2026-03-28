@@ -18,8 +18,8 @@ from .models import (
 
 async def account_role_get_roles_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  roles_raw = await role_admin.list_roles(auth_ctx.role_mask)
+  module: RoleAdminModule = request.app.state.module
+  roles_raw = await module.list_roles(auth_ctx.role_mask)
   roles = [AccountRoleRoleItem1(**r) for r in roles_raw]
   payload = AccountRoleList1(roles=roles)
   return RPCResponse(
@@ -31,8 +31,8 @@ async def account_role_get_roles_v1(request: Request):
 
 async def account_role_get_all_role_members_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  roles_raw = await role_admin.get_all_role_members(auth_ctx.role_mask)
+  module: RoleAdminModule = request.app.state.module
+  roles_raw = await module.get_all_role_members(auth_ctx.role_mask)
   roles = [AccountRoleAggregateItem1(**r) for r in roles_raw]
   payload = AccountRoleAggregateList1(roles=roles)
   return RPCResponse(
@@ -48,8 +48,8 @@ async def account_role_get_role_members_v1(request: Request):
   role = payload.get("role")
   if not role:
     raise HTTPException(status_code=400, detail="Missing role")
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  members_raw, non_raw = await role_admin.get_role_members(role)
+  module: RoleAdminModule = request.app.state.module
+  members_raw, non_raw = await module.get_role_members(role)
   members = [AccountRoleUserItem1(**m) for m in members_raw]
   non_members = [AccountRoleUserItem1(**m) for m in non_raw]
   res = AccountRoleMembers1(members=members, nonMembers=non_members)
@@ -63,8 +63,8 @@ async def account_role_get_role_members_v1(request: Request):
 async def account_role_add_role_member_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   data = AccountRoleMemberUpdate1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  members_raw, non_raw = await role_admin.add_role_member(
+  module: RoleAdminModule = request.app.state.module
+  members_raw, non_raw = await module.add_role_member(
     data.role,
     data.userGuid,
     auth_ctx.role_mask,
@@ -82,8 +82,8 @@ async def account_role_add_role_member_v1(request: Request):
 async def account_role_remove_role_member_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   data = AccountRoleMemberUpdate1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  members_raw, non_raw = await role_admin.remove_role_member(
+  module: RoleAdminModule = request.app.state.module
+  members_raw, non_raw = await module.remove_role_member(
     data.role,
     data.userGuid,
     auth_ctx.role_mask,
@@ -101,8 +101,8 @@ async def account_role_remove_role_member_v1(request: Request):
 async def account_role_upsert_role_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   data = AccountRoleUpsertRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.upsert_role(
+  module: RoleAdminModule = request.app.state.module
+  await module.upsert_role(
     data.name,
     int(data.mask),
     data.display,
@@ -118,8 +118,8 @@ async def account_role_upsert_role_v1(request: Request):
 async def account_role_delete_role_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   data = AccountRoleDeleteRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.delete_role(data.name, auth_ctx.role_mask)
+  module: RoleAdminModule = request.app.state.module
+  await module.delete_role(data.name, auth_ctx.role_mask)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),

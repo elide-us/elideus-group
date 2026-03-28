@@ -19,9 +19,9 @@ async def users_providers_set_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  result = await oauth.set_user_default_provider(
+  module: OauthModule = request.app.state.module
+  await module.on_ready()
+  result = await module.set_user_default_provider(
     auth_ctx.user_guid,
     provider,
     code=payload.code,
@@ -41,9 +41,9 @@ async def users_providers_link_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  result = await oauth.link_user_provider(
+  module: OauthModule = request.app.state.module
+  await module.on_ready()
+  result = await module.link_user_provider(
     auth_ctx.user_guid,
     provider,
     code=payload.code,
@@ -59,9 +59,9 @@ async def users_providers_unlink_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  result = await oauth.unlink_user_provider(
+  module: OauthModule = request.app.state.module
+  await module.on_ready()
+  result = await module.unlink_user_provider(
     auth_ctx.user_guid,
     provider,
     new_default=payload.new_default,
@@ -75,9 +75,9 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  row = await oauth.get_user_by_provider_identifier(
+  module: OauthModule = request.app.state.module
+  await module.on_ready()
+  row = await module.get_user_by_provider_identifier(
     provider, payload.provider_identifier
   )
   return RPCResponse(op=rpc_request.op, payload=row, version=rpc_request.version)
@@ -89,9 +89,9 @@ async def users_providers_create_from_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  oauth: OauthModule = request.app.state.oauth
-  await oauth.on_ready()
-  row = await oauth.create_user_from_provider(
+  module: OauthModule = request.app.state.module
+  await module.on_ready()
+  row = await module.create_user_from_provider(
     provider,
     payload.provider_identifier,
     payload.provider_email,
