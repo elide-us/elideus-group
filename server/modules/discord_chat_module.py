@@ -461,7 +461,6 @@ class DiscordChatModule(BaseModule):
     user_id: int,
     command_text: str,
   ) -> dict:
-    """Handle a persona command by delegating to the conversation workflow."""
     await self.on_ready()
     metadata = {"guild_id": guild_id, "channel_id": channel_id, "user_id": user_id}
 
@@ -475,9 +474,13 @@ class DiscordChatModule(BaseModule):
         "ack_message": "Usage: !persona <persona> <message>",
       }
 
-    channel_history_result = await self.get_channel_history(guild_id, channel_id, persona=persona, user_id=user_id)
+    # Fetch live Discord channel history
+    channel_history_result = await self.get_channel_history(
+      guild_id, channel_id, persona=persona, user_id=user_id,
+    )
     channel_history = channel_history_result.get("channel_history") or []
 
+    # Submit workflow
     workflow = getattr(self.app.state, "workflow", None)
     if not workflow:
       await self._bump_channel_activity(metadata)
@@ -488,38 +491,52 @@ class DiscordChatModule(BaseModule):
       }
     await workflow.on_ready()
 
+    payload = {
+      "persona_name": persona,
+      "user_message": message,
+      "source": "discord",
+      "guild_id": str(guild_id),
+      "channel_id": str(channel_id),
+      "user_id": str(user_id),
+      "channel_history": channel_history,
+    }
+
     try:
       run = await workflow.submit(
         "conversation.persona",
-        payload={
-          "persona_name": persona,
-          "user_message": message,
-          "source": "discord",
-          "guild_id": str(guild_id),
-          "channel_id": str(channel_id),
-          "user_id": str(user_id),
-          "channel_history": channel_history,
-        },
+        payload,
         source_type="discord",
         source_id=str(channel_id),
       )
-      run = await workflow.execute(run["guid"])
     except Exception:
-      logging.exception(
-        "[DiscordChatModule] workflow execution failed",
-        extra={"persona": persona, "guild_id": guild_id, "channel_id": channel_id},
-      )
+      logging.exception("[DiscordChatModule] workflow submit failed")
       await self._bump_channel_activity(metadata)
       return {
         "success": False,
-        "reason": "workflow_failed",
+        "reason": "workflow_submit_failed",
         "ack_message": "Persona chat is currently unavailable.",
       }
 
-    if run["status"] == 4 and run["context"].get("response_text"):
+    # Execute synchronously (don't wait for tick loop)
+    try:
+      run = await workflow.execute(run["guid"])
+    except Exception:
+      logging.exception("[DiscordChatModule] workflow execution failed")
+      await self._bump_channel_activity(metadata)
+      return {
+        "success": False,
+        "reason": "workflow_execution_failed",
+        "ack_message": "Failed to generate a persona response. Please try again later.",
+      }
+
+    # Extract result
+    context = run.get("context") or {}
+    response_text = context.get("response_text")
+
+    if run.get("status") == 4 and response_text:  # STATUS_COMPLETED
       delivery = await self.deliver_persona_response(
         persona=persona,
-        response={"text": run["context"]["response_text"]},
+        response={"text": response_text},
         guild_id=guild_id,
         channel_id=channel_id,
         user_id=user_id,
@@ -530,15 +547,15 @@ class DiscordChatModule(BaseModule):
         "reason": delivery.get("reason", "persona_response_queued"),
         "ack_message": delivery.get("ack_message", "Persona response queued."),
         "persona": persona,
-        "model": run["context"].get("model_used"),
-        "thread_id": run["context"].get("thread_id"),
+        "model": context.get("model_used"),
+        "thread_id": context.get("thread_id"),
       }
 
     await self._bump_channel_activity(metadata)
     return {
       "success": False,
       "reason": run.get("error") or "workflow_failed",
-      "ack_message": "Persona chat is currently unavailable.",
+      "ack_message": "Failed to generate a persona response. Please try again later.",
     }
 
   def _split_persona_command(self, command_text: str) -> tuple[str, str]:

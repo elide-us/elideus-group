@@ -44,6 +44,23 @@ class BatchJobModule(BaseModule):
     await self.db.on_ready()
     self.app.state.batch_job = self
     self._scheduler_task = asyncio.create_task(self._scheduler_loop())
+    # Reset any jobs stuck in "running" status from a prior crash
+    try:
+      stuck_jobs = await self.list_jobs()
+      for job in stuck_jobs:
+        if int(job.get("status") or 0) == 1:  # STATUS_RUNNING
+          logging.warning(
+            "[BatchJobModule] Resetting stuck job %s (%s) from running to idle",
+            job.get("recid"),
+            job.get("name"),
+          )
+          await self.db.run(
+            update_job_status_request(
+              UpdateJobStatusParams(recid=int(job["recid"]), status=0)
+            )
+          )
+    except Exception:
+      logging.exception("[BatchJobModule] Failed to reset stuck jobs")
     logging.debug("[BatchJobModule] loaded")
     self.mark_ready()
 

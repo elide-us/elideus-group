@@ -11,7 +11,13 @@ class ResolvePersonaStep(WorkflowStep):
   step_type = "pipe"
   disposition = "harmless"
 
-  async def try_step(self, app: Any, payload: dict[str, Any], context: dict[str, Any]) -> StepResult:
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
     openai = app.state.openai
     await openai.on_ready()
 
@@ -37,7 +43,13 @@ class GatherStoredContextStep(WorkflowStep):
   step_type = "pipe"
   disposition = "harmless"
 
-  async def try_step(self, app: Any, payload: dict[str, Any], context: dict[str, Any]) -> StepResult:
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
     openai = app.state.openai
     await openai.on_ready()
 
@@ -61,7 +73,13 @@ class AssemblePromptStep(WorkflowStep):
   step_type = "pipe"
   disposition = "harmless"
 
-  async def try_step(self, app: Any, payload: dict[str, Any], context: dict[str, Any]) -> StepResult:
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
     sections: list[str] = []
 
     stored_context = context.get("stored_context") or []
@@ -101,7 +119,13 @@ class GenerateResponseStep(WorkflowStep):
   step_type = "pipe"
   disposition = "harmless"
 
-  async def try_step(self, app: Any, payload: dict[str, Any], context: dict[str, Any]) -> StepResult:
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
     openai = app.state.openai
     await openai.on_ready()
 
@@ -134,7 +158,13 @@ class LogConversationStep(WorkflowStep):
   step_type = "stack"
   disposition = "reversible"
 
-  async def try_step(self, app: Any, payload: dict[str, Any], context: dict[str, Any]) -> StepResult:
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
     openai = app.state.openai
     await openai.on_ready()
 
@@ -173,7 +203,13 @@ class LogConversationStep(WorkflowStep):
       compensation={"recids_to_delete": recids_to_delete},
     )
 
-  async def compensate_step(self, app: Any, payload: dict[str, Any], compensation: dict[str, Any]) -> None:
+  async def compensate_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    compensation: dict[str, Any],
+  ) -> None:
     db = app.state.db
     await db.on_ready()
 
