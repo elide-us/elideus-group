@@ -10,6 +10,7 @@ from .services import (
   create_workflow_run_v1,
   get_active_workflow_v1,
   get_workflow_run_v1,
+  list_workflows_v1,
   list_workflow_run_steps_v1,
   list_workflow_runs_v1,
   list_workflow_steps_v1,
@@ -19,6 +20,7 @@ from .services import (
 
 DISPATCHERS = {
   ("get_active_workflow", "1"): get_active_workflow_v1,
+  ("list_workflows", "1"): list_workflows_v1,
   ("list_workflow_steps", "1"): list_workflow_steps_v1,
   ("create_workflow_run", "1"): create_workflow_run_v1,
   ("get_workflow_run", "1"): get_workflow_run_v1,

@@ -14,6 +14,7 @@ from queryregistry.system.workflows import (
   create_workflow_run_step_request,
   get_active_workflow_request,
   get_workflow_run_request,
+  list_workflow_run_steps_request,
   list_workflow_runs_request,
   list_workflow_steps_request,
   update_workflow_run_request,
@@ -24,6 +25,7 @@ from queryregistry.system.workflows.models import (
   CreateWorkflowRunStepParams,
   GetActiveWorkflowParams,
   GetWorkflowRunParams,
+  ListWorkflowRunStepsParams,
   ListWorkflowRunsParams,
   ListWorkflowStepsParams,
   UpdateWorkflowRunParams,
@@ -87,7 +89,7 @@ class WorkflowModule(BaseModule):
     timeout_seconds: int | None = None,
   ) -> dict[str, Any]:
     assert self.db
-    workflow = await self._get_active_workflow(workflow_name)
+    workflow = await self.get_workflow(workflow_name)
     if not workflow:
       raise HTTPException(status_code=404, detail=f"Workflow '{workflow_name}' not found")
 
@@ -123,6 +125,22 @@ class WorkflowModule(BaseModule):
     assert self.db
     res = await self.db.run(list_workflow_runs_request(ListWorkflowRunsParams(status=status)))
     return [self._map_run(dict(row)) for row in res.rows]
+
+  async def list_workflows(self, status: int | None = None) -> list[dict[str, Any]]:
+    """List all workflow definitions, optionally filtered by status."""
+    assert self.db
+    from queryregistry.system.workflows import list_workflows_request
+    from queryregistry.system.workflows.models import ListWorkflowsParams
+    res = await self.db.run(list_workflows_request(ListWorkflowsParams(status=status)))
+    return [self._map_workflow(dict(row)) for row in res.rows]
+
+  async def list_run_steps(self, runs_recid: int) -> list[dict[str, Any]]:
+    """List the step execution records for a workflow run."""
+    assert self.db
+    res = await self.db.run(
+      list_workflow_run_steps_request(ListWorkflowRunStepsParams(runs_recid=runs_recid))
+    )
+    return [self._map_run_step(dict(row)) for row in res.rows]
 
   async def cancel(self, guid: str) -> dict[str, Any]:
     run = await self.get_or_404(guid)
@@ -163,7 +181,7 @@ class WorkflowModule(BaseModule):
 
     payload = run.get("payload") or {}
     context = run.get("context") or {}
-    steps = await self._list_steps(run["workflows_guid"])
+    steps = await self.list_steps(run["workflows_guid"])
     rollback_stack: list[dict[str, Any]] = []
 
     await self._update_run(run["recid"], status=STATUS_RUNNING, started_on=datetime.now(timezone.utc).isoformat())
@@ -301,21 +319,14 @@ class WorkflowModule(BaseModule):
       ended_on=datetime.now(timezone.utc).isoformat(),
     )
 
-  async def _get_active_workflow(self, name: str) -> dict[str, Any] | None:
+  async def get_workflow(self, name: str) -> dict[str, Any] | None:
     assert self.db
     res = await self.db.run(get_active_workflow_request(GetActiveWorkflowParams(name=name)))
     if not res.rows:
       return None
-    row = dict(res.rows[0])
-    return {
-      "guid": row.get("element_guid"),
-      "name": row.get("element_name"),
-      "description": row.get("element_description"),
-      "version": row.get("element_version"),
-      "status": row.get("element_status"),
-    }
+    return self._map_workflow(dict(res.rows[0]))
 
-  async def _list_steps(self, workflows_guid: str) -> list[dict[str, Any]]:
+  async def list_steps(self, workflows_guid: str) -> list[dict[str, Any]]:
     assert self.db
     res = await self.db.run(list_workflow_steps_request(ListWorkflowStepsParams(workflows_guid=workflows_guid)))
     mapped: list[dict[str, Any]] = []
@@ -389,6 +400,35 @@ class WorkflowModule(BaseModule):
       "started_on": row.get("element_started_on"),
       "ended_on": row.get("element_ended_on"),
       "timeout_at": row.get("element_timeout_at"),
+      "created_on": row.get("element_created_on"),
+      "modified_on": row.get("element_modified_on"),
+    }
+
+  def _map_workflow(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "guid": row.get("element_guid"),
+      "name": row.get("element_name"),
+      "description": row.get("element_description"),
+      "version": row.get("element_version"),
+      "status": row.get("element_status"),
+      "step_count": row.get("step_count"),
+      "created_on": row.get("element_created_on"),
+      "modified_on": row.get("element_modified_on"),
+    }
+
+  def _map_run_step(self, row: dict[str, Any]) -> dict[str, Any]:
+    return {
+      "recid": row.get("recid"),
+      "guid": row.get("element_guid"),
+      "runs_recid": row.get("runs_recid"),
+      "steps_guid": row.get("steps_guid"),
+      "status": row.get("element_status"),
+      "disposition": row.get("element_disposition"),
+      "input": self._decode_json(row.get("element_input")),
+      "output": self._decode_json(row.get("element_output")),
+      "error": row.get("element_error"),
+      "started_on": row.get("element_started_on"),
+      "ended_on": row.get("element_ended_on"),
       "created_on": row.get("element_created_on"),
       "modified_on": row.get("element_modified_on"),
     }

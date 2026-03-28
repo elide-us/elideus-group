@@ -9,6 +9,12 @@ class GetActiveWorkflowParams(BaseModel):
   name: str
 
 
+class ListWorkflowsParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  status: int | None = None
+
+
 class ListWorkflowStepsParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 

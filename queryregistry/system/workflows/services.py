@@ -11,6 +11,7 @@ from .models import (
   CreateWorkflowRunStepParams,
   GetActiveWorkflowParams,
   GetWorkflowRunParams,
+  ListWorkflowsParams,
   ListWorkflowRunStepsParams,
   ListWorkflowRunsParams,
   ListWorkflowStepsParams,
@@ -21,6 +22,7 @@ from .models import (
 _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
 
 _GET_ACTIVE_WORKFLOW_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_active_workflow_v1}
+_LIST_WORKFLOWS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_workflows_v1}
 _LIST_WORKFLOW_STEPS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_workflow_steps_v1}
 _CREATE_WORKFLOW_RUN_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.create_workflow_run_v1}
 _GET_WORKFLOW_RUN_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_workflow_run_v1}
@@ -41,6 +43,12 @@ def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _D
 async def get_active_workflow_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = GetActiveWorkflowParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _GET_ACTIVE_WORKFLOW_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def list_workflows_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ListWorkflowsParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _LIST_WORKFLOWS_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 
