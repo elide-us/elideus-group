@@ -89,48 +89,6 @@ async def discord_chat_persona_command_v1(request: Request):
   )
 
 
-async def discord_chat_get_persona_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  persona = (payload.get("persona") or "").strip()
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-
-  result = await module.get_persona(
-    persona,
-    guild_id=payload.get("guild_id"),
-    channel_id=payload.get("channel_id"),
-    user_id=payload.get("user_id"),
-  )
-
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=result,
-    version=rpc_request.version,
-  )
-
-
-async def discord_chat_get_conversation_history_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  persona = (payload.get("persona") or "").strip()
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-
-  result = await module.get_conversation_history(
-    persona,
-    guild_id=payload.get("guild_id"),
-    channel_id=payload.get("channel_id"),
-    user_id=payload.get("user_id"),
-  )
-
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=result,
-    version=rpc_request.version,
-  )
-
-
 async def discord_chat_get_channel_history_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
@@ -168,84 +126,6 @@ async def discord_chat_get_channel_history_v1(request: Request):
     guild_id_int,
     channel_id_int,
     persona=payload.get("persona"),
-    user_id=payload.get("user_id"),
-  )
-
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=result,
-    version=rpc_request.version,
-  )
-
-
-async def discord_chat_insert_conversation_input_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  persona = (payload.get("persona") or "").strip()
-  message = (payload.get("message") or "").strip()
-  if not persona or not message:
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "invalid_persona_usage",
-        "ack_message": "Usage: !persona <persona> <message>",
-      },
-      version=rpc_request.version,
-    )
-
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-
-  result = await module.insert_conversation_input(
-    persona,
-    message,
-    persona_details=payload.get("persona_details"),
-    conversation_history=payload.get("conversation_history"),
-    guild_id=payload.get("guild_id"),
-    channel_id=payload.get("channel_id"),
-    user_id=payload.get("user_id"),
-  )
-
-  return RPCResponse(
-    op=rpc_request.op,
-    payload=result,
-    version=rpc_request.version,
-  )
-
-
-async def discord_chat_generate_persona_response_v1(request: Request):
-  rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  persona = (payload.get("persona") or "").strip()
-  message = (payload.get("message") or "").strip()
-  if not persona or not message:
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "invalid_persona_usage",
-        "ack_message": "Usage: !persona <persona> <message>",
-      },
-      version=rpc_request.version,
-    )
-
-  module: DiscordChatModule = request.app.state.discord_chat
-  await module.on_ready()
-
-  result = await module.generate_persona_response(
-    persona,
-    message,
-    persona_details=payload.get("persona_details"),
-    conversation_history=payload.get("conversation_history"),
-    channel_history=payload.get("channel_history"),
-    model=payload.get("model"),
-    max_tokens=payload.get("max_tokens"),
-    conversation_reference=payload.get("conversation_reference"),
-    personas_recid=payload.get("personas_recid"),
-    models_recid=payload.get("models_recid"),
-    guild_id=payload.get("guild_id"),
-    channel_id=payload.get("channel_id"),
     user_id=payload.get("user_id"),
   )
 
