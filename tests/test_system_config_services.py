@@ -101,6 +101,8 @@ svc.unbox_request = fake_get
 class DummySystemConfigModule:
   def __init__(self):
     self.calls = []
+  async def on_ready(self):
+    pass
   async def get_configs(self, user_guid, roles):
     self.calls.append(('get_configs', user_guid, roles))
     from server.modules.models.system_config import SystemConfigItem, SystemConfigList
