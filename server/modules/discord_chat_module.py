@@ -28,17 +28,6 @@ class DiscordChatModule(BaseModule):
   async def shutdown(self):
     logging.info("[DiscordChatModule] shutdown")
 
-  def _generate_thread_id(self, guild_id: int | None, channel_id: int | None) -> str:
-    """Generate a thread ID for a persona conversation session.
-
-    Format: discord:{guild_id}:{channel_id}:{session_uuid}
-    Each command invocation starts a new thread to group the
-    user message and assistant response together.
-    """
-    g = str(guild_id) if guild_id is not None else "0"
-    c = str(channel_id) if channel_id is not None else "0"
-    return f"discord:{g}:{c}:{uuid.uuid4().hex[:12]}"
-
   async def _bump_channel_activity(self, metadata: dict) -> None:
     if not metadata.get("channel_id"):
       return
@@ -360,157 +349,6 @@ class DiscordChatModule(BaseModule):
     )
     return payload
 
-  async def get_persona(
-    self,
-    persona: str,
-    *,
-    guild_id: int | None = None,
-    channel_id: int | None = None,
-    user_id: int | None = None,
-  ) -> Dict[str, Any]:
-    await self.on_ready()
-    persona_name = (persona or "").strip()
-    if not persona_name:
-      return {
-        "success": False,
-        "reason": "missing_persona",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    openai = getattr(self.app.state, "openai", None)
-    if not openai:
-      logging.warning(
-        "[DiscordChatModule] OpenAI module unavailable for get_persona",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    await openai.on_ready()
-    try:
-      persona_details = await openai.get_persona_definition(persona_name)
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] failed to load persona",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      persona_details = None
-    if not persona_details:
-      return {
-        "success": False,
-        "reason": "persona_not_found",
-        "ack_message": f"Persona '{persona_name}' was not found.",
-      }
-    model = persona_details.get("model")
-    tokens = persona_details.get("tokens")
-    if isinstance(tokens, str):
-      try:
-        tokens = int(tokens)
-      except ValueError:
-        tokens = None
-    payload: Dict[str, Any] = {
-      "success": True,
-      "persona_details": persona_details,
-      "model": model,
-    }
-    if tokens is not None:
-      payload["max_tokens"] = tokens
-    return payload
-
-  async def get_conversation_history(
-    self,
-    persona: str,
-    *,
-    guild_id: int | None = None,
-    channel_id: int | None = None,
-    user_id: int | None = None,
-    limit: int = 5,
-  ) -> Dict[str, Any]:
-    await self.on_ready()
-    persona_name = (persona or "").strip()
-    if not persona_name:
-      return {
-        "success": False,
-        "reason": "missing_persona",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    openai = getattr(self.app.state, "openai", None)
-    if not openai:
-      logging.warning(
-        "[DiscordChatModule] OpenAI module unavailable for conversation history",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    await openai.on_ready()
-    try:
-      persona_details = await openai.get_persona_definition(persona_name)
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] failed to load persona for history",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      persona_details = None
-    personas_recid = persona_details.get("recid") if persona_details else None
-    if personas_recid is None:
-      return {
-        "success": False,
-        "reason": "persona_not_found",
-        "ack_message": f"Persona '{persona_name}' was not found.",
-      }
-    try:
-      conversation_history = await openai.get_recent_persona_conversation_history(
-        personas_recid=personas_recid,
-        lookback_days=30,
-        limit=limit,
-      )
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] failed to load persona conversation history",
-        extra={
-          "persona": persona_name,
-          "personas_recid": personas_recid,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "conversation_history_unavailable",
-        "ack_message": "Failed to load previous persona conversation.",
-      }
-    return {
-      "success": True,
-      "conversation_history": conversation_history,
-      "personas_recid": personas_recid,
-      "models_recid": persona_details.get("models_recid") if persona_details else None,
-    }
-
   async def get_channel_history(
     self,
     guild_id: int,
@@ -564,246 +402,6 @@ class DiscordChatModule(BaseModule):
         }
       )
     return {"success": True, "channel_history": channel_history}
-
-  async def insert_conversation_input(
-    self,
-    persona: str,
-    message: str,
-    *,
-    persona_details: Dict[str, Any] | None = None,
-    conversation_history: List[Dict[str, Any]] | None = None,
-    guild_id: int | None = None,
-    channel_id: int | None = None,
-    user_id: int | None = None,
-  ) -> Dict[str, Any]:
-    await self.on_ready()
-    persona_name = (persona or "").strip()
-    message_text = (message or "").strip()
-    if not persona_name or not message_text:
-      return {
-        "success": False,
-        "reason": "invalid_persona_usage",
-        "ack_message": "Usage: !persona <persona> <message>",
-      }
-    openai = getattr(self.app.state, "openai", None)
-    if not openai:
-      logging.warning(
-        "[DiscordChatModule] OpenAI module unavailable for insert_conversation_input",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    await openai.on_ready()
-    if not persona_details:
-      persona_response = await self.get_persona(
-        persona_name,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-      )
-      if not persona_response.get("success"):
-        return persona_response
-      persona_details = persona_response.get("persona_details") or {}
-    personas_recid = persona_details.get("recid")
-    models_recid = persona_details.get("models_recid")
-    if personas_recid is None or models_recid is None:
-      logging.warning(
-        "[DiscordChatModule] persona missing identifiers",
-        extra={"persona": persona_name},
-      )
-      return {
-        "success": False,
-        "reason": "persona_not_configured",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    return {
-      "success": True,
-      "conversation_reference": None,
-      "personas_recid": personas_recid,
-      "models_recid": models_recid,
-    }
-
-  async def generate_persona_response(
-    self,
-    persona: str,
-    message: str,
-    *,
-    persona_details: Dict[str, Any] | None = None,
-    conversation_history: List[Dict[str, Any]] | None = None,
-    channel_history: List[Dict[str, Any]] | None = None,
-    stored_context: List[Dict[str, Any]] | None = None,
-    model: str | None = None,
-    max_tokens: int | None = None,
-    conversation_reference: int | None = None,
-    personas_recid: int | None = None,
-    models_recid: int | None = None,
-    guild_id: int | None = None,
-    channel_id: int | None = None,
-    user_id: int | None = None,
-  ) -> Dict[str, Any]:
-    await self.on_ready()
-    persona_name = (persona or "").strip()
-    message_text = (message or "").strip()
-    if not persona_name or not message_text:
-      return {
-        "success": False,
-        "reason": "invalid_persona_usage",
-        "ack_message": "Usage: !persona <persona> <message>",
-      }
-    openai = getattr(self.app.state, "openai", None)
-    if not openai:
-      logging.warning(
-        "[DiscordChatModule] OpenAI module unavailable for generate_persona_response",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      }
-    await openai.on_ready()
-    if not persona_details:
-      persona_response = await self.get_persona(
-        persona_name,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-      )
-      if not persona_response.get("success"):
-        return persona_response
-      persona_details = persona_response.get("persona_details") or {}
-      model = persona_response.get("model", model)
-      max_tokens = persona_response.get("max_tokens", max_tokens)
-    model_hint = model or persona_details.get("model")
-    tokens_hint = max_tokens or persona_details.get("tokens")
-    try:
-      tokens_hint = int(tokens_hint) if tokens_hint is not None else None
-    except (TypeError, ValueError):
-      tokens_hint = None
-    conversation_history = conversation_history or []
-    channel_history = channel_history or []
-
-    def _format_conversation(items: List[Dict[str, Any]]) -> str:
-      parts: List[str] = []
-      for item in items[-10:]:
-        role = item.get("role") or "user"
-        content = item.get("content") or ""
-        if not content:
-          continue
-        parts.append(f"{role}: {content}")
-      return "\n".join(parts)
-
-    def _format_channel(items: List[Dict[str, Any]]) -> str:
-      parts: List[str] = []
-      for item in items[-20:]:
-        author = item.get("author") or "unknown"
-        content = item.get("content") or ""
-        if not content:
-          continue
-        parts.append(f"{author}: {content}")
-      return "\n".join(parts)
-
-    context_sections: List[str] = []
-    convo_text = _format_conversation(conversation_history)
-    if convo_text:
-      context_sections.append("Recent persona conversation:\n" + convo_text)
-    channel_text = _format_channel(channel_history)
-    if channel_text:
-      context_sections.append("Recent channel activity:\n" + channel_text)
-    stored_context = stored_context or []
-    if stored_context:
-      stored_parts: List[str] = []
-      for msg in stored_context[-15:]:
-        r = msg.get("role") or "user"
-        c = msg.get("content") or ""
-        if c:
-          stored_parts.append(f"{r}: {c}")
-      stored_text = "\n".join(stored_parts)
-      if stored_text:
-        context_sections.append("Recent stored conversation context:\n" + stored_text)
-    prompt_context = "\n\n".join(context_sections)
-    logging.info(
-      "[DiscordChatModule] context assembled for persona response",
-      extra={
-        "persona": persona_name,
-        "guild_id": guild_id,
-        "channel_id": channel_id,
-        "conversation_history_count": len(conversation_history),
-        "channel_history_count": len(channel_history),
-        "stored_context_count": len(stored_context),
-        "context_sections_count": len(context_sections),
-        "prompt_context_length": len(prompt_context),
-      },
-    )
-
-    system_prompt = persona_details.get("prompt") or ""
-
-    try:
-      response = await openai.generate_chat(
-        system_prompt=system_prompt,
-        user_prompt=message_text,
-        model=model_hint,
-        max_tokens=tokens_hint,
-        prompt_context=prompt_context,
-        persona=None,
-        persona_details=None,
-        guild_id=guild_id,
-        channel_id=channel_id,
-        user_id=user_id,
-        input_log=message_text,
-        token_count=None,
-      )
-    except Exception:
-      logging.exception(
-        "[DiscordChatModule] OpenAI request failed for persona response",
-        extra={
-          "persona": persona_name,
-          "guild_id": guild_id,
-          "channel_id": channel_id,
-          "user_id": user_id,
-        },
-      )
-      return {
-        "success": False,
-        "reason": "persona_generation_failed",
-        "ack_message": "Failed to generate a persona response. Please try again later.",
-      }
-
-    if isinstance(response, dict):
-      content = response.get("content")
-      model_used = response.get("model", model_hint)
-      usage = response.get("usage")
-    else:
-      content = getattr(response, "content", None)
-      model_used = getattr(response, "model", model_hint)
-      usage = getattr(response, "usage", None)
-
-    total_tokens = None
-    if isinstance(usage, dict):
-      total_tokens = usage.get("total_tokens")
-
-    return {
-      "success": True,
-      "response": {"text": content or "", "model": model_used},
-      "model": model_used,
-      "usage": usage,
-      "conversation_reference": conversation_reference,
-      "personas_recid": personas_recid,
-      "models_recid": models_recid,
-    }
 
   async def deliver_persona_response(
     self,
@@ -863,215 +461,85 @@ class DiscordChatModule(BaseModule):
     user_id: int,
     command_text: str,
   ) -> dict:
+    """Handle a persona command by delegating to the conversation workflow."""
     await self.on_ready()
-    metadata = {
-      "guild_id": guild_id,
-      "channel_id": channel_id,
-      "user_id": user_id,
-    }
-    context = await self._persona_parse_and_dispatch(command_text, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_fetch_persona(context, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_fetch_conversation(context, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_fetch_channel_history(context, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_insert_conversation_input(context, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_generate_response(context, metadata)
-    if not context.get("success", True):
-      await self._bump_channel_activity(metadata)
-      return self._finalize_persona_context(context, success=False)
-    context = await self._persona_deliver_response(context, metadata)
-    await self._bump_channel_activity(metadata)
-    return self._finalize_persona_context(context, success=context.get("success", True))
+    metadata = {"guild_id": guild_id, "channel_id": channel_id, "user_id": user_id}
 
-  async def _persona_parse_and_dispatch(self, command_text: str, metadata: dict) -> dict:
     try:
       persona, message = self._split_persona_command(command_text)
     except ValueError:
+      await self._bump_channel_activity(metadata)
       return {
         "success": False,
         "reason": "invalid_persona_usage",
         "ack_message": "Usage: !persona <persona> <message>",
       }
-    context = {
-      "persona": persona,
-      "message": message,
-      "model": None,
-      "max_tokens": None,
-      "conversation": [],
-      "response": None,
-      "success": True,
-    }
-    return context
 
-  async def _persona_fetch_persona(self, context: dict, metadata: dict) -> dict:
-    response = await self.get_persona(
-      context.get("persona"),
-      guild_id=metadata.get("guild_id"),
-      channel_id=metadata.get("channel_id"),
-      user_id=metadata.get("user_id"),
-    )
-    context["persona_details"] = response.get("persona_details")
-    context["model"] = response.get("model", context.get("model"))
-    context["max_tokens"] = response.get("max_tokens", context.get("max_tokens"))
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
-    return context
+    channel_history_result = await self.get_channel_history(guild_id, channel_id, persona=persona, user_id=user_id)
+    channel_history = channel_history_result.get("channel_history") or []
 
-  async def _persona_fetch_conversation(self, context: dict, metadata: dict) -> dict:
-    context["conversation_history"] = []
-    openai = getattr(self.app.state, "openai", None)
-    if openai and metadata.get("guild_id") and metadata.get("channel_id"):
-      try:
-        stored_context = await openai.get_channel_context(
-          metadata["guild_id"],
-          metadata["channel_id"],
-          limit=20,
-        )
-        if stored_context:
-          context["stored_channel_context"] = stored_context
-      except Exception:
-        logging.exception("[DiscordChatModule] failed to fetch stored channel context")
-    return context
+    workflow = getattr(self.app.state, "workflow", None)
+    if not workflow:
+      await self._bump_channel_activity(metadata)
+      return {
+        "success": False,
+        "reason": "workflow_unavailable",
+        "ack_message": "Persona chat is currently unavailable.",
+      }
+    await workflow.on_ready()
 
-  async def _persona_fetch_channel_history(self, context: dict, metadata: dict) -> dict:
-    response = await self.get_channel_history(
-      metadata.get("guild_id"),
-      metadata.get("channel_id"),
-      persona=context.get("persona"),
-      user_id=metadata.get("user_id"),
-    )
-    context["channel_history"] = response.get("channel_history") or []
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
-    return context
-
-  async def _persona_insert_conversation_input(self, context: dict, metadata: dict) -> dict:
-    response = await self.insert_conversation_input(
-      context.get("persona"),
-      context.get("message"),
-      persona_details=context.get("persona_details"),
-      conversation_history=context.get("conversation_history", []),
-      guild_id=metadata.get("guild_id"),
-      channel_id=metadata.get("channel_id"),
-      user_id=metadata.get("user_id"),
-    )
-    context["conversation_reference"] = response.get("conversation_reference")
-    if response.get("personas_recid") is not None:
-      context["personas_recid"] = response.get("personas_recid")
-    if response.get("models_recid") is not None:
-      context["models_recid"] = response.get("models_recid")
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
-    thread_id = self._generate_thread_id(
-      metadata.get("guild_id"),
-      metadata.get("channel_id"),
-    )
-    context["thread_id"] = thread_id
-
-    openai = getattr(self.app.state, "openai", None)
-    if openai and context.get("personas_recid") and context.get("models_recid"):
-      await openai.log_message(
-        personas_recid=context["personas_recid"],
-        models_recid=context["models_recid"],
-        role="user",
-        content=context.get("message", ""),
-        guild_id=metadata.get("guild_id"),
-        channel_id=metadata.get("channel_id"),
-        user_id=metadata.get("user_id"),
-        thread_id=thread_id,
+    try:
+      run = await workflow.submit(
+        "conversation.persona",
+        payload={
+          "persona_name": persona,
+          "user_message": message,
+          "source": "discord",
+          "guild_id": str(guild_id),
+          "channel_id": str(channel_id),
+          "user_id": str(user_id),
+          "channel_history": channel_history,
+        },
+        source_type="discord",
+        source_id=str(channel_id),
       )
-    return context
+      run = await workflow.execute(run["guid"])
+    except Exception:
+      logging.exception(
+        "[DiscordChatModule] workflow execution failed",
+        extra={"persona": persona, "guild_id": guild_id, "channel_id": channel_id},
+      )
+      await self._bump_channel_activity(metadata)
+      return {
+        "success": False,
+        "reason": "workflow_failed",
+        "ack_message": "Persona chat is currently unavailable.",
+      }
 
-  async def _persona_generate_response(self, context: dict, metadata: dict) -> dict:
-    response = await self.generate_persona_response(
-      context.get("persona"),
-      context.get("message"),
-      persona_details=context.get("persona_details"),
-      conversation_history=context.get("conversation_history", []),
-      channel_history=context.get("channel_history", []),
-      stored_context=context.get("stored_channel_context", []),
-      model=context.get("model"),
-      max_tokens=context.get("max_tokens"),
-      conversation_reference=context.get("conversation_reference"),
-      personas_recid=context.get("personas_recid"),
-      models_recid=context.get("models_recid"),
-      guild_id=metadata.get("guild_id"),
-      channel_id=metadata.get("channel_id"),
-      user_id=metadata.get("user_id"),
-    )
-    context["response"] = response.get("response", context.get("response"))
-    context["model"] = response.get("model", context.get("model"))
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
+    if run["status"] == 4 and run["context"].get("response_text"):
+      delivery = await self.deliver_persona_response(
+        persona=persona,
+        response={"text": run["context"]["response_text"]},
+        guild_id=guild_id,
+        channel_id=channel_id,
+        user_id=user_id,
+      )
+      await self._bump_channel_activity(metadata)
+      return {
+        "success": delivery.get("success", True),
+        "reason": delivery.get("reason", "persona_response_queued"),
+        "ack_message": delivery.get("ack_message", "Persona response queued."),
+        "persona": persona,
+        "model": run["context"].get("model_used"),
+        "thread_id": run["context"].get("thread_id"),
+      }
 
-    openai = getattr(self.app.state, "openai", None)
-    if context.get("success") and context.get("thread_id"):
-      response_text = ""
-      resp = context.get("response")
-      if isinstance(resp, dict):
-        response_text = resp.get("text") or resp.get("content") or ""
-      elif isinstance(resp, str):
-        response_text = resp
-      if response_text and openai:
-        await openai.log_message(
-          personas_recid=context.get("personas_recid", 0),
-          models_recid=context.get("models_recid", 0),
-          role="assistant",
-          content=response_text,
-          guild_id=metadata.get("guild_id"),
-          channel_id=metadata.get("channel_id"),
-          user_id=metadata.get("user_id"),
-          thread_id=context["thread_id"],
-        )
-    return context
-
-  async def _persona_deliver_response(self, context: dict, metadata: dict) -> dict:
-    response = await self.deliver_persona_response(
-      persona=context.get("persona"),
-      response=context.get("response"),
-      conversation_reference=context.get("conversation_reference"),
-      guild_id=metadata.get("guild_id"),
-      channel_id=metadata.get("channel_id"),
-      user_id=metadata.get("user_id"),
-    )
-    context["success"] = response.get("success", True)
-    context["reason"] = response.get("reason", context.get("reason"))
-    if response.get("ack_message"):
-      context["ack_message"] = response.get("ack_message")
-    return context
-
-  def _finalize_persona_context(self, context: dict, *, success: bool) -> dict:
-    context = dict(context)
-    context.setdefault("success", success)
-    if context.get("success"):
-      context.setdefault("ack_message", "Persona response queued.")
-      context.setdefault("reason", "persona_response_queued")
-    else:
-      context.setdefault("ack_message", "Persona chat is currently unavailable.")
-      context.setdefault("reason", context.get("reason") or "persona_failed")
-    return context
+    await self._bump_channel_activity(metadata)
+    return {
+      "success": False,
+      "reason": run.get("error") or "workflow_failed",
+      "ack_message": "Persona chat is currently unavailable.",
+    }
 
   def _split_persona_command(self, command_text: str) -> tuple[str, str]:
     if not command_text or not command_text.strip():

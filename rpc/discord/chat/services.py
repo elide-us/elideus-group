@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
@@ -34,14 +32,10 @@ async def discord_chat_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   req = DiscordChatPersonaRequest1(**payload_dict)
-  openai_module: OpenaiModule | None = getattr(request.app.state, "openai", None)
-  if not openai_module:
-    logging.warning("[discord_chat_persona_response_v1] OpenAI module not configured")
-    raise HTTPException(status_code=503, detail="persona support unavailable")
-
-  await openai_module.on_ready()
+  module: OpenaiModule = request.app.state.openai
+  await module.on_ready()
   try:
-    result = await openai_module.persona_response(
+    result = await module.persona_response(
       req.persona,
       req.message,
       guild_id=req.guild_id,
@@ -99,18 +93,8 @@ async def discord_chat_get_persona_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   persona = (payload.get("persona") or "").strip()
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_get_persona_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.get_persona(
     persona,
@@ -130,18 +114,8 @@ async def discord_chat_get_conversation_history_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   persona = (payload.get("persona") or "").strip()
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_get_conversation_history_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.get_conversation_history(
     persona,
@@ -187,18 +161,8 @@ async def discord_chat_get_channel_history_v1(request: Request):
       version=rpc_request.version,
     )
 
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_get_channel_history_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.get_channel_history(
     guild_id_int,
@@ -230,18 +194,8 @@ async def discord_chat_insert_conversation_input_v1(request: Request):
       version=rpc_request.version,
     )
 
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_insert_conversation_input_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.insert_conversation_input(
     persona,
@@ -276,18 +230,8 @@ async def discord_chat_generate_persona_response_v1(request: Request):
       version=rpc_request.version,
     )
 
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_generate_persona_response_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.generate_persona_response(
     persona,
@@ -316,25 +260,11 @@ async def discord_chat_deliver_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = rpc_request.payload or {}
   response = payload.get("response") or {}
-  if isinstance(response, str):
-    response_text = response
-  else:
-    response_text = response.get("text") or response.get("content") or ""
   channel_id = payload.get("channel_id")
   user_id = payload.get("user_id")
 
-  module: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if not module:
-    logging.warning("[discord_chat_deliver_persona_response_v1] discord chat module unavailable")
-    return RPCResponse(
-      op=rpc_request.op,
-      payload={
-        "success": False,
-        "reason": "persona_module_unavailable",
-        "ack_message": "Persona chat is currently unavailable.",
-      },
-      version=rpc_request.version,
-    )
+  module: DiscordChatModule = request.app.state.discord_chat
+  await module.on_ready()
 
   result = await module.deliver_persona_response(
     persona=payload.get("persona", ""),
