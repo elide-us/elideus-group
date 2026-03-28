@@ -23,8 +23,8 @@ async def public_pages_list_pages_v1(request: Request):
   payload = rpc_request.payload or {}
   page_type = payload.get("page_type")
 
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  rows = await pages_module.list_pages(page_type=page_type, is_active=True)
+  module: ContentPagesModule = request.app.state.content_pages
+  rows = await module.list_pages(page_type=page_type, is_active=True)
 
   pages = [
     PublicPagesPageItem1(
@@ -55,8 +55,8 @@ async def public_pages_get_page_v1(request: Request):
   if not slug:
     raise HTTPException(status_code=400, detail="Missing page slug")
 
-  pages_module: ContentPagesModule = request.app.state.content_pages
-  row = await pages_module.get_page_by_slug(slug)
+  module: ContentPagesModule = request.app.state.content_pages
+  row = await module.get_page_by_slug(slug)
   if not row or not row.get("element_is_active"):
     raise HTTPException(status_code=404, detail="Page not found")
 

@@ -18,8 +18,8 @@ async def public_users_get_profile_v1(request: Request):
   guid = payload.get("guid")
   if not guid:
     raise HTTPException(status_code=400, detail="Missing user GUID")
-  users_mod: PublicUsersModule = request.app.state.public_users
-  row = await users_mod.get_profile(guid)
+  module: PublicUsersModule = request.app.state.public_users
+  row = await module.get_profile(guid)
   if not row:
     raise HTTPException(status_code=404, detail="Profile not found")
   profile = PublicUsersProfile1(**row)
@@ -35,8 +35,8 @@ async def public_users_get_published_files_v1(request: Request):
   guid = payload.get("guid")
   if not guid:
     raise HTTPException(status_code=400, detail="Missing user GUID")
-  users_mod: PublicUsersModule = request.app.state.public_users
-  rows = await users_mod.get_published_files(guid)
+  module: PublicUsersModule = request.app.state.public_users
+  rows = await module.get_published_files(guid)
   files = [PublicUsersPublishedFile1(**r) for r in rows]
   payload_model = PublicUsersPublishedFiles1(files=files)
   return RPCResponse(

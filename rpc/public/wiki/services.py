@@ -18,8 +18,8 @@ async def public_wiki_list_pages_v1(request: Request):
   payload = rpc_request.payload or {}
   parent_slug = payload.get("parent_slug")
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  rows = await wiki_module.list_pages(parent_slug=parent_slug, is_active=True)
+  module: ContentWikiModule = request.app.state.content_wiki
+  rows = await module.list_pages(parent_slug=parent_slug, is_active=True)
 
   pages = [
     PublicWikiPageItem1(
@@ -44,12 +44,12 @@ async def public_wiki_get_page_v1(request: Request):
   if not slug:
     raise HTTPException(status_code=400, detail="Missing page slug")
 
-  wiki_module: ContentWikiModule = request.app.state.content_wiki
-  row = await wiki_module.get_page_by_slug(slug)
+  module: ContentWikiModule = request.app.state.content_wiki
+  row = await module.get_page_by_slug(slug)
   if not row or not row.get("element_is_active"):
     raise HTTPException(status_code=404, detail="Page not found")
 
-  children_rows = await wiki_module.list_children(slug)
+  children_rows = await module.list_children(slug)
 
   role_module = request.app.state.role
   access = role_module.check_content_access(
