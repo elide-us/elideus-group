@@ -13,8 +13,9 @@ from .models import (
 
 async def service_roles_get_roles_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  roles_raw = await role_admin.list_roles()
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  roles_raw = await module.list_roles()
   roles = [ServiceRolesRoleItem1(**r) for r in roles_raw]
   payload = ServiceRolesList1(roles=roles)
   return RPCResponse(
@@ -27,8 +28,9 @@ async def service_roles_get_roles_v1(request: Request):
 async def service_roles_upsert_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesUpsertRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.upsert_role(data.name, int(data.mask), data.display)
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  await module.upsert_role(data.name, int(data.mask), data.display)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),
@@ -39,8 +41,9 @@ async def service_roles_upsert_role_v1(request: Request):
 async def service_roles_delete_role_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = ServiceRolesDeleteRole1(**(rpc_request.payload or {}))
-  role_admin: RoleAdminModule = request.app.state.role_admin
-  await role_admin.delete_role(data.name)
+  module: RoleAdminModule = request.app.state.role_admin
+  await module.on_ready()
+  await module.delete_role(data.name)
   return RPCResponse(
     op=rpc_request.op,
     payload=data.model_dump(),

@@ -165,3 +165,6 @@ class ContentPagesModule(BaseModule):
       get_version_request(GetVersionParams(recid=recid, pages_recid=pages_recid, version=version))
     )
     return dict(res.rows[0]) if res.rows else None
+
+  async def review_content(self, payload: dict[str, Any]) -> dict[str, Any]:
+    raise NotImplementedError("Content review is not yet implemented")
