@@ -32,11 +32,7 @@ const FinanceManagerPage = lazy(() => import('./pages/finance/FinanceManagerPage
 const AccountRolesPage = lazy(() => import('./pages/AccountRolesPage'));
 const AccountUsersPage = lazy(() => import('./pages/AccountUsersPage'));
 const AccountUserPanel = lazy(() => import('./pages/AccountUserPanel'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const PublicProfile = lazy(() => import('./pages/PublicProfile'));
-const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-const EmergentEthicsArticle = lazy(() => import('./pages/EmergentEthicsArticle'));
-const EmergentDevelopmentArticle = lazy(() => import('./pages/EmergentDevelopmentArticle'));
 const ContentPage = lazy(() => import('./pages/ContentPage'));
 const WikiPage = lazy(() => import('./pages/WikiPage'));
 
