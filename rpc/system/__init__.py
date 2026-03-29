@@ -9,7 +9,6 @@ from .conversations.handler import handle_conversations_request
 from .models.handler import handle_models_request
 from .roles.handler import handle_roles_request
 from .storage.handler import handle_storage_request
-from .tasks.handler import handle_tasks_request
 from .workflows.handler import handle_workflows_request
 
 HANDLERS: dict[str, callable] = {
@@ -19,6 +18,5 @@ HANDLERS: dict[str, callable] = {
   "models": handle_models_request,
   "roles": handle_roles_request,
   "storage": handle_storage_request,
-  "tasks": handle_tasks_request,
   "workflows": handle_workflows_request,
 }

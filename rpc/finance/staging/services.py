@@ -112,10 +112,10 @@ async def finance_staging_reject_v1(request: Request):
 async def finance_staging_promote_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   payload = StagingPromote1(**(rpc_request.payload or {}))
-  module = request.app.state.async_task
+  module = request.app.state.workflow
   await module.on_ready()
-  task = await module.submit_task(
-    handler_name="finance.billing.import_pipeline",
+  run = await module.submit(
+    workflow_name="billing_import",
     payload={
       "imports_recid": payload.imports_recid,
       "ledgers_recid": payload.ledgers_recid,
@@ -124,10 +124,8 @@ async def finance_staging_promote_v1(request: Request):
     source_id=str(payload.imports_recid),
     created_by=auth_ctx.user_guid,
     timeout_seconds=600,
-    poll_interval_seconds=None,
-    max_retries=0,
   )
-  result = StagingPromoteResult1(task_guid=task["guid"])
+  result = StagingPromoteResult1(task_guid=run["guid"])
   return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
 
 
