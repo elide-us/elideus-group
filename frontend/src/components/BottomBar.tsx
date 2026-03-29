@@ -10,9 +10,18 @@ const BottomBar = ({ info }: Props): JSX.Element => {
 		<Box sx={{ textAlign: 'center', padding: '20px' }}>
 			{info ? (
 				<>
-					<Typography variant="body1">
-						{info.version} running on https://{info.hostname}
-					</Typography>
+						<Typography variant="body1">
+							{info.version} running on{' '}
+							<Link
+								href={`https://${info.hostname}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								underline="none"
+								sx={{ display: 'inline', padding: 0, margin: 0, backgroundColor: 'transparent' }}
+								>
+									{info.hostname}
+								</Link>
+						</Typography>
 					{info.ffmpeg_version && (
 						<Typography variant="body1" sx={{ marginTop: '4px' }}>
 							{info.ffmpeg_version}
