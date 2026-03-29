@@ -172,3 +172,60 @@ def test_exchange_code_for_tokens_includes_code_verifier(monkeypatch):
 
   assert tokens == ("id", "access")
   assert captured["code_verifier"] == "pkce-verifier"
+
+
+def test_get_redirect_uri_reads_hostname_and_formats_url():
+  """_get_redirect_uri reads the Hostname config key and returns https://<hostname>."""
+  from queryregistry.models import DBResponse
+
+  class FakeDb:
+    async def on_ready(self):
+      pass
+
+    async def run(self, request):
+      assert request.payload["key"] == "Hostname", (
+        f"Expected config key 'Hostname', got '{request.payload['key']}'"
+      )
+      return DBResponse(rows=[{"element_value": "example.test"}])
+
+  module = OauthModule.__new__(OauthModule)
+  module._redirect_uri = None
+  module.db = FakeDb()
+  module._ready_event = asyncio.Event()
+  module._ready_event.set()
+
+  result = asyncio.run(module._get_redirect_uri("google"))
+  assert result == "https://example.test", (
+    f"Expected 'https://example.test', got '{result}'"
+  )
+
+
+def test_get_redirect_uri_returns_cached_value():
+  """_get_redirect_uri returns cached self._redirect_uri without querying DB."""
+  module = OauthModule.__new__(OauthModule)
+  module._redirect_uri = "https://cached.test"
+
+  result = asyncio.run(module._get_redirect_uri("google"))
+  assert result == "https://cached.test"
+
+
+def test_get_redirect_uri_raises_when_hostname_missing():
+  """_get_redirect_uri raises HTTPException when Hostname config is absent."""
+  from queryregistry.models import DBResponse
+
+  class FakeDb:
+    async def on_ready(self):
+      pass
+
+    async def run(self, request):
+      return DBResponse(rows=[])
+
+  module = OauthModule.__new__(OauthModule)
+  module._redirect_uri = None
+  module.db = FakeDb()
+  module._ready_event = asyncio.Event()
+  module._ready_event.set()
+
+  with pytest.raises(HTTPException) as exc_info:
+    asyncio.run(module._get_redirect_uri("google"))
+  assert exc_info.value.status_code == 500

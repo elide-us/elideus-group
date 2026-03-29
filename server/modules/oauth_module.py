@@ -112,13 +112,13 @@ class OauthModule(BaseModule):
   async def _get_redirect_uri(self, provider: str) -> str:
     if self._redirect_uri:
       return self._redirect_uri
-    res = await self.db.run(get_config_request(ConfigKeyParams(key="RedirectUri")))
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="Hostname")))
     if not res.rows:
       raise HTTPException(
         status_code=500,
         detail=f"{self._provider_title(provider)} OAuth redirect URI not configured",
       )
-    self._redirect_uri = res.rows[0]["element_value"]
+    self._redirect_uri = f"https://{res.rows[0]['element_value']}"
     return self._redirect_uri
 
   def _get_provider_client_id(self, provider: str) -> str:
