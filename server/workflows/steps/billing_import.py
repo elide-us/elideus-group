@@ -5,8 +5,6 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from pydantic import BaseModel
-
 from queryregistry.finance.staging import (
   list_imports_request,
   update_import_status_request,
@@ -15,6 +13,8 @@ from queryregistry.finance.staging.models import (
   ListImportsParams,
   UpdateImportStatusParams,
 )
+from queryregistry.finance.staging_account_map import resolve_account_request
+from queryregistry.finance.staging_account_map.models import ResolveAccountParams
 from queryregistry.finance.staging_line_items import (
   aggregate_line_items_request,
   list_line_items_by_import_request,
@@ -23,15 +23,12 @@ from queryregistry.finance.staging_line_items.models import (
   AggregateLineItemsParams,
   ListLineItemsByImportParams,
 )
-from queryregistry.finance.staging_account_map import (
-  resolve_account_request,
-)
-from queryregistry.finance.staging_account_map.models import ResolveAccountParams
-from server.modules.async_task_handlers import PipelineHandler
+from pydantic import BaseModel
 from server.modules.models.finance_statuses import (
   IMPORT_APPROVED,
   IMPORT_PROMOTED,
 )
+from server.workflows import StepResult, WorkflowStep
 
 
 class BillingImportPipelinePayload(BaseModel):
@@ -39,23 +36,24 @@ class BillingImportPipelinePayload(BaseModel):
   ledgers_recid: int | None = None
 
 
-class BillingImportPipelineHandler(PipelineHandler):
-  payload_model = BillingImportPipelinePayload
+class ValidateImportStep(WorkflowStep):
+  step_type = "pipe"
+  disposition = "harmless"
 
-  steps = [
-    ("validate_import", lambda app, payload, context: BillingImportPipelineHandler.validate_import(app, payload, context)),
-    ("classify_costs", lambda app, payload, context: BillingImportPipelineHandler.classify_costs(app, payload, context)),
-    ("create_journal", lambda app, payload, context: BillingImportPipelineHandler.create_journal(app, payload, context)),
-    ("mark_promoted", lambda app, payload, context: BillingImportPipelineHandler.mark_promoted(app, payload, context)),
-  ]
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
+    del context, config
+    validated = BillingImportPipelinePayload(**payload)
 
-  @staticmethod
-  async def validate_import(app, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    del context
     db = app.state.db
     await db.on_ready()
 
-    imports_recid = int(payload["imports_recid"])
+    imports_recid = int(validated.imports_recid)
     res = await db.run(list_imports_request(ListImportsParams()))
     import_row = next((dict(row) for row in (res.rows or []) if int(row.get("recid") or 0) == imports_recid), None)
     if not import_row:
@@ -70,15 +68,27 @@ class BillingImportPipelineHandler(PipelineHandler):
     if row_count <= 0:
       raise ValueError(f"Import {imports_recid} has no rows to promote")
 
-    return {
-      "imports_recid": imports_recid,
-      "import_metadata": import_row,
-      "ledgers_recid": int(payload["ledgers_recid"]) if payload.get("ledgers_recid") else None,
-    }
+    return StepResult(
+      output={
+        "imports_recid": imports_recid,
+        "import_metadata": import_row,
+        "ledgers_recid": validated.ledgers_recid,
+      }
+    )
 
-  @staticmethod
-  async def classify_costs(app, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    del payload
+
+class ClassifyCostsStep(WorkflowStep):
+  step_type = "pipe"
+  disposition = "harmless"
+
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
+    del payload, config
     db = app.state.db
     finance = app.state.finance
     await db.on_ready()
@@ -153,14 +163,26 @@ class BillingImportPipelineHandler(PipelineHandler):
         }
       )
 
-    return {
-      "classified_costs": classified,
-      "warnings": warnings,
-    }
+    return StepResult(
+      output={
+        "classified_costs": classified,
+        "warnings": warnings,
+      }
+    )
 
-  @staticmethod
-  async def create_journal(app, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    del payload
+
+class CreateJournalStep(WorkflowStep):
+  step_type = "pipe"
+  disposition = "irreversible"
+
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
+    del payload, config
     finance = app.state.finance
     await finance.on_ready()
 
@@ -251,19 +273,31 @@ class BillingImportPipelineHandler(PipelineHandler):
       lines=lines,
     )
 
-    return {
-      "journal_recid": int(journal["recid"]),
-      "posting_summary": {
-        "posting_key": posting_key,
-        "periods_guid": matching_period["guid"],
-        "line_count": len(lines),
-        "total": str(total),
-      },
-    }
+    return StepResult(
+      output={
+        "journal_recid": int(journal["recid"]),
+        "posting_summary": {
+          "posting_key": posting_key,
+          "periods_guid": matching_period["guid"],
+          "line_count": len(lines),
+          "total": str(total),
+        },
+      }
+    )
 
-  @staticmethod
-  async def mark_promoted(app, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    del payload
+
+class MarkPromotedStep(WorkflowStep):
+  step_type = "pipe"
+  disposition = "irreversible"
+
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
+    del payload, config
     db = app.state.db
     await db.on_ready()
 
@@ -281,8 +315,10 @@ class BillingImportPipelineHandler(PipelineHandler):
         )
       )
     )
-    return {
-      "imports_recid": imports_recid,
-      "import_status": IMPORT_PROMOTED,
-      "journal_recid": journal_recid,
-    }
+    return StepResult(
+      output={
+        "imports_recid": imports_recid,
+        "import_status": IMPORT_PROMOTED,
+        "journal_recid": journal_recid,
+      }
+    )

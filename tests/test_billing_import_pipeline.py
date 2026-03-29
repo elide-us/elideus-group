@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from server.jobs.billing_import_pipeline import BillingImportPipelineHandler
+from server.workflows.steps.billing_import import CreateJournalStep
 
 
 def test_create_journal_uses_pipeline_config_values():
@@ -58,9 +58,9 @@ def test_create_journal_uses_pipeline_config_values():
     "ledgers_recid": 8,
   }
 
-  result = asyncio.run(BillingImportPipelineHandler.create_journal(app, {}, context))
+  result = asyncio.run(CreateJournalStep().try_step(app, {}, context, {}))
 
-  assert result == {
+  assert result.output == {
     "journal_recid": 91,
     "posting_summary": {
       "posting_key": "AZURE-IMPORT-42",
@@ -79,5 +79,3 @@ def test_create_journal_uses_pipeline_config_values():
   assert created_payload["source_type"] == "azure_invoice"
   assert created_payload["lines"][0]["dimension_recids"] == [15, 4]
   assert created_payload["lines"][1]["accounts_guid"] == "ap-guid"
-
-
