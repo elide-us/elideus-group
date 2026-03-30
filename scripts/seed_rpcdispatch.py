@@ -170,6 +170,29 @@ def discover_models() -> tuple[
   return filtered_rows, filtered_map, model_classes, alias_map
 
 
+def topological_sort_models(model_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+  """Sort models so parents are inserted before children."""
+  by_guid: dict[str, dict[str, Any]] = {
+    str(row["element_guid"]): row for row in model_rows
+  }
+  visited: set[str] = set()
+  result: list[dict[str, Any]] = []
+
+  def visit(row: dict[str, Any]) -> None:
+    guid = str(row["element_guid"])
+    if guid in visited:
+      return
+    parent_guid = row.get("element_parent_guid")
+    if parent_guid and str(parent_guid) in by_guid:
+      visit(by_guid[str(parent_guid)])
+    visited.add(guid)
+    result.append(row)
+
+  for row in model_rows:
+    visit(row)
+  return result
+
+
 def resolve_annotation(
   annotation: Any,
   model_map: dict[str, str],
@@ -432,6 +455,7 @@ def main() -> None:
   domains = discover_domains()
   subdomains = discover_subdomains(domains)
   model_rows, model_map, model_classes, alias_map = discover_models()
+  model_rows = topological_sort_models(model_rows)
   field_rows = discover_model_fields(model_rows, model_map, model_classes, alias_map)
 
   domain_recids: dict[str, int] = {name: idx for idx, name in enumerate(domains, start=1)}
