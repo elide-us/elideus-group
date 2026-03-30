@@ -30,11 +30,11 @@ async def list_by_domain_subdomains_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT *
     FROM reflection_rpc_subdomains
-    WHERE domains_recid = ?
+    WHERE domains_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
     ORDER BY recid
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  return await run_json_many(sql, (args["domains_recid"],))
+  return await run_json_many(sql, (args["domains_guid"],))
 
 async def upsert_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
@@ -42,11 +42,11 @@ async def upsert_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
     DECLARE @out TABLE (recid bigint);
 
     MERGE reflection_rpc_subdomains AS target
-    USING (SELECT ? AS domains_recid, ? AS element_name, ? AS element_entitlement_mask, ? AS element_status, ? AS element_app_version) AS src
+    USING (SELECT TRY_CAST(? AS UNIQUEIDENTIFIER) AS domains_guid, ? AS element_name, ? AS element_entitlement_mask, ? AS element_status, ? AS element_app_version) AS src
     ON target.recid = TRY_CAST(? AS BIGINT)
     WHEN MATCHED THEN
       UPDATE SET
-        target.domains_recid = src.domains_recid,
+        target.domains_guid = src.domains_guid,
         target.element_name = src.element_name,
         target.element_entitlement_mask = src.element_entitlement_mask,
         target.element_status = src.element_status,
@@ -54,8 +54,8 @@ async def upsert_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
         target.element_iteration = target.element_iteration + 1,
         target.element_modified_on = SYSUTCDATETIME()
     WHEN NOT MATCHED THEN
-      INSERT (domains_recid, element_name, element_entitlement_mask, element_status, element_app_version, element_created_on, element_modified_on)
-      VALUES (src.domains_recid, src.element_name, src.element_entitlement_mask, src.element_status, src.element_app_version, SYSUTCDATETIME(), SYSUTCDATETIME())
+      INSERT (domains_guid, element_name, element_entitlement_mask, element_status, element_app_version, element_created_on, element_modified_on)
+      VALUES (src.domains_guid, src.element_name, src.element_entitlement_mask, src.element_status, src.element_app_version, SYSUTCDATETIME(), SYSUTCDATETIME())
     OUTPUT inserted.recid INTO @out;
 
     SELECT t.*
@@ -63,7 +63,7 @@ async def upsert_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
     JOIN @out o ON o.recid = t.recid
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
-  return await run_json_one(sql, (args["domains_recid"], args["element_name"], args["element_entitlement_mask"], args["element_status"], args["element_app_version"], args.get("recid")))
+  return await run_json_one(sql, (args["domains_guid"], args["element_name"], args["element_entitlement_mask"], args["element_status"], args["element_app_version"], args.get("recid")))
 
 async def delete_subdomain_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """

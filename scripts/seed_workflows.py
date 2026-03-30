@@ -5,15 +5,20 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import uuid
 
 import pyodbc
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from scripts.common import REPO_ROOT
+from scripts.common import REPO_ROOT, RPC_REFLECTION_NAMESPACE
 
 load_dotenv(os.path.join(REPO_ROOT, ".env"))
+
+
+def reflection_function_guid(natural_key: str) -> str:
+  return str(uuid.uuid5(RPC_REFLECTION_NAMESPACE, natural_key))
 
 
 WORKFLOW_NAME = "persona_conversation"

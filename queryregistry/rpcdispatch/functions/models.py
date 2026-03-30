@@ -9,7 +9,8 @@ class ListFunctionsParams(BaseModel):
 
 class GetFunctionParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
-  recid: int
+  recid: int | None = None
+  guid: str | None = None
 
 class DeleteFunctionParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
@@ -18,16 +19,16 @@ class DeleteFunctionParams(BaseModel):
 class UpsertFunctionParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
   recid: int | None = None
-  subdomains_recid: int
+  subdomains_guid: str
   element_name: str
   element_version: int = 1
   element_module_attr: str
   element_method_name: str
-  element_request_model_recid: int | None = None
-  element_response_model_recid: int | None = None
+  element_request_model_guid: str | None = None
+  element_response_model_guid: str | None = None
   element_status: int = 1
   element_app_version: str | None = None
 
 class ListBySubdomainParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
-  subdomains_recid: int
+  subdomains_guid: str

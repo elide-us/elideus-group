@@ -32,17 +32,19 @@ from .db_module import DbModule
 @dataclass
 class FunctionEntry:
   recid: int
+  guid: str
   name: str
   version: int
   module_attr: str
   method_name: str
-  request_model_recid: int | None
-  response_model_recid: int | None
+  request_model_guid: str | None
+  response_model_guid: str | None
 
 
 @dataclass
 class SubdomainEntry:
   recid: int
+  guid: str
   name: str
   entitlement_mask: int
   functions: dict[tuple[str, int], FunctionEntry] = field(default_factory=dict)
@@ -51,6 +53,7 @@ class SubdomainEntry:
 @dataclass
 class DomainEntry:
   recid: int
+  guid: str
   name: str
   required_role: str | None
   is_auth_exempt: bool
@@ -89,12 +92,13 @@ class RpcdispatchModule(BaseModule):
     function_rows = (await self.db.run(list_functions_request())).rows
 
     domains: dict[str, DomainEntry] = {}
-    by_domain_recid: dict[int, DomainEntry] = {}
-    by_subdomain_recid: dict[int, SubdomainEntry] = {}
+    by_domain_guid: dict[str, DomainEntry] = {}
+    by_subdomain_guid: dict[str, SubdomainEntry] = {}
 
     for row in domain_rows:
       entry = DomainEntry(
         recid=int(row.get("recid")),
+        guid=str(row.get("element_guid")),
         name=str(row.get("element_name")),
         required_role=row.get("element_required_role"),
         is_auth_exempt=bool(row.get("element_is_auth_exempt")),
@@ -102,32 +106,34 @@ class RpcdispatchModule(BaseModule):
         is_discord=bool(row.get("element_is_discord")),
       )
       domains[entry.name] = entry
-      by_domain_recid[entry.recid] = entry
+      by_domain_guid[entry.guid] = entry
 
     for row in subdomain_rows:
-      domain_entry = by_domain_recid.get(int(row.get("domains_recid")))
+      domain_entry = by_domain_guid.get(str(row.get("domains_guid")))
       if domain_entry is None:
         continue
       entry = SubdomainEntry(
         recid=int(row.get("recid")),
+        guid=str(row.get("element_guid")),
         name=str(row.get("element_name")),
         entitlement_mask=int(row.get("element_entitlement_mask") or 0),
       )
       domain_entry.subdomains[entry.name] = entry
-      by_subdomain_recid[entry.recid] = entry
+      by_subdomain_guid[entry.guid] = entry
 
     for row in function_rows:
-      subdomain_entry = by_subdomain_recid.get(int(row.get("subdomains_recid")))
+      subdomain_entry = by_subdomain_guid.get(str(row.get("subdomains_guid")))
       if subdomain_entry is None:
         continue
       entry = FunctionEntry(
         recid=int(row.get("recid")),
+        guid=str(row.get("element_guid")),
         name=str(row.get("element_name")),
         version=int(row.get("element_version") or 1),
         module_attr=str(row.get("element_module_attr")),
         method_name=str(row.get("element_method_name")),
-        request_model_recid=row.get("element_request_model_recid"),
-        response_model_recid=row.get("element_response_model_recid"),
+        request_model_guid=row.get("element_request_model_guid"),
+        response_model_guid=row.get("element_response_model_guid"),
       )
       subdomain_entry.functions[(entry.name, entry.version)] = entry
 
