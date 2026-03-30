@@ -22,7 +22,7 @@ class UpsertModelParams(BaseModel):
   element_domain: str
   element_subdomain: str
   element_version: int = 1
-  element_parent_recid: int | None = None
+  element_parent_guid: str | None = None
   element_status: int = 1
   element_app_version: str | None = None
 

@@ -5,12 +5,14 @@ import importlib.util
 import inspect
 import os
 import types
+import uuid
 from datetime import datetime
 from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+RPC_REFLECTION_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 PY_TO_TS = {
   str: "string",

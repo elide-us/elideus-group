@@ -76,9 +76,9 @@ async def list_workflow_actions_v1(args: Mapping[str, Any]) -> DBResponse:
       a.workflows_guid,
       a.element_name,
       a.element_description,
-      a.functions_recid,
+      a.functions_guid,
       a.dispositions_recid,
-      a.element_rollback_functions_recid,
+      a.element_rollback_functions_guid,
       a.element_sequence,
       a.element_is_optional,
       a.element_timeout_seconds,
@@ -91,7 +91,7 @@ async def list_workflow_actions_v1(args: Mapping[str, Any]) -> DBResponse:
       d.element_slug AS disposition_name
     FROM system_workflow_actions a
     INNER JOIN reflection_rpc_functions f
-      ON f.recid = a.functions_recid
+      ON f.element_guid = a.functions_guid
     INNER JOIN system_dispositions d
       ON d.recid = a.dispositions_recid
     WHERE a.workflows_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)

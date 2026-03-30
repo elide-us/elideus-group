@@ -264,15 +264,15 @@ class WorkflowModule(BaseModule):
           continue
         if disposition in {2, 3}:
           break
-        rollback_function_recid = action_def.get("element_rollback_functions_recid")
-        if rollback_function_recid is None:
+        rollback_function_guid = action_def.get("element_rollback_functions_guid")
+        if rollback_function_guid is None:
           logging.error(
             "[WorkflowModule] reversible action %s has no rollback function; stopping rollback",
             run_action.get("guid"),
           )
           break
 
-        rollback_def = await self._get_reflection_function(int(rollback_function_recid))
+        rollback_def = await self._get_reflection_function(str(rollback_function_guid))
         rollback_callable = self._resolve_callable_from_function(rollback_def)
         await self._call_action(rollback_callable, {"run_action_guid": run_action["guid"]})
 
@@ -511,11 +511,11 @@ class WorkflowModule(BaseModule):
           return action
     return None
 
-  async def _get_reflection_function(self, function_recid: int) -> dict[str, Any]:
+  async def _get_reflection_function(self, function_guid: str) -> dict[str, Any]:
     assert self.db
-    res = await self.db.run(get_function_request(GetFunctionParams(recid=function_recid)))
+    res = await self.db.run(get_function_request(GetFunctionParams(guid=function_guid)))
     if not res.rows:
-      raise HTTPException(status_code=404, detail=f"Reflection function {function_recid} not found")
+      raise HTTPException(status_code=404, detail=f"Reflection function {function_guid} not found")
     return dict(res.rows[0])
 
   def _resolve_action_callable(self, action_def: dict[str, Any]):
@@ -645,9 +645,9 @@ class WorkflowModule(BaseModule):
       "workflows_guid": row.get("workflows_guid"),
       "name": row.get("element_name"),
       "description": row.get("element_description"),
-      "functions_recid": row.get("functions_recid"),
+      "functions_guid": row.get("functions_guid"),
       "dispositions_recid": row.get("dispositions_recid"),
-      "rollback_functions_recid": row.get("element_rollback_functions_recid"),
+      "rollback_functions_guid": row.get("element_rollback_functions_guid"),
       "sequence": row.get("element_sequence"),
       "is_optional": bool(row.get("element_is_optional")),
       "timeout_seconds": row.get("element_timeout_seconds"),
@@ -656,7 +656,7 @@ class WorkflowModule(BaseModule):
       "module_attr": row.get("element_module_attr"),
       "method_name": row.get("element_method_name"),
       "disposition_name": row.get("disposition_name"),
-      "element_rollback_functions_recid": row.get("element_rollback_functions_recid"),
+      "element_rollback_functions_guid": row.get("element_rollback_functions_guid"),
     }
 
   def _map_run(self, row: dict[str, Any]) -> dict[str, Any]:

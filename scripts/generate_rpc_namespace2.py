@@ -292,10 +292,15 @@ def main() -> None:
     model_rows = fetch_rows(
       cursor,
       '''
-      SELECT recid, element_name, element_parent_recid
-      FROM reflection_rpc_models
-      WHERE element_status = 1
-      ORDER BY element_name
+      SELECT
+        m.recid,
+        m.element_name,
+        p.recid AS element_parent_recid
+      FROM reflection_rpc_models m
+      LEFT JOIN reflection_rpc_models p
+        ON p.element_guid = m.element_parent_guid
+      WHERE m.element_status = 1
+      ORDER BY m.element_name
       ''',
     )
     model_name_map = {row['recid']: row['element_name'] for row in model_rows}
@@ -303,12 +308,22 @@ def main() -> None:
     field_rows = fetch_rows(
       cursor,
       '''
-      SELECT models_recid, element_name, element_edt_recid,
-             element_is_nullable, element_is_list, element_is_dict,
-             element_ref_model_recid, element_sort_order
-      FROM reflection_rpc_model_fields
-      WHERE element_status = 1
-      ORDER BY models_recid, element_sort_order
+      SELECT
+        m.recid AS models_recid,
+        mf.element_name,
+        mf.element_edt_recid,
+        mf.element_is_nullable,
+        mf.element_is_list,
+        mf.element_is_dict,
+        rm.recid AS element_ref_model_recid,
+        mf.element_sort_order
+      FROM reflection_rpc_model_fields mf
+      INNER JOIN reflection_rpc_models m
+        ON m.element_guid = mf.models_guid
+      LEFT JOIN reflection_rpc_models rm
+        ON rm.element_guid = mf.element_ref_model_guid
+      WHERE mf.element_status = 1
+      ORDER BY m.recid, mf.element_sort_order
       ''',
     )
 
@@ -332,12 +347,13 @@ def main() -> None:
       '''
       SELECT fn.element_name AS function_name,
              fn.element_version,
-             fn.element_response_model_recid,
+             rm.recid AS element_response_model_recid,
              sd.element_name AS subdomain_name,
              d.element_name AS domain_name
       FROM reflection_rpc_functions fn
-      JOIN reflection_rpc_subdomains sd ON fn.subdomains_recid = sd.recid
-      JOIN reflection_rpc_domains d ON sd.domains_recid = d.recid
+      LEFT JOIN reflection_rpc_models rm ON rm.element_guid = fn.element_response_model_guid
+      JOIN reflection_rpc_subdomains sd ON fn.subdomains_guid = sd.element_guid
+      JOIN reflection_rpc_domains d ON sd.domains_guid = d.element_guid
       WHERE fn.element_status = 1
       ORDER BY d.element_name, sd.element_name, fn.element_name
       ''',

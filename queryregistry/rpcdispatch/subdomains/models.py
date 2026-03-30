@@ -18,7 +18,7 @@ class DeleteSubdomainParams(BaseModel):
 class UpsertSubdomainParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
   recid: int | None = None
-  domains_recid: int
+  domains_guid: str
   element_name: str
   element_entitlement_mask: int = 0
   element_status: int = 1
@@ -26,4 +26,4 @@ class UpsertSubdomainParams(BaseModel):
 
 class ListByDomainParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
-  domains_recid: int
+  domains_guid: str

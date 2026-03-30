@@ -8,6 +8,7 @@ import inspect
 import os
 import re
 import sys
+import uuid
 from pathlib import Path
 from typing import Any, Union, get_args, get_origin
 
@@ -20,6 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from scripts.common import (
   REPO_ROOT,
+  RPC_REFLECTION_NAMESPACE,
   find_all_model_classes,
   parse_dispatchers,
   parse_service_models,
@@ -49,6 +51,10 @@ EDT_MAP = {
   int: 1,
   bool: 5,
 }
+
+
+def guid_for(natural_key: str) -> str:
+  return str(uuid.uuid5(RPC_REFLECTION_NAMESPACE, natural_key))
 
 def parse_dict_keys(path: Path, dict_name: str) -> list[str]:
   tree = ast.parse(path.read_text(), filename=str(path))
@@ -92,12 +98,12 @@ def resolve_alias_name(name: str, alias_map: dict[str, str]) -> str:
 
 def discover_models() -> tuple[
   list[dict[str, Any]],
-  dict[str, int],
+  dict[str, str],
   dict[str, type[BaseModel]],
   dict[str, str],
 ]:
   model_rows: list[dict[str, Any]] = []
-  model_map: dict[str, int] = {}
+  model_map: dict[str, str] = {}
   model_classes: dict[str, type[BaseModel]] = {}
   alias_map: dict[str, str] = {}
 
@@ -115,6 +121,7 @@ def discover_models() -> tuple[
     model_rows.append(
       {
         "recid": recid,
+        "element_guid": guid_for(name),
         "element_name": name,
         "element_domain": domain,
         "element_subdomain": subdomain,
@@ -154,14 +161,18 @@ def discover_models() -> tuple[
       row["flatten_fields"] = True
 
   filtered_rows = [row for row in model_rows if not row["is_alias"]]
-  filtered_map = {row["element_name"]: row["recid"] for row in filtered_rows}
+  filtered_map = {row["element_name"]: row["element_guid"] for row in filtered_rows}
+
+  for row in filtered_rows:
+    parent_name = row["parent_name"]
+    row["element_parent_guid"] = filtered_map.get(parent_name) if parent_name else None
 
   return filtered_rows, filtered_map, model_classes, alias_map
 
 
 def resolve_annotation(
   annotation: Any,
-  model_map: dict[str, int],
+  model_map: dict[str, str],
   alias_map: dict[str, str],
 ) -> dict[str, Any]:
   info = {
@@ -169,7 +180,7 @@ def resolve_annotation(
     "element_is_nullable": 0,
     "element_is_list": 0,
     "element_is_dict": 0,
-    "element_ref_model_recid": None,
+    "element_ref_model_guid": None,
   }
 
   def walk(ann: Any) -> None:
@@ -202,9 +213,9 @@ def resolve_annotation(
 
     if inspect.isclass(ann) and issubclass(ann, BaseModel):
       ref_model_name = resolve_alias_name(ann.__name__, alias_map)
-      ref_recid = model_map.get(ref_model_name)
-      if ref_recid is not None:
-        info["element_ref_model_recid"] = ref_recid
+      ref_guid = model_map.get(ref_model_name)
+      if ref_guid is not None:
+        info["element_ref_model_guid"] = ref_guid
       return
 
     edt = EDT_MAP.get(ann)
@@ -215,7 +226,7 @@ def resolve_annotation(
     info["element_is_dict"] = 1
 
   walk(annotation)
-  if info["element_is_dict"] and info["element_edt_recid"] is None and info["element_ref_model_recid"] is None:
+  if info["element_is_dict"] and info["element_edt_recid"] is None and info["element_ref_model_guid"] is None:
     info["element_edt_recid"] = 15
   return info
 
@@ -242,7 +253,7 @@ def default_value_for_field(field_info: Any) -> str | None:
 
 def discover_model_fields(
   model_rows: list[dict[str, Any]],
-  model_map: dict[str, int],
+  model_map: dict[str, str],
   model_classes: dict[str, type[BaseModel]],
   alias_map: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -251,7 +262,7 @@ def discover_model_fields(
 
   for model in model_rows:
     model_class: type[BaseModel] = model["model_class"]
-    model_recid = model["recid"]
+    model_guid = model["element_guid"]
     sort_order = 0
 
     fields_to_insert: list[tuple[str, Any]]
@@ -282,13 +293,14 @@ def discover_model_fields(
       details = resolve_annotation(field_info.annotation, model_map, alias_map)
       row = {
         "recid": recid,
-        "models_recid": model_recid,
+        "element_guid": guid_for(f'{model["element_name"]}.{field_name}'),
+        "models_guid": model_guid,
         "element_name": field_name,
         "element_edt_recid": details["element_edt_recid"],
         "element_is_nullable": details["element_is_nullable"],
         "element_is_list": details["element_is_list"],
         "element_is_dict": details["element_is_dict"],
-        "element_ref_model_recid": details["element_ref_model_recid"],
+        "element_ref_model_guid": details["element_ref_model_guid"],
         "element_default_value": default_value_for_field(field_info),
         "element_max_length": None,
         "element_sort_order": sort_order,
@@ -344,8 +356,8 @@ def parse_service_module_metadata(path: Path) -> dict[str, dict[str, Any]]:
 
 def discover_functions(
   subdomains: list[tuple[str, str]],
-  subdomain_recids: dict[tuple[str, str], int],
-  model_map: dict[str, int],
+  subdomain_guids: dict[tuple[str, str], str],
+  model_map: dict[str, str],
   alias_map: dict[str, str],
 ) -> list[dict[str, Any]]:
   rows: list[dict[str, Any]] = []
@@ -368,13 +380,16 @@ def discover_functions(
       rows.append(
         {
           "recid": recid,
-          "subdomains_recid": subdomain_recids[(domain, subdomain)],
+          "element_guid": guid_for(
+            f'{domain}.{subdomain}.{operation["op"]}.{int(operation["version"])}'
+          ),
+          "subdomains_guid": subdomain_guids[(domain, subdomain)],
           "element_name": operation["op"],
           "element_version": int(operation["version"]),
           "element_module_attr": meta.get("module_attr"),
           "element_method_name": meta.get("method_name"),
-          "element_request_model_recid": model_map.get(request_model) if request_model else None,
-          "element_response_model_recid": None,
+          "element_request_model_guid": model_map.get(request_model) if request_model else None,
+          "element_response_model_guid": None,
           "element_status": 1,
           "element_app_version": APP_VERSION,
           "element_iteration": 1,
@@ -420,11 +435,16 @@ def main() -> None:
   field_rows = discover_model_fields(model_rows, model_map, model_classes, alias_map)
 
   domain_recids: dict[str, int] = {name: idx for idx, name in enumerate(domains, start=1)}
+  domain_guids: dict[str, str] = {domain: guid_for(domain) for domain in domains}
   subdomain_recids: dict[tuple[str, str], int] = {
     (domain, subdomain): idx
     for idx, (domain, subdomain) in enumerate(subdomains, start=1)
   }
-  function_rows = discover_functions(subdomains, subdomain_recids, model_map, alias_map)
+  subdomain_guids: dict[tuple[str, str], str] = {
+    (domain, subdomain): guid_for(f"{domain}.{subdomain}")
+    for domain, subdomain in subdomains
+  }
+  function_rows = discover_functions(subdomains, subdomain_guids, model_map, alias_map)
 
   conn = connect()
   try:
@@ -448,15 +468,16 @@ def main() -> None:
       cursor,
       """
       INSERT INTO reflection_rpc_domains (
-        recid, element_name, element_required_role,
+        recid, element_guid, element_name, element_required_role,
         element_is_auth_exempt, element_is_public, element_is_discord,
         element_status, element_app_version, element_iteration,
         element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, ?, ?, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
           domain_recids[domain],
+          domain_guids[domain],
           domain,
           DOMAIN_ROLES.get(domain),
           1 if domain == "auth" else 0,
@@ -474,15 +495,16 @@ def main() -> None:
       cursor,
       """
       INSERT INTO reflection_rpc_subdomains (
-        recid, domains_recid, element_name, element_entitlement_mask,
+        recid, element_guid, domains_guid, element_name, element_entitlement_mask,
         element_status, element_app_version, element_iteration,
         element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, 0, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, TRY_CAST(? AS UNIQUEIDENTIFIER), TRY_CAST(? AS UNIQUEIDENTIFIER), ?, 0, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
           subdomain_recids[(domain, subdomain)],
-          domain_recids[domain],
+          subdomain_guids[(domain, subdomain)],
+          domain_guids[domain],
           subdomain,
           APP_VERSION,
         )
@@ -496,18 +518,20 @@ def main() -> None:
       cursor,
       """
       INSERT INTO reflection_rpc_models (
-        recid, element_name, element_domain, element_subdomain, element_version,
-        element_parent_recid, element_status, element_app_version, element_iteration,
+        recid, element_guid, element_name, element_domain, element_subdomain, element_version,
+        element_parent_guid, element_status, element_app_version, element_iteration,
         element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, ?, ?, NULL, 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), 1, ?, 1, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
           row["recid"],
+          row["element_guid"],
           row["element_name"],
           row["element_domain"],
           row["element_subdomain"],
           row["element_version"],
+          row["element_parent_guid"],
           APP_VERSION,
         )
         for row in model_rows
@@ -520,22 +544,23 @@ def main() -> None:
       cursor,
       """
       INSERT INTO reflection_rpc_model_fields (
-        recid, models_recid, element_name, element_edt_recid,
+        recid, element_guid, models_guid, element_name, element_edt_recid,
         element_is_nullable, element_is_list, element_is_dict,
-        element_ref_model_recid, element_default_value, element_max_length,
+        element_ref_model_guid, element_default_value, element_max_length,
         element_sort_order, element_status, element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, TRY_CAST(? AS UNIQUEIDENTIFIER), TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, ?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
           row["recid"],
-          row["models_recid"],
+          row["element_guid"],
+          row["models_guid"],
           row["element_name"],
           row["element_edt_recid"],
           row["element_is_nullable"],
           row["element_is_list"],
           row["element_is_dict"],
-          row["element_ref_model_recid"],
+          row["element_ref_model_guid"],
           row["element_default_value"],
           row["element_max_length"],
           row["element_sort_order"],
@@ -551,23 +576,24 @@ def main() -> None:
       cursor,
       """
       INSERT INTO reflection_rpc_functions (
-        recid, subdomains_recid, element_name, element_version,
+        recid, element_guid, subdomains_guid, element_name, element_version,
         element_module_attr, element_method_name,
-        element_request_model_recid, element_response_model_recid,
+        element_request_model_guid, element_response_model_guid,
         element_status, element_app_version, element_iteration,
         element_created_on, element_modified_on
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME())
+      ) VALUES (?, TRY_CAST(? AS UNIQUEIDENTIFIER), TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, ?, TRY_CAST(? AS UNIQUEIDENTIFIER), TRY_CAST(? AS UNIQUEIDENTIFIER), ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME())
       """,
       [
         (
           row["recid"],
-          row["subdomains_recid"],
+          row["element_guid"],
+          row["subdomains_guid"],
           row["element_name"],
           row["element_version"],
           row["element_module_attr"],
           row["element_method_name"],
-          row["element_request_model_recid"],
-          row["element_response_model_recid"],
+          row["element_request_model_guid"],
+          row["element_response_model_guid"],
           row["element_status"],
           row["element_app_version"],
           row["element_iteration"],
