@@ -18,16 +18,14 @@ from server.helpers.logging import update_logging_level
 
 
 _QUIET_OPS = frozenset({
-  "db:system:batch_jobs:list_jobs",
-  "db:system:async_tasks:list_tasks",
-  "db:system:async_tasks:update_task",
-  "db:system:async_tasks:create_task_event",
   "db:system:workflows:list_workflow_runs",
   "db:system:workflows:get_workflow_run",
   "db:system:workflows:update_workflow_run",
-  "db:system:workflows:create_workflow_run_step",
-  "db:system:workflows:update_workflow_run_step",
-  "db:system:workflows:list_workflow_run_steps",
+  "db:system:workflows:create_workflow_run_action",
+  "db:system:workflows:update_workflow_run_action",
+  "db:system:workflows:list_workflow_run_actions",
+  "db:system:scheduled_tasks:list_enabled_due_tasks",
+  "db:system:scheduled_tasks:update_scheduled_task",
 })
 
 

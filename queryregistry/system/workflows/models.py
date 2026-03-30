@@ -9,13 +9,19 @@ class GetActiveWorkflowParams(BaseModel):
   name: str
 
 
+class CountActiveRunsByWorkflowNameParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  name: str
+
+
 class ListWorkflowsParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   status: int | None = None
 
 
-class ListWorkflowStepsParams(BaseModel):
+class ListWorkflowActionsParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   workflows_guid: str
@@ -28,15 +34,15 @@ class CreateWorkflowRunParams(BaseModel):
   status: int = 0
   payload: str | None = None
   context: str | None = None
-  current_step: str | None = None
-  step_index: int = 0
+  current_action: str | None = None
+  action_index: int = 0
   error: str | None = None
-  source_type: str | None = None
-  source_id: str | None = None
+  trigger_type: int | None = None
+  trigger_ref: str | None = None
+  result: str | None = None
   created_by: str | None = None
   started_on: str | None = None
   ended_on: str | None = None
-  timeout_at: str | None = None
 
 
 class GetWorkflowRunParams(BaseModel):
@@ -58,39 +64,48 @@ class UpdateWorkflowRunParams(BaseModel):
   recid: int
   status: int | None = None
   context: str | None = None
-  current_step: str | None = None
-  step_index: int | None = None
+  current_action: str | None = None
+  action_index: int | None = None
   error: str | None = None
+  trigger_type: int | None = None
+  trigger_ref: str | None = None
+  result: str | None = None
   started_on: str | None = None
   ended_on: str | None = None
 
 
-class CreateWorkflowRunStepParams(BaseModel):
+class CreateWorkflowRunActionParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   runs_recid: int
-  steps_guid: str
+  actions_guid: str
   status: int = 0
-  disposition: str
   input: str | None = None
   output: str | None = None
   error: str | None = None
+  sequence: int = 0
+  retry_count: int = 0
+  external_ref: str | None = None
+  poll_interval_seconds: int | None = None
   started_on: str | None = None
   ended_on: str | None = None
 
 
-class UpdateWorkflowRunStepParams(BaseModel):
+class UpdateWorkflowRunActionParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   recid: int
   status: int | None = None
   output: str | None = None
   error: str | None = None
+  retry_count: int | None = None
+  external_ref: str | None = None
+  poll_interval_seconds: int | None = None
   started_on: str | None = None
   ended_on: str | None = None
 
 
-class ListWorkflowRunStepsParams(BaseModel):
+class ListWorkflowRunActionsParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   runs_recid: int
