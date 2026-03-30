@@ -222,3 +222,65 @@ class LogConversationStep(WorkflowStep):
           exc_info=True,
           extra={"recid": recid},
         )
+
+
+class DeliverResponseStep(WorkflowStep):
+  step_type = "pipe"
+  disposition = "harmless"
+
+  async def try_step(
+    self,
+    app: Any,
+    payload: dict[str, Any],
+    context: dict[str, Any],
+    config: dict[str, Any],
+  ) -> StepResult:
+    response_text = (context.get("response_text") or "").strip()
+    if not response_text:
+      return StepResult(output={})
+
+    delivery_targets = payload.get("delivery_targets") or ["discord_channel"]
+    delivery_results: dict[str, dict[str, Any]] = {}
+
+    for target in delivery_targets:
+      try:
+        if target == "discord_channel":
+          discord_output = getattr(app.state, "discord_output", None)
+          if not discord_output:
+            raise RuntimeError("Discord output module is not available")
+          await discord_output.on_ready()
+          channel_id = int(payload.get("channel_id") or 0)
+          if channel_id <= 0:
+            raise ValueError("Missing or invalid channel_id")
+          await discord_output.queue_channel_message(channel_id, response_text)
+        elif target == "discord_user":
+          discord_output = getattr(app.state, "discord_output", None)
+          if not discord_output:
+            raise RuntimeError("Discord output module is not available")
+          await discord_output.on_ready()
+          user_id = int(payload.get("user_id") or 0)
+          if user_id <= 0:
+            raise ValueError("Missing or invalid user_id")
+          await discord_output.queue_user_message(user_id, response_text)
+        elif target == "bsky":
+          bsky = getattr(app.state, "bsky", None)
+          if not bsky:
+            raise RuntimeError("Bsky module is not available")
+          await bsky.on_ready()
+          await bsky.post_message(response_text)
+        else:
+          raise ValueError(f"Unsupported delivery target: {target}")
+
+        delivery_results[target] = {"success": True, "error": None}
+      except Exception as exc:
+        delivery_results[target] = {"success": False, "error": str(exc)}
+        logging.warning(
+          "[DeliverResponseStep] delivery target failed",
+          exc_info=True,
+          extra={"target": target},
+        )
+
+    if delivery_results and all(not result.get("success") for result in delivery_results.values()):
+      raise RuntimeError("All delivery targets failed")
+
+    return StepResult(output={"delivery_results": delivery_results})

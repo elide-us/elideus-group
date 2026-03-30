@@ -16,7 +16,7 @@ from scripts.common import REPO_ROOT
 load_dotenv(os.path.join(REPO_ROOT, ".env"))
 
 
-WORKFLOW_NAME = "conversation.persona"
+WORKFLOW_NAME = "persona_conversation"
 WORKFLOW_DESCRIPTION = "Persona-driven conversational response pipeline"
 WORKFLOW_VERSION = 1
 WORKFLOW_STATUS = 1
@@ -27,6 +27,19 @@ WORKFLOW_STEPS = [
   (3, "assemble_prompt", "pipe", "harmless", "server.workflows.steps.conversation.AssemblePromptStep", 0),
   (4, "generate_response", "pipe", "harmless", "server.workflows.steps.conversation.GenerateResponseStep", 0),
   (5, "log_conversation", "stack", "reversible", "server.workflows.steps.conversation.LogConversationStep", 0),
+  (6, "deliver_response", "pipe", "harmless", "server.workflows.steps.conversation.DeliverResponseStep", 0),
+]
+
+BILLING_IMPORT_NAME = "billing_import"
+BILLING_IMPORT_DESCRIPTION = "Promote approved billing staging imports into posted journals."
+BILLING_IMPORT_VERSION = 1
+BILLING_IMPORT_STATUS = 1
+
+BILLING_IMPORT_STEPS = [
+  (1, "validate_import", "pipe", "harmless", "server.workflows.steps.billing_import.ValidateImportStep", 0),
+  (2, "classify_costs", "pipe", "harmless", "server.workflows.steps.billing_import.ClassifyCostsStep", 0),
+  (3, "create_journal", "pipe", "irreversible", "server.workflows.steps.billing_import.CreateJournalStep", 0),
+  (4, "mark_promoted", "pipe", "irreversible", "server.workflows.steps.billing_import.MarkPromotedStep", 0),
 ]
 
 
@@ -37,7 +50,15 @@ def connect() -> pyodbc.Connection:
   return pyodbc.connect(dsn, autocommit=True)
 
 
-def seed_workflow(force: bool) -> None:
+def seed_workflow(
+  *,
+  force: bool,
+  name: str,
+  description: str,
+  version: int,
+  status: int,
+  steps: list[tuple[int, str, str, str, str, int]],
+) -> None:
   conn = connect()
   try:
     cursor = conn.cursor()
@@ -46,12 +67,12 @@ def seed_workflow(force: bool) -> None:
 
     existing_rows = cursor.execute(
       "SELECT element_guid FROM system_workflows WHERE element_name = ?;",
-      [WORKFLOW_NAME],
+      [name],
     ).fetchall()
 
     if existing_rows and not force:
       cursor.execute("ROLLBACK TRANSACTION;")
-      print(f"Workflow '{WORKFLOW_NAME}' already exists; skipping (use --force to reseed).")
+      print(f"Workflow '{name}' already exists; skipping (use --force to reseed).")
       return
 
     if existing_rows and force:
@@ -62,9 +83,9 @@ def seed_workflow(force: bool) -> None:
         INNER JOIN system_workflows w ON w.element_guid = s.workflows_guid
         WHERE w.element_name = ?;
         """,
-        [WORKFLOW_NAME],
+        [name],
       )
-      cursor.execute("DELETE FROM system_workflows WHERE element_name = ?;", [WORKFLOW_NAME])
+      cursor.execute("DELETE FROM system_workflows WHERE element_name = ?;", [name])
 
     workflow_guid = cursor.execute(
       """
@@ -79,10 +100,10 @@ def seed_workflow(force: bool) -> None:
       OUTPUT inserted.element_guid
       VALUES (?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
       """,
-      [WORKFLOW_NAME, WORKFLOW_DESCRIPTION, WORKFLOW_VERSION, WORKFLOW_STATUS],
+      [name, description, version, status],
     ).fetchval()
 
-    for sequence, name, step_type, disposition, class_path, is_optional in WORKFLOW_STEPS:
+    for sequence, step_name, step_type, disposition, class_path, is_optional in steps:
       cursor.execute(
         """
         INSERT INTO system_workflow_steps (
@@ -96,12 +117,12 @@ def seed_workflow(force: bool) -> None:
         )
         VALUES (?, ?, ?, ?, ?, ?, ?);
         """,
-        [workflow_guid, sequence, name, step_type, disposition, class_path, is_optional],
+        [workflow_guid, sequence, step_name, step_type, disposition, class_path, is_optional],
       )
 
     cursor.execute("COMMIT TRANSACTION;")
-    print(f"Workflow GUID: {workflow_guid}")
-    print(f"Step count: {len(WORKFLOW_STEPS)}")
+    print(f"Workflow '{name}' GUID: {workflow_guid}")
+    print(f"Workflow '{name}' step count: {len(steps)}")
   except Exception:
     try:
       cursor.execute("ROLLBACK TRANSACTION;")
@@ -116,7 +137,23 @@ def main() -> None:
   parser = argparse.ArgumentParser(description="Seed system_workflows/system_workflow_steps")
   parser.add_argument("--force", action="store_true", help="Reseed by deleting existing workflow rows")
   args = parser.parse_args()
-  seed_workflow(force=args.force)
+
+  seed_workflow(
+    force=args.force,
+    name=WORKFLOW_NAME,
+    description=WORKFLOW_DESCRIPTION,
+    version=WORKFLOW_VERSION,
+    status=WORKFLOW_STATUS,
+    steps=WORKFLOW_STEPS,
+  )
+  seed_workflow(
+    force=args.force,
+    name=BILLING_IMPORT_NAME,
+    description=BILLING_IMPORT_DESCRIPTION,
+    version=BILLING_IMPORT_VERSION,
+    status=BILLING_IMPORT_STATUS,
+    steps=BILLING_IMPORT_STEPS,
+  )
 
 
 if __name__ == "__main__":
