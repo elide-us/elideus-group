@@ -15,12 +15,29 @@ async def get_active_workflow_v1(args: Mapping[str, Any]) -> DBResponse:
       element_description,
       element_version,
       element_status,
+      element_is_active,
+      element_max_concurrency,
+      element_stall_threshold_seconds,
       element_created_on,
       element_modified_on
     FROM system_workflows
     WHERE element_name = ?
       AND element_status = 1
+      AND element_is_active = 1
     ORDER BY element_version DESC, element_guid DESC
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (args["name"],))
+
+
+async def count_active_runs_by_workflow_name_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT COUNT(*) AS element_count
+    FROM system_workflow_runs wr
+    INNER JOIN system_workflows w
+      ON w.element_guid = wr.workflows_guid
+    WHERE wr.element_status IN (0, 1, 5, 6)
+      AND w.element_name = ?
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["name"],))
@@ -34,13 +51,16 @@ async def list_workflows_v1(args: Mapping[str, Any]) -> DBResponse:
       w.element_description,
       w.element_version,
       w.element_status,
+      w.element_is_active,
+      w.element_max_concurrency,
+      w.element_stall_threshold_seconds,
       w.element_created_on,
       w.element_modified_on,
       (
         SELECT COUNT(*)
-        FROM system_workflow_steps s
-        WHERE s.workflows_guid = w.element_guid
-      ) AS step_count
+        FROM system_workflow_actions a
+        WHERE a.workflows_guid = w.element_guid
+      ) AS action_count
     FROM system_workflows w
     WHERE (? IS NULL OR w.element_status = ?)
     ORDER BY w.element_name, w.element_version DESC
@@ -49,25 +69,33 @@ async def list_workflows_v1(args: Mapping[str, Any]) -> DBResponse:
   return await run_json_many(sql, (args.get("status"), args.get("status")))
 
 
-async def list_workflow_steps_v1(args: Mapping[str, Any]) -> DBResponse:
+async def list_workflow_actions_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
-      element_guid,
-      workflows_guid,
-      element_name,
-      element_description,
-      element_step_type,
-      element_disposition,
-      element_class_path,
-      element_sequence,
-      element_is_optional,
-      element_timeout_seconds,
-      element_config,
-      element_created_on,
-      element_modified_on
-    FROM system_workflow_steps
-    WHERE workflows_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
-    ORDER BY element_sequence ASC, element_guid ASC
+      a.element_guid,
+      a.workflows_guid,
+      a.element_name,
+      a.element_description,
+      a.functions_recid,
+      a.dispositions_recid,
+      a.element_rollback_functions_recid,
+      a.element_sequence,
+      a.element_is_optional,
+      a.element_timeout_seconds,
+      a.element_config,
+      a.element_is_active,
+      a.element_created_on,
+      a.element_modified_on,
+      f.element_module_attr,
+      f.element_method_name,
+      d.element_slug AS disposition_name
+    FROM system_workflow_actions a
+    INNER JOIN reflection_rpc_functions f
+      ON f.recid = a.functions_recid
+    INNER JOIN system_dispositions d
+      ON d.recid = a.dispositions_recid
+    WHERE a.workflows_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
+    ORDER BY a.element_sequence ASC, a.element_guid ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["workflows_guid"],))
@@ -84,15 +112,15 @@ async def create_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status TINYINT,
       element_payload NVARCHAR(MAX),
       element_context NVARCHAR(MAX),
-      element_current_step NVARCHAR(128),
-      element_step_index INT,
+      element_current_action NVARCHAR(128),
+      element_action_index INT,
       element_error NVARCHAR(MAX),
-      element_source_type NVARCHAR(64),
-      element_source_id NVARCHAR(256),
+      element_trigger_type TINYINT,
+      element_trigger_ref NVARCHAR(256),
+      element_result NVARCHAR(MAX),
       element_created_by UNIQUEIDENTIFIER,
       element_started_on DATETIMEOFFSET(7),
       element_ended_on DATETIMEOFFSET(7),
-      element_timeout_at DATETIMEOFFSET(7),
       element_created_on DATETIMEOFFSET(7),
       element_modified_on DATETIMEOFFSET(7)
     );
@@ -102,15 +130,15 @@ async def create_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_payload,
       element_context,
-      element_current_step,
-      element_step_index,
+      element_current_action,
+      element_action_index,
       element_error,
-      element_source_type,
-      element_source_id,
+      element_trigger_type,
+      element_trigger_ref,
+      element_result,
       element_created_by,
       element_started_on,
-      element_ended_on,
-      element_timeout_at
+      element_ended_on
     )
     OUTPUT
       inserted.recid,
@@ -119,15 +147,15 @@ async def create_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_payload,
       inserted.element_context,
-      inserted.element_current_step,
-      inserted.element_step_index,
+      inserted.element_current_action,
+      inserted.element_action_index,
       inserted.element_error,
-      inserted.element_source_type,
-      inserted.element_source_id,
+      inserted.element_trigger_type,
+      inserted.element_trigger_ref,
+      inserted.element_result,
       inserted.element_created_by,
       inserted.element_started_on,
       inserted.element_ended_on,
-      inserted.element_timeout_at,
       inserted.element_created_on,
       inserted.element_modified_on
     INTO @inserted
@@ -141,8 +169,8 @@ async def create_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       ?,
       ?,
       ?,
+      ?,
       TRY_CAST(? AS UNIQUEIDENTIFIER),
-      TRY_CAST(? AS DATETIMEOFFSET(7)),
       TRY_CAST(? AS DATETIMEOFFSET(7)),
       TRY_CAST(? AS DATETIMEOFFSET(7))
     );
@@ -154,15 +182,15 @@ async def create_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
     args.get("status", 0),
     args.get("payload"),
     args.get("context"),
-    args.get("current_step"),
-    args.get("step_index", 0),
+    args.get("current_action"),
+    args.get("action_index", 0),
     args.get("error"),
-    args.get("source_type"),
-    args.get("source_id"),
+    args.get("trigger_type"),
+    args.get("trigger_ref"),
+    args.get("result"),
     args.get("created_by"),
     args.get("started_on"),
     args.get("ended_on"),
-    args.get("timeout_at"),
   )
   return await run_json_one(sql, params)
 
@@ -176,15 +204,15 @@ async def get_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_payload,
       element_context,
-      element_current_step,
-      element_step_index,
+      element_current_action,
+      element_action_index,
       element_error,
-      element_source_type,
-      element_source_id,
+      element_trigger_type,
+      element_trigger_ref,
+      element_result,
       element_created_by,
       element_started_on,
       element_ended_on,
-      element_timeout_at,
       element_created_on,
       element_modified_on
     FROM system_workflow_runs
@@ -203,15 +231,15 @@ async def list_workflow_runs_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status,
       element_payload,
       element_context,
-      element_current_step,
-      element_step_index,
+      element_current_action,
+      element_action_index,
       element_error,
-      element_source_type,
-      element_source_id,
+      element_trigger_type,
+      element_trigger_ref,
+      element_result,
       element_created_by,
       element_started_on,
       element_ended_on,
-      element_timeout_at,
       element_created_on,
       element_modified_on
     FROM system_workflow_runs
@@ -220,13 +248,15 @@ async def list_workflow_runs_v1(args: Mapping[str, Any]) -> DBResponse:
     ORDER BY recid DESC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
-  params = (
-    args.get("workflows_guid"),
-    args.get("workflows_guid"),
-    args.get("status"),
-    args.get("status"),
+  return await run_json_many(
+    sql,
+    (
+      args.get("workflows_guid"),
+      args.get("workflows_guid"),
+      args.get("status"),
+      args.get("status"),
+    ),
   )
-  return await run_json_many(sql, params)
 
 
 async def update_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
@@ -234,14 +264,16 @@ async def update_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
   setters: list[str] = []
   params: list[Any] = []
 
-  simple_columns = {
+  for key, column in {
     "status": "element_status",
     "context": "element_context",
-    "current_step": "element_current_step",
-    "step_index": "element_step_index",
+    "current_action": "element_current_action",
+    "action_index": "element_action_index",
     "error": "element_error",
-  }
-  for key, column in simple_columns.items():
+    "trigger_type": "element_trigger_type",
+    "trigger_ref": "element_trigger_ref",
+    "result": "element_result",
+  }.items():
     if key in args:
       setters.append(f"{column} = ?")
       params.append(args.get(key))
@@ -273,15 +305,15 @@ async def update_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       element_status TINYINT,
       element_payload NVARCHAR(MAX),
       element_context NVARCHAR(MAX),
-      element_current_step NVARCHAR(128),
-      element_step_index INT,
+      element_current_action NVARCHAR(128),
+      element_action_index INT,
       element_error NVARCHAR(MAX),
-      element_source_type NVARCHAR(64),
-      element_source_id NVARCHAR(256),
+      element_trigger_type TINYINT,
+      element_trigger_ref NVARCHAR(256),
+      element_result NVARCHAR(MAX),
       element_created_by UNIQUEIDENTIFIER,
       element_started_on DATETIMEOFFSET(7),
       element_ended_on DATETIMEOFFSET(7),
-      element_timeout_at DATETIMEOFFSET(7),
       element_created_on DATETIMEOFFSET(7),
       element_modified_on DATETIMEOFFSET(7)
     );
@@ -296,15 +328,15 @@ async def update_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.element_status,
       inserted.element_payload,
       inserted.element_context,
-      inserted.element_current_step,
-      inserted.element_step_index,
+      inserted.element_current_action,
+      inserted.element_action_index,
       inserted.element_error,
-      inserted.element_source_type,
-      inserted.element_source_id,
+      inserted.element_trigger_type,
+      inserted.element_trigger_ref,
+      inserted.element_result,
       inserted.element_created_by,
       inserted.element_started_on,
       inserted.element_ended_on,
-      inserted.element_timeout_at,
       inserted.element_created_on,
       inserted.element_modified_on
     INTO @updated
@@ -316,7 +348,7 @@ async def update_workflow_run_v1(args: Mapping[str, Any]) -> DBResponse:
   return await run_json_one(sql, tuple(params))
 
 
-async def create_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
+async def create_workflow_run_action_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SET NOCOUNT ON;
 
@@ -324,26 +356,32 @@ async def create_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
       recid BIGINT,
       element_guid UNIQUEIDENTIFIER,
       runs_recid BIGINT,
-      steps_guid UNIQUEIDENTIFIER,
+      actions_guid UNIQUEIDENTIFIER,
       element_status TINYINT,
-      element_disposition NVARCHAR(16),
       element_input NVARCHAR(MAX),
       element_output NVARCHAR(MAX),
       element_error NVARCHAR(MAX),
+      element_sequence INT,
+      element_retry_count INT,
+      element_external_ref NVARCHAR(256),
+      element_poll_interval_seconds INT,
       element_started_on DATETIMEOFFSET(7),
       element_ended_on DATETIMEOFFSET(7),
       element_created_on DATETIMEOFFSET(7),
       element_modified_on DATETIMEOFFSET(7)
     );
 
-    INSERT INTO system_workflow_run_steps (
+    INSERT INTO system_workflow_run_actions (
       runs_recid,
-      steps_guid,
+      actions_guid,
       element_status,
-      element_disposition,
       element_input,
       element_output,
       element_error,
+      element_sequence,
+      element_retry_count,
+      element_external_ref,
+      element_poll_interval_seconds,
       element_started_on,
       element_ended_on
     )
@@ -351,12 +389,15 @@ async def create_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
       inserted.recid,
       inserted.element_guid,
       inserted.runs_recid,
-      inserted.steps_guid,
+      inserted.actions_guid,
       inserted.element_status,
-      inserted.element_disposition,
       inserted.element_input,
       inserted.element_output,
       inserted.element_error,
+      inserted.element_sequence,
+      inserted.element_retry_count,
+      inserted.element_external_ref,
+      inserted.element_poll_interval_seconds,
       inserted.element_started_on,
       inserted.element_ended_on,
       inserted.element_created_on,
@@ -370,27 +411,35 @@ async def create_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
       ?,
       ?,
       ?,
+      ?,
+      ?,
+      ?,
       TRY_CAST(? AS DATETIMEOFFSET(7)),
       TRY_CAST(? AS DATETIMEOFFSET(7))
     );
 
     SELECT * FROM @inserted FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
-  params = (
-    args["runs_recid"],
-    args["steps_guid"],
-    args.get("status", 0),
-    args["disposition"],
-    args.get("input"),
-    args.get("output"),
-    args.get("error"),
-    args.get("started_on"),
-    args.get("ended_on"),
+  return await run_json_one(
+    sql,
+    (
+      args["runs_recid"],
+      args["actions_guid"],
+      args.get("status", 0),
+      args.get("input"),
+      args.get("output"),
+      args.get("error"),
+      args.get("sequence", 0),
+      args.get("retry_count", 0),
+      args.get("external_ref"),
+      args.get("poll_interval_seconds"),
+      args.get("started_on"),
+      args.get("ended_on"),
+    ),
   )
-  return await run_json_one(sql, params)
 
 
-async def update_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
+async def update_workflow_run_action_v1(args: Mapping[str, Any]) -> DBResponse:
   recid = args["recid"]
   setters: list[str] = []
   params: list[Any] = []
@@ -399,6 +448,9 @@ async def update_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
     "status": "element_status",
     "output": "element_output",
     "error": "element_error",
+    "retry_count": "element_retry_count",
+    "external_ref": "element_external_ref",
+    "poll_interval_seconds": "element_poll_interval_seconds",
   }.items():
     if key in args:
       setters.append(f"{column} = ?")
@@ -414,7 +466,7 @@ async def update_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
 
   if not setters:
     return await run_json_one(
-      "SET NOCOUNT ON;\nSELECT * FROM system_workflow_run_steps WHERE recid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;",
+      "SET NOCOUNT ON;\nSELECT * FROM system_workflow_run_actions WHERE recid = ? FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;",
       (recid,),
     )
 
@@ -428,31 +480,37 @@ async def update_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
       recid BIGINT,
       element_guid UNIQUEIDENTIFIER,
       runs_recid BIGINT,
-      steps_guid UNIQUEIDENTIFIER,
+      actions_guid UNIQUEIDENTIFIER,
       element_status TINYINT,
-      element_disposition NVARCHAR(16),
       element_input NVARCHAR(MAX),
       element_output NVARCHAR(MAX),
       element_error NVARCHAR(MAX),
+      element_sequence INT,
+      element_retry_count INT,
+      element_external_ref NVARCHAR(256),
+      element_poll_interval_seconds INT,
       element_started_on DATETIMEOFFSET(7),
       element_ended_on DATETIMEOFFSET(7),
       element_created_on DATETIMEOFFSET(7),
       element_modified_on DATETIMEOFFSET(7)
     );
 
-    UPDATE system_workflow_run_steps
+    UPDATE system_workflow_run_actions
     SET
       {set_sql}
     OUTPUT
       inserted.recid,
       inserted.element_guid,
       inserted.runs_recid,
-      inserted.steps_guid,
+      inserted.actions_guid,
       inserted.element_status,
-      inserted.element_disposition,
       inserted.element_input,
       inserted.element_output,
       inserted.element_error,
+      inserted.element_sequence,
+      inserted.element_retry_count,
+      inserted.element_external_ref,
+      inserted.element_poll_interval_seconds,
       inserted.element_started_on,
       inserted.element_ended_on,
       inserted.element_created_on,
@@ -466,25 +524,28 @@ async def update_workflow_run_step_v1(args: Mapping[str, Any]) -> DBResponse:
   return await run_json_one(sql, tuple(params))
 
 
-async def list_workflow_run_steps_v1(args: Mapping[str, Any]) -> DBResponse:
+async def list_workflow_run_actions_v1(args: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT
       recid,
       element_guid,
       runs_recid,
-      steps_guid,
+      actions_guid,
       element_status,
-      element_disposition,
       element_input,
       element_output,
       element_error,
+      element_sequence,
+      element_retry_count,
+      element_external_ref,
+      element_poll_interval_seconds,
       element_started_on,
       element_ended_on,
       element_created_on,
       element_modified_on
-    FROM system_workflow_run_steps
+    FROM system_workflow_run_actions
     WHERE runs_recid = ?
-    ORDER BY element_created_on ASC, recid ASC
+    ORDER BY element_sequence ASC, recid ASC
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql, (args["runs_recid"],))
