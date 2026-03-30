@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import inspect
+import logging
 import os
 import re
 import sys
@@ -396,6 +397,12 @@ def discover_functions(
     for operation in operations:
       service_function = operation["func"]
       meta = service_meta.get(service_function or "", {})
+      if not meta.get("module_attr") or not meta.get("method_name"):
+        logging.warning(
+          "Non-conforming RPC service: %s.%s.%s — module_attr=%s, method_name=%s",
+          domain, subdomain, operation["op"],
+          meta.get("module_attr"), meta.get("method_name"),
+        )
       request_model = service_models.get(service_function)
       if request_model:
         request_model = resolve_alias_name(request_model, alias_map)
@@ -409,8 +416,8 @@ def discover_functions(
           "subdomains_guid": subdomain_guids[(domain, subdomain)],
           "element_name": operation["op"],
           "element_version": int(operation["version"]),
-          "element_module_attr": meta.get("module_attr"),
-          "element_method_name": meta.get("method_name"),
+          "element_module_attr": meta.get("module_attr") or "",
+          "element_method_name": meta.get("method_name") or "",
           "element_request_model_guid": model_map.get(request_model) if request_model else None,
           "element_response_model_guid": None,
           "element_status": 1,

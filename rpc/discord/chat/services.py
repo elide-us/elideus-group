@@ -5,6 +5,7 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.discord_chat_module import DiscordChatModule
+from server.modules.discord_output_module import DiscordOutputModule
 from server.modules.openai_module import OpenaiModule
 from server.modules.workflow_module import WorkflowModule
 
@@ -76,23 +77,24 @@ async def discord_chat_persona_command_v1(request: Request):
       version=rpc_request.version,
     )
 
-  workflow: WorkflowModule = request.app.state.workflow
-  await workflow.on_ready()
+  module: WorkflowModule = request.app.state.workflow
+  await module.on_ready()
 
   # Fetch channel history from Discord before submitting the workflow.
   # This is transport-specific data that the generic pipeline steps don't fetch.
   channel_history = []
-  discord_chat: DiscordChatModule | None = getattr(request.app.state, "discord_chat", None)
-  if discord_chat:
+  try:
+    discord_chat: DiscordChatModule = request.app.state.discord_chat
     await discord_chat.on_ready()
-    try:
-      history_result = await discord_chat.get_channel_history(
-        int(payload.get("guild_id") or 0),
-        int(payload.get("channel_id") or 0),
-      )
-      channel_history = history_result.get("channel_history") or []
-    except Exception:
-      logging.exception("[discord_chat_persona_command_v1] failed to fetch channel history")
+    history_result = await discord_chat.get_channel_history(
+      int(payload.get("guild_id") or 0),
+      int(payload.get("channel_id") or 0),
+    )
+    channel_history = history_result.get("channel_history") or []
+  except AttributeError:
+    logging.warning("[discord_chat_persona_command_v1] discord_chat module unavailable for channel history")
+  except Exception:
+    logging.exception("[discord_chat_persona_command_v1] failed to fetch channel history")
 
   workflow_payload = {
     "persona_name": persona,
@@ -106,18 +108,17 @@ async def discord_chat_persona_command_v1(request: Request):
   }
 
   try:
-    run = await workflow.submit(
+    run = await module.submit(
       "persona_conversation",
       workflow_payload,
-      source_type="discord",
-      source_id=str(payload.get("channel_id") or ""),
-      timeout_seconds=120,
+      trigger_type_code=4,
+      trigger_ref=str(payload.get("channel_id") or ""),
     )
     # Execute synchronously — the RPC caller waits for completion
-    completed = await workflow.execute(run["guid"])
+    completed = await module.execute(run["guid"])
     context = completed.get("context") or {}
 
-    success = completed.get("status") == 4  # STATUS_COMPLETED
+    success = completed.get("status") == 2  # STATUS_COMPLETED
     return RPCResponse(
       op=rpc_request.op,
       payload={
@@ -203,8 +204,9 @@ async def discord_chat_deliver_persona_response_v1(request: Request):
   elif isinstance(response, dict):
     response_text = response.get("text") or response.get("content") or ""
 
-  discord_output = getattr(request.app.state, "discord_output", None)
-  if not discord_output:
+  try:
+    module: DiscordOutputModule = request.app.state.discord_output
+  except AttributeError:
     return RPCResponse(
       op=rpc_request.op,
       payload={
@@ -216,11 +218,11 @@ async def discord_chat_deliver_persona_response_v1(request: Request):
       version=rpc_request.version,
     )
 
-  await discord_output.on_ready()
+  await module.on_ready()
   success = False
   try:
     if channel_id is not None and response_text:
-      await discord_output.queue_channel_message(int(channel_id), response_text)
+      await module.queue_channel_message(int(channel_id), response_text)
       success = True
   except Exception:
     logging.exception("[discord_chat_deliver_persona_response_v1] failed to queue persona response")
