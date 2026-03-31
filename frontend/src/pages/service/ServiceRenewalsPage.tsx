@@ -174,7 +174,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
             if (categoryFilter) {
                 params.category = categoryFilter;
             }
-            const res = await fetchRenewalList(params);
+            const res = await fetchRenewalList(params as any);
             setRenewals(res.renewals || []);
             setForbidden(false);
         } catch (e: any) {
