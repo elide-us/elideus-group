@@ -1,17 +1,5 @@
 from fastapi import HTTPException, Request
 
-from queryregistry.system.scheduled_tasks import (
-  get_task_request,
-  get_workflow_name_by_guid_request,
-  list_all_tasks_request,
-  list_task_history_request,
-)
-from queryregistry.system.scheduled_tasks.models import (
-  GetTaskParams,
-  GetWorkflowNameByGuidParams,
-  ListAllTasksParams,
-  ListTaskHistoryParams,
-)
 from rpc.helpers import unbox_request
 from rpc.system.workflows.models import SystemWorkflowRunItem1
 from server.models import RPCResponse
@@ -32,10 +20,8 @@ async def system_scheduled_tasks_list_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   module = request.app.state.scheduler
   await module.on_ready()
-  db = request.app.state.db
-  await db.on_ready()
-  res = await db.run(list_all_tasks_request(ListAllTasksParams()))
-  rows = [_map_task(dict(row)) for row in res.rows]
+  rows = await module.list_tasks()
+  rows = [_map_task(row) for row in rows]
   payload = ScheduledTaskList1(tasks=[ScheduledTaskItem1(**row) for row in rows])
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -43,12 +29,12 @@ async def system_scheduled_tasks_list_v1(request: Request):
 async def system_scheduled_tasks_get_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   params = ScheduledTaskGetRequest1(**(rpc_request.payload or {}))
-  db = request.app.state.db
-  await db.on_ready()
-  res = await db.run(get_task_request(GetTaskParams(recid=params.recid)))
-  if not res.rows:
+  module = request.app.state.scheduler
+  await module.on_ready()
+  row = await module.get_task(params.recid)
+  if not row:
     raise HTTPException(status_code=404, detail="Scheduled task not found")
-  row = _map_task(dict(res.rows[0]))
+  row = _map_task(row)
   payload = ScheduledTaskItem1(**row)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -56,10 +42,10 @@ async def system_scheduled_tasks_get_v1(request: Request):
 async def system_scheduled_tasks_list_history_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   params = ScheduledTaskListHistoryRequest1(**(rpc_request.payload or {}))
-  db = request.app.state.db
-  await db.on_ready()
-  res = await db.run(list_task_history_request(ListTaskHistoryParams(tasks_recid=params.tasks_recid)))
-  rows = [_map_history(dict(row)) for row in res.rows]
+  module = request.app.state.scheduler
+  await module.on_ready()
+  rows = await module.list_task_history(params.tasks_recid)
+  rows = [_map_history(row) for row in rows]
   payload = ScheduledTaskHistoryList1(history=[ScheduledTaskHistoryItem1(**row) for row in rows])
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -67,23 +53,17 @@ async def system_scheduled_tasks_list_history_v1(request: Request):
 async def system_scheduled_tasks_run_now_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   params = ScheduledTaskRunNowRequest1(**(rpc_request.payload or {}))
-  db = request.app.state.db
-  await db.on_ready()
-  res = await db.run(get_task_request(GetTaskParams(recid=params.recid)))
-  if not res.rows:
-    raise HTTPException(status_code=404, detail="Scheduled task not found")
-  task = dict(res.rows[0])
-
-  name_res = await db.run(
-    get_workflow_name_by_guid_request(
-      GetWorkflowNameByGuidParams(guid=str(task.get("workflows_guid") or ""))
-    )
-  )
-  workflow_name = str((dict(name_res.rows[0]) if name_res.rows else {}).get("element_name") or "")
-
-  module: WorkflowModule = request.app.state.workflow
+  module = request.app.state.scheduler
   await module.on_ready()
-  run = await module.submit(
+  task = await module.get_task(params.recid)
+  if not task:
+    raise HTTPException(status_code=404, detail="Scheduled task not found")
+  workflow_name = await module.get_task_workflow_name(params.recid)
+  if not workflow_name:
+    raise HTTPException(status_code=404, detail="Workflow not found for scheduled task")
+  workflow_module: WorkflowModule = request.app.state.workflow
+  await workflow_module.on_ready()
+  run = await workflow_module.submit(
     workflow_name=workflow_name,
     payload={},
     trigger_type_code=0,

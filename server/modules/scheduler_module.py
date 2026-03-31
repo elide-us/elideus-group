@@ -12,14 +12,20 @@ from queryregistry.system.config import get_config_request
 from queryregistry.system.config.models import ConfigKeyParams
 from queryregistry.system.scheduled_tasks import (
   create_scheduled_task_history_request,
+  get_task_request,
   get_workflow_name_by_guid_request,
+  list_all_tasks_request,
   list_enabled_due_tasks_request,
+  list_task_history_request,
   update_scheduled_task_request,
 )
 from queryregistry.system.scheduled_tasks.models import (
   CreateScheduledTaskHistoryParams,
+  GetTaskParams,
   GetWorkflowNameByGuidParams,
+  ListAllTasksParams,
   ListEnabledDueTasksParams,
+  ListTaskHistoryParams,
   UpdateScheduledTaskParams,
 )
 
@@ -183,6 +189,35 @@ class SchedulerModule(BaseModule):
         )
       )
     )
+
+  async def list_tasks(self) -> list[dict[str, Any]]:
+    """List all scheduled tasks."""
+    assert self.db
+    res = await self.db.run(list_all_tasks_request(ListAllTasksParams()))
+    return [dict(row) for row in res.rows]
+
+  async def get_task(self, recid: int) -> dict[str, Any] | None:
+    """Get a single scheduled task by recid."""
+    assert self.db
+    res = await self.db.run(get_task_request(GetTaskParams(recid=recid)))
+    if not res.rows:
+      return None
+    return dict(res.rows[0])
+
+  async def list_task_history(self, tasks_recid: int) -> list[dict[str, Any]]:
+    """List history entries for a scheduled task."""
+    assert self.db
+    res = await self.db.run(
+      list_task_history_request(ListTaskHistoryParams(tasks_recid=tasks_recid))
+    )
+    return [dict(row) for row in res.rows]
+
+  async def get_task_workflow_name(self, recid: int) -> str | None:
+    """Get the workflow name for a scheduled task."""
+    task = await self.get_task(recid)
+    if not task:
+      return None
+    return await self._get_workflow_name(str(task.get("workflows_guid") or ""))
 
   async def _get_workflow_name(self, workflow_guid: str) -> str:
     assert self.db
