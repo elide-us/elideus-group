@@ -125,6 +125,12 @@ Model naming convention: `{Domain}{Subdomain}{Operation}{Version}` in PascalCase
 
 The RPC service layer is a security router. It authenticates, authorizes, dispatches to the module, and returns the response. All data transformation lives in the module. The service function contains zero business logic and zero data reshaping.
 
+**Critical**: the local variable name `module` is required. The code generation crawler (seed_rpcdispatch.py → parse_service_module_metadata) uses AST analysis to extract two 
+values from each service function: the app.state attribute name (e.g., system_config) and the method name (e.g., get_configs). It finds these by looking for the patterns
+`request.app.state.{attr}` and `module.{method}` in the syntax tree. The right side of the assignment (`request.app.state.system_config`) is the real module registration name from 
+ModuleManager. The left side (`module`) is a fixed local variable name that the crawler depends on. Every service function uses module as the local variable name regardless of 
+which module it references.
+
 ```python
 from fastapi import Request
 from rpc.helpers import unbox_request
