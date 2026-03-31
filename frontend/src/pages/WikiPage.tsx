@@ -25,12 +25,11 @@ import MarkdownEditor from '../components/MarkdownEditor';
 import PageTitle from '../components/PageTitle';
 import { fetchPage as fetchWikiPage } from '../rpc/public/wiki';
 import { fetchCreatePage, fetchCreateVersion, fetchListVersions, fetchVersion } from '../rpc/users/wiki';
-import type { PublicWikiGetPage1, UsersWikiVersionList1, UsersWikiVersionContent1 } from '../shared/RpcModels';
+import type { PublicWikiGetPage1, UsersWikiVersionList1 } from '../shared/RpcModels';
 import UserContext from '../shared/UserContext';
 
 type PublicWikiResponse = PublicWikiGetPage1;
 type VersionItem = UsersWikiVersionList1['versions'][number] extends infer V ? V : never;
-type VersionContentResponse = UsersWikiVersionContent1;
 
 const markdownBodySx = {
 	'& h1, & h2, & h3, & h4, & h5, & h6': { mt: 3, mb: 1 },
