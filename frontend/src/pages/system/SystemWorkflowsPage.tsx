@@ -25,20 +25,20 @@ import Notification from '../../components/Notification';
 import PageTitle from '../../components/PageTitle';
 import { rpcCall } from '../../shared/RpcModels';
 import type {
+	SystemWorkflowActionItem1,
 	SystemWorkflowDetail1,
 	SystemWorkflowItem1,
 	SystemWorkflowList1,
+	SystemWorkflowRunActionItem1,
+	SystemWorkflowRunActionList1,
 	SystemWorkflowRunItem1,
 	SystemWorkflowRunList1,
-	SystemWorkflowRunStepItem1,
-	SystemWorkflowRunStepList1,
-	SystemWorkflowStepItem1,
 } from '../../shared/RpcModels';
 
 const WORKFLOW_STATUS_LABELS: Record<number, string> = {
-	0: 'Inactive',
-	1: 'Active',
-	2: 'Deprecated',
+	0: 'Draft',
+	1: 'Published',
+	2: 'Retired',
 };
 
 const WORKFLOW_STATUS_COLORS: Record<number, 'default' | 'success' | 'warning'> = {
@@ -48,55 +48,73 @@ const WORKFLOW_STATUS_COLORS: Record<number, 'default' | 'success' | 'warning'> 
 };
 
 const RUN_STATUS_LABELS: Record<number, string> = {
-	0: 'Queued',
+	0: 'Pending',
 	1: 'Running',
-	4: 'Completed',
-	5: 'Failed',
-	6: 'Cancelled',
+	2: 'Completed',
+	3: 'Failed',
+	4: 'Cancelled',
+	5: 'Waiting',
+	6: 'Paused',
 	7: 'Rolling Back',
 	8: 'Rolled Back',
+	9: 'Rollback Failed',
+	10: 'Stalled',
 };
 
 const RUN_STATUS_COLORS: Record<number, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
 	0: 'info',
 	1: 'warning',
-	4: 'success',
-	5: 'error',
-	6: 'error',
-	7: 'warning',
-	8: 'error',
-};
-
-const RUN_STEP_STATUS_LABELS: Record<number, string> = {
-	0: 'Pending',
-	1: 'Running',
-	4: 'Completed',
-	5: 'Failed',
-	6: 'Skipped',
-	7: 'Rolled Back',
-};
-
-const RUN_STEP_STATUS_COLORS: Record<number, 'default' | 'success' | 'warning' | 'error'> = {
-	0: 'default',
-	1: 'warning',
-	4: 'success',
-	5: 'error',
+	2: 'success',
+	3: 'error',
+	4: 'error',
+	5: 'info',
 	6: 'default',
 	7: 'warning',
+	8: 'error',
+	9: 'error',
+	10: 'warning',
 };
 
-const DISPOSITION_COLORS: Record<string, 'default' | 'info' | 'warning'> = {
-	harmless: 'default',
+const ACTION_STATUS_LABELS: Record<number, string> = {
+	0: 'Pending',
+	1: 'Running',
+	2: 'Completed',
+	3: 'Failed',
+	4: 'Cancelled',
+	5: 'Waiting',
+	6: 'Paused',
+	10: 'Stalled',
+};
+
+const ACTION_STATUS_COLORS: Record<number, 'default' | 'success' | 'warning' | 'error'> = {
+	0: 'default',
+	1: 'warning',
+	2: 'success',
+	3: 'error',
+	4: 'error',
+	5: 'info' as 'default',
+	10: 'warning',
+};
+
+const DISPOSITION_COLORS: Record<string, 'default' | 'info' | 'warning' | 'success'> = {
+	pure: 'default',
 	reversible: 'info',
 	irreversible: 'warning',
+	idempotent: 'success',
 };
 
-const STEP_TYPE_COLORS: Record<string, 'default' | 'info'> = {
-	pipe: 'default',
-	stack: 'info',
+const TRIGGER_TYPE_LABELS: Record<number, string> = {
+	0: 'Manual',
+	1: 'Schedule',
+	2: 'RPC',
+	3: 'MCP',
+	4: 'Discord',
+	5: 'Workflow',
+	6: 'Webhook',
+	7: 'Poll',
 };
 
-const ACTIVE_RUN_STATUSES = new Set([0, 1, 7]);
+const ACTIVE_RUN_STATUSES = new Set([0, 1, 5, 7]);
 
 const formatJson = (value: unknown): string => JSON.stringify(value, null, 2);
 
@@ -105,14 +123,14 @@ const getGuidLabel = (guid: unknown): string => {
 	return value ? value.slice(0, 8) : '-';
 };
 
-const getStepProgressLabel = (run: SystemWorkflowRunItem1): string => {
-	const stepIndex = Number(run.step_index || 0);
+const getActionProgressLabel = (run: SystemWorkflowRunItem1): string => {
+	const actionIndex = Number(run.action_index || 0);
 	const context = run.context as Record<string, any> | null;
-	const contextTotal = Number(context?.step_count || context?.total_steps || 0);
+	const contextTotal = Number(context?.action_count || context?.total_actions || 0);
 	if (contextTotal > 0) {
-		return `${stepIndex}/${contextTotal}`;
+		return `${actionIndex}/${contextTotal}`;
 	}
-	return String(stepIndex);
+	return String(actionIndex);
 };
 
 const SystemWorkflowsPage = (): JSX.Element => {
@@ -125,16 +143,15 @@ const SystemWorkflowsPage = (): JSX.Element => {
 
 	const [runs, setRuns] = useState<SystemWorkflowRunItem1[]>([]);
 	const [selectedRun, setSelectedRun] = useState<SystemWorkflowRunItem1 | null>(null);
-	const [runSteps, setRunSteps] = useState<SystemWorkflowRunStepItem1[]>([]);
+	const [runActions, setRunActions] = useState<SystemWorkflowRunActionItem1[]>([]);
 	const [runDetailOpen, setRunDetailOpen] = useState(false);
-	const [expandedRunStepGuid, setExpandedRunStepGuid] = useState<string | null>(null);
+	const [expandedRunActionGuid, setExpandedRunActionGuid] = useState<string | null>(null);
 	const [showRunPayload, setShowRunPayload] = useState(false);
 	const [showRunContext, setShowRunContext] = useState(false);
 
 	const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
 	const [submitPayloadText, setSubmitPayloadText] = useState('{}');
-	const [submitSourceType, setSubmitSourceType] = useState('rpc');
-	const [submitSourceId, setSubmitSourceId] = useState('');
+	const [submitTriggerRef, setSubmitTriggerRef] = useState('');
 
 	const [notificationOpen, setNotificationOpen] = useState(false);
 	const [notificationMessage, setNotificationMessage] = useState('Done');
@@ -165,9 +182,9 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		setRuns(response.runs || []);
 	}, []);
 
-	const loadRunSteps = useCallback(async (runGuid: string): Promise<void> => {
-		const response = await rpcCall<SystemWorkflowRunStepList1>('urn:system:workflows:list_run_steps:1', { run_guid: runGuid });
-		setRunSteps(response.steps || []);
+	const loadRunActions = useCallback(async (runGuid: string): Promise<void> => {
+		const response = await rpcCall<SystemWorkflowRunActionList1>('urn:system:workflows:list_run_actions:1', { run_guid: runGuid });
+		setRunActions(response.actions || []);
 	}, []);
 
 	const loadOnMount = useCallback(async (): Promise<void> => {
@@ -222,8 +239,8 @@ const SystemWorkflowsPage = (): JSX.Element => {
 			return;
 		}
 		setSelectedRun(run);
-		setExpandedRunStepGuid(null);
-		await loadRunSteps(run.guid);
+		setExpandedRunActionGuid(null);
+		await loadRunActions(run.guid);
 		setRunDetailOpen(true);
 	};
 
@@ -241,8 +258,8 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:submit_run:1', {
 			workflow_name: selectedWorkflow.name,
 			payload: payloadValue,
-			source_type: submitSourceType || null,
-			source_id: submitSourceId || null,
+			trigger_type: 2,
+			trigger_ref: submitTriggerRef || null,
 		});
 		showNotification('Workflow run submitted');
 		setSubmitDialogOpen(false);
@@ -258,7 +275,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		showNotification('Run cancelled');
 		await loadRuns();
 		if (selectedRun?.guid === runGuid) {
-			await loadRunSteps(runGuid);
+			await loadRunActions(runGuid);
 		}
 	};
 
@@ -270,7 +287,16 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		showNotification('Rollback started');
 		await loadRuns();
 		if (selectedRun?.guid === runGuid) {
-			await loadRunSteps(runGuid);
+			await loadRunActions(runGuid);
+		}
+	};
+
+	const handleResumeRun = async (runGuid: string): Promise<void> => {
+		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:resume_run:1', { guid: runGuid });
+		showNotification('Run resumed');
+		await loadRuns();
+		if (selectedRun?.guid === runGuid) {
+			await loadRunActions(runGuid);
 		}
 	};
 
@@ -299,7 +325,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 									<TableCell>Name</TableCell>
 									<TableCell>Version</TableCell>
 									<TableCell>Status</TableCell>
-									<TableCell>Step Count</TableCell>
+									<TableCell>Active</TableCell>
 									<TableCell>Description</TableCell>
 									<TableCell>Created</TableCell>
 								</TableRow>
@@ -323,7 +349,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 													color={WORKFLOW_STATUS_COLORS[workflow.status] || 'default'}
 												/>
 											</TableCell>
-											<TableCell>{String(workflow.step_count || '-')}</TableCell>
+											<TableCell>{workflow.is_active ? 'Yes' : 'No'}</TableCell>
 											<TableCell>
 												<Tooltip title={description || '-'}>
 													<Typography variant="body2">{truncatedDescription || '-'}</Typography>
@@ -364,31 +390,29 @@ const SystemWorkflowsPage = (): JSX.Element => {
 												<TableRow>
 													<TableCell>Sequence</TableCell>
 													<TableCell>Name</TableCell>
-													<TableCell>Type</TableCell>
 													<TableCell>Disposition</TableCell>
-													<TableCell>Class Path</TableCell>
+													<TableCell>Module</TableCell>
+													<TableCell>Method</TableCell>
 													<TableCell>Optional</TableCell>
-													<TableCell>Timeout</TableCell>
+													<TableCell>Active</TableCell>
 												</TableRow>
 											</TableHead>
 											<TableBody>
-												{(selectedWorkflow.steps || []).map((step: SystemWorkflowStepItem1) => (
-													<TableRow key={step.guid} hover>
-														<TableCell>{step.sequence}</TableCell>
-														<TableCell>{step.name}</TableCell>
-														<TableCell>
-															<Chip label={step.step_type || '-'} color={STEP_TYPE_COLORS[step.step_type] || 'default'} size="small" />
-														</TableCell>
+												{(selectedWorkflow.actions || []).map((action: SystemWorkflowActionItem1) => (
+													<TableRow key={action.guid} hover>
+														<TableCell>{action.sequence}</TableCell>
+														<TableCell>{action.name}</TableCell>
 														<TableCell>
 															<Chip
-																label={step.disposition || '-'}
-																color={DISPOSITION_COLORS[step.disposition] || 'default'}
+																label={action.disposition_name || '-'}
+																color={DISPOSITION_COLORS[action.disposition_name || ''] || 'default'}
 																size="small"
 															/>
 														</TableCell>
-														<TableCell sx={{ fontFamily: 'monospace' }}>{step.class_path}</TableCell>
-														<TableCell>{step.is_optional ? 'Yes' : 'No'}</TableCell>
-														<TableCell>{String(step.timeout_seconds || '-')}</TableCell>
+														<TableCell sx={{ fontFamily: 'monospace' }}>{action.module_attr || '-'}</TableCell>
+														<TableCell sx={{ fontFamily: 'monospace' }}>{action.method_name || '-'}</TableCell>
+														<TableCell>{action.is_optional ? 'Yes' : 'No'}</TableCell>
+														<TableCell>{action.is_active ? 'Yes' : 'No'}</TableCell>
 													</TableRow>
 												))}
 											</TableBody>
@@ -409,9 +433,9 @@ const SystemWorkflowsPage = (): JSX.Element => {
 								<TableRow>
 									<TableCell>Workflow GUID</TableCell>
 									<TableCell>Status</TableCell>
-									<TableCell>Current Step</TableCell>
-									<TableCell>Step Progress</TableCell>
-									<TableCell>Source</TableCell>
+									<TableCell>Current Action</TableCell>
+									<TableCell>Progress</TableCell>
+									<TableCell>Trigger</TableCell>
 									<TableCell>Started</TableCell>
 									<TableCell>Ended</TableCell>
 									<TableCell align="right">Actions</TableCell>
@@ -428,10 +452,11 @@ const SystemWorkflowsPage = (): JSX.Element => {
 										<TableCell>
 											<Chip label={RUN_STATUS_LABELS[run.status] || String(run.status)} color={RUN_STATUS_COLORS[run.status] || 'default'} />
 										</TableCell>
-										<TableCell>{String(run.current_step || '-')}</TableCell>
-										<TableCell>{getStepProgressLabel(run)}</TableCell>
+										<TableCell>{String(run.current_action || '-')}</TableCell>
+										<TableCell>{getActionProgressLabel(run)}</TableCell>
 										<TableCell>
-											{String(run.source_type || '-')} / {String(run.source_id || '-')}
+											{TRIGGER_TYPE_LABELS[run.trigger_type ?? -1] || String(run.trigger_type ?? '-')}
+											{run.trigger_ref ? ` / ${run.trigger_ref}` : ''}
 										</TableCell>
 										<TableCell>{String(run.started_on || '-')}</TableCell>
 										<TableCell>{String(run.ended_on || '-')}</TableCell>
@@ -442,7 +467,12 @@ const SystemWorkflowsPage = (): JSX.Element => {
 														Cancel
 													</Button>
 												)}
-												{run.status === 5 && (
+												{(run.status === 3 || run.status === 5 || run.status === 6 || run.status === 10) && (
+													<Button size="small" color="info" onClick={() => void handleResumeRun(run.guid)}>
+														Resume
+													</Button>
+												)}
+												{run.status === 3 && (
 													<Button size="small" color="warning" onClick={() => void handleRollbackRun(run.guid)}>
 														Rollback
 													</Button>
@@ -463,7 +493,8 @@ const SystemWorkflowsPage = (): JSX.Element => {
 									<Typography variant="body2">Run GUID: {selectedRun.guid}</Typography>
 									<Typography variant="body2">Workflow GUID: {selectedRun.workflows_guid}</Typography>
 									<Typography variant="body2">
-										Source: {String(selectedRun.source_type || '-')} / {String(selectedRun.source_id || '-')}
+										Trigger: {TRIGGER_TYPE_LABELS[selectedRun.trigger_type ?? -1] || String(selectedRun.trigger_type ?? '-')}
+										{selectedRun.trigger_ref ? ` / ${selectedRun.trigger_ref}` : ''}
 									</Typography>
 									<Typography variant="body2">Created: {String(selectedRun.created_on || '-')}</Typography>
 									<Typography variant="body2">Started: {String(selectedRun.started_on || '-')}</Typography>
@@ -502,48 +533,44 @@ const SystemWorkflowsPage = (): JSX.Element => {
 										<Table size="small">
 											<TableHead>
 												<TableRow>
-													<TableCell>Step</TableCell>
-													<TableCell>Disposition</TableCell>
+													<TableCell>Seq</TableCell>
+													<TableCell>Action</TableCell>
 													<TableCell>Status</TableCell>
+													<TableCell>Retry</TableCell>
 													<TableCell>Started</TableCell>
 													<TableCell>Ended</TableCell>
 													<TableCell>Error</TableCell>
 												</TableRow>
 											</TableHead>
 											<TableBody>
-											{runSteps.map((step) => {
-												const expanded = expandedRunStepGuid === step.guid;
+											{runActions.map((action) => {
+												const expanded = expandedRunActionGuid === action.guid;
 												return (
-													<Fragment key={step.guid}>
+													<Fragment key={action.guid}>
 														<TableRow
 															hover
 															sx={{ cursor: 'pointer' }}
-															onClick={() => setExpandedRunStepGuid(expanded ? null : step.guid)}
+															onClick={() => setExpandedRunActionGuid(expanded ? null : action.guid)}
 														>
+																<TableCell>{action.sequence ?? '-'}</TableCell>
 																<TableCell>
-																	<Tooltip title={step.steps_guid || '-'}>
-																		<Typography variant="body2">{getGuidLabel(step.steps_guid)}</Typography>
+																	<Tooltip title={action.actions_guid || '-'}>
+																		<Typography variant="body2">{getGuidLabel(action.actions_guid)}</Typography>
 																	</Tooltip>
 																</TableCell>
 																<TableCell>
 																	<Chip
-																		label={step.disposition || '-'}
-																		color={DISPOSITION_COLORS[step.disposition] || 'default'}
+																		label={ACTION_STATUS_LABELS[action.status] || String(action.status)}
+																		color={ACTION_STATUS_COLORS[action.status] || 'default'}
 																		size="small"
 																	/>
 																</TableCell>
+																<TableCell>{action.retry_count > 0 ? action.retry_count : '-'}</TableCell>
+																<TableCell>{String(action.started_on || '-')}</TableCell>
+																<TableCell>{String(action.ended_on || '-')}</TableCell>
 																<TableCell>
-																	<Chip
-																		label={RUN_STEP_STATUS_LABELS[step.status] || String(step.status)}
-																		color={RUN_STEP_STATUS_COLORS[step.status] || 'default'}
-																		size="small"
-																	/>
-																</TableCell>
-																<TableCell>{String(step.started_on || '-')}</TableCell>
-																<TableCell>{String(step.ended_on || '-')}</TableCell>
-																<TableCell>
-																	{step.error ? (
-																		<Tooltip title={String(step.error)}>
+																	{action.error ? (
+																		<Tooltip title={String(action.error)}>
 																			<Typography variant="body2" color="error.main">
 																				Error
 																			</Typography>
@@ -554,21 +581,24 @@ const SystemWorkflowsPage = (): JSX.Element => {
 																</TableCell>
 															</TableRow>
 															<TableRow>
-																<TableCell colSpan={6} sx={{ py: 0, border: 0 }}>
+																<TableCell colSpan={7} sx={{ py: 0, border: 0 }}>
 																	<Collapse in={expanded} timeout="auto" unmountOnExit>
 																		<Stack spacing={2} sx={{ py: 1 }}>
 																			<Box sx={{ maxHeight: 220, overflow: 'auto', p: 1, bgcolor: 'background.default' }}>
 																				<Typography variant="subtitle2">Input</Typography>
-																				<pre>{formatJson(step.input)}</pre>
+																				<pre>{formatJson(action.input)}</pre>
 																			</Box>
 																			<Box sx={{ maxHeight: 220, overflow: 'auto', p: 1, bgcolor: 'background.default' }}>
 																				<Typography variant="subtitle2">Output</Typography>
-																				<pre>{formatJson(step.output)}</pre>
+																				<pre>{formatJson(action.output)}</pre>
 																			</Box>
-																			{step.error && (
+																			{action.external_ref && (
+																				<Typography variant="body2">External Ref: {action.external_ref}</Typography>
+																			)}
+																			{action.error && (
 																				<Paper sx={{ bgcolor: 'error.light', color: 'error.contrastText', p: 1 }}>
-																					<Typography variant="subtitle2">Step Error</Typography>
-																					<pre>{formatJson(step.error)}</pre>
+																					<Typography variant="subtitle2">Action Error</Typography>
+																					<pre>{formatJson(action.error)}</pre>
 																				</Paper>
 																			)}
 																		</Stack>
@@ -602,14 +632,10 @@ const SystemWorkflowsPage = (): JSX.Element => {
 							sx={{ '& textarea': { fontFamily: 'monospace' } }}
 						/>
 						<TextField
-							label="Source Type"
-							value={submitSourceType}
-							onChange={(event) => setSubmitSourceType(event.target.value)}
-						/>
-						<TextField
-							label="Source ID"
-							value={submitSourceId}
-							onChange={(event) => setSubmitSourceId(event.target.value)}
+							label="Trigger Reference"
+							value={submitTriggerRef}
+							onChange={(event) => setSubmitTriggerRef(event.target.value)}
+							helperText="Optional reference for this trigger (e.g., operator name)"
 						/>
 					</Stack>
 				</DialogContent>
