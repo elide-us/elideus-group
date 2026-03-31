@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class AuthSessionGetTokenRequest1(BaseModel):
@@ -9,7 +9,7 @@ class AuthSessionGetTokenRequest1(BaseModel):
   access_token: str
   fingerprint: str
   confirm: bool | None = None
-  reauthToken: str | None = Field(default=None, alias='reAuthToken')
+  reAuthToken: str | None = None
 
 
 class AuthSessionRefreshTokenRequest1(BaseModel):

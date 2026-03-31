@@ -11,7 +11,6 @@ class AuthMicrosoftOauthLoginPayload1(BaseModel):
   access_token: str | None = None
   fingerprint: str
   confirm: bool | None = None
-  reauthToken: str | None = None
   reAuthToken: str | None = None
 
 

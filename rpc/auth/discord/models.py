@@ -8,7 +8,7 @@ class AuthDiscordOauthLoginPayload1(BaseModel):
   code: str
   fingerprint: str
   confirm: bool | None = None
-  reauthToken: str | None = None
+  reAuthToken: str | None = None
 
 
 class AuthDiscordOauthLogin1(BaseModel):

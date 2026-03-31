@@ -52,7 +52,6 @@ const LoginPage = (): JSX.Element => {
                                 access_token: null,
                                 fingerprint: getFingerprint(),
                                 confirm: null,
-                                reauthToken: null,
                                 reAuthToken: null,
                         }) as unknown as AuthMicrosoftOauthLogin1;
                         setUserData({ provider: 'microsoft', ...data });
@@ -96,7 +95,7 @@ const LoginPage = (): JSX.Element => {
                                 code,
                                 fingerprint: getFingerprint(),
                                 confirm: null,
-                                reauthToken: null,
+                                reAuthToken: null,
                         }) as unknown as AuthDiscordOauthLogin1;
                         setUserData({ provider: 'discord', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
@@ -125,7 +124,7 @@ const LoginPage = (): JSX.Element => {
                                 provider: 'google',
                                 code,
                                 confirm: null,
-                                reauthToken: null,
+                                reAuthToken: null,
                                 fingerprint: getFingerprint(),
                         }) as unknown as AuthGoogleOauthLogin1;
                         setUserData({ provider: 'google', ...data });
