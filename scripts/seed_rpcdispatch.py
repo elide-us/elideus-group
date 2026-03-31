@@ -488,6 +488,29 @@ def main() -> None:
     cursor.execute("SET XACT_ABORT ON;")
     cursor.execute("BEGIN TRANSACTION;")
 
+    cursor.execute(
+      """
+      SELECT
+        element_guid,
+        workflows_guid,
+        element_name,
+        element_description,
+        functions_guid,
+        dispositions_recid,
+        element_sequence,
+        element_is_optional,
+        element_is_active,
+        element_config,
+        element_rollback_functions_guid,
+        element_created_on,
+        element_modified_on
+      INTO #workflow_actions_stash
+      FROM system_workflow_actions;
+
+      DELETE FROM system_workflow_actions;
+      """
+    )
+
     cursor.execute("DELETE FROM reflection_rpc_model_fields;")
     cursor.execute("DELETE FROM reflection_rpc_functions;")
     cursor.execute("DELETE FROM reflection_rpc_models;")
@@ -633,6 +656,43 @@ def main() -> None:
       ],
     )
     cursor.execute("SET IDENTITY_INSERT reflection_rpc_functions OFF;")
+
+    cursor.execute(
+      """
+      INSERT INTO system_workflow_actions (
+        element_guid,
+        workflows_guid,
+        element_name,
+        element_description,
+        functions_guid,
+        dispositions_recid,
+        element_sequence,
+        element_is_optional,
+        element_is_active,
+        element_config,
+        element_rollback_functions_guid,
+        element_created_on,
+        element_modified_on
+      )
+      SELECT
+        element_guid,
+        workflows_guid,
+        element_name,
+        element_description,
+        functions_guid,
+        dispositions_recid,
+        element_sequence,
+        element_is_optional,
+        element_is_active,
+        element_config,
+        element_rollback_functions_guid,
+        element_created_on,
+        element_modified_on
+      FROM #workflow_actions_stash;
+
+      DROP TABLE #workflow_actions_stash;
+      """
+    )
 
     cursor.execute("COMMIT TRANSACTION;")
 
