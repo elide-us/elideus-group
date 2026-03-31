@@ -79,7 +79,7 @@ const ServicePagesPage = (): JSX.Element => {
         if (field === 'category' && value === '') {
             payload[field] = null;
         }
-        await fetchUpdate(payload as ServicePagesUpdatePage1);
+        await fetchUpdate(payload as unknown as ServicePagesUpdatePage1);
         void load();
     };
 

@@ -405,7 +405,7 @@ const FinanceAccountantPage = (): JSX.Element => {
     }, [lotUserGuid]);
 
     const loadBillingImports = useCallback(async (): Promise<void> => {
-        const res = await fetchListImports({}) as any;
+        const res = await fetchListImports({ status: null } as any) as any;
         setBillingImports(res.imports || []);
     }, []);
 
@@ -578,7 +578,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImporting(true);
                                         setBillingMessage(null);
                                         try {
-                                            await fetchStagingImport({ period_start: importStartDate, period_end: importEndDate });
+                                            await fetchStagingImport({ period_start: importStartDate, period_end: importEndDate } as any);
                                             setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -600,7 +600,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImportingInvoices(true);
                                         setBillingMessage(null);
                                         try {
-                                            const res = await fetchImportInvoices({ period_month: invoiceMonth }) as any;
+                                            const res = await fetchImportInvoices({ period_month: invoiceMonth } as any) as any;
                                             setBillingMessage({ severity: "success", text: res.message || "PAYG invoice import completed." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -1166,7 +1166,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                             <Button
                                 variant="contained"
                                 onClick={async () => {
-                                    await fetchUpsertNumber(numberForm);
+                                    await fetchUpsertNumber(numberForm as any);
                                     setNumberForm({ recid: null, accounts_guid: "", prefix: "", account_number: "", last_number: 1000, allocation_size: 10, reset_policy: "Never" });
                                     await loadShared();
                                 }}

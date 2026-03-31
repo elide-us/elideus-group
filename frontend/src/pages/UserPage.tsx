@@ -126,7 +126,7 @@ const UserPage = (): JSX.Element => {
                     const client = window.google.accounts.oauth2.initCodeClient(cfg);
                     client.requestCode();
                 });
-                await fetchSetProvider({ provider: next, code });
+                await fetchSetProvider({ provider: next, code } as any);
             } else if (next === "discord") {
                 const authorizeUrl = getDiscordAuthorizeUrl();
                 const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
@@ -153,7 +153,7 @@ const UserPage = (): JSX.Element => {
                         }
                     }, 500);
                 });
-                await fetchSetProvider({ provider: next, code });
+                await fetchSetProvider({ provider: next, code } as any);
             } else if (next === "microsoft") {
                 await pca.initialize();
                 const loginResponse = await pca.loginPopup(loginRequest);
@@ -162,9 +162,9 @@ const UserPage = (): JSX.Element => {
                     provider: next,
                     id_token: idToken,
                     access_token: accessToken
-                });
+                } as any);
             } else {
-                await fetchSetProvider({ provider: next });
+                await fetchSetProvider({ provider: next } as any);
             }
             const res: any = await fetchProfile();
             const profileData: UsersProfileProfile1 = {
@@ -199,9 +199,9 @@ const UserPage = (): JSX.Element => {
       if (!isLast && provider === name)
         newDefault = providers.find((p) => p !== name);
       await fetchUnlinkProvider(
-        newDefault
+        (newDefault
           ? { provider: name, new_default: newDefault }
-          : { provider: name }
+          : { provider: name }) as any
       );
       const updated = providers.filter((p) => p !== name);
       setProviders(updated);
@@ -240,7 +240,7 @@ const UserPage = (): JSX.Element => {
           client.requestCode();
         });
         console.debug("[UserPage] authorization code received", code);
-        await fetchLinkProvider({ provider: name, code });
+        await fetchLinkProvider({ provider: name, code } as any);
       } else if (name === "discord") {
         const authorizeUrl = getDiscordAuthorizeUrl();
         const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
@@ -267,7 +267,7 @@ const UserPage = (): JSX.Element => {
             }
           }, 500);
         });
-        await fetchLinkProvider({ provider: name, code });
+        await fetchLinkProvider({ provider: name, code } as any);
       } else {
         await pca.initialize();
         const loginResponse = await pca.loginPopup(loginRequest);
@@ -276,7 +276,7 @@ const UserPage = (): JSX.Element => {
           provider: name,
           id_token: idToken,
           access_token: accessToken
-        });
+        } as any);
       }
       const updated = [...providers, name];
       setProviders(updated);

@@ -173,7 +173,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 	};
 
 	const loadWorkflows = useCallback(async (): Promise<void> => {
-		const response = await fetchListWorkflows({});
+		const response = await fetchListWorkflows({ status: null });
 		setWorkflows(response.workflows || []);
 	}, []);
 
@@ -184,7 +184,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 	}, []);
 
 	const loadRuns = useCallback(async (): Promise<void> => {
-		const response = await fetchListRuns({});
+		const response = await fetchListRuns({ status: null, workflows_guid: null });
 		setRuns(response.runs || []);
 	}, []);
 
