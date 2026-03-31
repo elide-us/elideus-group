@@ -6,7 +6,14 @@ from fastapi import HTTPException, Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 
-from .models import PublicWikiGetPage1, PublicWikiListPages1, PublicWikiPageItem1, PublicWikiPermissions1
+from .models import (
+  PublicWikiGetPage1,
+  PublicWikiGetPageRequest1,
+  PublicWikiListFilter1,
+  PublicWikiListPages1,
+  PublicWikiPageItem1,
+  PublicWikiPermissions1,
+)
 
 if TYPE_CHECKING:
   from server.modules.content_wiki_module import ContentWikiModule
@@ -15,11 +22,10 @@ if TYPE_CHECKING:
 async def public_wiki_list_pages_v1(request: Request):
   rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
   _ = auth_ctx
-  payload = rpc_request.payload or {}
-  parent_slug = payload.get("parent_slug")
+  input_payload = PublicWikiListFilter1(**(rpc_request.payload or {}))
 
   module: ContentWikiModule = request.app.state.content_wiki
-  rows = await module.list_pages(parent_slug=parent_slug, is_active=True)
+  rows = await module.list_pages(parent_slug=input_payload.parent_slug, is_active=True)
 
   pages = [
     PublicWikiPageItem1(
@@ -39,17 +45,14 @@ async def public_wiki_list_pages_v1(request: Request):
 
 async def public_wiki_get_page_v1(request: Request):
   rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  slug = payload.get("slug")
-  if not slug:
-    raise HTTPException(status_code=400, detail="Missing page slug")
+  input_payload = PublicWikiGetPageRequest1(**(rpc_request.payload or {}))
 
   module: ContentWikiModule = request.app.state.content_wiki
-  row = await module.get_page_by_slug(slug)
+  row = await module.get_page_by_slug(input_payload.slug)
   if not row or not row.get("element_is_active"):
     raise HTTPException(status_code=404, detail="Page not found")
 
-  children_rows = await module.list_children(slug)
+  children_rows = await module.list_children(input_payload.slug)
 
   role_module = request.app.state.role
   access = role_module.check_content_access(

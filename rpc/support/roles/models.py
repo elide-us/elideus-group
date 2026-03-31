@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 
 
+class SupportRolesGetMembersRequest1(BaseModel):
+  role: str
+
+
 class SupportRolesRoleMemberUpdate1(BaseModel):
   role: str
   userGuid: str

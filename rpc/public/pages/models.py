@@ -3,6 +3,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class PublicPagesListFilter1(BaseModel):
+  page_type: str | None = None
+
+
+class PublicPagesGetPageRequest1(BaseModel):
+  slug: str
+
+
 class PublicPagesPageItem1(BaseModel):
   """Summary item for page listings."""
 

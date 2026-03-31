@@ -4,6 +4,9 @@ from typing import List, Optional
 
 class DiscordChatSummarizeChannelRequest1(BaseModel):
   channel_id: str
+  guild_id: str | None = None
+  hours: int = 1
+  user_id: int | None = None
 
 
 class DiscordChatSummarizeChannelResponse1(BaseModel):

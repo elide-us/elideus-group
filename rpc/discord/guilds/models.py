@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 
 
+class DiscordGuildsGetRequest1(BaseModel):
+  guild_id: str
+
+
 class DiscordGuildsGuildItem1(BaseModel):
   recid: int
   guild_id: str

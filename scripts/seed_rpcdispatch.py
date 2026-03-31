@@ -25,7 +25,7 @@ from scripts.common import (
   RPC_REFLECTION_NAMESPACE,
   find_all_model_classes,
   parse_dispatchers,
-  parse_service_models,
+  parse_service_contracts,
 )
 
 load_dotenv(os.path.join(REPO_ROOT, ".env"))
@@ -391,7 +391,7 @@ def discover_functions(
     init_file = RPC_ROOT / domain / subdomain / "__init__.py"
     services_file = RPC_ROOT / domain / subdomain / "services.py"
     _, operations = parse_dispatchers(str(init_file))
-    service_models = parse_service_models(str(services_file))
+    service_contracts = parse_service_contracts(str(services_file))
     service_meta = parse_service_module_metadata(services_file)
 
     for operation in operations:
@@ -403,9 +403,13 @@ def discover_functions(
           domain, subdomain, operation["op"],
           meta.get("module_attr"), meta.get("method_name"),
         )
-      request_model = service_models.get(service_function)
+      contract = service_contracts.get(service_function, {})
+      request_model = contract.get("input")
+      response_model = contract.get("output")
       if request_model:
         request_model = resolve_alias_name(request_model, alias_map)
+      if response_model:
+        response_model = resolve_alias_name(response_model, alias_map)
 
       rows.append(
         {
@@ -419,7 +423,7 @@ def discover_functions(
           "element_module_attr": meta.get("module_attr") or "",
           "element_method_name": meta.get("method_name") or "",
           "element_request_model_guid": model_map.get(request_model) if request_model else None,
-          "element_response_model_guid": None,
+          "element_response_model_guid": model_map.get(response_model) if response_model else None,
           "element_status": 1,
           "element_app_version": APP_VERSION,
           "element_iteration": 1,

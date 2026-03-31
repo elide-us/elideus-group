@@ -5,40 +5,39 @@ from rpc.helpers import is_secure_request, unbox_request
 from server.models import RPCResponse
 from typing import TYPE_CHECKING
 
+from .models import (
+  AuthSessionGetSessionResponse1,
+  AuthSessionGetTokenRequest1,
+  AuthSessionGetTokenResponse1,
+  AuthSessionOkResponse1,
+  AuthSessionRefreshTokenRequest1,
+  AuthSessionRefreshTokenResponse1,
+)
+
 if TYPE_CHECKING:
   from server.modules.session_module import SessionModule
 
 
 async def auth_session_get_token_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  req_payload = rpc_request.payload or {}
-
-  provider = req_payload.get("provider")
-  id_token = req_payload.get("id_token")
-  access_token = req_payload.get("access_token")
-  fingerprint = req_payload.get("fingerprint")
-  confirm = req_payload.get("confirm")
-  reauth_token = req_payload.get("reauthToken") or req_payload.get("reAuthToken")
-
-  if not provider or not id_token or not access_token or not fingerprint:
-    raise HTTPException(status_code=400, detail="Missing credentials or fingerprint")
+  payload = AuthSessionGetTokenRequest1(**(rpc_request.payload or {}))
 
   module: 'SessionModule' = request.app.state.session
   await module.on_ready()
 
   session_token, rotation_token, rot_exp, profile = await module.issue_token(
-    provider,
-    id_token,
-    access_token,
-    fingerprint,
+    payload.provider,
+    payload.id_token,
+    payload.access_token,
+    payload.fingerprint,
     request.headers.get("user-agent"),
     request.client.host if request.client else None,
-    confirm,
-    reauth_token,
+    payload.confirm,
+    payload.reauthToken,
   )
 
-  payload = {"token": session_token, "profile": profile}
-  rpc_resp = RPCResponse(op=rpc_request.op, payload=payload, version=rpc_request.version)
+  response_payload = AuthSessionGetTokenResponse1(token=session_token, profile=profile)
+  rpc_resp = RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
   response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
@@ -53,24 +52,22 @@ async def auth_session_get_token_v1(request: Request):
 
 async def auth_session_refresh_token_v1(request: Request):
   rpc_request, _auth_ctx, _ = await unbox_request(request)
-  req_payload = rpc_request.payload or {}
-  rotation_token = request.cookies.get("rotation_token") or req_payload.get("rotationToken") or req_payload.get("rotation_token")
+  payload = AuthSessionRefreshTokenRequest1(**(rpc_request.payload or {}))
+  rotation_token = request.cookies.get("rotation_token")
   if not rotation_token:
     raise HTTPException(status_code=401, detail="Missing rotation token")
-  fingerprint = req_payload.get("fingerprint")
-  if not fingerprint:
-    raise HTTPException(status_code=400, detail="Missing fingerprint")
   module: 'SessionModule' = request.app.state.session
   await module.on_ready()
   user_agent = request.headers.get("user-agent")
   ip_address = request.client.host if request.client else None
   session_token = await module.refresh_token(
     rotation_token,
-    fingerprint,
+    payload.fingerprint,
     user_agent,
     ip_address,
   )
-  return RPCResponse(op=rpc_request.op, payload={"token": session_token}, version=rpc_request.version)
+  response_payload = AuthSessionRefreshTokenResponse1(token=session_token)
+  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 
 async def auth_session_invalidate_token_v1(request: Request):
@@ -80,7 +77,8 @@ async def auth_session_invalidate_token_v1(request: Request):
   module: 'SessionModule' = request.app.state.session
   await module.on_ready()
   await module.invalidate_token(auth_ctx.user_guid)
-  return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
+  response_payload = AuthSessionOkResponse1()
+  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 
 async def auth_session_logout_device_v1(request: Request):
@@ -92,7 +90,8 @@ async def auth_session_logout_device_v1(request: Request):
   module: 'SessionModule' = request.app.state.session
   await module.on_ready()
   await module.logout_device(token)
-  return RPCResponse(op=rpc_request.op, payload={"ok": True}, version=rpc_request.version)
+  response_payload = AuthSessionOkResponse1()
+  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
 
 
 async def auth_session_get_session_v1(request: Request):
@@ -106,4 +105,5 @@ async def auth_session_get_session_v1(request: Request):
   ip_address = request.client.host if request.client else None
   user_agent = request.headers.get("user-agent")
   payload = await module.get_session(token, ip_address, user_agent)
-  return RPCResponse(op=rpc_request.op, payload=payload, version=rpc_request.version)
+  response_payload = AuthSessionGetSessionResponse1(**payload)
+  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)

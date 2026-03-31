@@ -8,6 +8,8 @@ from server.models import RPCResponse
 
 from .models import (
   PublicPagesGetPage1,
+  PublicPagesGetPageRequest1,
+  PublicPagesListFilter1,
   PublicPagesListPages1,
   PublicPagesPageItem1,
   PublicPagesPermissions1,
@@ -20,11 +22,10 @@ if TYPE_CHECKING:
 async def public_pages_list_pages_v1(request: Request):
   rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
   _ = auth_ctx
-  payload = rpc_request.payload or {}
-  page_type = payload.get("page_type")
+  input_payload = PublicPagesListFilter1(**(rpc_request.payload or {}))
 
   module: ContentPagesModule = request.app.state.content_pages
-  rows = await module.list_pages(page_type=page_type, is_active=True)
+  rows = await module.list_pages(page_type=input_payload.page_type, is_active=True)
 
   pages = [
     PublicPagesPageItem1(
@@ -50,13 +51,10 @@ async def public_pages_list_pages_v1(request: Request):
 
 async def public_pages_get_page_v1(request: Request):
   rpc_request, auth_ctx, _user_ctx = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  slug = payload.get("slug")
-  if not slug:
-    raise HTTPException(status_code=400, detail="Missing page slug")
+  input_payload = PublicPagesGetPageRequest1(**(rpc_request.payload or {}))
 
   module: ContentPagesModule = request.app.state.content_pages
-  row = await module.get_page_by_slug(slug)
+  row = await module.get_page_by_slug(input_payload.slug)
   if not row or not row.get("element_is_active"):
     raise HTTPException(status_code=404, detail="Page not found")
 

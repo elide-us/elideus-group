@@ -226,7 +226,10 @@ def generate_binding(
 ) -> str:
   model_imports = set()
   for fn in functions:
+    req_recid = fn['element_request_model_recid']
     resp_recid = fn['element_response_model_recid']
+    if req_recid and req_recid in model_name_map:
+      model_imports.add(model_name_map[req_recid])
     if resp_recid and resp_recid in model_name_map:
       model_imports.add(model_name_map[resp_recid])
 
@@ -241,11 +244,14 @@ def generate_binding(
 
   for fn in functions:
     func_name = urn_to_func(fn['function_name'], int(fn['element_version']))
+    req_recid = fn['element_request_model_recid']
     resp_recid = fn['element_response_model_recid']
-    resp_type = model_name_map.get(resp_recid, 'any') if resp_recid else 'any'
+    req_type = model_name_map.get(req_recid) if req_recid else None
+    resp_type = model_name_map.get(resp_recid, 'void') if resp_recid else 'void'
+    param = f'payload: {req_type}' if req_type else 'payload: any = null'
     urn = f"urn:{domain}:{subdomain}:{fn['function_name']}:{fn['element_version']}"
     lines.append(
-      f'export const {func_name} = (payload: any = null): '
+      f'export const {func_name} = ({param}): '
       f"Promise<{resp_type}> => rpcCall('{urn}', payload);"
     )
 
@@ -347,11 +353,13 @@ def main() -> None:
       '''
       SELECT fn.element_name AS function_name,
              fn.element_version,
-             rm.recid AS element_response_model_recid,
+             rm_req.recid AS element_request_model_recid,
+             rm_resp.recid AS element_response_model_recid,
              sd.element_name AS subdomain_name,
              d.element_name AS domain_name
       FROM reflection_rpc_functions fn
-      LEFT JOIN reflection_rpc_models rm ON rm.element_guid = fn.element_response_model_guid
+      LEFT JOIN reflection_rpc_models rm_req ON rm_req.element_guid = fn.element_request_model_guid
+      LEFT JOIN reflection_rpc_models rm_resp ON rm_resp.element_guid = fn.element_response_model_guid
       JOIN reflection_rpc_subdomains sd ON fn.subdomains_guid = sd.element_guid
       JOIN reflection_rpc_domains d ON sd.domains_guid = d.element_guid
       WHERE fn.element_status = 1
