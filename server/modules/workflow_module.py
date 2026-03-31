@@ -17,6 +17,7 @@ from queryregistry.system.workflows import (
   list_workflow_actions_request,
   list_workflow_run_actions_request,
   list_workflow_runs_request,
+  list_workflows_request,
   update_workflow_run_action_request,
   update_workflow_run_request,
 )
@@ -32,6 +33,7 @@ from queryregistry.system.workflows.models import (
   ListWorkflowActionsParams,
   ListWorkflowRunActionsParams,
   ListWorkflowRunsParams,
+  ListWorkflowsParams,
   UpdateWorkflowRunActionParams,
   UpdateWorkflowRunParams,
 )
@@ -153,6 +155,11 @@ class WorkflowModule(BaseModule):
       list_workflow_run_actions_request(ListWorkflowRunActionsParams(runs_recid=runs_recid))
     )
     return [self._map_run_action(dict(row)) for row in res.rows]
+
+  async def list_workflows(self, status: int | None = None) -> list[dict[str, Any]]:
+    assert self.db
+    res = await self.db.run(list_workflows_request(ListWorkflowsParams(status=status)))
+    return [self._map_workflow(dict(row)) for row in res.rows]
 
   async def cancel(self, run_guid: str) -> dict[str, Any]:
     run = await self.get_or_404(run_guid)
