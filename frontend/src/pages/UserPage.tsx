@@ -126,7 +126,7 @@ const UserPage = (): JSX.Element => {
                     const client = window.google.accounts.oauth2.initCodeClient(cfg);
                     client.requestCode();
                 });
-                await fetchSetProvider({ provider: next, code } as any);
+                await fetchSetProvider({ provider: next, code, id_token: null, access_token: null });
             } else if (next === "discord") {
                 const authorizeUrl = getDiscordAuthorizeUrl();
                 const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
@@ -153,18 +153,19 @@ const UserPage = (): JSX.Element => {
                         }
                     }, 500);
                 });
-                await fetchSetProvider({ provider: next, code } as any);
+                await fetchSetProvider({ provider: next, code, id_token: null, access_token: null });
             } else if (next === "microsoft") {
                 await pca.initialize();
                 const loginResponse = await pca.loginPopup(loginRequest);
                 const { idToken, accessToken } = loginResponse;
                 await fetchSetProvider({
                     provider: next,
+                    code: null,
                     id_token: idToken,
                     access_token: accessToken
-                } as any);
+                });
             } else {
-                await fetchSetProvider({ provider: next } as any);
+                await fetchSetProvider({ provider: next, code: null, id_token: null, access_token: null });
             }
             const res: any = await fetchProfile();
             const profileData: UsersProfileProfile1 = {
@@ -198,11 +199,10 @@ const UserPage = (): JSX.Element => {
       let newDefault: string | undefined;
       if (!isLast && provider === name)
         newDefault = providers.find((p) => p !== name);
-      await fetchUnlinkProvider(
-        (newDefault
-          ? { provider: name, new_default: newDefault }
-          : { provider: name }) as any
-      );
+      await fetchUnlinkProvider({
+        provider: name,
+        new_default: newDefault ?? null,
+      });
       const updated = providers.filter((p) => p !== name);
       setProviders(updated);
       if (profile) {
@@ -240,7 +240,7 @@ const UserPage = (): JSX.Element => {
           client.requestCode();
         });
         console.debug("[UserPage] authorization code received", code);
-        await fetchLinkProvider({ provider: name, code } as any);
+        await fetchLinkProvider({ provider: name, code, id_token: null, access_token: null });
       } else if (name === "discord") {
         const authorizeUrl = getDiscordAuthorizeUrl();
         const authWindow = window.open(authorizeUrl, "discordOAuth", "width=500,height=600");
@@ -267,16 +267,17 @@ const UserPage = (): JSX.Element => {
             }
           }, 500);
         });
-        await fetchLinkProvider({ provider: name, code } as any);
+        await fetchLinkProvider({ provider: name, code, id_token: null, access_token: null });
       } else {
         await pca.initialize();
         const loginResponse = await pca.loginPopup(loginRequest);
         const { idToken, accessToken } = loginResponse;
         await fetchLinkProvider({
           provider: name,
+          code: null,
           id_token: idToken,
           access_token: accessToken
-        } as any);
+        });
       }
       const updated = [...providers, name];
       setProviders(updated);

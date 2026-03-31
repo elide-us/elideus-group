@@ -45,11 +45,16 @@ const LoginPage = (): JSX.Element => {
                         const { idToken, accessToken } = loginResponse;
                         console.debug('[LoginPage] Microsoft token data', { idToken, accessToken, account: loginResponse.account, uniqueId: loginResponse.uniqueId });
                         const data = await fetchMicrosoftOauthLogin({
-                                idToken,
-                                accessToken,
                                 provider: 'microsoft',
+                                idToken,
+                                id_token: null,
+                                accessToken,
+                                access_token: null,
                                 fingerprint: getFingerprint(),
-                        } as any) as unknown as AuthMicrosoftOauthLogin1;
+                                confirm: null,
+                                reauthToken: null,
+                                reAuthToken: null,
+                        }) as unknown as AuthMicrosoftOauthLogin1;
                         setUserData({ provider: 'microsoft', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');
@@ -87,10 +92,12 @@ const LoginPage = (): JSX.Element => {
                         });
                         console.debug('[LoginPage] authorization code received', code);
                         const data = await fetchDiscordOauthLogin({
-                                code,
                                 provider: 'discord',
+                                code,
                                 fingerprint: getFingerprint(),
-                        } as any) as unknown as AuthDiscordOauthLogin1;
+                                confirm: null,
+                                reauthToken: null,
+                        }) as unknown as AuthDiscordOauthLogin1;
                         setUserData({ provider: 'discord', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');
@@ -115,10 +122,12 @@ const LoginPage = (): JSX.Element => {
                         });
                         console.debug('[LoginPage] authorization code received', code);
                         const data = await fetchGoogleOauthLogin({
-                                code,
                                 provider: 'google',
+                                code,
+                                confirm: null,
+                                reauthToken: null,
                                 fingerprint: getFingerprint(),
-                        } as any) as unknown as AuthGoogleOauthLogin1;
+                        }) as unknown as AuthGoogleOauthLogin1;
                         setUserData({ provider: 'google', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');

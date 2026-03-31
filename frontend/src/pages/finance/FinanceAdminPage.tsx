@@ -555,7 +555,7 @@ const FinanceAdminPage = (): JSX.Element => {
     }, []);
 
     const loadPeriodStatuses = useCallback(async (): Promise<void> => {
-        const response = await (fetchPeriodStatus as any)();
+        const response = await fetchPeriodStatus({ fiscal_year: null });
         setPeriodStatuses((response.periods || []) as PeriodStatusRow[]);
     }, []);
 
@@ -580,24 +580,24 @@ const FinanceAdminPage = (): JSX.Element => {
     }, []);
 
     const loadProducts = useCallback(async (): Promise<void> => {
-        const response = await fetchFinanceProducts({} as any) as any;
+        const response = await fetchFinanceProducts({ category: null, status: null }) as any;
         setProducts((response.products || []).map(normalizeProduct));
     }, []);
 
     const loadApprovedProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await fetchProductJournalConfigs({ status: 1 } as any) as any;
+        const response = await fetchProductJournalConfigs({ category: null, periods_guid: null, status: 1 }) as any;
         setApprovedProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadActiveProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await fetchProductJournalConfigs({ status: 2 } as any) as any;
+        const response = await fetchProductJournalConfigs({ category: null, periods_guid: null, status: 2 }) as any;
         setActiveProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadProductConfigReferences = useCallback(async (): Promise<void> => {
         const [periodResponse, journalResponse] = await Promise.all([
             fetchPeriods() as any,
-            fetchJournalsList({} as any) as any,
+            fetchJournalsList({ status: null, periods_guid: null }) as any,
         ]);
         setProductConfigPeriods(
             (periodResponse.periods || [])
@@ -617,7 +617,7 @@ const FinanceAdminPage = (): JSX.Element => {
 
     const loadAccountMappings = useCallback(async (): Promise<void> => {
         const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
-        const response = await fetchStagingAccountMaps(payload) as any;
+        const response = await fetchStagingAccountMaps(payload as any);
         setAccountMappings(response.mappings || []);
     }, [mappingVendorFilter]);
 
@@ -890,7 +890,7 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            const response = await fetchGenerateCalendar({ fiscal_year: fiscalYear } as any);
+            const response = await fetchGenerateCalendar({ fiscal_year: fiscalYear, start_date: null });
             const createdCount = Array.isArray(response.periods) ? response.periods.length : 0;
             setSuccessMessage(`Generated ${createdCount} fiscal periods for ${fiscalYear}.`);
             await refreshFinanceAdminData();
@@ -933,7 +933,7 @@ const FinanceAdminPage = (): JSX.Element => {
     const saveAccount = async (): Promise<void> => {
         try {
             setPageError(null);
-            await fetchUpsertAccount(newAccount as any);
+            await fetchUpsertAccount({ ...newAccount, guid: newAccount.guid ?? null, parent: newAccount.parent ?? null });
             setNewAccount({
                 number: "",
                 name: "",
@@ -951,7 +951,7 @@ const FinanceAdminPage = (): JSX.Element => {
     const saveDimension = async (): Promise<void> => {
         try {
             setPageError(null);
-            await fetchUpsertDimension(dimensionForm as any);
+            await fetchUpsertDimension({ ...dimensionForm, recid: dimensionForm.recid ?? null, description: dimensionForm.description ?? null });
             setDimensionForm({ recid: null, name: "", value: "", description: "", status: 1 });
             await loadDimensions();
         } catch (error: unknown) {
@@ -990,8 +990,9 @@ const FinanceAdminPage = (): JSX.Element => {
                 accounts_guid: mappingForm.accounts_guid,
                 element_priority: mappingForm.element_priority,
                 element_description: mappingForm.element_description || null,
+                vendor_name: null,
                 element_status: mappingForm.element_status ? 1 : 0,
-            } as any);
+            });
             setMappingForm(EMPTY_MAPPING_FORM);
             setMappingFormOpen(false);
             setSuccessMessage("Account mapping saved.");
@@ -1090,7 +1091,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 scope: numberForm.scope || null,
                 pattern: numberForm.pattern || null,
                 display_format: numberForm.display_format || null,
-            } as any);
+            });
             setNumberForm(EMPTY_NUMBER_FORM);
             setNumberFormOpen(false);
             setSuccessMessage("Number sequence saved.");
