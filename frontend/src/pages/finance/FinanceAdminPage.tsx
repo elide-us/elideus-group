@@ -37,7 +37,6 @@ import {
     Checkbox,
 } from "@mui/material";
 import PageTitle from "../../components/PageTitle";
-import { rpcCall } from "../../shared/RpcModels";
 import {
     fetchDelete as fetchDeleteAccount,
     fetchList as fetchAccounts,
@@ -62,8 +61,14 @@ import {
 import {
     fetchGenerateCalendar,
     fetchList as fetchPeriods,
+    fetchLock as fetchPeriodLock,
+    fetchUnlock as fetchPeriodUnlock,
 } from "../../rpc/finance/periods/index";
+import { fetchList as fetchFinanceProducts, fetchUpsert as fetchUpsertProduct, fetchDelete as fetchDeleteProduct } from "../../rpc/finance/products/index";
+import { fetchList as fetchProductJournalConfigs, fetchActivate as fetchPjcActivate } from "../../rpc/finance/product_journal_config/index";
 import { fetchPeriodStatus } from "../../rpc/finance/reporting/index";
+import { fetchList as fetchStagingAccountMaps, fetchUpsert as fetchUpsertStagingAccountMap, fetchDelete as fetchDeleteStagingAccountMap } from "../../rpc/finance/staging_account_map/index";
+import { fetchList as fetchJournalsList } from "../../rpc/finance/journals/index";
 import {
     fetchDelete as fetchDeleteVendor,
     fetchList as fetchVendors,
@@ -575,69 +580,24 @@ const FinanceAdminPage = (): JSX.Element => {
     }, []);
 
     const loadProducts = useCallback(async (): Promise<void> => {
-        const response = await rpcCall<{ products: Array<{
-            recid: number;
-            sku: string;
-            name: string;
-            description: string | null;
-            category: string;
-            price: string;
-            currency: string;
-            credits: number;
-            enablement_key: string | null;
-            is_recurring: boolean;
-            sort_order: number;
-            status: number;
-        }> }>("urn:finance:products:list:1");
+        const response = await fetchFinanceProducts({}) as any;
         setProducts((response.products || []).map(normalizeProduct));
     }, []);
 
     const loadApprovedProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await rpcCall<{ configs: Array<{
-            recid: number;
-            category: string;
-            journal_scope: string;
-            journals_recid: number;
-            periods_guid: string;
-            approved_by: string | null;
-            approved_on: string | null;
-            activated_by: string | null;
-            activated_on: string | null;
-            status: number;
-            created_on: string | null;
-            modified_on: string | null;
-        }> }>(
-            "urn:finance:product_journal_config:list:1",
-            { status: 1 },
-        );
+        const response = await fetchProductJournalConfigs({ status: 1 }) as any;
         setApprovedProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadActiveProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await rpcCall<{ configs: Array<{
-            recid: number;
-            category: string;
-            journal_scope: string;
-            journals_recid: number;
-            periods_guid: string;
-            approved_by: string | null;
-            approved_on: string | null;
-            activated_by: string | null;
-            activated_on: string | null;
-            status: number;
-            created_on: string | null;
-            modified_on: string | null;
-        }> }>(
-            "urn:finance:product_journal_config:list:1",
-            { status: 2 },
-        );
+        const response = await fetchProductJournalConfigs({ status: 2 }) as any;
         setActiveProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadProductConfigReferences = useCallback(async (): Promise<void> => {
         const [periodResponse, journalResponse] = await Promise.all([
-            rpcCall<{ periods: FinancePeriod[] }>("urn:finance:periods:list:1"),
-            rpcCall<{ journals: FinanceJournalReference[] }>("urn:finance:journals:list:1"),
+            fetchPeriods() as any,
+            fetchJournalsList({}) as any,
         ]);
         setProductConfigPeriods(
             (periodResponse.periods || [])
@@ -657,7 +617,7 @@ const FinanceAdminPage = (): JSX.Element => {
 
     const loadAccountMappings = useCallback(async (): Promise<void> => {
         const payload = mappingVendorFilter ? { vendors_recid: Number(mappingVendorFilter) } : {};
-        const response = await rpcCall<{ mappings: FinanceStagingAccountMapItem[] }>("urn:finance:staging_account_map:list:1", payload);
+        const response = await fetchStagingAccountMaps(payload) as any;
         setAccountMappings(response.mappings || []);
     }, [mappingVendorFilter]);
 
@@ -827,7 +787,7 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            await rpcCall("urn:finance:products:upsert:1", {
+            await fetchUpsertProduct({
                 recid: productForm.recid,
                 sku: productForm.element_sku,
                 name: productForm.element_name,
@@ -859,7 +819,7 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            await rpcCall("urn:finance:products:delete:1", { recid: productToDelete.recid });
+            await fetchDeleteProduct({ recid: productToDelete.recid });
             setSuccessMessage(`Deleted product ${productToDelete.element_sku}.`);
             setProductToDelete(null);
             await loadProducts();
@@ -958,7 +918,7 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            await rpcCall(isLock ? "urn:finance:periods:lock:1" : "urn:finance:periods:unlock:1", {
+            await (isLock ? fetchPeriodLock : fetchPeriodUnlock)({
                 guid: period.guid,
             });
             setSuccessMessage(`${isLock ? "Locked" : "Unlocked"} ${period.period_name}.`);
@@ -1022,7 +982,7 @@ const FinanceAdminPage = (): JSX.Element => {
         try {
             setPageError(null);
             setSuccessMessage(null);
-            await rpcCall("urn:finance:staging_account_map:upsert:1", {
+            await fetchUpsertStagingAccountMap({
                 recid: mappingForm.recid,
                 vendors_recid: mappingForm.vendors_recid,
                 element_service_pattern: mappingForm.element_service_pattern,
@@ -1048,7 +1008,7 @@ const FinanceAdminPage = (): JSX.Element => {
         try {
             setPageError(null);
             setSuccessMessage(null);
-            await rpcCall("urn:finance:staging_account_map:delete:1", { recid });
+            await fetchDeleteStagingAccountMap({ recid });
             setSuccessMessage("Account mapping deleted.");
             await loadAccountMappings();
         } catch (error: unknown) {
@@ -2175,7 +2135,7 @@ const FinanceAdminPage = (): JSX.Element => {
                                                         try {
                                                             setPageError(null);
                                                             setSuccessMessage(null);
-                                                            await rpcCall("urn:finance:product_journal_config:activate:1", { recid: config.recid });
+                                                            await fetchPjcActivate({ recid: config.recid });
                                                             setSuccessMessage(`Activated product journal configuration ${config.recid}.`);
                                                             await Promise.all([loadApprovedProductConfigs(), loadActiveProductConfigs()]);
                                                         } catch (error: unknown) {

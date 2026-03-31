@@ -23,26 +23,15 @@ import {
 } from '@mui/material';
 import Notification from '../../components/Notification';
 import PageTitle from '../../components/PageTitle';
-import { rpcCall } from '../../shared/RpcModels';
+import {
+    fetchList as fetchRenewalList,
+    fetchUpsert as fetchRenewalUpsert,
+    fetchDelete as fetchRenewalDelete,
+} from '../../rpc/service/renewals';
+import { fetchCreate as fetchPaymentCreate } from '../../rpc/service/payment_requests';
+import type { ServiceRenewalsItem1, ServiceRenewalsUpsert1 } from '../../shared/RpcModels';
 
-type RenewalItem = {
-    recid: number;
-    element_guid: string | null;
-    element_name: string;
-    element_category: string;
-    element_vendor: string | null;
-    element_reference: string | null;
-    element_expires_on: string | null;
-    element_renew_by: string | null;
-    element_renewal_cost: string | null;
-    element_currency: string | null;
-    element_auto_renew: boolean;
-    element_owner: string | null;
-    element_notes: string | null;
-    element_status: number;
-    element_created_on: string | null;
-    element_modified_on: string | null;
-};
+type RenewalItem = ServiceRenewalsItem1;
 
 type RenewalForm = {
     recid: number | null;
@@ -185,7 +174,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
             if (categoryFilter) {
                 params.category = categoryFilter;
             }
-            const res = await rpcCall<{ renewals: RenewalItem[] }>('urn:service:renewals:list:1', params);
+            const res = await fetchRenewalList(params);
             setRenewals(res.renewals || []);
             setForbidden(false);
         } catch (e: any) {
@@ -274,7 +263,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
     };
 
     const handleSave = async (): Promise<void> => {
-        await rpcCall<RenewalForm>('urn:service:renewals:upsert:1', {
+        await fetchRenewalUpsert({
             ...form,
             recid: form.recid,
             element_vendor: form.element_vendor || null,
@@ -285,16 +274,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
             element_currency: form.element_currency || null,
             element_owner: form.element_owner || null,
             element_notes: form.element_notes || null,
-        } as RenewalForm & {
-            element_vendor: string | null;
-            element_reference: string | null;
-            element_expires_on: string | null;
-            element_renew_by: string | null;
-            element_renewal_cost: string | null;
-            element_currency: string | null;
-            element_owner: string | null;
-            element_notes: string | null;
-        });
+        } as ServiceRenewalsUpsert1);
         await loadRenewals();
         showNotification(form.recid ? 'Renewal updated' : 'Renewal created');
         resetSelection();
@@ -304,14 +284,14 @@ const ServiceRenewalsPage = (): JSX.Element => {
         if (confirmDelete === null) {
             return;
         }
-        await rpcCall<{ recid: number; deleted: boolean }>('urn:service:renewals:delete:1', { recid: confirmDelete });
+        await fetchRenewalDelete({ recid: confirmDelete });
         await loadRenewals();
         showNotification('Renewal deleted');
         resetSelection();
     };
 
     const handlePaymentSubmit = async (): Promise<void> => {
-        await rpcCall('urn:service:payment_requests:create:1', {
+        await fetchPaymentCreate({
             vendor_name: paymentStandalone ? paymentVendor || null : form.element_vendor || null,
             amount: paymentForm.amount,
             currency: form.element_currency || 'USD',
@@ -321,7 +301,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
             period_start: paymentForm.period_start,
             period_end: paymentForm.period_end,
             renewal_recid: paymentStandalone ? null : form.recid,
-        });
+        } as any);
         showNotification('Payment request created');
         closePaymentDialog();
     };

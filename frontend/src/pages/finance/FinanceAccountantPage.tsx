@@ -26,7 +26,15 @@ import {
 } from "@mui/material";
 import Notification from "../../components/Notification";
 import PageTitle from "../../components/PageTitle";
-import { rpcCall } from "../../shared/RpcModels";
+import { fetchList as fetchPeriodsList, fetchListCloseBlockers } from '../../rpc/finance/periods';
+import { fetchList as fetchAccountsList } from '../../rpc/finance/accounts';
+import { fetchList as fetchLedgersList } from '../../rpc/finance/ledgers';
+import { fetchList as fetchNumbersList, fetchUpsert as fetchUpsertNumber, fetchDelete as fetchDeleteNumber, fetchNextNumber } from '../../rpc/finance/numbers';
+import { fetchJournalSummary, fetchCreditLotSummary } from '../../rpc/finance/reporting';
+import { fetchListImports, fetchListLineItems, fetchImport as fetchStagingImport, fetchImportInvoices, fetchDeleteImport, fetchPromote } from '../../rpc/finance/staging';
+import { fetchCreate as fetchJournalCreate, fetchLines as fetchJournalLines, fetchSubmitForApproval, fetchReverse as fetchJournalReverse } from '../../rpc/finance/journals';
+import { fetchCreate as fetchCreditLotCreate, fetchExpire as fetchCreditLotExpire, fetchListEvents as fetchCreditLotEvents } from '../../rpc/finance/credit_lots';
+import { fetchGet as fetchScheduledTaskGet } from '../../rpc/system/scheduled_tasks';
 
 type FinanceNumber = {
     recid?: number | null;
@@ -369,10 +377,10 @@ const FinanceAccountantPage = (): JSX.Element => {
 
     const loadShared = useCallback(async (): Promise<void> => {
         const [periodRes, accountRes, ledgerRes, numberRes] = await Promise.all([
-            rpcCall<{ periods: FinancePeriod[] }>("urn:finance:periods:list:1"),
-            rpcCall<{ accounts: FinanceAccount[] }>("urn:finance:accounts:list:1"),
-            rpcCall<{ ledgers: FinanceLedger[] }>("urn:finance:ledgers:list:1"),
-            rpcCall<{ numbers: FinanceNumber[] }>("urn:finance:numbers:list:1"),
+            fetchPeriodsList() as any,
+            fetchAccountsList() as any,
+            fetchLedgersList() as any,
+            fetchNumbersList() as any,
         ]);
         setPeriods(periodRes.periods || []);
         setAccounts(accountRes.accounts || []);
@@ -381,40 +389,41 @@ const FinanceAccountantPage = (): JSX.Element => {
     }, []);
 
     const loadJournals = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ journals: JournalSummaryRow[] }>("urn:finance:reporting:journal_summary:1", {
+        const res = await fetchJournalSummary({
             journal_status: journalStatus === "" ? null : Number(journalStatus),
             fiscal_year: selectedYear || null,
             periods_guid: selectedPeriodGuid || null,
-        });
+        }) as any;
         setJournals(res.journals || []);
     }, [journalStatus, selectedPeriodGuid, selectedYear]);
 
     const loadLots = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ lots: CreditLotSummaryRow[] }>("urn:finance:reporting:credit_lot_summary:1", {
+        const res = await fetchCreditLotSummary({
             users_guid: lotUserGuid || null,
-        });
+        }) as any;
         setLots(res.lots || []);
     }, [lotUserGuid]);
 
     const loadBillingImports = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1");
+        const res = await fetchListImports({}) as any;
         setBillingImports(res.imports || []);
     }, []);
 
     const loadApprovedImports = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1", { status: 1 });
+        const res = await fetchListImports({ status: 1 }) as any;
         setApprovedImports(res.imports || []);
     }, []);
 
     const loadLineItems = useCallback(async (importsRecid: number, setter: (items: StagingLineItem[]) => void): Promise<void> => {
-        const res = await rpcCall<{ line_items: StagingLineItem[] }>("urn:finance:staging:list_line_items:1", {
+        const res = await fetchListLineItems({
             imports_recid: importsRecid,
-        });
+        }) as any;
         setter(res.line_items || []);
     }, []);
 
     const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
-        const res = await rpcCall<{ events: AsyncTaskEvent[] }>("urn:system:tasks:events:1", { guid });
+        // TODO: system:tasks:events not yet available as generated wrapper
+        const res = await fetchScheduledTaskGet({ guid }) as any;
         setPromoteTaskEvents(res.events || []);
     }, []);
 
@@ -423,7 +432,7 @@ const FinanceAccountantPage = (): JSX.Element => {
         setReadinessLoading(true);
         setReadinessError(null);
         try {
-            const res = await rpcCall<{ blockers: PeriodCloseBlocker[] }>("urn:finance:periods:list_close_blockers:1", { guid });
+            const res = await fetchListCloseBlockers({ guid }) as any;
             setCloseBlockers(res.blockers || []);
         } catch (error: unknown) {
             setCloseBlockers([]);
@@ -495,7 +504,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 
         const pollTask = async (): Promise<void> => {
             try {
-                const task = await rpcCall<AsyncTask>("urn:system:tasks:get:1", { guid: promoteTaskGuid });
+                const task = await fetchScheduledTaskGet({ guid: promoteTaskGuid }) as any;
                 if (!active) {
                     return;
                 }
@@ -569,7 +578,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImporting(true);
                                         setBillingMessage(null);
                                         try {
-                                            await rpcCall("urn:finance:staging:import:1", { period_start: importStartDate, period_end: importEndDate });
+                                            await fetchStagingImport({ period_start: importStartDate, period_end: importEndDate });
                                             setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -591,7 +600,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImportingInvoices(true);
                                         setBillingMessage(null);
                                         try {
-                                            const res = await rpcCall<{ message?: string }>("urn:finance:staging:import_invoices:1", { period_month: invoiceMonth });
+                                            const res = await fetchImportInvoices({ period_month: invoiceMonth }) as any;
                                             setBillingMessage({ severity: "success", text: res.message || "PAYG invoice import completed." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -613,7 +622,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImportingInvoicesOrg(true);
                                         setBillingMessage(null);
                                         try {
-                                            const res = await rpcCall<{ message?: string }>("urn:finance:staging:import_invoices:1", {
+                                            const res = await fetchImportInvoices({
                                                 period_month: invoiceMonthOrg,
                                                 billing_account: "org",
                                             });
@@ -678,7 +687,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                                         if (!window.confirm(`Delete staging import #${row.recid}?`)) {
                                                             return;
                                                         }
-                                                        await rpcCall("urn:finance:staging:delete_import:1", { imports_recid: row.recid });
+                                                        await fetchDeleteImport({ imports_recid: row.recid });
                                                         if (selectedBillingImport === row.recid) {
                                                             setSelectedBillingImport(null);
                                                         }
@@ -752,7 +761,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                     if (selectedApprovedImport === null) {
                                         return;
                                     }
-                                    const res = await rpcCall<{ task_guid: string }>("urn:finance:staging:promote:1", {
+                                    const res = await fetchPromote({
                                         imports_recid: selectedApprovedImport,
                                         ledgers_recid: selectedLedgerRecid,
                                     });
@@ -1021,7 +1030,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         key={row.recid}
                                         sx={{ cursor: "pointer" }}
                                         onClick={async () => {
-                                            const res = await rpcCall<{ lines: JournalLine[] }>("urn:finance:journals:get_lines:1", { journals_recid: row.recid });
+                                            const res = await fetchJournalLines({ journals_recid: row.recid }) as any;
                                             setJournalLines(res.lines || []);
                                             setSelectedJournal(row);
                                             setJournalDialogOpen(true);
@@ -1043,7 +1052,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                                         size="small"
                                                         variant="contained"
                                                         onClick={async () => {
-                                                            await rpcCall("urn:finance:journals:submit_for_approval:1", { recid: row.recid });
+                                                            await fetchSubmitForApproval({ recid: row.recid });
                                                             await loadJournals();
                                                         }}
                                                     >
@@ -1058,7 +1067,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                                             if (!window.confirm("Reverse this journal?")) {
                                                                 return;
                                                             }
-                                                            await rpcCall("urn:finance:journals:reverse:1", { recid: row.recid });
+                                                            await fetchJournalReverse({ recid: row.recid });
                                                             await loadJournals();
                                                         }}
                                                     >
@@ -1102,7 +1111,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                         <TableBody>
                             {lots.map((row) => (
                                 <TableRow key={row.recid} hover sx={{ cursor: "pointer" }} onClick={async () => {
-                                    const res = await rpcCall<{ events: CreditLotEvent[] }>("urn:finance:credit_lots:list_events:1", { lots_recid: row.recid });
+                                    const res = await fetchCreditLotEvents({ lots_recid: row.recid }) as any;
                                     setLotEvents(res.events || []);
                                     setLotDialogOpen(true);
                                 }}>
@@ -1121,7 +1130,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                                 if (!window.confirm("Expire this credit lot?")) {
                                                     return;
                                                 }
-                                                await rpcCall("urn:finance:credit_lots:expire:1", { recid: row.recid });
+                                                await fetchCreditLotExpire({ recid: row.recid });
                                                 await loadLots();
                                             }}>Expire</Button>
                                         )}
@@ -1157,7 +1166,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                             <Button
                                 variant="contained"
                                 onClick={async () => {
-                                    await rpcCall("urn:finance:numbers:upsert:1", numberForm);
+                                    await fetchUpsertNumber(numberForm);
                                     setNumberForm({ recid: null, accounts_guid: "", prefix: "", account_number: "", last_number: 1000, allocation_size: 10, reset_policy: "Never" });
                                     await loadShared();
                                 }}
@@ -1188,8 +1197,8 @@ const FinanceAccountantPage = (): JSX.Element => {
                                     <TableCell>
                                         <Stack direction="row" spacing={1}>
                                             <Button size="small" onClick={() => setNumberForm(item)}>Edit</Button>
-                                            <Button size="small" onClick={async () => { if (!item.recid) return; await rpcCall("urn:finance:numbers:next_number:1", { recid: item.recid }); await loadShared(); }}>Get Next</Button>
-                                            <Button size="small" color="error" onClick={async () => { if (!item.recid) return; await rpcCall("urn:finance:numbers:delete:1", { recid: item.recid }); await loadShared(); }}>Delete</Button>
+                                            <Button size="small" onClick={async () => { if (!item.recid) return; await fetchNextNumber({ recid: item.recid }); await loadShared(); }}>Get Next</Button>
+                                            <Button size="small" color="error" onClick={async () => { if (!item.recid) return; await fetchDeleteNumber({ recid: item.recid }); await loadShared(); }}>Delete</Button>
                                         </Stack>
                                     </TableCell>
                                 </TableRow>
@@ -1284,7 +1293,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 <DialogActions>
                     <Button onClick={() => setCreateJournalOpen(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async () => {
-                        await rpcCall("urn:finance:journals:create:1", journalForm);
+                        await fetchJournalCreate(journalForm as any);
                         setCreateJournalOpen(false);
                         setJournalForm({
                             name: "",
@@ -1348,7 +1357,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 <DialogActions>
                     <Button onClick={() => setGrantDialogOpen(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async () => {
-                        await rpcCall("urn:finance:credit_lots:create:1", grantForm);
+                        await fetchCreditLotCreate(grantForm as any);
                         setGrantDialogOpen(false);
                         await loadLots();
                     }}>Save</Button>
