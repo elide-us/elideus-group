@@ -546,3 +546,111 @@ class OpenaiModule(BaseModule):
     if isinstance(result, dict):
       result.pop("usage", None)
     return result
+
+  async def action_gather_stored_context(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = input_data.get("payload") or {}
+    context = input_data.get("context") or {}
+    personas_recid = context.get("personas_recid")
+    guild_id = payload.get("guild_id")
+    channel_id = payload.get("channel_id")
+    if personas_recid is None:
+      raise ValueError("context.personas_recid is required")
+    if guild_id is None or channel_id is None:
+      raise ValueError("payload.guild_id and payload.channel_id are required")
+    conversation_history = await self.get_recent_persona_conversation_history(int(personas_recid))
+    stored_channel_context = await self.get_channel_context(int(guild_id), int(channel_id))
+    return {
+      "context": {
+        "conversation_history": conversation_history,
+        "stored_channel_context": stored_channel_context,
+      }
+    }
+
+  async def action_generate_response(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = input_data.get("payload") or {}
+    context = input_data.get("context") or {}
+    persona_name = str(payload.get("persona") or "").strip()
+    message = str(payload.get("message") or "").strip()
+    if not persona_name:
+      raise ValueError("payload.persona is required")
+    if not message:
+      raise ValueError("payload.message is required")
+
+    persona_details = context.get("persona_details") or {}
+    system_prompt = str(persona_details.get("prompt") or "").strip()
+    if not system_prompt:
+      raise ValueError(f"persona '{persona_name}' is missing instructions")
+
+    thread_id = str(context.get("thread_id") or f"persona:{persona_name}:{datetime.now(timezone.utc).isoformat()}")
+    conversation_history = context.get("conversation_history") or []
+    stored_channel_context = context.get("stored_channel_context") or []
+    channel_history = context.get("channel_history") or []
+    history_lines = []
+
+    def _extend_history(items: Any):
+      if not isinstance(items, list):
+        return
+      for item in items:
+        if isinstance(item, dict):
+          role = str(item.get("role") or item.get("author") or "user").strip()
+          content = str(item.get("content") or "").strip()
+          if content:
+            history_lines.append(f"{role}: {content}")
+
+    _extend_history(conversation_history)
+    _extend_history(stored_channel_context)
+    _extend_history(channel_history)
+    prompt_context = "\n".join(history_lines)
+
+    response = await self.generate_chat(
+      system_prompt=system_prompt,
+      user_prompt=message,
+      model=context.get("model"),
+      max_tokens=context.get("max_tokens"),
+      prompt_context=prompt_context,
+      persona=persona_name,
+      persona_details=persona_details,
+      guild_id=payload.get("guild_id"),
+      channel_id=payload.get("channel_id"),
+      user_id=payload.get("user_id"),
+      input_log=message,
+    )
+
+    response_text = str(response.get("content") or "")
+    model_used = response.get("model") or context.get("model")
+    usage = response.get("usage")
+    personas_recid = context.get("personas_recid")
+    models_recid = context.get("models_recid")
+    if personas_recid is None or models_recid is None:
+      raise ValueError("context.personas_recid and context.models_recid are required")
+
+    await self.log_message(
+      personas_recid=int(personas_recid),
+      models_recid=int(models_recid),
+      role="user",
+      content=message,
+      guild_id=payload.get("guild_id"),
+      channel_id=payload.get("channel_id"),
+      user_id=payload.get("user_id"),
+      thread_id=thread_id,
+    )
+    await self.log_message(
+      personas_recid=int(personas_recid),
+      models_recid=int(models_recid),
+      role="assistant",
+      content=response_text,
+      guild_id=payload.get("guild_id"),
+      channel_id=payload.get("channel_id"),
+      user_id=payload.get("user_id"),
+      thread_id=thread_id,
+      tokens=(usage or {}).get("total_tokens") if isinstance(usage, dict) else None,
+    )
+
+    return {
+      "context": {
+        "response_text": response_text,
+        "model_used": model_used,
+        "thread_id": thread_id,
+        "usage": usage,
+      }
+    }

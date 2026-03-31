@@ -272,8 +272,6 @@ class DiscordInputProvider(SocialInputProvider):
       await self._queue_channel_notice(ctx, f"Error: {exc}", reason="guildcredits_command_error")
 
   async def _handle_persona_command(self, ctx, request: str | None):
-    from rpc.handler import dispatch_rpc_op
-
     start = time.perf_counter()
     guild_id = getattr(ctx.guild, "id", 0)
     user_id = getattr(ctx.author, "id", 0)
@@ -290,36 +288,26 @@ class DiscordInputProvider(SocialInputProvider):
 
     persona = parts[0].strip()
     message = parts[1].strip()
-    metadata = {
-      "guild_id": guild_id,
-      "channel_id": channel_id,
-      "user_id": user_id,
-    }
+    workflow = getattr(self.discord.app.state, "workflow", None)
+    if not workflow:
+      await self._queue_channel_notice(ctx, "Persona chat is currently unavailable.", reason="workflow_unavailable")
+      return
+    await workflow.on_ready()
 
     try:
-      resp = await dispatch_rpc_op(
-        self.discord.app,
-        "urn:discord:chat:persona_command:1",
+      await workflow.submit(
+        "persona_conversation",
         {
           "persona": persona,
           "message": message,
           "guild_id": guild_id,
           "channel_id": channel_id,
           "user_id": user_id,
+          "source": "discord",
         },
-        discord_ctx=metadata,
+        trigger_type_code=4,
+        trigger_ref=f"discord:{channel_id}",
       )
-      payload = resp.payload
-      if hasattr(payload, "model_dump"):
-        data = payload.model_dump()
-      elif isinstance(payload, dict):
-        data = dict(payload)
-      else:
-        data = {"success": bool(payload)}
-
-      if not data.get("success"):
-        ack = data.get("ack_message") or "Persona chat is currently unavailable."
-        await self._queue_channel_notice(ctx, ack, reason=data.get("reason") or "persona_failed")
     except Exception:
       elapsed = time.perf_counter() - start
       logging.exception(
@@ -343,8 +331,8 @@ class DiscordInputProvider(SocialInputProvider):
         "channel_id": channel_id,
         "user_id": user_id,
         "persona": persona,
-        "success": data.get("success"),
-        "reason": data.get("reason"),
+        "success": True,
+        "reason": "workflow_submitted",
         "elapsed": elapsed,
       },
     )

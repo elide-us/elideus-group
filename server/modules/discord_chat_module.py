@@ -403,3 +403,69 @@ class DiscordChatModule(BaseModule):
       )
     return {"success": True, "channel_history": channel_history}
 
+  async def deliver_persona_response(
+    self,
+    *,
+    channel_id: int | None,
+    response_text: str,
+  ) -> Dict[str, Any]:
+    if not self.discord:
+      raise RuntimeError("Discord bot module is not available")
+    await self.discord.on_ready()
+    if channel_id is None:
+      raise ValueError("channel_id is required")
+    content = (response_text or "").strip()
+    if not content:
+      raise ValueError("response_text is required")
+    await self.discord.queue_channel_message(int(channel_id), content)
+    return {"success": True, "channel_id": int(channel_id)}
+
+  async def action_resolve_persona(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = input_data.get("payload") or {}
+    persona_name = str(payload.get("persona") or "").strip()
+    if not persona_name:
+      raise ValueError("payload.persona is required")
+    openai = getattr(self.app.state, "openai", None)
+    if not openai:
+      raise RuntimeError("OpenAI module is not available")
+    await openai.on_ready()
+    persona_details = await openai.get_persona_definition(persona_name)
+    if not persona_details:
+      raise ValueError(f"persona '{persona_name}' was not found")
+    return {
+      "context": {
+        "persona_details": persona_details,
+        "personas_recid": persona_details.get("recid"),
+        "models_recid": persona_details.get("models_recid"),
+        "model": persona_details.get("model"),
+        "max_tokens": persona_details.get("tokens"),
+      }
+    }
+
+  async def action_gather_channel_history(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = input_data.get("payload") or {}
+    source = str(payload.get("source") or "").lower()
+    if source and source != "discord":
+      raise ValueError(f"source '{source}' does not support discord channel history")
+    guild_id = payload.get("guild_id")
+    channel_id = payload.get("channel_id")
+    if guild_id is None or channel_id is None:
+      raise ValueError("payload.guild_id and payload.channel_id are required")
+    result = await self.get_channel_history(int(guild_id), int(channel_id), persona=payload.get("persona"), user_id=payload.get("user_id"))
+    if not result.get("success"):
+      raise RuntimeError(result.get("reason") or "channel_history_unavailable")
+    return {"context": {"channel_history": result.get("channel_history") or []}}
+
+  async def action_deliver_discord(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = input_data.get("payload") or {}
+    context = input_data.get("context") or {}
+    source = str(payload.get("source") or "").lower()
+    outputs = payload.get("outputs")
+    if source != "discord" and not (isinstance(outputs, list) and "discord" in outputs):
+      raise ValueError("discord delivery not requested")
+    channel_id = payload.get("channel_id")
+    response_text = str(context.get("response_text") or "").strip()
+    if channel_id is None:
+      raise ValueError("payload.channel_id is required")
+    await self.deliver_persona_response(channel_id=int(channel_id), response_text=response_text)
+    return {"context": {"delivered_discord": True}}
