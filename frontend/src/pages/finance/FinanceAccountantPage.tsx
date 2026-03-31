@@ -423,7 +423,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 
     const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
         // TODO: system:tasks:events not yet available as generated wrapper
-        const res = await fetchScheduledTaskGet({ guid }) as any;
+        const res = await (fetchScheduledTaskGet as any)({ guid });
         setPromoteTaskEvents(res.events || []);
     }, []);
 
@@ -504,7 +504,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 
         const pollTask = async (): Promise<void> => {
             try {
-                const task = await fetchScheduledTaskGet({ guid: promoteTaskGuid }) as any;
+                const task = await (fetchScheduledTaskGet as any)({ guid: promoteTaskGuid });
                 if (!active) {
                     return;
                 }

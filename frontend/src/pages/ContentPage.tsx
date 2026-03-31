@@ -33,7 +33,7 @@ const markdownBodySx = {
 	'& a': { color: 'primary.main' },
 };
 
-const formatDisplayDate = (isoDate: string | null): string => {
+const formatDisplayDate = (isoDate: string | null | undefined): string => {
 	if (!isoDate) {
 		return '';
 	}

@@ -197,7 +197,7 @@ const ServiceVisualizationPage = (): JSX.Element => {
     useEffect(() => {
         void (async () => {
             try {
-                const schema = await fetchFullSchema();
+                const schema = await fetchFullSchema() as any;
 
                 const tables: TableDef[] = (schema.tables ?? []).map((table: any) => ({
                     recid: table.recid,

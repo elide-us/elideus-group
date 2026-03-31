@@ -264,23 +264,38 @@ def _py_to_ts(py_type: Any) -> str:
   return "any"
 
 
-def _field_has_default(field) -> bool:
-  """Check whether a Pydantic field has a default value (including None)."""
+def _field_is_optional(field) -> bool:
+  """Check whether a Pydantic field should be optional (?) in TypeScript.
+
+  A field is optional when it has a default value AND its type does not
+  already include None. Fields typed as ``Optional[X]`` (i.e. ``X | None``)
+  already accept null as a value and should be required in TypeScript —
+  the caller must explicitly pass null rather than omitting the field.
+  Only fields with non-None defaults (e.g. ``field: int = 0``) or
+  factory defaults (e.g. ``field: list[X] = []``) get the ``?`` marker.
+  """
   try:
     from pydantic_core import PydanticUndefined
-    default = getattr(field, 'default', PydanticUndefined)
-    if default is not PydanticUndefined:
-      return True
-    if getattr(field, 'default_factory', None) is not None:
-      return True
+    sentinel = PydanticUndefined
   except ImportError:
-    from pydantic.fields import Undefined  # type: ignore
-    default = getattr(field, 'default', Undefined)
-    if default is not Undefined:
-      return True
-    if getattr(field, 'default_factory', None) is not None:
-      return True
-  return False
+    from pydantic.fields import Undefined as sentinel  # type: ignore
+
+  default = getattr(field, 'default', sentinel)
+  has_default = default is not sentinel or getattr(field, 'default_factory', None) is not None
+  if not has_default:
+    return False
+
+  # If the annotation includes None (Optional / Union with None), the TS
+  # type already has ``| null`` — don't add ``?`` which would introduce
+  # ``| undefined`` on top.
+  annotation = getattr(field, 'annotation', None) or getattr(field, 'outer_type_', None)
+  if annotation is not None:
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+    if origin is Union and type(None) in args:
+      return False
+
+  return True
 
 
 def model_to_ts(model: type[BaseModel]) -> str:
@@ -291,7 +306,7 @@ def model_to_ts(model: type[BaseModel]) -> str:
   for name, field in fields.items():
     annotation = getattr(field, "annotation", None) or getattr(field, "outer_type_", None)
     ts_type = _py_to_ts(annotation)
-    optional = '?' if _field_has_default(field) else ''
+    optional = '?' if _field_is_optional(field) else ''
     lines.append(f"  {name}{optional}: {ts_type};")
   lines.append("}")
   return "\n".join(lines)
