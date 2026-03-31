@@ -297,3 +297,48 @@ async def oracle_list_rpc_endpoints(ctx: Context) -> Any:
   app = _get_gateway().app
   response = await dispatch_rpc_op(app, "urn:service:reflection:list_rpc_endpoints:1", {}, auth_ctx=auth_ctx)
   return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_rpc_domains(ctx: Context) -> Any:
+  """List RPC domain registrations from the reflection dispatch catalog."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_domains:1", {}, auth_ctx=auth_ctx)
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_rpc_subdomains(ctx: Context) -> Any:
+  """List RPC subdomain registrations from the reflection dispatch catalog."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_subdomains:1", {}, auth_ctx=auth_ctx)
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_rpc_functions(ctx: Context) -> Any:
+  """List RPC function registrations with module bindings and model references."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_functions:1", {}, auth_ctx=auth_ctx)
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_rpc_models(ctx: Context) -> Any:
+  """List RPC Pydantic model registrations with domain and version metadata."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_models:1", {}, auth_ctx=auth_ctx)
+  return response.payload
+
+
+@mcp.tool(annotations=_TOOL_ANNOTATIONS)
+async def oracle_list_rpc_model_fields(ctx: Context) -> Any:
+  """List RPC model field registrations with EDT types, nullability, and references."""
+  auth_ctx = await _resolve_auth_to_rpc(ctx)
+  app = _get_gateway().app
+  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_model_fields:1", {}, auth_ctx=auth_ctx)
+  return response.payload
