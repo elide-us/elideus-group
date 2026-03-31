@@ -580,24 +580,24 @@ const FinanceAdminPage = (): JSX.Element => {
     }, []);
 
     const loadProducts = useCallback(async (): Promise<void> => {
-        const response = await fetchFinanceProducts({}) as any;
+        const response = await fetchFinanceProducts({} as any) as any;
         setProducts((response.products || []).map(normalizeProduct));
     }, []);
 
     const loadApprovedProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await fetchProductJournalConfigs({ status: 1 }) as any;
+        const response = await fetchProductJournalConfigs({ status: 1 } as any) as any;
         setApprovedProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadActiveProductConfigs = useCallback(async (): Promise<void> => {
-        const response = await fetchProductJournalConfigs({ status: 2 }) as any;
+        const response = await fetchProductJournalConfigs({ status: 2 } as any) as any;
         setActiveProductConfigs((response.configs || []).map(normalizeProductJournalConfig));
     }, []);
 
     const loadProductConfigReferences = useCallback(async (): Promise<void> => {
         const [periodResponse, journalResponse] = await Promise.all([
             fetchPeriods() as any,
-            fetchJournalsList({}) as any,
+            fetchJournalsList({} as any) as any,
         ]);
         setProductConfigPeriods(
             (periodResponse.periods || [])
@@ -890,7 +890,7 @@ const FinanceAdminPage = (): JSX.Element => {
             setIsBusy(true);
             setPageError(null);
             setSuccessMessage(null);
-            const response = await fetchGenerateCalendar({ fiscal_year: fiscalYear });
+            const response = await fetchGenerateCalendar({ fiscal_year: fiscalYear } as any);
             const createdCount = Array.isArray(response.periods) ? response.periods.length : 0;
             setSuccessMessage(`Generated ${createdCount} fiscal periods for ${fiscalYear}.`);
             await refreshFinanceAdminData();
@@ -933,7 +933,7 @@ const FinanceAdminPage = (): JSX.Element => {
     const saveAccount = async (): Promise<void> => {
         try {
             setPageError(null);
-            await fetchUpsertAccount(newAccount);
+            await fetchUpsertAccount(newAccount as any);
             setNewAccount({
                 number: "",
                 name: "",
@@ -951,7 +951,7 @@ const FinanceAdminPage = (): JSX.Element => {
     const saveDimension = async (): Promise<void> => {
         try {
             setPageError(null);
-            await fetchUpsertDimension(dimensionForm);
+            await fetchUpsertDimension(dimensionForm as any);
             setDimensionForm({ recid: null, name: "", value: "", description: "", status: 1 });
             await loadDimensions();
         } catch (error: unknown) {
@@ -991,7 +991,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 element_priority: mappingForm.element_priority,
                 element_description: mappingForm.element_description || null,
                 element_status: mappingForm.element_status ? 1 : 0,
-            });
+            } as any);
             setMappingForm(EMPTY_MAPPING_FORM);
             setMappingFormOpen(false);
             setSuccessMessage("Account mapping saved.");
@@ -1090,7 +1090,7 @@ const FinanceAdminPage = (): JSX.Element => {
                 scope: numberForm.scope || null,
                 pattern: numberForm.pattern || null,
                 display_format: numberForm.display_format || null,
-            });
+            } as any);
             setNumberForm(EMPTY_NUMBER_FORM);
             setNumberFormOpen(false);
             setSuccessMessage("Number sequence saved.");

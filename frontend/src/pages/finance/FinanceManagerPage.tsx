@@ -420,7 +420,7 @@ const FinanceManagerPage = (): JSX.Element => {
     }, []);
 
     const loadAllPeriodStatus = useCallback(async (): Promise<void> => {
-        const res = await fetchPeriodStatus({}) as any;
+        const res = await fetchPeriodStatus({} as any) as any;
         setAllPeriodStatusRows(res.periods || []);
     }, []);
 
@@ -450,10 +450,10 @@ const FinanceManagerPage = (): JSX.Element => {
 
     const loadProductJournalConfigData = useCallback(async (): Promise<void> => {
         const [configResponse, periodResponse, journalResponse, productResponse] = await Promise.all([
-            fetchProductJournalConfigList({}) as any,
+            fetchProductJournalConfigList({} as any) as any,
             fetchPeriodsList() as any,
-            fetchJournalsList({ status: 0 }) as any,
-            fetchProductsList({}) as any,
+            fetchJournalsList({ status: 0 } as any) as any,
+            fetchProductsList({} as any) as any,
         ]);
         const openConfigPeriods = (periodResponse.periods || []).filter((period: any) => period.status === 1 && period.guid);
         const configRows = (configResponse.configs || []).map(normalizeProductJournalConfig);
