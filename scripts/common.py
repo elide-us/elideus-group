@@ -264,6 +264,25 @@ def _py_to_ts(py_type: Any) -> str:
   return "any"
 
 
+def _field_has_default(field) -> bool:
+  """Check whether a Pydantic field has a default value (including None)."""
+  try:
+    from pydantic_core import PydanticUndefined
+    default = getattr(field, 'default', PydanticUndefined)
+    if default is not PydanticUndefined:
+      return True
+    if getattr(field, 'default_factory', None) is not None:
+      return True
+  except ImportError:
+    from pydantic.fields import Undefined  # type: ignore
+    default = getattr(field, 'default', Undefined)
+    if default is not Undefined:
+      return True
+    if getattr(field, 'default_factory', None) is not None:
+      return True
+  return False
+
+
 def model_to_ts(model: type[BaseModel]) -> str:
   fields = getattr(model, "model_fields", None) or getattr(model, "__fields__", {})
   if not fields:
@@ -272,6 +291,7 @@ def model_to_ts(model: type[BaseModel]) -> str:
   for name, field in fields.items():
     annotation = getattr(field, "annotation", None) or getattr(field, "outer_type_", None)
     ts_type = _py_to_ts(annotation)
-    lines.append(f"  {name}: {ts_type};")
+    optional = '?' if _field_has_default(field) else ''
+    lines.append(f"  {name}{optional}: {ts_type};")
   lines.append("}")
   return "\n".join(lines)
