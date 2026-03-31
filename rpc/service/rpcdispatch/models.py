@@ -25,7 +25,7 @@ class ServiceRpcdispatchDomainList1(BaseModel):
 
 class ServiceRpcdispatchSubdomainItem1(BaseModel):
   recid: int
-  domains_recid: int
+  domains_guid: str
   element_name: str
   element_entitlement_mask: int = 0
   element_status: int = 1
@@ -41,13 +41,13 @@ class ServiceRpcdispatchSubdomainList1(BaseModel):
 
 class ServiceRpcdispatchFunctionItem1(BaseModel):
   recid: int
-  subdomains_recid: int
+  subdomains_guid: str
   element_name: str
   element_version: int = 1
   element_module_attr: str
   element_method_name: str
-  element_request_model_recid: int | None = None
-  element_response_model_recid: int | None = None
+  element_request_model_guid: str | None = None
+  element_response_model_guid: str | None = None
   element_status: int = 1
   element_app_version: str | None = None
   element_iteration: int = 1
@@ -79,13 +79,13 @@ class ServiceRpcdispatchModelList1(BaseModel):
 
 class ServiceRpcdispatchModelFieldItem1(BaseModel):
   recid: int
-  models_recid: int
+  models_guid: str
   element_name: str
   element_edt_recid: int | None = None
   element_is_nullable: bool = False
   element_is_list: bool = False
   element_is_dict: bool = False
-  element_ref_model_recid: int | None = None
+  element_ref_model_guid: str | None = None
   element_default_value: str | None = None
   element_max_length: int | None = None
   element_sort_order: int = 0

@@ -81,7 +81,6 @@ async def list_workflow_actions_v1(args: Mapping[str, Any]) -> DBResponse:
       a.element_rollback_functions_guid,
       a.element_sequence,
       a.element_is_optional,
-      a.element_timeout_seconds,
       a.element_config,
       a.element_is_active,
       a.element_created_on,

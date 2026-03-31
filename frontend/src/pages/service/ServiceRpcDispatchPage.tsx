@@ -74,9 +74,10 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
 
     const [loading, setLoading] = useState(false);
 
-    const domainMap = useMemo(() => new Map(domains.map((d) => [d.recid, d.element_name])), [domains]);
-    const subdomainMap = useMemo(() => new Map(subdomains.map((s) => [s.recid, s.element_name])), [subdomains]);
+    const domainGuidMap = useMemo(() => new Map(domains.map((d) => [String((d as any).element_guid), d.element_name])), [domains]);
+    const subdomainGuidMap = useMemo(() => new Map(subdomains.map((s) => [String((s as any).element_guid), s.element_name])), [subdomains]);
     const modelMap = useMemo(() => new Map(models.map((m) => [m.recid, m.element_name])), [models]);
+    const modelGuidMap = useMemo(() => new Map(models.map((m) => [String((m as any).element_guid), m.element_name])), [models]);
 
     const handleRpcError = (error: any): never => {
         if (error?.response?.status === 403) {
@@ -251,7 +252,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
                                 {subdomains.map((row) => (
                                     <TableRow key={row.recid}>
                                         <TableCell>{row.element_name}</TableCell>
-                                        <TableCell>{domainMap.get(row.domains_recid) ?? `#${row.domains_recid}`}</TableCell>
+                                        <TableCell>{domainGuidMap.get(row.domains_guid) ?? `#${row.domains_guid}`}</TableCell>
                                         <TableCell>{row.element_entitlement_mask}</TableCell>
                                         <TableCell>{statusChip(row.element_status)}</TableCell>
                                         <TableCell>{emptyValue(row.element_app_version)}</TableCell>
@@ -281,19 +282,19 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
                                     <TableRow key={row.recid}>
                                         <TableCell>{row.element_name}</TableCell>
                                         <TableCell>{row.element_version}</TableCell>
-                                        <TableCell>{subdomainMap.get(row.subdomains_recid) ?? `#${row.subdomains_recid}`}</TableCell>
+                                        <TableCell>{subdomainGuidMap.get(row.subdomains_guid) ?? `#${row.subdomains_guid}`}</TableCell>
                                         <TableCell>{row.element_module_attr}</TableCell>
                                         <TableCell>{row.element_method_name}</TableCell>
                                         <TableCell>
-                                            {row.element_request_model_recid
-                                                ? modelMap.get(row.element_request_model_recid) ??
-                                                  `#${row.element_request_model_recid}`
+                                            {row.element_request_model_guid
+                                                ? modelGuidMap.get(row.element_request_model_guid) ??
+                                                  `#${row.element_request_model_guid}`
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>
-                                            {row.element_response_model_recid
-                                                ? modelMap.get(row.element_response_model_recid) ??
-                                                  `#${row.element_response_model_recid}`
+                                            {row.element_response_model_guid
+                                                ? modelGuidMap.get(row.element_response_model_guid) ??
+                                                  `#${row.element_response_model_guid}`
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>{statusChip(row.element_status)}</TableCell>
@@ -355,7 +356,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
                                 {fields.map((row) => (
                                     <TableRow key={row.recid}>
                                         <TableCell>{row.element_name}</TableCell>
-                                        <TableCell>{modelMap.get(row.models_recid) ?? `#${row.models_recid}`}</TableCell>
+                                        <TableCell>{modelGuidMap.get(row.models_guid) ?? `#${row.models_guid}`}</TableCell>
                                         <TableCell>
                                             {row.element_edt_recid
                                                 ? EDT_NAME_BY_RECID[row.element_edt_recid] ?? `#${row.element_edt_recid}`
@@ -365,9 +366,9 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
                                         <TableCell>{boolChip(row.element_is_list)}</TableCell>
                                         <TableCell>{boolChip(row.element_is_dict)}</TableCell>
                                         <TableCell>
-                                            {row.element_ref_model_recid
-                                                ? modelMap.get(row.element_ref_model_recid) ??
-                                                  `#${row.element_ref_model_recid}`
+                                            {row.element_ref_model_guid
+                                                ? modelGuidMap.get(row.element_ref_model_guid) ??
+                                                  `#${row.element_ref_model_guid}`
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>{emptyValue(row.element_default_value)}</TableCell>
