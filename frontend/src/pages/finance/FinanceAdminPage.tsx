@@ -1091,6 +1091,8 @@ const FinanceAdminPage = (): JSX.Element => {
                 scope: numberForm.scope || null,
                 pattern: numberForm.pattern || null,
                 display_format: numberForm.display_format || null,
+                account_name: null,
+                remaining: null,
             });
             setNumberForm(EMPTY_NUMBER_FORM);
             setNumberFormOpen(false);
