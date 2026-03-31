@@ -420,7 +420,7 @@ const FinanceManagerPage = (): JSX.Element => {
     }, []);
 
     const loadAllPeriodStatus = useCallback(async (): Promise<void> => {
-        const res = await fetchPeriodStatus({} as any) as any;
+        const res = await fetchPeriodStatus({ fiscal_year: null }) as any;
         setAllPeriodStatusRows(res.periods || []);
     }, []);
 
@@ -450,10 +450,10 @@ const FinanceManagerPage = (): JSX.Element => {
 
     const loadProductJournalConfigData = useCallback(async (): Promise<void> => {
         const [configResponse, periodResponse, journalResponse, productResponse] = await Promise.all([
-            fetchProductJournalConfigList({} as any) as any,
+            fetchProductJournalConfigList({ category: null, periods_guid: null, status: null }) as any,
             fetchPeriodsList() as any,
-            fetchJournalsList({ status: 0 } as any) as any,
-            fetchProductsList({} as any) as any,
+            fetchJournalsList({ status: 0, periods_guid: null }) as any,
+            fetchProductsList({ category: null, status: null }) as any,
         ]);
         const openConfigPeriods = (periodResponse.periods || []).filter((period: any) => period.status === 1 && period.guid);
         const configRows = (configResponse.configs || []).map(normalizeProductJournalConfig);
@@ -1199,7 +1199,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                 journals_recid: Number(configForm.journals_recid),
                                                 periods_guid: configForm.periods_guid,
                                                 status: 0,
-                                            } as any);
+                                            });
                                             setConfigSuccess("Product journal configuration created.");
                                             await loadProductJournalConfigData();
                                         } catch (error: unknown) {

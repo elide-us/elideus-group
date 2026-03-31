@@ -62,11 +62,16 @@ const setUserData = useCallback((data: AuthTokens) => {
                                 account
                                 });
                                 const data = await fetchMicrosoftOauthLogin({
-                                idToken: result.idToken,
-                                accessToken: result.accessToken,
                                 provider: 'microsoft',
+                                idToken: result.idToken,
+                                id_token: null,
+                                accessToken: result.accessToken,
+                                access_token: null,
                                 fingerprint: getFingerprint(),
-                                } as any) as unknown as AuthMicrosoftOauthLogin1;
+                                confirm: null,
+                                reauthToken: null,
+                                reAuthToken: null,
+                                }) as unknown as AuthMicrosoftOauthLogin1;
                                                                                 setUserData({ provider: 'microsoft', ...data });
                                                                 } catch {
                                                                                 /* silent token acquisition failed */

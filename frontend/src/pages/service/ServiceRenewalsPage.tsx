@@ -170,11 +170,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
 
     const loadRenewals = useCallback(async (): Promise<void> => {
         try {
-            const params: Record<string, unknown> = {};
-            if (categoryFilter) {
-                params.category = categoryFilter;
-            }
-            const res = await fetchRenewalList(params as any);
+            const res = await fetchRenewalList({ category: categoryFilter || null, status: null });
             setRenewals(res.renewals || []);
             setForbidden(false);
         } catch (e: any) {
@@ -292,7 +288,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
 
     const handlePaymentSubmit = async (): Promise<void> => {
         await fetchPaymentCreate({
-            vendor_name: paymentStandalone ? paymentVendor || null : form.element_vendor || null,
+            vendor_name: paymentStandalone ? paymentVendor || '' : form.element_vendor || '',
             amount: paymentForm.amount,
             currency: form.element_currency || 'USD',
             description: paymentForm.description,
@@ -301,7 +297,7 @@ const ServiceRenewalsPage = (): JSX.Element => {
             period_start: paymentForm.period_start,
             period_end: paymentForm.period_end,
             renewal_recid: paymentStandalone ? null : form.recid,
-        } as any);
+        });
         showNotification('Payment request created');
         closePaymentDialog();
     };

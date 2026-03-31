@@ -37,14 +37,22 @@ import { fetchCreate as fetchCreditLotCreate, fetchExpire as fetchCreditLotExpir
 import { fetchGet as fetchScheduledTaskGet } from '../../rpc/system/scheduled_tasks';
 
 type FinanceNumber = {
-    recid?: number | null;
+    recid: number | null;
     accounts_guid: string;
-    prefix?: string | null;
+    prefix: string | null;
     account_number: string;
     last_number: number;
+    max_number: number | null;
     allocation_size: number;
     reset_policy: string;
-    account_name?: string | null;
+    sequence_status: number;
+    sequence_type: string;
+    series_number: number;
+    scope: string | null;
+    pattern: string | null;
+    display_format: string | null;
+    account_name: string | null;
+    remaining: number | null;
 };
 
 type FinanceAccount = {
@@ -299,11 +307,20 @@ const FinanceAccountantPage = (): JSX.Element => {
     const [numberForm, setNumberForm] = useState<FinanceNumber>({
         recid: null,
         accounts_guid: "",
-        prefix: "",
+        prefix: null,
         account_number: "",
         last_number: 1000,
+        max_number: null,
         allocation_size: 10,
         reset_policy: "Never",
+        sequence_status: 1,
+        sequence_type: "continuous",
+        series_number: 1,
+        scope: null,
+        pattern: null,
+        display_format: null,
+        account_name: null,
+        remaining: null,
     });
 
     const [importStartDate, setImportStartDate] = useState("");
@@ -405,7 +422,7 @@ const FinanceAccountantPage = (): JSX.Element => {
     }, [lotUserGuid]);
 
     const loadBillingImports = useCallback(async (): Promise<void> => {
-        const res = await fetchListImports({ status: null } as any) as any;
+        const res = await fetchListImports({ status: null }) as any;
         setBillingImports(res.imports || []);
     }, []);
 
@@ -578,7 +595,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImporting(true);
                                         setBillingMessage(null);
                                         try {
-                                            await fetchStagingImport({ period_start: importStartDate, period_end: importEndDate } as any);
+                                            await fetchStagingImport({ period_start: importStartDate, period_end: importEndDate, metric: 'cost' });
                                             setBillingMessage({ severity: "success", text: "Cost detail import started successfully." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -600,7 +617,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                                         setImportingInvoices(true);
                                         setBillingMessage(null);
                                         try {
-                                            const res = await fetchImportInvoices({ period_month: invoiceMonth } as any) as any;
+                                            const res = await fetchImportInvoices({ period_month: invoiceMonth, billing_account: null }) as any;
                                             setBillingMessage({ severity: "success", text: res.message || "PAYG invoice import completed." });
                                             await loadBillingImports();
                                         } catch (error: any) {
@@ -1166,8 +1183,8 @@ const FinanceAccountantPage = (): JSX.Element => {
                             <Button
                                 variant="contained"
                                 onClick={async () => {
-                                    await fetchUpsertNumber(numberForm as any);
-                                    setNumberForm({ recid: null, accounts_guid: "", prefix: "", account_number: "", last_number: 1000, allocation_size: 10, reset_policy: "Never" });
+                                    await fetchUpsertNumber(numberForm);
+                                    setNumberForm({ recid: null, accounts_guid: "", prefix: null, account_number: "", last_number: 1000, max_number: null, allocation_size: 10, reset_policy: "Never", sequence_status: 1, sequence_type: "continuous", series_number: 1, scope: null, pattern: null, display_format: null, account_name: null, remaining: null });
                                     await loadShared();
                                 }}
                             >
@@ -1293,7 +1310,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 <DialogActions>
                     <Button onClick={() => setCreateJournalOpen(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async () => {
-                        await fetchJournalCreate(journalForm as any);
+                        await fetchJournalCreate(journalForm);
                         setCreateJournalOpen(false);
                         setJournalForm({
                             name: "",
@@ -1357,7 +1374,7 @@ const FinanceAccountantPage = (): JSX.Element => {
                 <DialogActions>
                     <Button onClick={() => setGrantDialogOpen(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async () => {
-                        await fetchCreditLotCreate(grantForm as any);
+                        await fetchCreditLotCreate(grantForm);
                         setGrantDialogOpen(false);
                         await loadLots();
                     }}>Save</Button>
