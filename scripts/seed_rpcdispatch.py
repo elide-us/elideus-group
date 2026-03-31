@@ -494,6 +494,15 @@ def main() -> None:
 
     cursor.execute(
       """
+      SELECT *
+      INTO #workflow_run_actions_stash
+      FROM system_workflow_run_actions;
+      """
+    )
+    cursor.execute("DELETE FROM system_workflow_run_actions;")
+
+    cursor.execute(
+      """
       SELECT
         element_guid,
         workflows_guid,
@@ -695,6 +704,28 @@ def main() -> None:
       """
     )
     cursor.execute("DROP TABLE IF EXISTS #workflow_actions_stash;")
+
+    cursor.execute(
+      """
+      SET IDENTITY_INSERT system_workflow_run_actions ON;
+      INSERT INTO system_workflow_run_actions (
+        recid, element_guid, runs_recid, actions_guid,
+        element_status, element_sequence, element_input, element_output,
+        element_error, element_retry_count, element_external_ref,
+        element_poll_interval_seconds, element_started_on, element_ended_on,
+        element_created_on, element_modified_on
+      )
+      SELECT
+        recid, element_guid, runs_recid, actions_guid,
+        element_status, element_sequence, element_input, element_output,
+        element_error, element_retry_count, element_external_ref,
+        element_poll_interval_seconds, element_started_on, element_ended_on,
+        element_created_on, element_modified_on
+      FROM #workflow_run_actions_stash;
+      SET IDENTITY_INSERT system_workflow_run_actions OFF;
+      """
+    )
+    cursor.execute("DROP TABLE IF EXISTS #workflow_run_actions_stash;")
 
     cursor.execute("COMMIT TRANSACTION;")
 
