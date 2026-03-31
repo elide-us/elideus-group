@@ -40,11 +40,11 @@ const EDT_NAMES: Record<number, string> = {
     15: 'JSON',
 };
 
-function describeFieldType(field: ServiceRpcdispatchModelFieldItem1, modelMap: Map<number, string>): string {
+function describeFieldType(field: ServiceRpcdispatchModelFieldItem1, modelMap: Map<string, string>): string {
     const parts: string[] = [];
 
-    if (field.element_ref_model_recid) {
-        const refName = modelMap.get(field.element_ref_model_recid) ?? `Model#${field.element_ref_model_recid}`;
+    if (field.element_ref_model_guid) {
+        const refName = modelMap.get(field.element_ref_model_guid) ?? `Model#${field.element_ref_model_guid}`;
         if (field.element_is_list) {
             parts.push(`list[${refName}]`);
         } else {
@@ -132,39 +132,42 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
         void loadAll();
     }, [loadAll]);
 
-    const modelNameByRecid = useMemo(() => new Map(models.map((model) => [model.recid, model.element_name])), [models]);
+    const modelNameByGuid = useMemo(
+        () => new Map(models.map((model) => [String((model as any).element_guid), model.element_name])),
+        [models],
+    );
 
     const fieldsByModel = useMemo(() => {
-        const grouped = new Map<number, ServiceRpcdispatchModelFieldItem1[]>();
+        const grouped = new Map<string, ServiceRpcdispatchModelFieldItem1[]>();
         fields.forEach((field) => {
-            if (!grouped.has(field.models_recid)) {
-                grouped.set(field.models_recid, []);
+            if (!grouped.has(field.models_guid)) {
+                grouped.set(field.models_guid, []);
             }
-            grouped.get(field.models_recid)?.push(field);
+            grouped.get(field.models_guid)?.push(field);
         });
         grouped.forEach((modelFields) => modelFields.sort((a, b) => a.element_sort_order - b.element_sort_order));
         return grouped;
     }, [fields]);
 
     const subdomainsByDomain = useMemo(() => {
-        const grouped = new Map<number, ServiceRpcdispatchSubdomainItem1[]>();
+        const grouped = new Map<string, ServiceRpcdispatchSubdomainItem1[]>();
         subdomains.forEach((subdomain) => {
-            if (!grouped.has(subdomain.domains_recid)) {
-                grouped.set(subdomain.domains_recid, []);
+            if (!grouped.has(subdomain.domains_guid)) {
+                grouped.set(subdomain.domains_guid, []);
             }
-            grouped.get(subdomain.domains_recid)?.push(subdomain);
+            grouped.get(subdomain.domains_guid)?.push(subdomain);
         });
         grouped.forEach((items) => items.sort((a, b) => a.element_name.localeCompare(b.element_name)));
         return grouped;
     }, [subdomains]);
 
     const functionsBySubdomain = useMemo(() => {
-        const grouped = new Map<number, ServiceRpcdispatchFunctionItem1[]>();
+        const grouped = new Map<string, ServiceRpcdispatchFunctionItem1[]>();
         functions.forEach((fn) => {
-            if (!grouped.has(fn.subdomains_recid)) {
-                grouped.set(fn.subdomains_recid, []);
+            if (!grouped.has(fn.subdomains_guid)) {
+                grouped.set(fn.subdomains_guid, []);
             }
-            grouped.get(fn.subdomains_recid)?.push(fn);
+            grouped.get(fn.subdomains_guid)?.push(fn);
         });
         grouped.forEach((items) => items.sort((a, b) => a.element_name.localeCompare(b.element_name)));
         return grouped;
@@ -176,28 +179,28 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
         const ids: string[] = [];
         sortedDomains.forEach((domain) => {
             ids.push(`domain-${domain.recid}`);
-            (subdomainsByDomain.get(domain.recid) || []).forEach((subdomain) => {
+            (subdomainsByDomain.get(String((domain as any).element_guid)) || []).forEach((subdomain) => {
                 ids.push(`subdomain-${subdomain.recid}`);
-                (functionsBySubdomain.get(subdomain.recid) || []).forEach((fn) => {
+                (functionsBySubdomain.get(String((subdomain as any).element_guid)) || []).forEach((fn) => {
                     ids.push(`function-${fn.recid}`);
 
-                    if (!fn.element_request_model_recid && !fn.element_response_model_recid) {
+                    if (!fn.element_request_model_guid && !fn.element_response_model_guid) {
                         ids.push(`function-${fn.recid}-no-models`);
                     }
 
-                    if (fn.element_request_model_recid) {
-                        const requestModelNodeId = `function-${fn.recid}-req-model-${fn.element_request_model_recid}`;
+                    if (fn.element_request_model_guid) {
+                        const requestModelNodeId = `function-${fn.recid}-req-model-${fn.element_request_model_guid}`;
                         ids.push(requestModelNodeId);
-                        (fieldsByModel.get(fn.element_request_model_recid) || []).forEach((field) => {
-                            ids.push(`field-${field.recid}-under-${fn.element_request_model_recid}-fn-${fn.recid}`);
+                        (fieldsByModel.get(fn.element_request_model_guid) || []).forEach((field) => {
+                            ids.push(`field-${field.recid}-under-${fn.element_request_model_guid}-fn-${fn.recid}`);
                         });
                     }
 
-                    if (fn.element_response_model_recid) {
-                        const responseModelNodeId = `function-${fn.recid}-resp-model-${fn.element_response_model_recid}`;
+                    if (fn.element_response_model_guid) {
+                        const responseModelNodeId = `function-${fn.recid}-resp-model-${fn.element_response_model_guid}`;
                         ids.push(responseModelNodeId);
-                        (fieldsByModel.get(fn.element_response_model_recid) || []).forEach((field) => {
-                            ids.push(`field-${field.recid}-under-${fn.element_response_model_recid}-fn-${fn.recid}`);
+                        (fieldsByModel.get(fn.element_response_model_guid) || []).forEach((field) => {
+                            ids.push(`field-${field.recid}-under-${fn.element_response_model_guid}-fn-${fn.recid}`);
                         });
                     }
                 });
@@ -244,7 +247,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                 <SimpleTreeView expandedItems={expandedItems} onExpandedItemsChange={(_: SyntheticEvent | null, itemIds: string[]) => setExpandedItems(itemIds)}>
                     {sortedDomains.map((domain) => {
                         const domainId = `domain-${domain.recid}`;
-                        const childSubdomains = subdomainsByDomain.get(domain.recid) || [];
+                        const childSubdomains = subdomainsByDomain.get(String((domain as any).element_guid)) || [];
                         return (
                             <TreeItem
                                 key={domainId}
@@ -262,7 +265,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                             >
                                 {childSubdomains.map((subdomain) => {
                                     const subdomainId = `subdomain-${subdomain.recid}`;
-                                    const childFunctions = functionsBySubdomain.get(subdomain.recid) || [];
+                                    const childFunctions = functionsBySubdomain.get(String((subdomain as any).element_guid)) || [];
                                     return (
                                         <TreeItem
                                             key={subdomainId}
@@ -277,11 +280,11 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                                         >
                                             {childFunctions.map((fn) => {
                                                 const functionId = `function-${fn.recid}`;
-                                                const requestModel = fn.element_request_model_recid
-                                                    ? modelNameByRecid.get(fn.element_request_model_recid) ?? `Model#${fn.element_request_model_recid}`
+                                                const requestModel = fn.element_request_model_guid
+                                                    ? modelNameByGuid.get(fn.element_request_model_guid) ?? `Model#${fn.element_request_model_guid}`
                                                     : null;
-                                                const responseModel = fn.element_response_model_recid
-                                                    ? modelNameByRecid.get(fn.element_response_model_recid) ?? `Model#${fn.element_response_model_recid}`
+                                                const responseModel = fn.element_response_model_guid
+                                                    ? modelNameByGuid.get(fn.element_response_model_guid) ?? `Model#${fn.element_response_model_guid}`
                                                     : null;
 
                                                 return (
@@ -305,20 +308,20 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                                                             />
                                                         )}
 
-                                                        {requestModel && fn.element_request_model_recid && (
+                                                        {requestModel && fn.element_request_model_guid && (
                                                             <TreeItem
-                                                                itemId={`function-${fn.recid}-req-model-${fn.element_request_model_recid}`}
+                                                                itemId={`function-${fn.recid}-req-model-${fn.element_request_model_guid}`}
                                                                 sx={treeItemSx}
                                                                 label={<Typography variant="body2">📥 Request: {requestModel}</Typography>}
                                                             >
-                                                                {(fieldsByModel.get(fn.element_request_model_recid) || []).map((field) => (
+                                                                {(fieldsByModel.get(fn.element_request_model_guid) || []).map((field) => (
                                                                     <TreeItem
-                                                                        key={`field-${field.recid}-under-${fn.element_request_model_recid}-fn-${fn.recid}`}
-                                                                        itemId={`field-${field.recid}-under-${fn.element_request_model_recid}-fn-${fn.recid}`}
+                                                                        key={`field-${field.recid}-under-${fn.element_request_model_guid}-fn-${fn.recid}`}
+                                                                        itemId={`field-${field.recid}-under-${fn.element_request_model_guid}-fn-${fn.recid}`}
                                                                         sx={treeItemSx}
                                                                         label={
                                                                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByRecid)}</Typography>
+                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid)}</Typography>
                                                                                 {field.element_is_nullable && <Chip size="small" label="?" />}
                                                                                 {field.element_is_list && <Chip size="small" label="[]" />}
                                                                                 {field.element_is_dict && <Chip size="small" label="{}" />}
@@ -332,20 +335,20 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                                                             </TreeItem>
                                                         )}
 
-                                                        {responseModel && fn.element_response_model_recid && (
+                                                        {responseModel && fn.element_response_model_guid && (
                                                             <TreeItem
-                                                                itemId={`function-${fn.recid}-resp-model-${fn.element_response_model_recid}`}
+                                                                itemId={`function-${fn.recid}-resp-model-${fn.element_response_model_guid}`}
                                                                 sx={treeItemSx}
                                                                 label={<Typography variant="body2">📤 Response: {responseModel}</Typography>}
                                                             >
-                                                                {(fieldsByModel.get(fn.element_response_model_recid) || []).map((field) => (
+                                                                {(fieldsByModel.get(fn.element_response_model_guid) || []).map((field) => (
                                                                     <TreeItem
-                                                                        key={`field-${field.recid}-under-${fn.element_response_model_recid}-fn-${fn.recid}`}
-                                                                        itemId={`field-${field.recid}-under-${fn.element_response_model_recid}-fn-${fn.recid}`}
+                                                                        key={`field-${field.recid}-under-${fn.element_response_model_guid}-fn-${fn.recid}`}
+                                                                        itemId={`field-${field.recid}-under-${fn.element_response_model_guid}-fn-${fn.recid}`}
                                                                         sx={treeItemSx}
                                                                         label={
                                                                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByRecid)}</Typography>
+                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid)}</Typography>
                                                                                 {field.element_is_nullable && <Chip size="small" label="?" />}
                                                                                 {field.element_is_list && <Chip size="small" label="[]" />}
                                                                                 {field.element_is_dict && <Chip size="small" label="{}" />}

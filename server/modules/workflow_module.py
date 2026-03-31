@@ -690,7 +690,6 @@ class WorkflowModule(BaseModule):
       "rollback_functions_guid": row.get("element_rollback_functions_guid"),
       "sequence": row.get("element_sequence"),
       "is_optional": bool(row.get("element_is_optional")),
-      "timeout_seconds": row.get("element_timeout_seconds"),
       "config": row.get("element_config"),
       "is_active": row.get("element_is_active"),
       "module_attr": row.get("element_module_attr"),
