@@ -49,7 +49,7 @@ const LoginPage = (): JSX.Element => {
                                 accessToken,
                                 provider: 'microsoft',
                                 fingerprint: getFingerprint(),
-                        }) as AuthMicrosoftOauthLogin1;
+                        } as any) as unknown as AuthMicrosoftOauthLogin1;
                         setUserData({ provider: 'microsoft', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');
@@ -90,7 +90,7 @@ const LoginPage = (): JSX.Element => {
                                 code,
                                 provider: 'discord',
                                 fingerprint: getFingerprint(),
-                        }) as AuthDiscordOauthLogin1;
+                        } as any) as unknown as AuthDiscordOauthLogin1;
                         setUserData({ provider: 'discord', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');
@@ -118,7 +118,7 @@ const LoginPage = (): JSX.Element => {
                                 code,
                                 provider: 'google',
                                 fingerprint: getFingerprint(),
-                        }) as AuthGoogleOauthLogin1;
+                        } as any) as unknown as AuthGoogleOauthLogin1;
                         setUserData({ provider: 'google', ...data });
                         setNotification({ open: true, severity: 'success', message: 'Login successful!' });
                         navigate('/');

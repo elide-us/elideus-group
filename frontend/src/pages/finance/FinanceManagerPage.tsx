@@ -455,13 +455,13 @@ const FinanceManagerPage = (): JSX.Element => {
             fetchJournalsList({ status: 0 }) as any,
             fetchProductsList({}) as any,
         ]);
-        const openConfigPeriods = (periodResponse.periods || []).filter((period) => period.status === 1 && period.guid);
+        const openConfigPeriods = (periodResponse.periods || []).filter((period: any) => period.status === 1 && period.guid);
         const configRows = (configResponse.configs || []).map(normalizeProductJournalConfig);
         const draftJournalRows = journalResponse.journals || [];
         const productRows = (productResponse.products || []).map(normalizeProduct);
-        const availableCategories = Array.from(new Set(productRows.map((product) => product.element_category).filter(Boolean)));
-        const defaultPeriodGuid = openConfigPeriods[0]?.guid || "";
-        const defaultJournal = draftJournalRows.find((journal) => journal.periods_guid === defaultPeriodGuid) || draftJournalRows[0];
+        const availableCategories: string[] = Array.from(new Set(productRows.map((product: Product) => product.element_category).filter(Boolean)));
+        const defaultPeriodGuid: string = openConfigPeriods[0]?.guid || "";
+        const defaultJournal = draftJournalRows.find((journal: any) => journal.periods_guid === defaultPeriodGuid) || draftJournalRows[0];
         setProductJournalConfigs(configRows);
         setConfigPeriods(openConfigPeriods);
         setDraftJournals(draftJournalRows);
@@ -470,8 +470,8 @@ const FinanceManagerPage = (): JSX.Element => {
             ...current,
             periods_guid: current.periods_guid || defaultPeriodGuid,
             journals_recid: current.journals_recid || (defaultJournal ? String(defaultJournal.recid) : ""),
-            category: availableCategories.includes(current.category) ? current.category : (availableCategories[0] || current.category),
-            journal_scope: availableCategories.includes(current.category) ? current.journal_scope : (availableCategories[0] || current.journal_scope),
+            category: availableCategories.includes(current.category) ? current.category : (availableCategories[0] || current.category) as string,
+            journal_scope: availableCategories.includes(current.category) ? current.journal_scope : (availableCategories[0] || current.journal_scope) as string,
         }));
         setConfigError(null);
     }, []);
@@ -1193,12 +1193,13 @@ const FinanceManagerPage = (): JSX.Element => {
                                             setConfigError(null);
                                             setConfigSuccess(null);
                                             await fetchProductJournalConfigUpsert({
+                                                recid: null,
                                                 category: configForm.category,
                                                 journal_scope: configForm.journal_scope,
                                                 journals_recid: Number(configForm.journals_recid),
                                                 periods_guid: configForm.periods_guid,
                                                 status: 0,
-                                            });
+                                            } as any);
                                             setConfigSuccess("Product journal configuration created.");
                                             await loadProductJournalConfigData();
                                         } catch (error: unknown) {

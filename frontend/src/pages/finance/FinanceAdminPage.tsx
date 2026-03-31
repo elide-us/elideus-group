@@ -555,7 +555,7 @@ const FinanceAdminPage = (): JSX.Element => {
     }, []);
 
     const loadPeriodStatuses = useCallback(async (): Promise<void> => {
-        const response = await fetchPeriodStatus();
+        const response = await (fetchPeriodStatus as any)();
         setPeriodStatuses((response.periods || []) as PeriodStatusRow[]);
     }, []);
 
@@ -601,14 +601,14 @@ const FinanceAdminPage = (): JSX.Element => {
         ]);
         setProductConfigPeriods(
             (periodResponse.periods || [])
-                .filter((period) => Boolean(period.guid))
-                .map((period) => ({
+                .filter((period: any) => Boolean(period.guid))
+                .map((period: any) => ({
                     guid: period.guid as string,
                     year: period.year,
                     period_name: period.period_name,
                 })),
         );
-        setProductConfigJournals((journalResponse.journals || []).map((journal) => ({
+        setProductConfigJournals((journalResponse.journals || []).map((journal: any) => ({
             recid: journal.recid,
             name: journal.name,
             description: journal.description,

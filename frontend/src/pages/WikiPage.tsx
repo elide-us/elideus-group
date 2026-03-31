@@ -38,7 +38,7 @@ const markdownBodySx = {
 	'& a': { color: 'primary.main' },
 };
 
-const formatDisplayDate = (isoDate: string | null): string => {
+const formatDisplayDate = (isoDate: string | null | undefined): string => {
 	if (!isoDate) {
 		return '';
 	}
@@ -410,11 +410,11 @@ const WikiPage = (): JSX.Element => {
 						<ReactMarkdown>{page.content ?? ''}</ReactMarkdown>
 					</Box>
 
-					{page.children.length > 0 && (
+					{(page.children ?? []).length > 0 && (
 						<Box sx={{ mt: 4 }}>
 							<Typography variant="h6">Sub-pages</Typography>
 							<List dense>
-								{page.children.map((child) => (
+								{(page.children ?? []).map((child) => (
 									<ListItem key={child.slug} disableGutters>
 										<ListItemText
 											primary={

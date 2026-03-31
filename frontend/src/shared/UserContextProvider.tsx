@@ -66,7 +66,7 @@ const setUserData = useCallback((data: AuthTokens) => {
                                 accessToken: result.accessToken,
                                 provider: 'microsoft',
                                 fingerprint: getFingerprint(),
-                                }) as AuthMicrosoftOauthLogin1;
+                                } as any) as unknown as AuthMicrosoftOauthLogin1;
                                                                                 setUserData({ provider: 'microsoft', ...data });
                                                                 } catch {
                                                                                 /* silent token acquisition failed */
