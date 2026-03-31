@@ -451,6 +451,39 @@ class WorkflowModule(BaseModule):
       return None
     return self._map_workflow(dict(res.rows[0]))
 
+  async def get_workflow_by_guid(self, guid: str) -> dict[str, Any] | None:
+    """Load a workflow definition by GUID."""
+    workflows = await self.list_workflows()
+    return next((w for w in workflows if str(w.get("guid")) == guid), None)
+
+  async def scan_stalls(self, payload: dict[str, Any]) -> dict[str, Any]:
+    """Scan for workflow runs that have been running or waiting longer than their stall threshold."""
+    _ = payload
+    now = datetime.now(timezone.utc)
+    flagged = 0
+
+    running_runs = await self.list(status=STATUS_RUNNING)
+    waiting_runs = await self.list(status=STATUS_WAITING)
+
+    for run in running_runs + waiting_runs:
+      started_on = self._parse_dt(run.get("started_on"))
+      if not started_on:
+        continue
+
+      workflow = await self.get_workflow_by_guid(str(run.get("workflows_guid") or ""))
+      if not workflow:
+        continue
+      threshold = workflow.get("stall_threshold_seconds")
+      if threshold is None:
+        continue
+
+      elapsed = (now - started_on).total_seconds()
+      if elapsed > int(threshold):
+        await self._update_run(int(run["recid"]), status=STATUS_STALLED)
+        flagged += 1
+
+    return {"context": {"runs_flagged": flagged, "scanned_at": now.isoformat()}}
+
   async def list_actions(self, workflows_guid: str) -> list[dict[str, Any]]:
     assert self.db
     res = await self.db.run(

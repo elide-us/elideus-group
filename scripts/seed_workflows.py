@@ -1,51 +1,22 @@
-"""Seed system workflow definitions."""
+"""Seed system_workflow_actions for callable workflows."""
 
 from __future__ import annotations
 
 import argparse
 import os
 import sys
-import uuid
 
 import pyodbc
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from scripts.common import REPO_ROOT, RPC_REFLECTION_NAMESPACE
+from scripts.common import REPO_ROOT
 
 load_dotenv(os.path.join(REPO_ROOT, ".env"))
 
-
-def reflection_function_guid(natural_key: str) -> str:
-  return str(uuid.uuid5(RPC_REFLECTION_NAMESPACE, natural_key))
-
-
-WORKFLOW_NAME = "persona_conversation"
-WORKFLOW_DESCRIPTION = "Persona-driven conversational response pipeline"
-WORKFLOW_VERSION = 1
-WORKFLOW_STATUS = 1
-
-WORKFLOW_STEPS = [
-  (1, "resolve_persona", "pipe", "harmless", "server.workflows.steps.conversation.ResolvePersonaStep", 0),
-  (2, "gather_stored_context", "pipe", "harmless", "server.workflows.steps.conversation.GatherStoredContextStep", 0),
-  (3, "assemble_prompt", "pipe", "harmless", "server.workflows.steps.conversation.AssemblePromptStep", 0),
-  (4, "generate_response", "pipe", "harmless", "server.workflows.steps.conversation.GenerateResponseStep", 0),
-  (5, "log_conversation", "stack", "reversible", "server.workflows.steps.conversation.LogConversationStep", 0),
-  (6, "deliver_response", "pipe", "harmless", "server.workflows.steps.conversation.DeliverResponseStep", 0),
-]
-
-BILLING_IMPORT_NAME = "billing_import"
-BILLING_IMPORT_DESCRIPTION = "Promote approved billing staging imports into posted journals."
-BILLING_IMPORT_VERSION = 1
-BILLING_IMPORT_STATUS = 1
-
-BILLING_IMPORT_STEPS = [
-  (1, "validate_import", "pipe", "harmless", "server.workflows.steps.billing_import.ValidateImportStep", 0),
-  (2, "classify_costs", "pipe", "harmless", "server.workflows.steps.billing_import.ClassifyCostsStep", 0),
-  (3, "create_journal", "pipe", "irreversible", "server.workflows.steps.billing_import.CreateJournalStep", 0),
-  (4, "mark_promoted", "pipe", "irreversible", "server.workflows.steps.billing_import.MarkPromotedStep", 0),
-]
+STORAGE_WORKFLOW_GUID = "C1D2E3F4-A5B6-7890-CDEF-123456789010"
+STALL_WORKFLOW_GUID = "D1E2F3A4-B5C6-7890-DEFA-123456789020"
 
 
 def connect() -> pyodbc.Connection:
@@ -55,79 +26,112 @@ def connect() -> pyodbc.Connection:
   return pyodbc.connect(dsn, autocommit=True)
 
 
-def seed_workflow(
-  *,
-  force: bool,
-  name: str,
-  description: str,
-  version: int,
-  status: int,
-  steps: list[tuple[int, str, str, str, str, int]],
-) -> None:
+def get_function_guid(cursor: pyodbc.Cursor, subdomain: str, names: list[str]) -> str:
+  placeholders = ", ".join("?" for _ in names)
+  row = cursor.execute(
+    f"""
+    SELECT TOP 1 f.element_guid
+    FROM reflection_rpc_functions f
+    INNER JOIN reflection_rpc_subdomains s ON s.element_guid = f.subdomains_guid
+    WHERE s.element_name = ?
+      AND f.element_name IN ({placeholders})
+      AND f.element_status = 1
+    ORDER BY CASE f.element_name
+      {" ".join([f"WHEN ? THEN {i}" for i, _ in enumerate(names, 1)])}
+      ELSE 999 END;
+    """,
+    [subdomain, *names, *names],
+  ).fetchone()
+  if not row:
+    raise RuntimeError(f"Could not find function in subdomain '{subdomain}' with names {names}")
+  return str(row[0])
+
+
+def seed_workflow_actions(force: bool) -> None:
   conn = connect()
   try:
     cursor = conn.cursor()
     cursor.execute("SET XACT_ABORT ON;")
     cursor.execute("BEGIN TRANSACTION;")
 
-    existing_rows = cursor.execute(
-      "SELECT element_guid FROM system_workflows WHERE element_name = ?;",
-      [name],
-    ).fetchall()
-
-    if existing_rows and not force:
-      cursor.execute("ROLLBACK TRANSACTION;")
-      print(f"Workflow '{name}' already exists; skipping (use --force to reseed).")
-      return
-
-    if existing_rows and force:
+    if force:
       cursor.execute(
         """
-        DELETE s
-        FROM system_workflow_steps s
-        INNER JOIN system_workflows w ON w.element_guid = s.workflows_guid
-        WHERE w.element_name = ?;
+        DELETE FROM system_workflow_actions
+        WHERE workflows_guid IN (?, ?);
         """,
-        [name],
+        [STORAGE_WORKFLOW_GUID, STALL_WORKFLOW_GUID],
       )
-      cursor.execute("DELETE FROM system_workflows WHERE element_name = ?;", [name])
 
-    workflow_guid = cursor.execute(
+    storage_function_guid = get_function_guid(cursor, "workflows.storage", ["reindex", "reindex_storage", "get_stats"])
+    stall_function_guid = get_function_guid(cursor, "workflows", ["scan_stalls"])
+
+    cursor.execute(
       """
-      INSERT INTO system_workflows (
+      DELETE FROM system_workflow_actions
+      WHERE workflows_guid IN (?, ?);
+      """,
+      [STORAGE_WORKFLOW_GUID, STALL_WORKFLOW_GUID],
+    )
+
+    cursor.execute(
+      """
+      INSERT INTO system_workflow_actions (
+        workflows_guid,
         element_name,
         element_description,
-        element_version,
-        element_status,
+        functions_guid,
+        dispositions_recid,
+        element_sequence,
+        element_is_optional,
+        element_is_active,
         element_created_on,
         element_modified_on
       )
-      OUTPUT inserted.element_guid
-      VALUES (?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
       """,
-      [name, description, version, status],
-    ).fetchval()
+      [
+        STORAGE_WORKFLOW_GUID,
+        "reindex_storage",
+        "Scan blob storage and sync users_storage_cache",
+        storage_function_guid,
+        3,
+        1,
+        0,
+        1,
+      ],
+    )
 
-    for sequence, step_name, step_type, disposition, class_path, is_optional in steps:
-      cursor.execute(
-        """
-        INSERT INTO system_workflow_steps (
-          workflows_guid,
-          element_sequence,
-          element_name,
-          element_step_type,
-          element_disposition,
-          element_class_path,
-          element_is_optional
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?);
-        """,
-        [workflow_guid, sequence, step_name, step_type, disposition, class_path, is_optional],
+    cursor.execute(
+      """
+      INSERT INTO system_workflow_actions (
+        workflows_guid,
+        element_name,
+        element_description,
+        functions_guid,
+        dispositions_recid,
+        element_sequence,
+        element_is_optional,
+        element_is_active,
+        element_created_on,
+        element_modified_on
       )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME(), SYSUTCDATETIME());
+      """,
+      [
+        STALL_WORKFLOW_GUID,
+        "scan_stalled_runs",
+        "Scan for runs exceeding stall threshold",
+        stall_function_guid,
+        3,
+        1,
+        0,
+        1,
+      ],
+    )
 
     cursor.execute("COMMIT TRANSACTION;")
-    print(f"Workflow '{name}' GUID: {workflow_guid}")
-    print(f"Workflow '{name}' step count: {len(steps)}")
+    print("Seeded system_workflow_actions for storage_reindex and stall_monitor.")
   except Exception:
     try:
       cursor.execute("ROLLBACK TRANSACTION;")
@@ -139,26 +143,10 @@ def seed_workflow(
 
 
 def main() -> None:
-  parser = argparse.ArgumentParser(description="Seed system_workflows/system_workflow_steps")
-  parser.add_argument("--force", action="store_true", help="Reseed by deleting existing workflow rows")
+  parser = argparse.ArgumentParser(description="Seed system_workflow_actions")
+  parser.add_argument("--force", action="store_true", help="Delete and reseed workflow action rows")
   args = parser.parse_args()
-
-  seed_workflow(
-    force=args.force,
-    name=WORKFLOW_NAME,
-    description=WORKFLOW_DESCRIPTION,
-    version=WORKFLOW_VERSION,
-    status=WORKFLOW_STATUS,
-    steps=WORKFLOW_STEPS,
-  )
-  seed_workflow(
-    force=args.force,
-    name=BILLING_IMPORT_NAME,
-    description=BILLING_IMPORT_DESCRIPTION,
-    version=BILLING_IMPORT_VERSION,
-    status=BILLING_IMPORT_STATUS,
-    steps=BILLING_IMPORT_STEPS,
-  )
+  seed_workflow_actions(force=args.force)
 
 
 if __name__ == "__main__":
