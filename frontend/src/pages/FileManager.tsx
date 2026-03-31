@@ -43,8 +43,8 @@ interface StorageFile {
     path: string;
     name: string;
     url: string;
-    content_type?: string;
-    gallery?: boolean;
+    content_type: string | null;
+    gallery: boolean | null;
 }
 
 interface StorageFolder {

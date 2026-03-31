@@ -23,6 +23,7 @@ import type {
     ServicePagesCreatePage1,
     ServicePagesListPages1,
     ServicePagesPageItem1,
+    ServicePagesUpdatePage1,
 } from '../../shared/RpcModels';
 import { fetchCreate, fetchDelete, fetchList, fetchUpdate } from '../../rpc/service/pages';
 
@@ -78,7 +79,7 @@ const ServicePagesPage = (): JSX.Element => {
         if (field === 'category' && value === '') {
             payload[field] = null;
         }
-        await fetchUpdate(payload);
+        await fetchUpdate(payload as ServicePagesUpdatePage1);
         void load();
     };
 
