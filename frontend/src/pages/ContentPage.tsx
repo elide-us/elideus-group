@@ -19,38 +19,13 @@ import ReactMarkdown from 'react-markdown';
 
 import MarkdownEditor from '../components/MarkdownEditor';
 import PageTitle from '../components/PageTitle';
-import { rpcCall } from '../shared/RpcModels';
+import { fetchPage } from '../rpc/public/pages';
+import { fetchCreateVersion, fetchListVersions, fetchVersion } from '../rpc/users/pages';
+import type { PublicPagesGetPage1, UsersPagesVersionList1, UsersPagesVersionContent1 } from '../shared/RpcModels';
 
-type VersionItem = {
-	recid: number;
-	element_version: number;
-	element_summary: string | null;
-	element_created_by: string;
-	element_created_on: string;
-};
-
-type PublicPageResponse = {
-	slug: string;
-	title: string;
-	content: string | null;
-	version: number | null;
-	page_type: string;
-	element_created_on: string | null;
-	element_modified_on: string | null;
-	permissions?: {
-		can_edit: boolean;
-		can_delete: boolean;
-		is_owner: boolean;
-	};
-};
-
-type VersionListResponse = {
-	versions: VersionItem[];
-};
-
-type VersionContentResponse = {
-	element_content: string;
-};
+type PublicPageResponse = PublicPagesGetPage1;
+type VersionItem = UsersPagesVersionList1['versions'][number] extends infer V ? V : never;
+type VersionContentResponse = UsersPagesVersionContent1;
 
 const markdownBodySx = {
 	'& h1, & h2, & h3, & h4, & h5, & h6': { mt: 3, mb: 1 },
@@ -88,9 +63,9 @@ const ContentPage = (): JSX.Element => {
 	const [isRestoringVersion, setIsRestoringVersion] = useState<number | null>(null);
 
 	const loadPage = async (requestedSlug: string): Promise<PublicPageResponse> => {
-		const res = await rpcCall<PublicPageResponse>('urn:public:pages:get_page:1', { slug: requestedSlug });
-		setPage(res);
-		return res;
+		const res = await fetchPage({ slug: requestedSlug });
+		setPage(res as PublicPageResponse);
+		return res as PublicPageResponse;
 	};
 
 	useEffect(() => {
@@ -113,7 +88,7 @@ const ContentPage = (): JSX.Element => {
 			setShowVersions(false);
 
 			try {
-				const res = await rpcCall<PublicPageResponse>('urn:public:pages:get_page:1', { slug });
+				const res = await fetchPage({ slug });
 				if (active) {
 					setPage(res);
 				}
@@ -166,7 +141,7 @@ const ContentPage = (): JSX.Element => {
 		setIsSaving(true);
 		setError(null);
 		try {
-			await rpcCall('urn:users:pages:create_version:1', {
+			await fetchCreateVersion({
 				slug: page.slug,
 				content: editContent,
 				summary: editSummary || null,
@@ -192,8 +167,8 @@ const ContentPage = (): JSX.Element => {
 			return;
 		}
 		try {
-			const res = await rpcCall<VersionListResponse>('urn:users:pages:list_versions:1', { slug: page.slug });
-			setVersions(res.versions);
+			const res = await fetchListVersions({ slug: page.slug });
+			setVersions(res.versions as any[]);
 		} catch {
 			setError('Unable to load version history. Please try again.');
 		}
@@ -206,11 +181,11 @@ const ContentPage = (): JSX.Element => {
 		setIsRestoringVersion(versionNumber);
 		setError(null);
 		try {
-			const version = await rpcCall<VersionContentResponse>('urn:users:pages:get_version:1', {
+			const version = await fetchVersion({
 				slug: page.slug,
 				version: versionNumber,
 			});
-			await rpcCall('urn:users:pages:create_version:1', {
+			await fetchCreateVersion({
 				slug: page.slug,
 				content: version.element_content,
 				summary: `Restored from version ${versionNumber}`,

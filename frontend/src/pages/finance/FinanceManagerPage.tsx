@@ -22,7 +22,12 @@ import {
     Typography,
 } from "@mui/material";
 import PageTitle from "../../components/PageTitle";
-import { rpcCall } from "../../shared/RpcModels";
+import { fetchListImports, fetchListLineItems, fetchApprove as fetchStagingApprove, fetchReject as fetchStagingReject } from '../../rpc/finance/staging';
+import { fetchPeriodStatus, fetchJournalSummary, fetchTrialBalance } from '../../rpc/finance/reporting';
+import { fetchList as fetchPeriodsList, fetchClose as fetchPeriodClose, fetchReopen as fetchPeriodReopen, fetchListCloseBlockers } from '../../rpc/finance/periods';
+import { fetchList as fetchJournalsList, fetchLines as fetchJournalLines, fetchApprove as fetchJournalApprove, fetchReject as fetchJournalReject } from '../../rpc/finance/journals';
+import { fetchList as fetchProductJournalConfigList, fetchUpsert as fetchProductJournalConfigUpsert, fetchApprove as fetchPjcApprove, fetchClose as fetchPjcClose } from '../../rpc/finance/product_journal_config';
+import { fetchList as fetchProductsList } from '../../rpc/finance/products';
 
 type StagingImport = {
     recid: number;
@@ -403,78 +408,52 @@ const FinanceManagerPage = (): JSX.Element => {
     );
 
     const loadApprovalQueue = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ imports: StagingImport[] }>("urn:finance:staging:list_imports:1", { status: 4 });
+        const res = await fetchListImports({ status: 4 }) as any;
         setApprovalQueue(res.imports || []);
     }, []);
 
     const loadImportLineItems = useCallback(async (importsRecid: number): Promise<void> => {
-        const res = await rpcCall<{ line_items: StagingLineItem[] }>("urn:finance:staging:list_line_items:1", {
+        const res = await fetchListLineItems({
             imports_recid: importsRecid,
-        });
+        }) as any;
         setApprovalLineItems(res.line_items || []);
     }, []);
 
     const loadAllPeriodStatus = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ periods: PeriodStatus[] }>("urn:finance:reporting:period_status:1", {});
+        const res = await fetchPeriodStatus({}) as any;
         setAllPeriodStatusRows(res.periods || []);
     }, []);
 
     const loadPeriodStatus = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ periods: PeriodStatus[] }>("urn:finance:reporting:period_status:1", {
+        const res = await fetchPeriodStatus({
             fiscal_year: periodYear || null,
-        });
+        }) as any;
         setPeriodStatusRows(res.periods || []);
     }, [periodYear]);
 
     const loadTrialBalance = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ rows: TrialBalanceRow[] }>("urn:finance:reporting:trial_balance:1", {
+        const res = await fetchTrialBalance({
             fiscal_year: trialYear || null,
             period_guid: trialPeriodGuid || null,
-        });
+        }) as any;
         setTrialRows(res.rows || []);
     }, [trialPeriodGuid, trialYear]);
 
     const loadJournalSummary = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ journals: JournalSummaryRow[] }>("urn:finance:reporting:journal_summary:1", {
+        const res = await fetchJournalSummary({
             journal_status: journalStatus === "" ? null : Number(journalStatus),
             fiscal_year: journalYear || null,
             periods_guid: journalPeriodGuid || null,
-        });
+        }) as any;
         setJournalRows(res.journals || []);
     }, [journalPeriodGuid, journalStatus, journalYear]);
 
     const loadProductJournalConfigData = useCallback(async (): Promise<void> => {
         const [configResponse, periodResponse, journalResponse, productResponse] = await Promise.all([
-            rpcCall<{ configs: Array<{
-                recid: number;
-                category: string;
-                journal_scope: string;
-                journals_recid: number;
-                periods_guid: string;
-                approved_by: string | null;
-                approved_on: string | null;
-                activated_by: string | null;
-                activated_on: string | null;
-                status: number;
-                created_on: string | null;
-                modified_on: string | null;
-            }> }>("urn:finance:product_journal_config:list:1"),
-            rpcCall<{ periods: FinancePeriodItem[] }>("urn:finance:periods:list:1"),
-            rpcCall<{ journals: FinanceJournalItem[] }>("urn:finance:journals:list:1", { status: 0 }),
-            rpcCall<{ products: Array<{
-                recid: number;
-                sku: string;
-                name: string;
-                description: string | null;
-                category: string;
-                price: string;
-                currency: string;
-                credits: number;
-                enablement_key: string | null;
-                is_recurring: boolean;
-                sort_order: number;
-                status: number;
-            }> }>("urn:finance:products:list:1"),
+            fetchProductJournalConfigList({}) as any,
+            fetchPeriodsList() as any,
+            fetchJournalsList({ status: 0 }) as any,
+            fetchProductsList({}) as any,
         ]);
         const openConfigPeriods = (periodResponse.periods || []).filter((period) => period.status === 1 && period.guid);
         const configRows = (configResponse.configs || []).map(normalizeProductJournalConfig);
@@ -498,16 +477,16 @@ const FinanceManagerPage = (): JSX.Element => {
     }, []);
 
     const loadPendingJournals = useCallback(async (): Promise<void> => {
-        const res = await rpcCall<{ journals: JournalSummaryRow[] }>("urn:finance:reporting:journal_summary:1", {
+        const res = await fetchJournalSummary({
             journal_status: 1,
             fiscal_year: null,
             periods_guid: null,
-        });
+        }) as any;
         setPendingJournals(res.journals || []);
     }, []);
 
     const loadPendingJournalLines = useCallback(async (recid: number): Promise<void> => {
-        const res = await rpcCall<{ lines: JournalLine[] }>("urn:finance:journals:get_lines:1", { journals_recid: recid });
+        const res = await fetchJournalLines({ journals_recid: recid }) as any;
         setPendingJournalLines(res.lines || []);
     }, []);
 
@@ -516,7 +495,7 @@ const FinanceManagerPage = (): JSX.Element => {
         setReviewLoading(true);
         setReviewError(null);
         try {
-            const res = await rpcCall<{ blockers: PeriodCloseBlocker[] }>("urn:finance:periods:list_close_blockers:1", { guid });
+            const res = await fetchListCloseBlockers({ guid }) as any;
             setReviewBlockers(res.blockers || []);
         } catch (error: unknown) {
             setReviewBlockers([]);
@@ -660,7 +639,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                     size="small"
                                                     variant="contained"
                                                     onClick={async () => {
-                                                        await rpcCall("urn:finance:staging:approve:1", { imports_recid: row.recid });
+                                                        await fetchStagingApprove({ imports_recid: row.recid });
                                                         await loadApprovalQueue();
                                                         if (selectedImport === row.recid) {
                                                             setSelectedImport(null);
@@ -770,7 +749,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                     size="small"
                                                     variant="contained"
                                                     onClick={async () => {
-                                                        await rpcCall("urn:finance:journals:approve:1", { recid: row.recid });
+                                                        await fetchJournalApprove({ recid: row.recid });
                                                         await Promise.all([loadPendingJournals(), loadJournalSummary(), loadPeriodStatus()]);
                                                         if (selectedPendingJournal === row.recid) {
                                                             setSelectedPendingJournal(null);
@@ -898,7 +877,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                             variant="contained"
                                             onClick={async () => {
                                                 try {
-                                                    await rpcCall("urn:finance:periods:close:1", { guid: selectedReviewPeriod.period_guid });
+                                                    await fetchPeriodClose({ guid: selectedReviewPeriod.period_guid });
                                                     setReviewBlockers([]);
                                                     await Promise.all([loadAllPeriodStatus(), loadPeriodStatus()]);
                                                 } catch (error: unknown) {
@@ -957,7 +936,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                 color="error"
                                                 onClick={async () => {
                                                     try {
-                                                        await rpcCall("urn:finance:periods:reopen:1", { guid: row.period_guid });
+                                                        await fetchPeriodReopen({ guid: row.period_guid });
                                                         if (reviewPeriodGuid === row.period_guid) {
                                                             setReviewPeriodGuid("");
                                                             setReviewBlockers([]);
@@ -1213,7 +1192,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                         try {
                                             setConfigError(null);
                                             setConfigSuccess(null);
-                                            await rpcCall("urn:finance:product_journal_config:upsert:1", {
+                                            await fetchProductJournalConfigUpsert({
                                                 category: configForm.category,
                                                 journal_scope: configForm.journal_scope,
                                                 journals_recid: Number(configForm.journals_recid),
@@ -1277,7 +1256,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                             try {
                                                                 setConfigError(null);
                                                                 setConfigSuccess(null);
-                                                                await rpcCall("urn:finance:product_journal_config:approve:1", { recid: config.recid });
+                                                                await fetchPjcApprove({ recid: config.recid });
                                                                 setConfigSuccess(`Approved configuration ${config.recid}.`);
                                                                 await loadProductJournalConfigData();
                                                             } catch (error: unknown) {
@@ -1297,7 +1276,7 @@ const FinanceManagerPage = (): JSX.Element => {
                                                             try {
                                                                 setConfigError(null);
                                                                 setConfigSuccess(null);
-                                                                await rpcCall("urn:finance:product_journal_config:close:1", { recid: config.recid });
+                                                                await fetchPjcClose({ recid: config.recid });
                                                                 setConfigSuccess(`Closed configuration ${config.recid}.`);
                                                                 await loadProductJournalConfigData();
                                                             } catch (error: unknown) {
@@ -1350,7 +1329,7 @@ const FinanceManagerPage = (): JSX.Element => {
                             if (selectedImport === null) {
                                 return;
                             }
-                            await rpcCall("urn:finance:staging:reject:1", {
+                            await fetchStagingReject({
                                 imports_recid: selectedImport,
                                 reason: rejectImportReason || null,
                             });
@@ -1388,7 +1367,7 @@ const FinanceManagerPage = (): JSX.Element => {
                             if (selectedPendingJournal === null) {
                                 return;
                             }
-                            await rpcCall("urn:finance:journals:reject:1", {
+                            await fetchJournalReject({
                                 recid: selectedPendingJournal,
                                 reason: rejectJournalReason || null,
                             });

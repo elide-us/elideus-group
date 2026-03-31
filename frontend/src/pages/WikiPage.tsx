@@ -23,50 +23,14 @@ import ReactMarkdown from 'react-markdown';
 
 import MarkdownEditor from '../components/MarkdownEditor';
 import PageTitle from '../components/PageTitle';
-import { rpcCall } from '../shared/RpcModels';
+import { fetchPage as fetchWikiPage } from '../rpc/public/wiki';
+import { fetchCreatePage, fetchCreateVersion, fetchListVersions, fetchVersion } from '../rpc/users/wiki';
+import type { PublicWikiGetPage1, UsersWikiVersionList1, UsersWikiVersionContent1 } from '../shared/RpcModels';
 import UserContext from '../shared/UserContext';
 
-type VersionItem = {
-	recid: number;
-	element_version: number;
-	element_edit_summary: string | null;
-	element_created_by: string;
-	element_created_on: string;
-};
-
-type WikiChildItem = {
-	slug: string;
-	title: string;
-	parent_slug: string | null;
-	sequence: number;
-	element_created_on: string | null;
-	element_modified_on: string | null;
-};
-
-type PublicWikiResponse = {
-	slug: string;
-	title: string;
-	parent_slug: string | null;
-	route_context: string | null;
-	content: string | null;
-	version: number | null;
-	children: WikiChildItem[];
-	element_created_on: string | null;
-	element_modified_on: string | null;
-	permissions?: {
-		can_edit: boolean;
-		can_delete: boolean;
-		is_owner: boolean;
-	};
-};
-
-type VersionListResponse = {
-	versions: VersionItem[];
-};
-
-type VersionContentResponse = {
-	element_content: string;
-};
+type PublicWikiResponse = PublicWikiGetPage1;
+type VersionItem = UsersWikiVersionList1['versions'][number] extends infer V ? V : never;
+type VersionContentResponse = UsersWikiVersionContent1;
 
 const markdownBodySx = {
 	'& h1, & h2, & h3, & h4, & h5, & h6': { mt: 3, mb: 1 },
@@ -132,9 +96,9 @@ const WikiPage = (): JSX.Element => {
 	}, [slug]);
 
 	const loadPage = async (requestedSlug: string): Promise<PublicWikiResponse> => {
-		const res = await rpcCall<PublicWikiResponse>('urn:public:wiki:get_page:1', { slug: requestedSlug });
-		setPage(res);
-		return res;
+		const res = await fetchWikiPage({ slug: requestedSlug });
+		setPage(res as PublicWikiResponse);
+		return res as PublicWikiResponse;
 	};
 
 	useEffect(() => {
@@ -161,7 +125,7 @@ const WikiPage = (): JSX.Element => {
 			setCreateSummary('');
 
 			try {
-				const res = await rpcCall<PublicWikiResponse>('urn:public:wiki:get_page:1', { slug });
+				const res = await fetchWikiPage({ slug });
 				if (active) {
 					setPage(res);
 				}
@@ -214,7 +178,7 @@ const WikiPage = (): JSX.Element => {
 		setIsSaving(true);
 		setError(null);
 		try {
-			await rpcCall('urn:users:wiki:create_version:1', {
+			await fetchCreateVersion({
 				slug: page.slug,
 				content: editContent,
 				edit_summary: editSummary || null,
@@ -240,8 +204,8 @@ const WikiPage = (): JSX.Element => {
 			return;
 		}
 		try {
-			const res = await rpcCall<VersionListResponse>('urn:users:wiki:list_versions:1', { slug: page.slug });
-			setVersions(res.versions);
+			const res = await fetchListVersions({ slug: page.slug });
+			setVersions(res.versions as any[]);
 		} catch {
 			setError('Unable to load version history. Please try again.');
 		}
@@ -254,7 +218,7 @@ const WikiPage = (): JSX.Element => {
 		setIsCreatingSaving(true);
 		setError(null);
 		try {
-			await rpcCall('urn:users:wiki:create_page:1', {
+			await fetchCreatePage({
 				slug,
 				title: createTitle,
 				content: createContent,
@@ -280,11 +244,11 @@ const WikiPage = (): JSX.Element => {
 		setIsRestoringVersion(versionNumber);
 		setError(null);
 		try {
-			const version = await rpcCall<VersionContentResponse>('urn:users:wiki:get_version:1', {
+			const version = await fetchVersion({
 				slug: page.slug,
 				version: versionNumber,
 			});
-			await rpcCall('urn:users:wiki:create_version:1', {
+			await fetchCreateVersion({
 				slug: page.slug,
 				content: version.element_content,
 				edit_summary: `Restored from version ${versionNumber}`,

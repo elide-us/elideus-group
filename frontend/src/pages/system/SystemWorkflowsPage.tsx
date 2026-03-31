@@ -23,16 +23,22 @@ import {
 } from '@mui/material';
 import Notification from '../../components/Notification';
 import PageTitle from '../../components/PageTitle';
-import { rpcCall } from '../../shared/RpcModels';
+import {
+	fetchListWorkflows,
+	fetchWorkflow,
+	fetchListRuns,
+	fetchListRunActions,
+	fetchSubmitRun,
+	fetchCancelRun,
+	fetchRollbackRun,
+	fetchResumeRun,
+} from '../../rpc/system/workflows';
 import type {
 	SystemWorkflowActionItem1,
 	SystemWorkflowDetail1,
 	SystemWorkflowItem1,
-	SystemWorkflowList1,
 	SystemWorkflowRunActionItem1,
-	SystemWorkflowRunActionList1,
 	SystemWorkflowRunItem1,
-	SystemWorkflowRunList1,
 } from '../../shared/RpcModels';
 
 const WORKFLOW_STATUS_LABELS: Record<number, string> = {
@@ -167,23 +173,23 @@ const SystemWorkflowsPage = (): JSX.Element => {
 	};
 
 	const loadWorkflows = useCallback(async (): Promise<void> => {
-		const response = await rpcCall<SystemWorkflowList1>('urn:system:workflows:list_workflows:1', {});
+		const response = await fetchListWorkflows({});
 		setWorkflows(response.workflows || []);
 	}, []);
 
 	const loadWorkflow = useCallback(async (name: string): Promise<void> => {
-		const response = await rpcCall<SystemWorkflowDetail1>('urn:system:workflows:get_workflow:1', { name });
+		const response = await fetchWorkflow({ name });
 		setSelectedWorkflow(response);
 		setWorkflowDetailOpen(true);
 	}, []);
 
 	const loadRuns = useCallback(async (): Promise<void> => {
-		const response = await rpcCall<SystemWorkflowRunList1>('urn:system:workflows:list_runs:1', {});
+		const response = await fetchListRuns({});
 		setRuns(response.runs || []);
 	}, []);
 
 	const loadRunActions = useCallback(async (runGuid: string): Promise<void> => {
-		const response = await rpcCall<SystemWorkflowRunActionList1>('urn:system:workflows:list_run_actions:1', { run_guid: runGuid });
+		const response = await fetchListRunActions({ run_guid: runGuid });
 		setRunActions(response.actions || []);
 	}, []);
 
@@ -255,7 +261,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 			showNotification('Payload must be valid JSON', 'error');
 			return;
 		}
-		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:submit_run:1', {
+		await fetchSubmitRun({
 			workflow_name: selectedWorkflow.name,
 			payload: payloadValue,
 			trigger_type: 2,
@@ -271,7 +277,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		if (!window.confirm('Cancel this run?')) {
 			return;
 		}
-		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:cancel_run:1', { guid: runGuid });
+		await fetchCancelRun({ guid: runGuid });
 		showNotification('Run cancelled');
 		await loadRuns();
 		if (selectedRun?.guid === runGuid) {
@@ -283,7 +289,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 		if (!window.confirm('Rollback this run?')) {
 			return;
 		}
-		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:rollback_run:1', { guid: runGuid });
+		await fetchRollbackRun({ guid: runGuid });
 		showNotification('Rollback started');
 		await loadRuns();
 		if (selectedRun?.guid === runGuid) {
@@ -292,7 +298,7 @@ const SystemWorkflowsPage = (): JSX.Element => {
 	};
 
 	const handleResumeRun = async (runGuid: string): Promise<void> => {
-		await rpcCall<SystemWorkflowRunItem1>('urn:system:workflows:resume_run:1', { guid: runGuid });
+		await fetchResumeRun({ guid: runGuid });
 		showNotification('Run resumed');
 		await loadRuns();
 		if (selectedRun?.guid === runGuid) {

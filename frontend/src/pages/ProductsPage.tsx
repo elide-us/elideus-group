@@ -19,27 +19,11 @@ import {
 import PageTitle from "../components/PageTitle";
 import UserContext from "../shared/UserContext";
 import { fetchProfile } from "../rpc/users/profile";
-import { rpcCall } from "../shared/RpcModels";
+import { fetchList as fetchProductList, fetchPurchase } from "../rpc/users/products";
+import type { UsersProductItem1, UsersProductPurchaseResult1 } from "../shared/RpcModels";
 
-type ProductItem = {
-    sku: string;
-    name: string;
-    description: string | null;
-    category: string;
-    price: string;
-    currency: string;
-    credits: number;
-    sort_order: number;
-    enablement_key?: string | null;
+type ProductItem = UsersProductItem1 & {
     already_enabled?: boolean;
-};
-
-type PurchaseResult = {
-    product: string;
-    transaction_token: string;
-    credits_granted?: number | null;
-    lot_number?: string | null;
-    enablement_granted?: string | null;
 };
 
 const CATEGORY_ORDER = ["enablement", "credit_purchase"] as const;
@@ -98,7 +82,7 @@ const ProductsPage = (): JSX.Element => {
     const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
 
     const loadProducts = useCallback(async (): Promise<void> => {
-        const response = await rpcCall<{ products: ProductItem[] }>("urn:users:products:list:1");
+        const response = await fetchProductList();
         setProducts((response.products || []).sort((left, right) => left.sort_order - right.sort_order));
     }, []);
 
@@ -145,7 +129,7 @@ const ProductsPage = (): JSX.Element => {
             setBusySku(selectedProduct.sku);
             setErrorMessage(null);
             setSuccessMessage(null);
-            const result = await rpcCall<PurchaseResult>("urn:users:products:purchase:1", { sku: selectedProduct.sku });
+            const result = await fetchPurchase({ sku: selectedProduct.sku }) as UsersProductPurchaseResult1;
             const details: string[] = [];
             if (result.credits_granted) {
                 details.push(`${result.credits_granted.toLocaleString()} credits added`);
