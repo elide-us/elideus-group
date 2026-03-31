@@ -43,6 +43,24 @@ and payload models.
 
 ---
 
+## Mechanical Automation Contracts
+
+The code generation pipeline (`scripts/seed_rpcdispatch.py`) uses AST analysis to extract metadata from service functions. The following naming contracts are required for the pipeline to function.
+
+Service functions resolve their module using this pattern:
+
+```python
+module: RoleAdminModule = request.app.state.role_admin
+await module.on_ready()
+result = await module.list_roles(auth_ctx.role_mask)
+```
+
+The local variable is always `module`. The type annotation carries the specificity. The `request.app.state.{attr}` expression provides the ModuleManager registration name. The `module.{method}` call provides the method name. Both values are extracted by the AST crawler and stored in `reflection_rpc_functions`.
+
+The `DISPATCHERS` dict in each subdomain `__init__.py` and the `HANDLERS` dict in each domain `__init__.py` are also parsed by name using AST analysis. These dicts must use exactly those names.
+
+Refer to `scripts/seed_rpcdispatch.py` (`parse_service_module_metadata`, `parse_dict_keys`) and `scripts/common.py` (`parse_dispatchers`) for the crawler implementations.
+
 ## Anti-Patterns To Avoid
 
 - Do **not** embed database access in RPC services—delegate to modules instead.
