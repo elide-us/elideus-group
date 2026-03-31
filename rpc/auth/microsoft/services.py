@@ -21,7 +21,7 @@ async def auth_microsoft_oauth_login_v1(request: Request):
     access_token=payload.accessToken or payload.access_token,
     fingerprint=payload.fingerprint,
     confirm=payload.confirm,
-    reauth_token=payload.reauthToken or payload.reAuthToken,
+    reauth_token=payload.reAuthToken,
     user_agent=request.headers.get("user-agent"),
     ip_address=request.client.host if request.client else None,
   )

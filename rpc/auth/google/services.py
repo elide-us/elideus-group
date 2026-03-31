@@ -24,7 +24,7 @@ async def auth_google_oauth_login_v1(request: Request):
     code=data.code,
     fingerprint=data.fingerprint,
     confirm=data.confirm,
-    reauth_token=data.reauthToken or (rpc_request.payload or {}).get("reAuthToken"),
+    reauth_token=data.reAuthToken,
     user_agent=request.headers.get("user-agent"),
     ip_address=request.client.host if request.client else None,
   )
