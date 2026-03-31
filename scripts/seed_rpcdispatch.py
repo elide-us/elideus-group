@@ -506,10 +506,9 @@ def main() -> None:
         element_modified_on
       INTO #workflow_actions_stash
       FROM system_workflow_actions;
-
-      DELETE FROM system_workflow_actions;
       """
     )
+    cursor.execute("DELETE FROM system_workflow_actions;")
 
     cursor.execute("DELETE FROM reflection_rpc_model_fields;")
     cursor.execute("DELETE FROM reflection_rpc_functions;")
@@ -689,10 +688,9 @@ def main() -> None:
         element_created_on,
         element_modified_on
       FROM #workflow_actions_stash;
-
-      DROP TABLE #workflow_actions_stash;
       """
     )
+    cursor.execute("DROP TABLE IF EXISTS #workflow_actions_stash;")
 
     cursor.execute("COMMIT TRANSACTION;")
 
