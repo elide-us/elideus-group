@@ -17,7 +17,7 @@ from .models import (
 
 
 async def _require_role(request: Request, user_guid: str, role_name: str, detail: str) -> None:
-  module: AuthModule = request.app.state.module
+  module: AuthModule = request.app.state.auth
   required_mask = module.roles.get(role_name, 0)
   if required_mask and not await module.user_has_role(user_guid, required_mask):
     raise HTTPException(status_code=403, detail=detail)

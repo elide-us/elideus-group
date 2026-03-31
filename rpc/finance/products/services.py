@@ -16,7 +16,7 @@ from .models import (
 
 
 async def _require_finance_admin(request: Request, user_guid: str) -> None:
-  module: AuthModule = request.app.state.module
+  module: AuthModule = request.app.state.auth
   required_mask = module.roles.get("ROLE_FINANCE_ADMIN", 0)
   if required_mask == 0:
     return
