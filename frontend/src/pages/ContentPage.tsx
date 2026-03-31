@@ -21,11 +21,10 @@ import MarkdownEditor from '../components/MarkdownEditor';
 import PageTitle from '../components/PageTitle';
 import { fetchPage } from '../rpc/public/pages';
 import { fetchCreateVersion, fetchListVersions, fetchVersion } from '../rpc/users/pages';
-import type { PublicPagesGetPage1, UsersPagesVersionList1, UsersPagesVersionContent1 } from '../shared/RpcModels';
+import type { PublicPagesGetPage1, UsersPagesVersionList1 } from '../shared/RpcModels';
 
 type PublicPageResponse = PublicPagesGetPage1;
 type VersionItem = UsersPagesVersionList1['versions'][number] extends infer V ? V : never;
-type VersionContentResponse = UsersPagesVersionContent1;
 
 const markdownBodySx = {
 	'& h1, & h2, & h3, & h4, & h5, & h6': { mt: 3, mb: 1 },
