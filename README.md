@@ -1,9 +1,11 @@
 ## TheOracleRPC
 
-AI-powered content generation platform. Template-driven image generation,
-text-to-speech, video generation, social media distribution, and creative
-workspace management — all behind a typed RPC boundary with OAuth
-authentication and role-based access control.
+A modular business platform built on a typed RPC boundary. The platform
+combines identity and role management, content pages/wiki CMS, user file
+storage, finance operations (GL journals, ledgers, fiscal periods, billing
+imports, reporting, credit lots), workflow automation, scheduled tasks,
+Discord integration, AI generation (image, TTS, video), social distribution,
+and LLM-agent access via TheOracleMCP.
 
 Built on FastAPI, Azure SQL, and React. Deployed to Azure via GitHub Actions.
 Connected to LLM agents via TheOracleMCP.
@@ -29,10 +31,27 @@ Connected to LLM agents via TheOracleMCP.
 
 ### Core Features
 
+- **Finance module** — double-entry accounting surface including ledgers,
+  chart of accounts, journals and journal lines, number sequences, fiscal
+  periods with 4-4-5 calendar generation, reporting (trial balance/journal
+  summary/period status), vendors, payment requests, staging imports, and
+  pipeline configuration.
+- **Workflow automation** — database-driven workflow definitions and run
+  actions with submit/cancel/rollback/resume/retry and stall scanning.
+- **Scheduled tasks** — cron-style scheduled task definitions with history and
+  manual `run_now` dispatch into workflows.
+- **Content pages & wiki** — versioned page CMS and wiki content workflows
+  with editable version history and route-aware page retrieval.
+- **Products & commerce** — product catalog and user purchase flow with stub
+  payment integration.
+- **Renewals** — service renewal lifecycle management exposed via service RPC.
+- **Conversation management** — system-level thread listing, stats, thread
+  inspection, and cleanup operations for persona chat history.
+- **RPC dispatch introspection** — reflection and rpcdispatch metadata layers
+  for self-describing QueryRegistry/RPC topology and frontend tree views.
 - **Template-driven image generation** — composable prompt templates with
   selectable style keys, tone, palette, lighting, composition, and subject
-  parameters. Templates are stored server-side; the frontend is a selector
-  over server-provided options.
+  parameters.
 - **Text-to-speech** — voice synthesis via OpenAI TTS with configurable voice
   and model parameters.
 - **Video generation** — LumaAI integration with callback-based async
@@ -43,12 +62,14 @@ Connected to LLM agents via TheOracleMCP.
   Bluesky feeds, and TikTok (planned). Additional platforms (X, Meta) are
   medium-term targets.
 - **Discord bot** — command-driven interface for chat summarization, persona
-  conversations, user registration, and credit management.
+  conversations, and credit management (`!summarize`, `!persona`, `!credits`,
+  `!guildcredits`).
 - **TheOracleMCP** — LLM agents (Claude, Codex) connect via Model Context
-  Protocol for schema discovery, database introspection, and platform
-  interaction.
-- **Credit system** — per-user credit tracking with charge-per-operation for
-  AI service calls.
+  Protocol through `service.reflection` RPC operations for schema discovery,
+  database introspection, and platform interaction.
+- **Credit system** — credit lot lifecycle management (`create`, `consume`,
+  `expire`, `list_events`, `wallet_balance`) plus legacy support/user credit
+  reads.
 
 ### Architecture
 

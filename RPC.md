@@ -194,28 +194,54 @@ These calls expose system administration functionality. All System domain calls 
 | `urn:system:storage:get_stats:1`    | Return counts and sizes for storage and cache.     |
 
 
-### `tasks`
+### `conversations`
 
 | Operation | Description |
 | --- | --- |
-| `urn:system:tasks:list:1` | List async tasks with optional status/type/handler filters. |
-| `urn:system:tasks:get:1` | Get a single async task by GUID. |
-| `urn:system:tasks:submit:1` | Submit an on-demand async task (human-initiated RPC). |
-| `urn:system:tasks:cancel:1` | Cancel a queued/running/polling/waiting task. |
-| `urn:system:tasks:retry:1` | Retry a failed pipeline task from its failed step. |
-| `urn:system:tasks:events:1` | List event history for an async task GUID. |
+| `urn:system:conversations:list_conversations:1` | List conversation rows with pagination metadata. |
+| `urn:system:conversations:get_stats:1` | Return aggregate conversation/thread/token statistics. |
+| `urn:system:conversations:view_thread:1` | Return the full message history for a thread id. |
+| `urn:system:conversations:delete_thread:1` | Delete all conversation rows for a thread id. |
+| `urn:system:conversations:delete_before:1` | Delete conversation rows created before a timestamp. |
+
+### `models`
+
+| Operation | Description |
+| --- | --- |
+| `urn:system:models:get_models:1` | List registered models and available API providers. |
+| `urn:system:models:upsert_model:1` | Create or update a model registry row. |
+| `urn:system:models:delete_model:1` | Delete a model registry row by recid or name. |
+
+### `scheduled_tasks`
+
+| Operation | Description |
+| --- | --- |
+| `urn:system:scheduled_tasks:list:1` | List scheduled task definitions. |
+| `urn:system:scheduled_tasks:get:1` | Get a scheduled task definition by recid. |
+| `urn:system:scheduled_tasks:list_history:1` | List execution history rows for a scheduled task. |
+| `urn:system:scheduled_tasks:run_now:1` | Trigger an immediate workflow run for a scheduled task. |
+
+### `workflows`
+
+| Operation | Description |
+| --- | --- |
+| `urn:system:workflows:list_workflows:1` | List workflow definitions, optionally filtered by status. |
+| `urn:system:workflows:get_workflow:1` | Get one workflow and its configured action sequence. |
+| `urn:system:workflows:list_runs:1` | List workflow runs, optionally filtered by status. |
+| `urn:system:workflows:get_run:1` | Get one workflow run by guid. |
+| `urn:system:workflows:submit_run:1` | Submit a new workflow run for a workflow name. |
+| `urn:system:workflows:cancel_run:1` | Cancel an in-flight workflow run. |
+| `urn:system:workflows:rollback_run:1` | Roll back a workflow run. |
+| `urn:system:workflows:resume_run:1` | Resume a paused or waiting workflow run. |
+| `urn:system:workflows:retry_run_action:1` | Retry a failed workflow run action. |
+| `urn:system:workflows:list_run_actions:1` | List action rows for a workflow run. |
+| `urn:system:workflows:scan_stalls:1` | Scan workflows for stalled runs/actions and return findings. |
 
 ## Service Domain
 
 All Service domain calls require `ROLE_SERVICE_ADMIN`. Role management
 operations require `ROLE_ACCOUNT_ADMIN`. `urn:service:roles:get_roles:1`
 may also be called by users with `ROLE_SYSTEM_ADMIN`.
-
-### `general`
-
-| Operation                         | Description                         |
-| --------------------------------- | ----------------------------------- |
-| `urn:service:health_check:1`     | Placeholder service health check.  |
 
 ### `roles`
 
@@ -258,11 +284,7 @@ may also be called by users with `ROLE_SYSTEM_ADMIN`.
 | --- | --- |
 | `urn:service:payment_requests:create:1` | Create an accounts payable staging payment request in Pending Approval status for manager review. |
 
-### `reflection` (planned)
-
-Schema introspection operations for LLM agents and tooling. Currently served
-directly by TheOracleMCP tools bypassing RPC; will be migrated to proper RPC
-operations under `ROLE_SERVICE_ADMIN`.
+### `reflection`
 
 | Operation | Description |
 | --- | --- |
@@ -365,6 +387,38 @@ Summarize the last 24 hours of messages in the current channel and send the resu
 
 Finance domain calls generally require `ROLE_FINANCE_ADMIN`.
 `urn:finance:staging:promote:1`, all `pipeline_config` operations, all `staging_account_map` operations, all `staging_purge_log` operations, and all `vendors` operations require `ROLE_SYSTEM_ADMIN`.
+
+### `accounts`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:accounts:list:1` | List chart-of-accounts rows. |
+| `urn:finance:accounts:get:1` | Get an account by GUID. |
+| `urn:finance:accounts:upsert:1` | Create or update a chart-of-accounts row. |
+| `urn:finance:accounts:delete:1` | Delete an account by GUID. |
+| `urn:finance:accounts:list_children:1` | List child accounts for a parent account GUID. |
+
+### `credit_lots`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:credit_lots:list_by_user:1` | List credit lots owned by a user GUID. |
+| `urn:finance:credit_lots:get:1` | Get one credit lot by recid. |
+| `urn:finance:credit_lots:create:1` | Create a credit lot allocation for a user. |
+| `urn:finance:credit_lots:consume:1` | Consume credits from available lots with ledgered consumption details. |
+| `urn:finance:credit_lots:expire:1` | Expire a credit lot and update remaining balance. |
+| `urn:finance:credit_lots:list_events:1` | List lifecycle events for a credit lot. |
+| `urn:finance:credit_lots:wallet_balance:1` | Return wallet balance summary for a user GUID. |
+
+### `dimensions`
+
+| Operation | Description |
+| --- | --- |
+| `urn:finance:dimensions:list:1` | List finance dimensions. |
+| `urn:finance:dimensions:list_by_name:1` | List dimension rows filtered by dimension name. |
+| `urn:finance:dimensions:get:1` | Get a finance dimension by recid. |
+| `urn:finance:dimensions:upsert:1` | Create or update a finance dimension row. |
+| `urn:finance:dimensions:delete:1` | Delete a finance dimension by recid. |
 
 ### `journals`
 
