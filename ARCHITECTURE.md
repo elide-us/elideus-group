@@ -57,13 +57,11 @@ The application hosts TheOracleMCP at `/mcp` — a Model Context Protocol server
 that provides LLM agents (Claude, Codex) with access to the platform.
 TheOracleMCP follows the input shim pattern described above.
 
-### Current State (POC)
+### Current State
 
-The current implementation is a proof-of-concept that bypasses the RPC layer.
-MCP tool functions call `dispatch_query_request()` directly against the
-QueryRegistry, which violates the layered architecture. This is being
-refactored to route through `urn:service:reflection:*` RPC operations under
-`ROLE_SERVICE_ADMIN`.
+The MCP tools are wired through the RPC layer. Tool functions resolve auth,
+construct an RPC auth context, and dispatch `urn:service:reflection:*`
+operations via `dispatch_rpc_op()` under `ROLE_SERVICE_ADMIN`.
 
 ### Target Architecture
 
@@ -119,10 +117,10 @@ bootstrapping but grants full access without user identity binding.
 | `account_mcp_agent_tokens` | Issued access/refresh tokens per agent |
 | `account_mcp_auth_codes` | Authorization codes (consumed during token exchange) |
 
-### Available Tools (Current POC)
+### Available Tools
 
-All tools are currently read-only and idempotent. These will be rewired to
-dispatch through `urn:service:reflection:*` RPC operations.
+All tools are currently read-only and idempotent, and dispatch through
+`urn:service:reflection:*` RPC operations.
 
 | Tool | Description |
 |------|-------------|
@@ -252,6 +250,8 @@ and the appropriate role:
 | `service.*` | `ROLE_SERVICE_ADMIN` |
 | `account.*` | `ROLE_ACCOUNT_ADMIN` |
 | `moderation.*` | `ROLE_MODERATOR` |
+| `discord.*` | Role mapped via `system_roles.element_rpc_domain` (currently `ROLE_DISCORD_ADMIN`) |
+| `finance.*` | `ROLE_FINANCE_ADMIN` (with operation-level exceptions; see `RPC.md`) |
 
 The RPC layer decrypts the bearer token to extract the user's GUID, builds an
 `RPCRequest`, validates roles, credits, and entitlements, and then dispatches the

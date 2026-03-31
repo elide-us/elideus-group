@@ -91,25 +91,21 @@ the RPC layer enforces authorization.
   `DiscordInputProvider`
 - **Auth:** Discord user ID → `AuthModule.get_discord_user_security()` →
   GUID, roles
-- **Pattern:** Bot commands (`!rpc`, `!summarize`, `!persona`, `!register`,
-  `!credits`, `!guildcredits`) translated to RPC calls via
+- **Pattern:** Bot commands (`!summarize`, `!persona`, `!credits`,
+  `!guildcredits`) translated to RPC calls via
   `dispatch_rpc_op()`.
 - **Files:** `server/modules/social_input_module.py`,
   `server/modules/providers/social/discord_input_provider.py`
 
-### TheOracleMCP (Refactoring)
+### TheOracleMCP (Production path, iterative hardening)
 
 - **Entry:** Streamable HTTP `/mcp` → MCP SDK → tool functions in
   `mcp_server.py`
-- **Auth (current POC):** Static token or OAuth JWT → scope check in tool
-  functions
-- **Auth (target):** OAuth JWT → decode to GUID →
-  `AuthModule.get_user_roles()` → construct `RPCRequest` →
-  `dispatch_rpc_op()`
-- **Pattern (current):** Tools call `dispatch_query_request()` directly
-  (violates layered architecture).
-- **Pattern (target):** Tools call `dispatch_rpc_op()` with
-  `urn:service:reflection:*` operations under `ROLE_SERVICE_ADMIN`.
+- **Auth (current):** Static token or OAuth JWT → scope check in tool
+  functions → role resolution (`AuthModule.get_user_roles()` for OAuth users,
+  `ROLE_SERVICE_ADMIN` mask for static token).
+- **Pattern (current):** Tools call `dispatch_rpc_op()` with
+  `urn:service:reflection:*` operations under `ROLE_SERVICE_ADMIN` semantics.
 - **Files:** `server/mcp_server.py`, `server/routers/mcp_router.py`,
   `server/modules/mcp_gateway_module.py`, `server/routers/oauth_router.py`
 
