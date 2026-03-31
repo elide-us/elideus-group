@@ -89,3 +89,22 @@ class BskyModule(BaseModule):
         handle=handle,
         display_name=display_name,
       )
+
+  async def action_deliver_bsky(self, input_data: dict) -> dict:
+    payload = input_data.get("payload") or {}
+    context = input_data.get("context") or {}
+    source = str(payload.get("source") or "").lower()
+    outputs = payload.get("outputs")
+    if source != "bsky" and not (isinstance(outputs, list) and "bsky" in outputs):
+      raise ValueError("bsky delivery not requested")
+    response_text = str(context.get("response_text") or "").strip()
+    if not response_text:
+      raise ValueError("context.response_text is required")
+    result = await self.post_message(response_text)
+    return {
+      "context": {
+        "delivered_bsky": True,
+        "bsky_uri": result.uri,
+        "bsky_cid": result.cid,
+      }
+    }
