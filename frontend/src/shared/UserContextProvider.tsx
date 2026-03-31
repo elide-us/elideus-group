@@ -69,7 +69,6 @@ const setUserData = useCallback((data: AuthTokens) => {
                                 access_token: null,
                                 fingerprint: getFingerprint(),
                                 confirm: null,
-                                reauthToken: null,
                                 reAuthToken: null,
                                 }) as unknown as AuthMicrosoftOauthLogin1;
                                                                                 setUserData({ provider: 'microsoft', ...data });
