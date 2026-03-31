@@ -31,3 +31,19 @@ class GetWorkflowNameByGuidParams(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   guid: str
+
+
+class ListAllTasksParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+
+class GetTaskParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  recid: int
+
+
+class ListTaskHistoryParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  tasks_recid: int

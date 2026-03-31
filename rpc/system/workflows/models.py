@@ -9,7 +9,9 @@ class SystemWorkflowItem1(BaseModel):
   description: str | None = None
   version: int
   status: int
-  step_count: int | None = None
+  is_active: bool | None = None
+  max_concurrency: int | None = None
+  stall_threshold_seconds: int | None = None
   created_on: str | None = None
   modified_on: str | None = None
 
@@ -26,17 +28,22 @@ class SystemWorkflowGetRequest1(BaseModel):
   name: str
 
 
-class SystemWorkflowStepItem1(BaseModel):
+class SystemWorkflowActionItem1(BaseModel):
   guid: str
+  workflows_guid: str | None = None
   name: str
   description: str | None = None
-  step_type: str
-  disposition: str
-  class_path: str
+  functions_guid: str | None = None
+  dispositions_recid: int | None = None
+  rollback_functions_guid: str | None = None
   sequence: int
   is_optional: bool = False
   timeout_seconds: int | None = None
   config: str | None = None
+  is_active: bool | None = None
+  module_attr: str | None = None
+  method_name: str | None = None
+  disposition_name: str | None = None
 
 
 class SystemWorkflowDetail1(BaseModel):
@@ -45,7 +52,7 @@ class SystemWorkflowDetail1(BaseModel):
   description: str | None = None
   version: int
   status: int
-  steps: list[SystemWorkflowStepItem1]
+  actions: list[SystemWorkflowActionItem1]
 
 
 # --- Workflow run models ---
@@ -57,15 +64,15 @@ class SystemWorkflowRunItem1(BaseModel):
   status: int
   payload: dict | None = None
   context: dict | None = None
-  current_step: str | None = None
-  step_index: int = 0
+  current_action: str | None = None
+  action_index: int = 0
   error: str | None = None
-  source_type: str | None = None
-  source_id: str | None = None
+  trigger_type: int | None = None
+  trigger_ref: str | None = None
+  result: dict | None = None
   created_by: str | None = None
   started_on: str | None = None
   ended_on: str | None = None
-  timeout_at: str | None = None
   created_on: str | None = None
   modified_on: str | None = None
 
@@ -86,9 +93,8 @@ class SystemWorkflowRunGetRequest1(BaseModel):
 class SystemWorkflowRunSubmitRequest1(BaseModel):
   workflow_name: str
   payload: dict = Field(default_factory=dict)
-  source_type: str | None = "rpc"
-  source_id: str | None = None
-  timeout_seconds: int | None = None
+  trigger_type: int = 2
+  trigger_ref: str | None = None
 
 
 class SystemWorkflowRunCancelRequest1(BaseModel):
@@ -99,27 +105,38 @@ class SystemWorkflowRunRollbackRequest1(BaseModel):
   guid: str
 
 
-# --- Run step models ---
+class SystemWorkflowRunResumeRequest1(BaseModel):
+  guid: str
 
-class SystemWorkflowRunStepItem1(BaseModel):
+
+class SystemWorkflowRunRetryActionRequest1(BaseModel):
+  run_action_guid: str
+
+
+# --- Run action models ---
+
+class SystemWorkflowRunActionItem1(BaseModel):
   recid: int
   guid: str
   runs_recid: int
-  steps_guid: str
+  actions_guid: str
   status: int
-  disposition: str
   input: dict | None = None
   output: dict | None = None
   error: str | None = None
+  sequence: int | None = None
+  retry_count: int = 0
+  external_ref: str | None = None
+  poll_interval_seconds: int | None = None
   started_on: str | None = None
   ended_on: str | None = None
   created_on: str | None = None
   modified_on: str | None = None
 
 
-class SystemWorkflowRunStepList1(BaseModel):
-  steps: list[SystemWorkflowRunStepItem1]
+class SystemWorkflowRunActionList1(BaseModel):
+  actions: list[SystemWorkflowRunActionItem1]
 
 
-class SystemWorkflowRunStepListRequest1(BaseModel):
+class SystemWorkflowRunActionListRequest1(BaseModel):
   run_guid: str

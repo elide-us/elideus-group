@@ -151,3 +151,46 @@ async def get_workflow_name_by_guid_v1(args: Mapping[str, Any]) -> DBResponse:
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
   """
   return await run_json_one(sql, (args["guid"],))
+
+
+async def list_all_tasks_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      recid, element_name, element_description, workflows_guid,
+      element_payload_template, element_cron, element_recurrence_type,
+      element_run_count_limit, element_run_until, element_total_runs,
+      element_status, element_last_run, element_next_run,
+      element_created_on, element_modified_on
+    FROM system_scheduled_tasks
+    ORDER BY element_name
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, ())
+
+
+async def get_task_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      recid, element_name, element_description, workflows_guid,
+      element_payload_template, element_cron, element_recurrence_type,
+      element_run_count_limit, element_run_until, element_total_runs,
+      element_status, element_last_run, element_next_run,
+      element_created_on, element_modified_on
+    FROM system_scheduled_tasks
+    WHERE recid = ?
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_one(sql, (args["recid"],))
+
+
+async def list_task_history_v1(args: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT
+      recid, tasks_recid, runs_recid,
+      element_fired_on, element_error, element_created_on
+    FROM system_scheduled_task_history
+    WHERE tasks_recid = ?
+    ORDER BY recid DESC
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
+  """
+  return await run_json_many(sql, (args["tasks_recid"],))

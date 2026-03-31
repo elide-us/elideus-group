@@ -4,8 +4,11 @@ from queryregistry.models import DBRequest
 
 from .models import (
   CreateScheduledTaskHistoryParams,
+  GetTaskParams,
   GetWorkflowNameByGuidParams,
+  ListAllTasksParams,
   ListEnabledDueTasksParams,
+  ListTaskHistoryParams,
   UpdateScheduledTaskParams,
 )
 
@@ -24,3 +27,15 @@ def create_scheduled_task_history_request(params: CreateScheduledTaskHistoryPara
 
 def get_workflow_name_by_guid_request(params: GetWorkflowNameByGuidParams) -> DBRequest:
   return DBRequest(op="db:system:scheduled_tasks:get_workflow_name_by_guid:1", payload=params.model_dump())
+
+
+def list_all_tasks_request(params: ListAllTasksParams) -> DBRequest:
+  return DBRequest(op="db:system:scheduled_tasks:list_all_tasks:1", payload=params.model_dump())
+
+
+def get_task_request(params: GetTaskParams) -> DBRequest:
+  return DBRequest(op="db:system:scheduled_tasks:get_task:1", payload=params.model_dump())
+
+
+def list_task_history_request(params: ListTaskHistoryParams) -> DBRequest:
+  return DBRequest(op="db:system:scheduled_tasks:list_task_history:1", payload=params.model_dump())
