@@ -33,7 +33,7 @@ async def auth_session_get_token_v1(request: Request):
     request.headers.get("user-agent"),
     request.client.host if request.client else None,
     payload.confirm,
-    payload.reauthToken,
+    payload.reAuthToken,
   )
 
   response_payload = AuthSessionGetTokenResponse1(token=session_token, profile=profile)
