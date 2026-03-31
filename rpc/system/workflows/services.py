@@ -23,6 +23,8 @@ from .models import (
   SystemWorkflowRunRetryActionRequest1,
   SystemWorkflowRunRollbackRequest1,
   SystemWorkflowRunSubmitRequest1,
+  SystemWorkflowScanStallsRequest1,
+  SystemWorkflowScanStallsResponse1,
 )
 
 
@@ -144,4 +146,14 @@ async def system_workflows_list_run_actions_v1(request: Request):
     raise HTTPException(status_code=404, detail="Workflow run not found")
   rows = await module.list_run_actions(run["recid"])
   payload = SystemWorkflowRunActionList1(actions=[SystemWorkflowRunActionItem1(**row) for row in rows])
+  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+
+
+async def system_workflows_scan_stalls_v1(request: Request):
+  rpc_request, _, _ = await unbox_request(request)
+  params = SystemWorkflowScanStallsRequest1(**(rpc_request.payload or {}))
+  module: WorkflowModule = request.app.state.workflow
+  await module.on_ready()
+  result = await module.scan_stalls(params.payload)
+  payload = SystemWorkflowScanStallsResponse1(**result)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

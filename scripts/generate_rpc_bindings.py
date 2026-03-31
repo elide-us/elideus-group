@@ -194,6 +194,26 @@ def main() -> None:
     write_client_bindings(base_parts, ops, service_models, FRONTEND_RPC)
   print('\nRPC function generation complete.')
 
+  # --- Seed RPC reflection tables (if DB is reachable) ---
+  print('\nAttempting to seed reflection_rpc_* tables...')
+  try:
+    from scripts.seed_rpcdispatch import connect, main as seed_main
+    # Test ODBC connectivity before running the full seed
+    test_conn = connect()
+    test_conn.close()
+    # Connection succeeded — run the seed with --force (non-interactive)
+    original_argv = sys.argv
+    sys.argv = ['seed_rpcdispatch', '--force']
+    try:
+      seed_main()
+    finally:
+      sys.argv = original_argv
+    print('RPC reflection tables seeded successfully.')
+  except Exception as exc:
+    print(f'  [SKIP] Could not seed reflection tables: {exc}')
+    print('  This is expected in environments without ODBC (e.g., Codex).')
+    print('  Reflection tables will be seeded on next build in an environment with DB access.')
+
 
 if __name__ == '__main__':
   main()

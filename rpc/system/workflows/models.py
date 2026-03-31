@@ -140,3 +140,11 @@ class SystemWorkflowRunActionList1(BaseModel):
 
 class SystemWorkflowRunActionListRequest1(BaseModel):
   run_guid: str
+
+
+class SystemWorkflowScanStallsRequest1(BaseModel):
+  payload: dict = Field(default_factory=dict)
+
+
+class SystemWorkflowScanStallsResponse1(BaseModel):
+  context: dict = Field(default_factory=dict)

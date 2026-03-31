@@ -24,7 +24,6 @@ const DiscordGuildsPage = lazy(() => import('./pages/DiscordGuildsPage'));
 const SystemConfigPage = lazy(() => import('./pages/system/SystemConfigPage'));
 const SystemModelsPage = lazy(() => import('./pages/system/SystemModelsPage'));
 const SystemConversationsPage = lazy(() => import('./pages/system/SystemConversationsPage'));
-const SystemBatchJobsPage = lazy(() => import('./pages/system/SystemBatchJobsPage'));
 const SystemWorkflowsPage = lazy(() => import('./pages/system/SystemWorkflowsPage'));
 const FinanceAdminPage = lazy(() => import('./pages/finance/FinanceAdminPage'));
 const FinanceAccountantPage = lazy(() => import('./pages/finance/FinanceAccountantPage'));
@@ -73,7 +72,6 @@ function App(): JSX.Element {
 									<Route path="/system-config" element={<SystemConfigPage />} />
 									<Route path="/system-models" element={<SystemModelsPage />} />
 									<Route path="/system-conversations" element={<SystemConversationsPage />} />
-									<Route path="/system-batch-jobs" element={<SystemBatchJobsPage />} />
 									<Route path="/system-workflows" element={<SystemWorkflowsPage />} />
 									<Route path="/finance-admin" element={<FinanceAdminPage />} />
 									<Route path="/finance-appr" element={<FinanceManagerPage />} />
