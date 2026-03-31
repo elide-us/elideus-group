@@ -3,6 +3,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class PublicWikiListFilter1(BaseModel):
+  parent_slug: str | None = None
+
+
+class PublicWikiGetPageRequest1(BaseModel):
+  slug: str
+
+
 class PublicWikiPageItem1(BaseModel):
   slug: str
   title: str

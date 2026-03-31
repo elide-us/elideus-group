@@ -5,6 +5,7 @@ from server.models import RPCResponse
 from server.modules.discord_bot_module import DiscordBotModule
 
 from .models import (
+  DiscordGuildsGetRequest1,
   DiscordGuildsGuildItem1,
   DiscordGuildsList1,
   DiscordGuildsSyncResult1,
@@ -23,11 +24,10 @@ async def discord_guilds_list_v1(request: Request):
 
 async def discord_guilds_get_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  payload_dict = rpc_request.payload or {}
-  guild_id = payload_dict.get("guild_id", "")
+  input_payload = DiscordGuildsGetRequest1(**(rpc_request.payload or {}))
   module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
-  guild = await module.get_guild_record(guild_id)
+  guild = await module.get_guild_record(input_payload.guild_id)
   response = DiscordGuildsGuildItem1(**guild)
   return RPCResponse(op=rpc_request.op, payload=response.model_dump(), version=rpc_request.version)
 

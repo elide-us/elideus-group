@@ -11,6 +11,10 @@ class AccountRoleList1(BaseModel):
   roles: list[AccountRoleRoleItem1]
 
 
+class AccountRoleGetMembersRequest1(BaseModel):
+  role: str
+
+
 class AccountRoleMemberUpdate1(BaseModel):
   role: str
   userGuid: str

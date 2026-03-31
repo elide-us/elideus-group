@@ -112,6 +112,109 @@ def parse_service_models(path: str) -> dict[str, str]:
   return models
 
 
+
+
+def _call_name(node: ast.Call) -> str | None:
+  if isinstance(node.func, ast.Name):
+    return node.func.id
+  if isinstance(node.func, ast.Attribute):
+    return node.func.attr
+  return None
+
+
+def _is_payload_expr(node: ast.AST) -> bool:
+  if isinstance(node, ast.Attribute):
+    return node.attr == 'payload'
+  if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+    return any(_is_payload_expr(value) for value in node.values)
+  return False
+
+
+def _extract_input_model(call: ast.Call) -> str | None:
+  for kw in call.keywords:
+    if kw.arg is None and _is_payload_expr(kw.value):
+      return _call_name(call)
+
+  if (
+    isinstance(call.func, ast.Attribute)
+    and call.func.attr == 'model_validate'
+    and call.args
+    and _is_payload_expr(call.args[0])
+  ):
+    model_node = call.func.value
+    if isinstance(model_node, ast.Name):
+      return model_node.id
+    if isinstance(model_node, ast.Attribute):
+      return model_node.attr
+  return None
+
+
+def _find_response_payload_var(func_body: list[ast.stmt]) -> str | None:
+  for stmt in func_body:
+    if not isinstance(stmt, ast.Return) or not isinstance(stmt.value, ast.Call):
+      continue
+    call = stmt.value
+    if _call_name(call) != 'RPCResponse':
+      continue
+    for kw in call.keywords:
+      if kw.arg != 'payload':
+        continue
+      if (
+        isinstance(kw.value, ast.Call)
+        and isinstance(kw.value.func, ast.Attribute)
+        and kw.value.func.attr == 'model_dump'
+      ):
+        payload_value = kw.value.func.value
+        if isinstance(payload_value, ast.Name):
+          return payload_value.id
+      return None
+  return None
+
+
+def parse_service_contracts(path: str) -> dict[str, dict[str, str | None]]:
+  contracts: dict[str, dict[str, str | None]] = {}
+  if not os.path.exists(path):
+    return contracts
+
+  with open(path, 'r') as f:
+    tree = ast.parse(f.read(), filename=path)
+
+  for node in tree.body:
+    if not isinstance(node, ast.AsyncFunctionDef):
+      continue
+
+    input_model: str | None = None
+    output_model: str | None = None
+    var_models: dict[str, str] = {}
+
+    for stmt in ast.walk(node):
+      if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+        target = stmt.targets[0]
+        value = stmt.value
+      elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+        target = stmt.target
+        value = stmt.value
+      else:
+        continue
+
+      if not isinstance(target, ast.Name) or not isinstance(value, ast.Call):
+        continue
+
+      model_name = _call_name(value)
+      if model_name and model_name[:1].isupper():
+        var_models[target.id] = model_name
+
+      detected_input = _extract_input_model(value)
+      if detected_input and detected_input[:1].isupper():
+        input_model = detected_input
+
+    response_var = _find_response_payload_var(node.body)
+    if response_var and response_var in var_models:
+      output_model = var_models[response_var]
+
+    contracts[node.name] = {'input': input_model, 'output': output_model}
+
+  return contracts
 def find_all_model_classes(rpc_root: str) -> list[tuple[str, type[BaseModel], str, str]]:
   model_classes: list[tuple[str, type[BaseModel], str, str]] = []
   seen: set[str] = set()

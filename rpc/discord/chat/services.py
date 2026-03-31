@@ -10,22 +10,25 @@ from server.modules.openai_module import OpenaiModule
 from .models import (
   DiscordChatPersonaRequest1,
   DiscordChatPersonaResponse1,
+  DiscordChatSummarizeChannelRequest1,
+  DiscordChatSummarizeChannelResponse1,
 )
 
 async def discord_chat_summarize_channel_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
+  input_payload = DiscordChatSummarizeChannelRequest1(**(rpc_request.payload or {}))
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
   result = await module.summarize_and_deliver(
-    guild_id=payload.get("guild_id"),
-    channel_id=payload.get("channel_id"),
-    hours=int(payload.get("hours", 1)),
-    user_id=int(payload["user_id"]) if payload.get("user_id") is not None else None,
+    guild_id=input_payload.guild_id,
+    channel_id=input_payload.channel_id,
+    hours=input_payload.hours,
+    user_id=input_payload.user_id,
   )
+  response = DiscordChatSummarizeChannelResponse1(**result)
   return RPCResponse(
     op=rpc_request.op,
-    payload=result,
+    payload=response.model_dump(),
     version=rpc_request.version,
   )
 

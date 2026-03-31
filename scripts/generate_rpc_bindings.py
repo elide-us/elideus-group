@@ -16,7 +16,7 @@ from common import (
   find_all_model_classes,
   model_to_ts,
   parse_dispatchers,
-  parse_service_models,
+  parse_service_contracts,
 )
 
 # Ensure repo root is on sys.path so RPC modules can be imported with package names.
@@ -36,9 +36,17 @@ def urn_to_func(op: str, version: str) -> str:
   return name
 
 
-def generate_client_ts(base: Iterable[str], ops: list[dict[str, str]], service_models: dict[str, str]) -> str:
-  models = {service_models.get(o['func'], 'any') for o in ops}
-  model_imports = ', '.join(sorted(m for m in models if m != 'any'))
+def generate_client_ts(base: Iterable[str], ops: list[dict[str, str]], service_contracts: dict[str, dict[str, str | None]]) -> str:
+  models = set()
+  for op in ops:
+    contract = service_contracts.get(op['func'], {})
+    input_model = contract.get('input')
+    output_model = contract.get('output')
+    if input_model:
+      models.add(input_model)
+    if output_model:
+      models.add(output_model)
+  model_imports = ', '.join(sorted(models))
 
   lines = HEADER_COMMENT.copy()
 
@@ -52,20 +60,23 @@ def generate_client_ts(base: Iterable[str], ops: list[dict[str, str]], service_m
   lines.append('')
 
   base_urn = ':'.join(['urn'] + base_list)
-  for o in ops:
-    func_name = urn_to_func(o['op'], o['version'])
-    model = service_models.get(o['func'], 'any')
-    urn = f"{base_urn}:{o['op']}:{o['version']}"
-    lines.append(f"export const {func_name} = (payload: any = null): Promise<{model}> => rpcCall('{urn}', payload);")
+  for op in ops:
+    func_name = urn_to_func(op['op'], op['version'])
+    contract = service_contracts.get(op['func'], {})
+    input_model = contract.get('input')
+    output_model = contract.get('output') or 'void'
+    urn = f"{base_urn}:{op['op']}:{op['version']}"
+    param = f'payload: {input_model}' if input_model else 'payload: any = null'
+    lines.append(f"export const {func_name} = ({param}): Promise<{output_model}> => rpcCall('{urn}', payload);")
 
   lines.append('')
   return "\n".join(lines)
 
 
-def write_client_bindings(base: list[str], ops: list[dict[str, str]], service_models: dict[str, str], output_dir: str) -> None:
+def write_client_bindings(base: list[str], ops: list[dict[str, str]], service_contracts: dict[str, dict[str, str | None]], output_dir: str) -> None:
   out_dir = os.path.join(output_dir, *base)
   os.makedirs(out_dir, exist_ok=True)
-  content = generate_client_ts(base, ops, service_models)
+  content = generate_client_ts(base, ops, service_contracts)
   out_file = os.path.join(out_dir, 'index.ts')
   with open(out_file, 'w') as f:
     f.write(content)
@@ -185,13 +196,19 @@ def main() -> None:
       print(f"  {Fore.YELLOW}[WARN]{Style.RESET_ALL} No valid dispatchers found, skipping.")
       continue
 
-    service_models = parse_service_models(service_path)
-    if service_models:
-      print(f"  Extracted models from services.py: {', '.join(service_models.values())}")
+    service_contracts = parse_service_contracts(service_path)
+    if service_contracts:
+      contract_lines = []
+      for operation in ops:
+        contract = service_contracts.get(operation['func'], {})
+        contract_lines.append(
+          f"{operation['func']}(input={contract.get('input')}, output={contract.get('output')})"
+        )
+      print(f"  Extracted contracts from services.py: {', '.join(contract_lines)}")
     else:
-      print(f"  {Fore.YELLOW}[WARN]{Style.RESET_ALL} No payload models found in services.py")
+      print(f"  {Fore.YELLOW}[WARN]{Style.RESET_ALL} No payload contracts found in services.py")
 
-    write_client_bindings(base_parts, ops, service_models, FRONTEND_RPC)
+    write_client_bindings(base_parts, ops, service_contracts, FRONTEND_RPC)
   print('\nRPC function generation complete.')
 
   # --- Seed RPC reflection tables (if DB is reachable) ---

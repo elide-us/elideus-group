@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
@@ -8,6 +8,7 @@ from .models import (
   AccountRoleAggregateList1,
   AccountRoleRoleItem1,
   AccountRoleList1,
+  AccountRoleGetMembersRequest1,
   AccountRoleMemberUpdate1,
   AccountRoleMembers1,
   AccountRoleUserItem1,
@@ -44,12 +45,9 @@ async def account_role_get_all_role_members_v1(request: Request):
 
 async def account_role_get_role_members_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
-  payload = rpc_request.payload or {}
-  role = payload.get("role")
-  if not role:
-    raise HTTPException(status_code=400, detail="Missing role")
+  input_payload = AccountRoleGetMembersRequest1(**(rpc_request.payload or {}))
   module: RoleAdminModule = request.app.state.module
-  members_raw, non_raw = await module.get_role_members(role)
+  members_raw, non_raw = await module.get_role_members(input_payload.role)
   members = [AccountRoleUserItem1(**m) for m in members_raw]
   non_members = [AccountRoleUserItem1(**m) for m in non_raw]
   res = AccountRoleMembers1(members=members, nonMembers=non_members)
