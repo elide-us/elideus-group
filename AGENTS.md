@@ -8,10 +8,9 @@ Component-specific expectations now live beside the code they regulate; see the
 
 ## Orientation
 
-- Review **ARCHITECTURE.md** for the layer boundaries (RPC → Service → Module →
-  Provider) and the security model.
-- Domain-specific design notes are captured in the markdown files that live next
-  to the related code (for example **RPC.md** and documents under `server/`).
+- Review **PATTERNS.md** for layer architecture, RPC dispatch patterns, module lifecycle,
+  QueryRegistry dispatch, data conventions, code generation pipeline, and MCP tooling reference.
+- Component-specific guidance lives in scoped AGENTS.md files beside the code they regulate.
 
 ---
 
@@ -27,15 +26,6 @@ Component-specific expectations now live beside the code they regulate; see the
 - Prefer existing automation helpers when they exist instead of ad-hoc scripts.
 - Docker builds have no automated coverage—plan manual validation when touching
   the Dockerfile or startup scripts.
-
----
-
-## Common Pitfalls to Avoid
-
-- Do not add aliases when a direct reference is already available.
-- Do not suppress errors; surface them with contextual logging.
-- Do not invent new environment variables without updating configuration docs
-  and module startup code.
 
 ---
 
@@ -69,7 +59,7 @@ Consult these scoped instruction files when working in a given area:
 - `frontend/AGENTS.md` – React/Vite codebase.
 - `rpc/AGENTS.md` – RPC handlers and services.
 - `server/AGENTS.md` – FastAPI app startup, modules, and providers.
-- `server/mcp_server.py` – MCP server for LLM schema discovery (read-only).
+- `server/mcp_server.py` – MCP server for LLM schema discovery (see PATTERNS.md §7 for tool reference).
 - `scripts/AGENTS.md` – Automation and RPC binding generation.
 - `tests/AGENTS.md` – Python test suite structure.
 

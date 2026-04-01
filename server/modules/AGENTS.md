@@ -14,13 +14,6 @@ Guidance for runtime services under `server/modules/`.
 - Callers of `queryregistry/` for data access translation while keeping business
   logic in modules.
 
-## What modules are NOT
-
-- Not query handlers.
-- Not raw SQL containers.
-- Not a place to embed provider-specific queries; use `queryregistry/` for all
-  data access.
-
 ---
 
 ## Key files
@@ -46,8 +39,11 @@ Adjacent guidance:
 - Let `ModuleManager` discovery/load modules; follow naming contract:
   - file: `snake_case_module.py`
   - class: `CamelCaseModule`
-- For new query work, dispatch through `queryregistry` flows
-  (`dispatch_query_request` / canonical DB ops), not direct legacy-registry calls.
+- All data access goes through `self.db.run(request_builder())`. See PATTERNS.md §3.2
+  for the canonical pattern.
+- Module business methods return the RPC response Pydantic model (`rpc/**/models.py`)
+  directly. The service function passes it through without transformation.
+  See PATTERNS.md §3.3 for the model ownership contract.
 
 ---
 
@@ -57,12 +53,3 @@ Adjacent guidance:
   - `element_*` metadata fields.
   - `recid` values as `bigint` identifiers.
   - `datetimeoffset` for temporal audit columns.
-
----
-
-## Anti-patterns (forbidden)
-
-- Calling providers directly from RPC/router layers and bypassing modules.
-- Embedding SQL directly in modules for new features.
-- Adding aliases/compatibility shims to keep legacy op names alive.
-- Creating global singleton state outside module instances/app.state wiring.

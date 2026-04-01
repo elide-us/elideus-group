@@ -30,6 +30,6 @@ This directory hosts the pytest suite for the backend and RPC layers.
 
 - Exercise the full request path: parse → service → module. Use fixtures to
   isolate external providers instead of calling real network or database code.
-- Update **RPC.md** or other design docs when tests highlight new behavior.
+- Update **PATTERNS.md** or scoped design docs when tests highlight new behavior.
 - Keep assertions focused on security boundaries (roles, tokens) and serialized
   payload shapes so RPC generators stay accurate.

@@ -28,7 +28,6 @@ Guidance for the Vite + React + TypeScript app under `frontend/`.
 Adjacent guidance:
 - Root `AGENTS.md` for repository-wide workflow/test expectations.
 - `rpc/AGENTS.md` for backend RPC definitions that drive generated frontend bindings.
-- `queryregistry/AGENTS.md` for canonical server-side query dispatch conventions.
 
 ---
 
@@ -49,12 +48,3 @@ Adjacent guidance:
 - When RPC contracts change, regenerate bindings from Python RPC definitions using
   `python scripts/generate_rpc_bindings.py`.
 - Keep TypeScript types aligned with backend models via regeneration, not manual patching.
-
----
-
-## Anti-patterns (forbidden)
-
-- Embedding backend/domain business logic in components.
-- Creating frontend-side compatibility shims for deprecated backend operation names.
-- Bypassing generated RPC clients with ad-hoc request shapes when bindings exist.
-- Introducing aliases where direct references already exist.

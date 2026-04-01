@@ -36,7 +36,29 @@ operational tooling.
 - Active automation utilities in this folder include:
   - `generate_rpc_bindings.py`
   - `generate_db_namespace.py`
+  - `seed_rpcdispatch.py`
+  - `seed_workflows.py`
   - `run_tests.py`
   - `cleanup_acr.py`
 - `run_tests.py` is the canonical orchestration script for CI-style runs; keep
   it aligned with the commands listed in the root AGENT guide.
+
+---
+
+## Mechanical Automation Contracts
+
+The code generation scripts use AST analysis to extract metadata from the
+`rpc/` source tree. The following naming contracts are mechanically parsed:
+
+- `DISPATCHERS` dict in each subdomain `__init__.py` — parsed by `parse_dispatchers`
+  in `scripts/common.py`
+- `HANDLERS` dict in each domain `__init__.py` — parsed by `parse_dict_keys`
+  in `seed_rpcdispatch.py`
+- `module` local variable in service functions — parsed by
+  `parse_service_module_metadata` in `seed_rpcdispatch.py`
+- `result: ModelName` type annotation in service functions — parsed by
+  `parse_service_contracts` in `scripts/common.py`
+
+These dict and variable names are fixed tokens that the AST crawlers match on.
+See PATTERNS.md §0 for the full mechanical contracts reference and §6 for the
+generation pipeline overview.

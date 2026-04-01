@@ -19,7 +19,6 @@ from queryregistry.identity.sessions.models import (
   RevokeProviderTokensParams,
   UpdateDeviceTokenParams,
 )
-from queryregistry.models import DBRequest as QueryDBRequest, DBResponse as QueryDBResponse
 from queryregistry.system.config.models import ConfigKeyParams
 from . import BaseModule
 
@@ -89,12 +88,6 @@ class OauthModule(BaseModule):
       return [dict(payload)]
     return [dict(payload)]
 
-  async def _dispatch_provider_request(
-    self,
-    request: QueryDBRequest,
-  ) -> QueryDBResponse:
-    provider_name = self.db.provider or "mssql"
-    return await self.db.run(request)
 
   def _provider_title(self, provider: str) -> str:
     return {"google": "Google", "microsoft": "Microsoft", "discord": "Discord"}.get(
