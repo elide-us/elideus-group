@@ -1,0 +1,15 @@
+# Oracle MCP – TheOracleRPC schema introspection (test environment)
+[mcp_servers.oracle]
+url = "https://elideus-group-test.azurewebsites.net/mcp"
+bearer_token_env_var = "ORACLE_MCP_TOKEN"
+enabled_tools = [
+    "oracle_list_tables",
+    "oracle_list_views",
+    "oracle_describe_table",
+    "oracle_dump_table",
+    "oracle_list_rpc_endpoints",
+    "oracle_list_domains",
+    "oracle_get_schema_version",
+    "oracle_get_full_schema",
+    "oracle_query_info_schema",
+]
