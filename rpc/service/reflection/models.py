@@ -45,7 +45,7 @@ class DumpTableResponse1(BaseModel):
 
 
 class DomainsResponse1(BaseModel):
-  domains: dict[str, Any]
+  domains: list[dict[str, Any]]
 
 
 class RpcEndpointsResponse1(BaseModel):
