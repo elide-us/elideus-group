@@ -24,7 +24,7 @@ async def service_routes_upsert_route_v1(request: Request):
   data = ServiceRoutesRouteItem1(**(rpc_request.payload or {}))
   module: ServiceRoutesModule = request.app.state.service_routes
   await module.on_ready()
-  result = await module.upsert_route(auth_ctx.user_guid, auth_ctx.roles, data.model_dump())
+  result: ServiceRoutesRouteItem1 = await module.upsert_route(auth_ctx.user_guid, auth_ctx.roles, data.model_dump())
   payload = ServiceRoutesRouteItem1(**result)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
 
@@ -34,6 +34,6 @@ async def service_routes_delete_route_v1(request: Request):
   data = ServiceRoutesDeleteRoute1(**(rpc_request.payload or {}))
   module: ServiceRoutesModule = request.app.state.service_routes
   await module.on_ready()
-  result = await module.delete_route(auth_ctx.user_guid, auth_ctx.roles, data.path)
+  result: ServiceRoutesDeleteRoute1 = await module.delete_route(auth_ctx.user_guid, auth_ctx.roles, data.path)
   payload = ServiceRoutesDeleteRoute1(**result)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

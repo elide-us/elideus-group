@@ -16,7 +16,7 @@ async def service_payment_requests_create_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   try:
-    result = await module.create_payment_request(payload.model_dump(), auth_ctx.user_guid)
+    result: PaymentRequestCreateResult1 = await module.create_payment_request(payload.model_dump(), auth_ctx.user_guid)
   except ValueError as exc:
     detail = str(exc)
     if detail.startswith("Unknown vendor:"):

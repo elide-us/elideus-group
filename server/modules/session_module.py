@@ -15,7 +15,6 @@ from server.modules.oauth_module import OauthModule
 from server.modules.discord_bot_module import DiscordBotModule
 from queryregistry.identity.profiles import update_profile_request
 from queryregistry.identity.profiles.models import UpdateProfileParams
-from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.sessions import (
   create_session_request,
   get_rotkey_request,
@@ -99,16 +98,15 @@ class SessionModule(BaseModule):
 
     new_img = provider_profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await dispatch_query_request(
-        update_profile_request(
+      await self.db.run(
+          update_profile_request(
           UpdateProfileParams(
             guid=user["guid"],
             provider=provider,
             image_b64=new_img,
           ),
         ),
-        provider=self.db.provider or "mssql",
-      )
+        )
       user["profile_image"] = new_img
 
     user_guid = user["guid"]
@@ -134,10 +132,9 @@ class SessionModule(BaseModule):
     data = self.auth.decode_rotation_token(rotation_token)
     user_guid = data["guid"]
     issued_at = data.get("issued_at")
-    stored = await dispatch_query_request(
-      get_rotkey_request(RotkeyLookupParams(guid=user_guid, fingerprint=fingerprint)),
-      provider=self.db.provider or "mssql",
-    )
+    stored = await self.db.run(
+        get_rotkey_request(RotkeyLookupParams(guid=user_guid, fingerprint=fingerprint)),
+      )
     rows = self._normalize_query_payload(stored.payload)
     row = rows[0] if rows else None
     if not row or row.get("device_rotkey") != rotation_token:

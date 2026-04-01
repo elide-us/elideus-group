@@ -37,7 +37,7 @@ async def discord_guilds_update_credits_v1(request: Request):
   payload = DiscordGuildsUpdateCredits1(**(rpc_request.payload or {}))
   module: DiscordBotModule = request.app.state.discord_bot
   await module.on_ready()
-  result = await module.update_guild_credits(payload.guild_id, payload.credits)
+  result: DiscordGuildsUpdateCredits1 = await module.update_guild_credits(payload.guild_id, payload.credits)
   response = DiscordGuildsUpdateCredits1(**result)
   return RPCResponse(op=rpc_request.op, payload=response.model_dump(), version=rpc_request.version)
 

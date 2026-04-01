@@ -140,7 +140,7 @@ async def storage_files_get_link_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
   data = StorageFilesGetLink1(**(rpc_request.payload or {}))
   module: StorageModule = request.app.state.storage
-  result = await module.get_file_link(user_guid, data.name)
+  result: StorageFilesFileItem1 = await module.get_file_link(user_guid, data.name)
   item = StorageFilesFileItem1(**result)
   return RPCResponse(
     op=rpc_request.op,
@@ -172,7 +172,7 @@ async def storage_files_get_folder_files_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
   data = StorageFilesGetFolderFiles1(**(rpc_request.payload or {}))
   module: StorageModule = request.app.state.storage
-  res = await module.list_folder(user_guid, data.path)
+  res: StorageFilesFolderListing1 = await module.list_folder(user_guid, data.path)
   items = [StorageFilesFileItem1(**f) for f in res.get("files", [])]
   folders = [StorageFilesFolderItem1(**f) for f in res.get("folders", [])]
   payload = StorageFilesFolderListing1(path=res.get("path", ""), files=items, folders=folders)

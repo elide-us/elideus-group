@@ -4,7 +4,6 @@ import aiohttp
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
-from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.profiles import (
   get_profile_request,
   update_if_unedited_request,
@@ -95,7 +94,7 @@ class OauthModule(BaseModule):
     request: QueryDBRequest,
   ) -> QueryDBResponse:
     provider_name = self.db.provider or "mssql"
-    return await dispatch_query_request(request, provider=provider_name)
+    return await self.db.run(request)
 
   def _provider_title(self, provider: str) -> str:
     return {"google": "Google", "microsoft": "Microsoft", "discord": "Discord"}.get(
@@ -200,7 +199,7 @@ class OauthModule(BaseModule):
       _, profile, _ = await self.auth.handle_auth_login(
         provider, id_token, access_token
       )
-    await self._dispatch_provider_request(
+    await self.db.run(
       set_provider_request(guid=user_guid, provider=provider),
     )
     if profile:
@@ -213,7 +212,7 @@ class OauthModule(BaseModule):
         email=email,
         display_name=display_name,
       )
-      await self._dispatch_provider_request(update_if_unedited_request(params))
+      await self.db.run(update_if_unedited_request(params))
     return original
 
   async def link_user_provider(
@@ -235,7 +234,7 @@ class OauthModule(BaseModule):
       provider, id_token, access_token
     )
     provider_uid = self.normalize_provider_identifier(provider_uid)
-    res = await self._dispatch_provider_request(
+    res = await self.db.run(
       get_by_provider_identifier_request(
         provider=provider,
         provider_identifier=provider_uid,
@@ -244,7 +243,7 @@ class OauthModule(BaseModule):
     rows = self._normalize_query_payload(res.payload)
     if rows and rows[0].get("guid") != user_guid:
       raise HTTPException(status_code=409, detail="Provider already linked")
-    await self._dispatch_provider_request(
+    await self.db.run(
       link_provider_request(
         guid=user_guid,
         provider=provider,
@@ -260,23 +259,23 @@ class OauthModule(BaseModule):
     *,
     new_default: str | None = None,
   ) -> dict:
-    res_prof = await self._dispatch_provider_request(
+    res_prof = await self.db.run(
       get_profile_request(GuidParams(guid=user_guid))
     )
     default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
-    res = await self._dispatch_provider_request(
+    res = await self.db.run(
       unlink_provider_request(guid=user_guid, provider=provider),
     )
     rows = self._normalize_query_payload(res.payload)
     remaining = rows[0].get("providers_remaining") if rows else 0
     if remaining == 0:
-      await self._dispatch_provider_request(
+      await self.db.run(
         unlink_last_provider_request(guid=user_guid, provider=provider),
       )
     elif provider == default_provider:
       if not new_default:
         raise HTTPException(status_code=400, detail="new_default required")
-      await self._dispatch_provider_request(
+      await self.db.run(
         set_provider_request(guid=user_guid, provider=new_default),
       )
       await self.db.run(
@@ -288,14 +287,14 @@ class OauthModule(BaseModule):
 
   async def unlink_last_provider_record(self, guid: str, provider: str) -> None:
     assert self.db
-    await self._dispatch_provider_request(
+    await self.db.run(
       unlink_last_provider_request(guid=guid, provider=provider),
     )
 
   async def get_user_by_provider_identifier(
     self, provider: str, provider_identifier: str
   ):
-    res = await self._dispatch_provider_request(
+    res = await self.db.run(
       get_by_provider_identifier_request(
         provider=provider,
         provider_identifier=provider_identifier,
@@ -312,13 +311,13 @@ class OauthModule(BaseModule):
     provider_displayname: str,
     provider_profile_image: str | None = None,
   ):
-    res = await self._dispatch_provider_request(
+    res = await self.db.run(
       get_user_by_email_request(email=provider_email),
     )
     rows = self._normalize_query_payload(res.payload)
     if rows:
       raise HTTPException(status_code=409, detail="Email already registered")
-    res = await self._dispatch_provider_request(
+    res = await self.db.run(
       create_from_provider_request(
         provider=provider,
         provider_identifier=provider_identifier,
@@ -502,7 +501,7 @@ class OauthModule(BaseModule):
         continue
       checked.add(uid)
       logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
-      res = await self._dispatch_provider_request(
+      res = await self.db.run(
         get_by_provider_identifier_request(
           provider=provider,
           provider_identifier=uid,
@@ -573,7 +572,7 @@ class OauthModule(BaseModule):
     if user and user.get("element_soft_deleted_at"):
       needs_relink = True
     elif not user:
-      await self._dispatch_provider_request(
+      await self.db.run(
         get_any_by_provider_identifier_request(
           provider_identifier=provider_uid,
         ),
@@ -590,12 +589,12 @@ class OauthModule(BaseModule):
         confirm=confirm,
         reauth_token=reauth_token,
       )
-      res = await self._dispatch_provider_request(request)
+      res = await self.db.run(request)
       rows = self._normalize_query_payload(res.payload)
       user = rows[0] if rows else None
 
     if not user:
-      res = await self._dispatch_provider_request(
+      res = await self.db.run(
         create_from_provider_request(
           provider=provider,
           provider_identifier=provider_uid,
@@ -607,7 +606,7 @@ class OauthModule(BaseModule):
       rows = self._normalize_query_payload(res.payload)
       user = rows[0] if rows else None
       if not user:
-        res = await self._dispatch_provider_request(
+        res = await self.db.run(
           get_by_provider_identifier_request(
             provider=provider,
             provider_identifier=provider_uid,
@@ -655,7 +654,7 @@ class OauthModule(BaseModule):
     user_guid = user["guid"]
     new_img = profile.get("profilePicture")
     if new_img and new_img != user.get("profile_image"):
-      await self._dispatch_provider_request(
+      await self.db.run(
         update_profile_request(
           UpdateProfileParams(
             guid=user_guid,
@@ -671,7 +670,7 @@ class OauthModule(BaseModule):
         email=profile["email"],
         display_name=profile["username"],
       )
-      res_prof = await self._dispatch_provider_request(update_if_unedited_request(params))
+      res_prof = await self.db.run(update_if_unedited_request(params))
       rows = self._normalize_query_payload(res_prof.payload)
       if rows:
         updated = rows[0]

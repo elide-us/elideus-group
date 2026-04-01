@@ -28,7 +28,7 @@ async def users_products_purchase_v1(request: Request):
   module: FinanceModule = request.app.state.finance
   await module.on_ready()
   try:
-    result = await module.purchase_product(
+    result: UsersProductPurchaseResult1 = await module.purchase_product(
       users_guid=auth_ctx.user_guid,
       sku=payload.sku,
       actor_guid=auth_ctx.user_guid,
