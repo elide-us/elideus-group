@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import importlib
 import logging
 from typing import Any
 
 from fastapi import FastAPI
 
-from queryregistry.handler import HANDLERS as QR_HANDLERS
 from queryregistry.reflection.data import dump_table_request, get_version_request, query_info_schema_request
 from queryregistry.reflection.data.models import DumpTableParams, QueryInfoSchemaParams
 from queryregistry.reflection.schema import (
@@ -166,33 +164,11 @@ class RpcdispatchModule(BaseModule):
       return None
     return subdomain_entry.functions.get((function, version))
 
-  async def list_domains(self) -> list[dict[str, Any]] | dict[str, Any]:
+  async def list_domains(self) -> list[dict[str, Any]]:
     if self.db is None:
       raise RuntimeError("rpcdispatch module requires db module")
     result = await self.db.run(list_domains_request())
-    rows = result.rows or []
-    if rows:
-      return [dict(row) for row in rows]
-
-    discovered: dict[str, Any] = {}
-    for domain, domain_handler in QR_HANDLERS.items():
-      try:
-        domain_module = importlib.import_module(domain_handler.__module__)
-        subdomain_handlers = getattr(domain_module, "HANDLERS")
-        if not isinstance(subdomain_handlers, dict):
-          raise TypeError("HANDLERS is not a dict")
-        domain_entry: dict[str, Any] = {}
-        for subdomain, subdomain_handler in subdomain_handlers.items():
-          subdomain_module = importlib.import_module(subdomain_handler.__module__)
-          dispatchers = getattr(subdomain_module, "DISPATCHERS")
-          if not isinstance(dispatchers, dict):
-            raise TypeError("DISPATCHERS is not a dict")
-          operations = [f"{operation}:{version}" for operation, version in dispatchers.keys()]
-          domain_entry[str(subdomain)] = sorted(operations)
-        discovered[domain] = domain_entry
-      except Exception as exc:
-        discovered[domain] = {"error": str(exc)}
-    return discovered
+    return [dict(row) for row in (result.rows or [])]
 
   async def list_subdomains(self) -> list[dict[str, Any]]:
     if self.db is None:
