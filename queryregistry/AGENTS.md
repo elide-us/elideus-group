@@ -17,8 +17,6 @@ Do not add new code to `server/registry/`.
 
 ## What this layer is NOT
 
-- Not a compatibility wrapper for legacy naming schemes.
-- Not a place to add aliases/fallback shims to legacy `server/registry` operations.
 - Not a module/provider lifecycle layer (see `server/modules/AGENTS.md`).
 - Not a place for business logic, conditional workflows, or application rules;
   those belong in `server/modules/`.
@@ -148,16 +146,7 @@ When building UPDATE statements dynamically (e.g., only setting changed
 fields), always include `SET NOCOUNT ON;` at the top of the SQL template and
 `element_modified_on = SYSUTCDATETIME()` in the SET clause.
 
----
-
-## Anti-patterns (forbidden)
-
-- Alias maps that translate new operation names back to legacy names.
-- New fallbacks to `server/registry/` for greenfield features.
-- Business logic, conditional workflows, or application rule enforcement.
-- Mixing module lifecycle concerns into query handlers.
 
 Adjacent guidance:
 - `server/modules/AGENTS.md`
 - `server/modules/providers/AGENTS.md`
-- `server/registry/AGENTS.md` (legacy/deprecation-only context)

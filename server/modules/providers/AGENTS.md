@@ -44,14 +44,6 @@ Patterns to preserve:
   - `recid` as `bigint` IDs.
   - `datetimeoffset` temporal values.
 
----
-
-## Anti-patterns (forbidden)
-
-- Adding provider-side aliases for legacy/new operation names.
-- Silently swallowing provider exceptions; include contextual logs.
-- Embedding domain routing rules in providers.
-- Adding new work that depends on removed legacy registries as a target layer.
 
 Adjacent guidance:
 - `server/modules/AGENTS.md` for lifecycle and module boundaries.

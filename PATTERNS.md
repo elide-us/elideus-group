@@ -4,6 +4,67 @@ LLM-optimized context document. Every section defines a structural pattern with 
 
 ---
 
+## 0. Mechanical Automation Contracts
+
+The code generation pipeline uses AST analysis to crawl RPC service functions and extract metadata. The following naming contracts are mechanically parsed — the pipeline matches on exact token names in the syntax tree.
+
+### 0.1 Service Function Module Variable
+
+Every RPC service function resolves its module using this exact pattern:
+
+```python
+module: SystemConfigModule = request.app.state.system_config
+await module.on_ready()
+result = await module.get_configs(auth_ctx.user_guid, auth_ctx.roles)
+```
+
+The local variable is always named `module`. The type annotation (e.g., `SystemConfigModule`) carries the specificity. The right side of the assignment (e.g., `request.app.state.system_config`) is the ModuleManager registration name.
+
+The seed script `scripts/seed_rpcdispatch.py` function `parse_service_module_metadata` extracts:
+- `element_module_attr` from the `request.app.state.{attr}` expression
+- `element_method_name` from the `module.{method}` call expression
+
+These values populate the `reflection_rpc_functions` table and drive code generation. Refer to `scripts/seed_rpcdispatch.py` for the AST crawler implementation.
+
+### 0.2 Service Function Result Variable
+
+Every RPC service function that returns data annotates the result variable with the response model type:
+
+```python
+result: SystemConfigList1 = await module.get_configs(auth_ctx.user_guid, auth_ctx.roles)
+return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
+```
+
+The binding generator `scripts/common.py` function `parse_service_contracts` uses AST analysis to extract the output model name. It finds the variable referenced in `RPCResponse(payload=X.model_dump())` and looks up that variable's type — either from a constructor call (`X = ModelName(...)`) or from a type annotation (`X: ModelName = ...`).
+
+Without the type annotation, the generator infers `void` as the return type and the frontend TypeScript bindings will be incorrect.
+
+### 0.3 DISPATCHERS Dict
+
+Every RPC subdomain `__init__.py` exports a `DISPATCHERS` dict keyed by `(operation, version)` tuples:
+
+```python
+DISPATCHERS: dict[tuple[str, str], callable] = {
+  ("get_configs", "1"): system_config_get_configs_v1,
+}
+```
+
+The seed script `scripts/seed_rpcdispatch.py` function `parse_dict_keys` and the binding generator `scripts/common.py` function `parse_dispatchers` both parse this dict by name using AST analysis. The dict must be named `DISPATCHERS`.
+
+### 0.4 HANDLERS Dict
+
+Every RPC domain `__init__.py` exports a `HANDLERS` dict mapping subdomain names to handler functions:
+
+```python
+HANDLERS: dict[str, callable] = {
+  "config": handle_config_request,
+}
+```
+
+The seed script uses `parse_dict_keys` to discover subdomains from this dict. The dict must be named `HANDLERS`.
+
+---
+
 ## 1. Layer Architecture
 
 ```mermaid
@@ -125,11 +186,6 @@ Model naming convention: `{Domain}{Subdomain}{Operation}{Version}` in PascalCase
 
 The RPC service layer is a security router. It authenticates, authorizes, dispatches to the module, and returns the response. All data transformation lives in the module. The service function contains zero business logic and zero data reshaping.
 
-**Critical**: the local variable name `module` is required. The code generation crawler (seed_rpcdispatch.py → parse_service_module_metadata) uses AST analysis to extract two 
-values from each service function: the app.state attribute name (e.g., system_config) and the method name (e.g., get_configs). It finds these by looking for the patterns
-`request.app.state.{attr}` and `module.{method}` in the syntax tree. The right side of the assignment (`request.app.state.system_config`) is the real module registration name from 
-ModuleManager. The left side (`module`) is a fixed local variable name that the crawler depends on. Every service function uses module as the local variable name regardless of 
-which module it references.
 
 ```python
 from fastapi import Request

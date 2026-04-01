@@ -13,7 +13,6 @@ from queryregistry.identity.profiles.models import (
   ProfileRecord,
   UpdateProfileParams,
 )
-from queryregistry.models import DBRequest, DBResponse
 
 
 class ProfileModule(BaseModule):
@@ -33,12 +32,6 @@ class ProfileModule(BaseModule):
     self.db = None
     self.auth = None
 
-  async def _dispatch_profile_request(
-    self,
-    request: DBRequest,
-  ) -> DBResponse:
-    assert self.db
-    return await self.db.run(request)
 
   async def get_profile(self, guid: str) -> ProfileRecord | None:
     params = GuidParams(guid=guid)

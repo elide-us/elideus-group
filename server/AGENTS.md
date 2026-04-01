@@ -7,8 +7,8 @@ other top-level server concerns.
 
 ## Layering Expectations
 
-- Follow **ARCHITECTURE.md** for layer boundaries and responsibilities.
-- Apply the server rule: Modules (business logic) → QueryRegistry
+- Follow **PATTERNS.md** for layer architecture, dispatch patterns, and data conventions.
+- Layer responsibilities: Modules (business logic) → QueryRegistry
   (data-access translation) → Providers (connection/transport).
 
 ---
@@ -21,15 +21,6 @@ other top-level server concerns.
   for manual execution in **SSMS**.
 - Keep logs structured with contextual module/service prefixes, and re-raise
   exceptions after logging so upstream callers receive accurate failures.
-
----
-
-## Anti-Patterns To Avoid
-
-- Do **not** bypass module boundaries from routers/RPC handlers.
-- Do **not** perform blocking startup work without async-aware patterns.
-- Do **not** add compatibility layers for removed legacy registries; use
-  `queryregistry/` for all data access.
 
 ---
 

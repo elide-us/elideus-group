@@ -90,7 +90,7 @@ Data Sources (structured responses back up the chain)
 
 **Clients** are pure presentation layers with zero business logic — the React
 frontend, Discord bot, TheOracleMCP, and any future input surface all send
-typed RPC requests and render responses. See **INPUT_SHIMS.md**.
+typed RPC requests and render responses. See **PATTERNS.md** §1 for layered responsibilities.
 
 **RPC** is the typed public boundary. Every operation is URN-addressed
 (`urn:domain:subsystem:operation:version`). The RPC layer validates bearer
@@ -109,16 +109,14 @@ engine requires unique query syntax and system operations; the QueryRegistry
 equally to storage, AI services, identity providers, and any other external
 dependency.
 
-See **ARCHITECTURE.md** for the full security model, role bit assignments, and
-authentication workflows.
+See **PATTERNS.md** for architecture patterns and dispatch conventions.
 
 ### Security
 
 64-bit signed integer bitmask (63 usable bits) for role-based access control.
 OAuth bearer tokens flow through every request. Anonymous access is limited to
 `public.*` and `auth.*` RPC namespaces. All other namespaces require a valid
-session and the appropriate role bits. See **ARCHITECTURE.md** for the role
-table.
+session and the appropriate role bits. See **PATTERNS.md** for security and routing patterns.
 
 ### Database
 
