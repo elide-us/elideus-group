@@ -16,7 +16,6 @@ from server.modules.providers.auth.microsoft_provider import MicrosoftAuthProvid
 from server.modules.providers.auth.google_provider import GoogleAuthProvider
 from server.modules.providers.auth.discord_provider import DiscordAuthProvider
 from server.modules.discord_bot_module import DiscordBotModule
-from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.users import account_exists_request
 from queryregistry.identity.sessions import get_rotkey_request
 from queryregistry.identity.sessions.models import RotkeyLookupParams
@@ -135,34 +134,8 @@ class AuthModule(BaseModule):
 
   async def user_exists(self, user_guid: str) -> bool:
     request = account_exists_request({"user_guid": user_guid})
-    provider_name = self.db.provider or "mssql"
-    try:
-      res = await dispatch_query_request(request, provider=provider_name)
-    except KeyError:
-      logging.getLogger("server" + ".registry").warning(
-        "Query registry handler missing for user lookup",
-        extra={"db_op": request.op, "db_provider": provider_name},
-      )
-      return await self._fallback_user_exists(user_guid=user_guid)
+    res = await self.db.run(request)
     payload = res.payload if isinstance(res.payload, dict) else {}
-    return bool(payload.get("exists_flag"))
-
-  async def _fallback_user_exists(self, *, user_guid: str) -> bool:
-    provider_name = self.db.provider or "mssql"
-    if provider_name != "mssql":
-      logging.getLogger("server" + ".registry").error(
-        "No registry handler for %s and no fallback available", provider_name
-      )
-      return False
-    try:
-      from queryregistry.identity.users.mssql import account_exists
-    except ModuleNotFoundError:
-      logging.getLogger("server" + ".registry").error(
-        "MSSQL account exists handler unavailable"
-      )
-      return False
-    response = await account_exists({"user_guid": user_guid})
-    payload = response.payload if isinstance(response.payload, dict) else {}
     return bool(payload.get("exists_flag"))
 
   @staticmethod
@@ -243,10 +216,9 @@ class AuthModule(BaseModule):
     if not guid or not session_guid or not device_guid:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Subject not found", headers={"WWW-Authenticate": "Bearer"})
 
-    res = await dispatch_query_request(
-      get_rotkey_request(RotkeyLookupParams(guid=guid, device_guid=device_guid)),
-      provider=self.db.provider or "mssql",
-    )
+    res = await self.db.run(
+        get_rotkey_request(RotkeyLookupParams(guid=guid, device_guid=device_guid)),
+      )
     rows = self._normalize_query_payload(res.payload)
     rotkey = rows[0].get("device_rotkey") if rows else None
     derived_secret = f"{self.jwt_secret}:{rotkey}:{guid}:{session_guid}:{device_guid}" if rotkey else None

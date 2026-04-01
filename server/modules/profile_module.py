@@ -7,7 +7,6 @@ from fastapi import FastAPI
 from . import BaseModule
 from .auth_module import AuthModule
 from .db_module import DbModule
-from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.profiles import get_profile_request, update_profile_request
 from queryregistry.identity.profiles.models import (
   GuidParams,
@@ -39,21 +38,20 @@ class ProfileModule(BaseModule):
     request: DBRequest,
   ) -> DBResponse:
     assert self.db
-    provider_name = self.db.provider or "mssql"
-    return await dispatch_query_request(request, provider=provider_name)
+    return await self.db.run(request)
 
   async def get_profile(self, guid: str) -> ProfileRecord | None:
     params = GuidParams(guid=guid)
-    res = await self._dispatch_profile_request(get_profile_request(params))
+    res = await self.db.run(get_profile_request(params))
     return res.rows[0] if res.rows else None
 
   async def set_display(self, guid: str, display_name: str) -> None:
     params = UpdateProfileParams(guid=guid, display_name=display_name)
-    await self._dispatch_profile_request(update_profile_request(params))
+    await self.db.run(update_profile_request(params))
 
   async def set_optin(self, guid: str, display_email: bool) -> None:
     params = UpdateProfileParams(guid=guid, display_email=display_email)
-    await self._dispatch_profile_request(update_profile_request(params))
+    await self.db.run(update_profile_request(params))
 
   async def get_roles(self, guid: str) -> int:
     assert self.auth
@@ -62,4 +60,4 @@ class ProfileModule(BaseModule):
 
   async def set_profile_image(self, guid: str, provider: str, image_b64: str | None) -> None:
     params = UpdateProfileParams(guid=guid, provider=provider, image_b64=image_b64)
-    await self._dispatch_profile_request(update_profile_request(params))
+    await self.db.run(update_profile_request(params))

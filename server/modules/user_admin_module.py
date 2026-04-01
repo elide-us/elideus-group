@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
-from queryregistry.handler import dispatch_query_request
 from queryregistry.identity.profiles import get_profile_request, update_profile_request
 from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
 from queryregistry.finance.credits.models import SetCreditsParams
@@ -27,10 +26,7 @@ class UserAdminModule(BaseModule):
 
   async def get_displayname(self, guid: str) -> str:
     params = GuidParams(guid=guid)
-    res = await dispatch_query_request(
-      get_profile_request(params),
-      provider=self.db.provider or "mssql",
-    )
+    res = await self.db.run(get_profile_request(params))
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -38,10 +34,7 @@ class UserAdminModule(BaseModule):
 
   async def get_credits(self, guid: str) -> int:
     params = GuidParams(guid=guid)
-    res = await dispatch_query_request(
-      get_profile_request(params),
-      provider=self.db.provider or "mssql",
-    )
+    res = await self.db.run(get_profile_request(params))
     if not res.rows:
       raise HTTPException(status_code=404, detail="Profile not found")
     row = res.rows[0]
@@ -57,7 +50,4 @@ class UserAdminModule(BaseModule):
 
   async def reset_display(self, guid: str) -> None:
     params = UpdateProfileParams(guid=guid, display_name="Default User")
-    await dispatch_query_request(
-      update_profile_request(params),
-      provider=self.db.provider or "mssql",
-    )
+    await self.db.run(update_profile_request(params))

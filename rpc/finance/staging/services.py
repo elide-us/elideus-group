@@ -30,7 +30,7 @@ async def finance_staging_import_v1(request: Request):
   payload = StagingImport1(**(rpc_request.payload or {}))
   module = request.app.state.billing_import
   await module.on_ready()
-  result = await module.run_import(
+  result: StagingImportInvoicesResult1 = await module.run_import(
     "azure_cost_details",
     period_start=payload.period_start,
     period_end=payload.period_end,
@@ -45,7 +45,7 @@ async def finance_staging_import_invoices_v1(request: Request):
   payload = StagingImportInvoices1(**(rpc_request.payload or {}))
   module = request.app.state.billing_import
   await module.on_ready()
-  result = await module.run_import(
+  result: StagingImportInvoicesResult1 = await module.run_import(
     "azure_invoices",
     period_month=payload.period_month,
     billing_account=payload.billing_account,

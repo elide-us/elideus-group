@@ -14,7 +14,7 @@ async def discord_bsky_post_message_v1(request: Request):
   module: BskyModule = request.app.state.bsky
   await module.on_ready()
   try:
-    result = await module.post_message(req.message)
+    result: DiscordBskyPostResponse1 = await module.post_message(req.message)
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
   payload = DiscordBskyPostResponse1(

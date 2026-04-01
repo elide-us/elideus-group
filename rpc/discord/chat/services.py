@@ -19,7 +19,7 @@ async def discord_chat_summarize_channel_v1(request: Request):
   input_payload = DiscordChatSummarizeChannelRequest1(**(rpc_request.payload or {}))
   module: DiscordChatModule = request.app.state.discord_chat
   await module.on_ready()
-  result = await module.summarize_and_deliver(
+  result: DiscordChatSummarizeChannelResponse1 = await module.summarize_and_deliver(
     guild_id=input_payload.guild_id,
     channel_id=input_payload.channel_id,
     hours=input_payload.hours,
@@ -40,7 +40,7 @@ async def discord_chat_persona_response_v1(request: Request):
   module: OpenaiModule = request.app.state.openai
   await module.on_ready()
   try:
-    result = await module.persona_response(
+    result: DiscordChatPersonaResponse1 = await module.persona_response(
       req.persona,
       req.message,
       guild_id=req.guild_id,

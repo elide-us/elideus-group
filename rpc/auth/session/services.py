@@ -104,6 +104,6 @@ async def auth_session_get_session_v1(request: Request):
   await module.on_ready()
   ip_address = request.client.host if request.client else None
   user_agent = request.headers.get("user-agent")
-  payload = await module.get_session(token, ip_address, user_agent)
+  payload: AuthSessionGetSessionResponse1 = await module.get_session(token, ip_address, user_agent)
   response_payload = AuthSessionGetSessionResponse1(**payload)
   return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)

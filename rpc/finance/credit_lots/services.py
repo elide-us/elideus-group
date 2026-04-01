@@ -87,7 +87,7 @@ async def finance_credit_lots_consume_v1(request: Request):
   module = request.app.state.finance
   await module.on_ready()
   try:
-    result = await module.consume_credits(
+    result: CreditLotConsumeResult1 = await module.consume_credits(
       users_guid=input_payload.users_guid,
       credits_needed=input_payload.credits_needed,
       service_type=input_payload.service_type,

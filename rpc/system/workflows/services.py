@@ -154,6 +154,6 @@ async def system_workflows_scan_stalls_v1(request: Request):
   params = SystemWorkflowScanStallsRequest1(**(rpc_request.payload or {}))
   module: WorkflowModule = request.app.state.workflow
   await module.on_ready()
-  result = await module.scan_stalls(params.payload)
+  result: SystemWorkflowScanStallsResponse1 = await module.scan_stalls(params.payload)
   payload = SystemWorkflowScanStallsResponse1(**result)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
