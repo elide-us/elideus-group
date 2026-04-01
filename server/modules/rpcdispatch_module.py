@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from queryregistry.reflection.data import dump_table_request, get_version_request, query_info_schema_request
 from queryregistry.reflection.data.models import DumpTableParams, QueryInfoSchemaParams
+from queryregistry.reflection.edt import list_edt_mappings_request
 from queryregistry.reflection.schema import (
   get_full_schema_request,
   list_columns_request,
@@ -192,6 +193,12 @@ class RpcdispatchModule(BaseModule):
     if self.db is None:
       raise RuntimeError("rpcdispatch module requires db module")
     result = await self.db.run(list_model_fields_request())
+    return [dict(row) for row in (result.rows or [])]
+
+  async def list_edt_mappings(self) -> list[dict[str, Any]]:
+    if self.db is None:
+      raise RuntimeError("rpcdispatch module requires db module")
+    result = await self.db.run(list_edt_mappings_request())
     return [dict(row) for row in (result.rows or [])]
 
   async def list_tables(self) -> list[dict[str, Any]]:

@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from queryregistry.models import DBRequest, DBResponse
 
 from .data.handler import handle_data_request
+from .edt.handler import handle_edt_request
 from .schema.handler import handle_schema_request
 
 __all__ = ["handle_reflection_request"]
@@ -16,6 +17,7 @@ __all__ = ["handle_reflection_request"]
 HANDLERS = {
   "schema": handle_schema_request,
   "data": handle_data_request,
+  "edt": handle_edt_request,
 }
 
 
