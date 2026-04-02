@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pyodbc
 from dotenv import load_dotenv
 
 from common import HEADER_COMMENT, REPO_ROOT
@@ -22,12 +21,12 @@ ORDER BY element_sequence
 """.strip()
 
 
-def connect() -> pyodbc.Connection:
+def connect() -> 'pyodbc.Connection':
+  import pyodbc
   dsn = os.environ.get('AZURE_SQL_CONNECTION_STRING_DEV') or os.environ.get('AZURE_SQL_CONNECTION_STRING')
   if not dsn:
     raise RuntimeError('Missing AZURE_SQL_CONNECTION_STRING_DEV/AZURE_SQL_CONNECTION_STRING in environment')
   return pyodbc.connect(dsn, autocommit=True)
-
 
 def fetch_frontend_pages() -> list[tuple[str, str]]:
   conn = connect()
@@ -68,6 +67,7 @@ def write_registry(rows: list[tuple[str, str]]) -> None:
 
 def main() -> None:
   try:
+    
     rows = fetch_frontend_pages()
   except Exception as exc:
     print(f'[SKIP] Could not query frontend_pages: {exc}')
