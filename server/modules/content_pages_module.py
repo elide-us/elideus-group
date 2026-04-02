@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from . import BaseModule
 from .db_module import DbModule
+from server.models import ContentAccess
 from queryregistry.content.pages import (
   create_page_request,
   create_version_request,
@@ -28,6 +30,10 @@ from queryregistry.content.pages.models import (
   ListVersionsParams,
   UpdatePageParams,
 )
+
+if TYPE_CHECKING:
+  from rpc.users.pages.models import UsersPagesVersionContent1, UsersPagesVersionList1, UsersPagesVersionItem1
+  from .role_module import RoleModule
 
 
 class ContentPagesModule(BaseModule):
@@ -129,42 +135,114 @@ class ContentPagesModule(BaseModule):
 
   async def create_version(
     self,
-    pages_recid: int,
+    slug: str,
     content: str,
-    created_by: str,
+    user_guid: str | None,
+    role_mask: int,
     *,
     summary: str | None = None,
-  ) -> dict[str, Any]:
+  ) -> UsersPagesVersionContent1:
+    page, access = await self._resolve_editable_page(slug=slug, user_guid=user_guid, role_mask=role_mask)
     assert self.db
     res = await self.db.run(
       create_version_request(
         CreateVersionParams(
-          pages_recid=pages_recid,
+          pages_recid=page["recid"],
           content=content,
-          created_by=created_by,
+          created_by=user_guid,
           summary=summary,
         )
       )
     )
-    return dict(res.rows[0])
+    version = dict(res.rows[0])
+    from rpc.users.pages.models import UsersPagesVersionContent1
 
-  async def list_versions(self, pages_recid: int) -> list[dict[str, Any]]:
+    return UsersPagesVersionContent1(
+      recid=version["recid"],
+      element_version=version["element_version"],
+      element_content=version["element_content"],
+      element_summary=version.get("element_summary"),
+      element_created_by=version["element_created_by"],
+      element_created_on=version.get("element_created_on"),
+      access=access,
+    )
+
+  async def list_versions(
+    self,
+    slug: str,
+    user_guid: str | None,
+    role_mask: int,
+  ) -> UsersPagesVersionList1:
+    page, access = await self._resolve_editable_page(slug=slug, user_guid=user_guid, role_mask=role_mask)
     assert self.db
-    res = await self.db.run(list_versions_request(ListVersionsParams(pages_recid=pages_recid)))
-    return [dict(row) for row in res.rows]
+    res = await self.db.run(list_versions_request(ListVersionsParams(pages_recid=page["recid"])))
+    versions = [dict(row) for row in res.rows]
+    from rpc.users.pages.models import UsersPagesVersionItem1, UsersPagesVersionList1
+
+    return UsersPagesVersionList1(
+      versions=[
+        UsersPagesVersionItem1(
+          recid=version["recid"],
+          element_version=version["element_version"],
+          element_summary=version.get("element_summary"),
+          element_created_by=version["element_created_by"],
+          element_created_on=version.get("element_created_on"),
+        )
+        for version in versions
+      ],
+      access=access,
+    )
 
   async def get_version(
     self,
-    *,
-    recid: int | None = None,
-    pages_recid: int | None = None,
-    version: int | None = None,
-  ) -> dict[str, Any] | None:
+    slug: str,
+    version: int,
+    user_guid: str | None,
+    role_mask: int,
+  ) -> UsersPagesVersionContent1:
+    page, access = await self._resolve_editable_page(slug=slug, user_guid=user_guid, role_mask=role_mask)
     assert self.db
     res = await self.db.run(
-      get_version_request(GetVersionParams(recid=recid, pages_recid=pages_recid, version=version))
+      get_version_request(GetVersionParams(recid=None, pages_recid=page["recid"], version=version))
     )
-    return dict(res.rows[0]) if res.rows else None
+    if not res.rows:
+      raise HTTPException(status_code=404, detail="Version not found")
+    version_row = dict(res.rows[0])
+    from rpc.users.pages.models import UsersPagesVersionContent1
+
+    return UsersPagesVersionContent1(
+      recid=version_row["recid"],
+      element_version=version_row["element_version"],
+      element_content=version_row["element_content"],
+      element_summary=version_row.get("element_summary"),
+      element_created_by=version_row["element_created_by"],
+      element_created_on=version_row.get("element_created_on"),
+      access=access,
+    )
 
   async def review_content(self, payload: dict[str, Any]) -> dict[str, Any]:
     raise NotImplementedError("Content review is not yet implemented")
+
+  async def _resolve_editable_page(
+    self,
+    *,
+    slug: str,
+    user_guid: str | None,
+    role_mask: int,
+  ) -> tuple[dict[str, Any], ContentAccess]:
+    if user_guid is None:
+      raise HTTPException(status_code=401, detail="Authentication required")
+
+    page = await self.get_page_by_slug(slug)
+    if not page:
+      raise HTTPException(status_code=404, detail="Page not found")
+
+    role_module: RoleModule = self.app.state.role
+    access = role_module.check_content_access(
+      user_guid=user_guid,
+      role_mask=role_mask,
+      owner_guid=page.get("element_created_by"),
+    )
+    if not access.can_edit:
+      raise HTTPException(status_code=403, detail="Forbidden")
+    return page, access

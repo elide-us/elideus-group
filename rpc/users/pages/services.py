@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
@@ -12,7 +12,6 @@ from .models import (
   UsersPagesGetVersion1,
   UsersPagesListVersions1,
   UsersPagesVersionContent1,
-  UsersPagesVersionItem1,
   UsersPagesVersionList1,
 )
 
@@ -20,51 +19,17 @@ if TYPE_CHECKING:
   from server.modules.content_pages_module import ContentPagesModule
 
 
-def _ensure_authenticated(user_guid: str | None):
-  if not user_guid:
-    raise HTTPException(status_code=401, detail="Authentication required")
-
-
-async def _resolve_editable_page(request: Request, slug: str, user_guid: str, role_mask: int):
-  module: ContentPagesModule = request.app.state.content_pages
-  page = await module.get_page_by_slug(slug)
-  if not page:
-    raise HTTPException(status_code=404, detail="Page not found")
-
-  role_module = request.app.state.role
-  access = role_module.check_content_access(
-    user_guid=user_guid,
-    role_mask=role_mask,
-    owner_guid=page.get("element_created_by"),
-  )
-  if not access.can_edit:
-    raise HTTPException(status_code=403, detail="Forbidden")
-
-  return page
-
-
 async def users_pages_create_version_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  _ensure_authenticated(auth_ctx.user_guid)
-
   payload = UsersPagesCreateVersion1(**(rpc_request.payload or {}))
-  page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
-
   module: ContentPagesModule = request.app.state.content_pages
-  version = await module.create_version(
-    pages_recid=page["recid"],
+  await module.on_ready()
+  result: UsersPagesVersionContent1 = await module.create_version(
+    slug=payload.slug,
     content=payload.content,
-    created_by=auth_ctx.user_guid,
+    user_guid=auth_ctx.user_guid,
+    role_mask=auth_ctx.role_mask,
     summary=payload.summary,
-  )
-
-  result = UsersPagesVersionContent1(
-    recid=version["recid"],
-    element_version=version["element_version"],
-    element_content=version["element_content"],
-    element_summary=version.get("element_summary"),
-    element_created_by=version["element_created_by"],
-    element_created_on=version.get("element_created_on"),
   )
 
   return RPCResponse(
@@ -76,25 +41,13 @@ async def users_pages_create_version_v1(request: Request):
 
 async def users_pages_list_versions_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  _ensure_authenticated(auth_ctx.user_guid)
-
   payload = UsersPagesListVersions1(**(rpc_request.payload or {}))
-  page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
-
   module: ContentPagesModule = request.app.state.content_pages
-  versions = await module.list_versions(page["recid"])
-
-  result = UsersPagesVersionList1(
-    versions=[
-      UsersPagesVersionItem1(
-        recid=version["recid"],
-        element_version=version["element_version"],
-        element_summary=version.get("element_summary"),
-        element_created_by=version["element_created_by"],
-        element_created_on=version.get("element_created_on"),
-      )
-      for version in versions
-    ]
+  await module.on_ready()
+  result: UsersPagesVersionList1 = await module.list_versions(
+    slug=payload.slug,
+    user_guid=auth_ctx.user_guid,
+    role_mask=auth_ctx.role_mask,
   )
 
   return RPCResponse(
@@ -106,23 +59,14 @@ async def users_pages_list_versions_v1(request: Request):
 
 async def users_pages_get_version_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
-  _ensure_authenticated(auth_ctx.user_guid)
-
   payload = UsersPagesGetVersion1(**(rpc_request.payload or {}))
-  page = await _resolve_editable_page(request, payload.slug, auth_ctx.user_guid, auth_ctx.role_mask)
-
   module: ContentPagesModule = request.app.state.content_pages
-  version = await module.get_version(pages_recid=page["recid"], version=payload.version)
-  if not version:
-    raise HTTPException(status_code=404, detail="Version not found")
-
-  result = UsersPagesVersionContent1(
-    recid=version["recid"],
-    element_version=version["element_version"],
-    element_content=version["element_content"],
-    element_summary=version.get("element_summary"),
-    element_created_by=version["element_created_by"],
-    element_created_on=version.get("element_created_on"),
+  await module.on_ready()
+  result: UsersPagesVersionContent1 = await module.get_version(
+    slug=payload.slug,
+    version=payload.version,
+    user_guid=auth_ctx.user_guid,
+    role_mask=auth_ctx.role_mask,
   )
 
   return RPCResponse(
