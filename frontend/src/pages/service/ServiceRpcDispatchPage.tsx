@@ -34,20 +34,7 @@ import {
     fetchListModels,
     fetchListSubdomains,
 } from '../../rpc/service/rpcdispatch/index';
-
-const EDT_NAME_BY_RECID: Record<number, string> = {
-    1: 'INT32',
-    2: 'INT64',
-    3: 'INT64_IDENTITY',
-    4: 'UUID',
-    5: 'BOOL',
-    7: 'DATETIME_TZ',
-    8: 'STRING',
-    9: 'TEXT',
-    11: 'INT8',
-    12: 'DATE',
-    13: 'DECIMAL_19_5',
-};
+import { fetchListEdtMappings } from '../../rpc/service/reflection';
 
 const boolChip = (value: boolean): JSX.Element =>
     value ? <Chip label="Yes" color="success" size="small" /> : <Chip label="No" size="small" />;
@@ -71,6 +58,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
     const [functions, setFunctions] = useState<ServiceRpcdispatchFunctionItem1[]>([]);
     const [models, setModels] = useState<ServiceRpcdispatchModelItem1[]>([]);
     const [fields, setFields] = useState<ServiceRpcdispatchModelFieldItem1[]>([]);
+    const [edtMappings, setEdtMappings] = useState<Record<number, string>>({});
 
     const [loading, setLoading] = useState(false);
 
@@ -139,7 +127,19 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
     const loadAll = useCallback(async (): Promise<void> => {
         setLoading(true);
         try {
-            await Promise.all([loadDomains(), loadSubdomains(), loadFunctions(), loadModels(), loadModelFields()]);
+            const [, , , , , edtRes] = await Promise.all([
+                loadDomains(),
+                loadSubdomains(),
+                loadFunctions(),
+                loadModels(),
+                loadModelFields(),
+                fetchListEdtMappings() as Promise<{ mappings: { recid: number; element_name: string }[] }>,
+            ]);
+            const edtMap: Record<number, string> = {};
+            for (const row of edtRes.mappings ?? []) {
+                edtMap[row.recid] = row.element_name;
+            }
+            setEdtMappings(edtMap);
         } finally {
             setLoading(false);
         }
@@ -359,7 +359,7 @@ const ServiceRpcDispatchPage = (): JSX.Element => {
                                         <TableCell>{modelGuidMap.get(row.models_guid) ?? `#${row.models_guid}`}</TableCell>
                                         <TableCell>
                                             {row.element_edt_recid
-                                                ? EDT_NAME_BY_RECID[row.element_edt_recid] ?? `#${row.element_edt_recid}`
+                                                ? edtMappings[row.element_edt_recid] ?? `#${row.element_edt_recid}`
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>{boolChip(row.element_is_nullable)}</TableCell>
