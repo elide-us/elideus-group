@@ -564,7 +564,24 @@ flowchart LR
 ```
  
 Generated files carry a `DO NOT MODIFY - GENERATED` banner.
- 
+
+### 6.2.1 Generated Files Are Never Committed
+
+All generated frontend artifacts are excluded from source control via `.gitignore` and are regenerated fresh on every build — locally, in CI, and in the Docker builder stage. This is an intentional architectural constraint.
+
+The TypeScript compiler is the verification gate. If any generator produces bindings that do not match the backend contracts, the frontend type-check fails and the build is blocked. This makes it structurally impossible to ship incorrect bindings and eliminates drift between backend RPC definitions and frontend types.
+
+Generated artifacts:
+
+| File | Generator | Source |
+|---|---|---|
+| `frontend/src/rpc/**/*.ts` | `generate_rpc_bindings.py` | `rpc/**/models.py`, `rpc/**/__init__.py`, `rpc/**/services.py` |
+| `frontend/src/shared/RpcModels.tsx` | `generate_rpc_bindings.py` | All Pydantic models across `rpc/` |
+| `frontend/src/db/namespace.ts` | `generate_db_namespace.py` | `queryregistry/` subdomain models and request builders |
+| `frontend/src/routes/registry.ts` | `generate_nav_pages.py` | `frontend_pages` database table |
+
+These files carry a `DO NOT MODIFY - GENERATED` banner. Never edit them manually — change the source and regenerate.
+
 ### 6.3 Reflection Seeding
  
 At the end of the binding generation run, `generate_rpc_bindings.py` calls `seed_rpcdispatch.py` to populate the `reflection_rpc_*` tables in the connected database. If no database connection is available (e.g., Codex CI builds without ODBC), the seed step is skipped gracefully and runs on the next build in an environment with database access.

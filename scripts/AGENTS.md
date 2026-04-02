@@ -21,6 +21,9 @@ operational tooling.
   change.
 - Generated files include a banner from `HEADER_COMMENT`. Never edit the outputs
   manually—regenerate instead.
+- Generated frontend artifacts (`frontend/src/rpc/`, `frontend/src/shared/RpcModels.tsx`,
+  `frontend/src/db/namespace.ts`, `frontend/src/routes/registry.ts`) are excluded from
+  source control and regenerated on every build. Never commit them. See PATTERNS.md §6.2.1.
 
 ---
 

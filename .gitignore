@@ -136,7 +136,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Generated RPC bindings
+# Generated frontend artifacts — never committed, always regenerated at build time.
+# The TypeScript compiler validates generated bindings against backend contracts on
+# every build. Incorrect bindings fail the type-check and block the build. This is
+# an intentional architectural constraint that prevents drift. See PATTERNS.md §6.
 frontend/src/rpc/
 frontend/src/shared/RpcModels.tsx
 frontend/src/db/namespace.ts
+frontend/src/routes/registry.ts
