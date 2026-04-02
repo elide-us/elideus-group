@@ -26,6 +26,9 @@ RUN python3 -m venv $VIRTUAL_ENV \
  && $VIRTUAL_ENV/bin/pip install --upgrade pip \
  && $VIRTUAL_ENV/bin/pip install -r requirements.txt
 
+ARG AZURE_SQL_CONNECTION_STRING=""
+ENV AZURE_SQL_CONNECTION_STRING=$AZURE_SQL_CONNECTION_STRING
+
 COPY . .
 
 RUN python3 scripts/generate_rpc_bindings.py
