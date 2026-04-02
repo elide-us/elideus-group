@@ -1,6 +1,11 @@
 from typing import Optional
 
 from pydantic import BaseModel
+from server.models import ContentAccess as ServerContentAccess
+
+
+class ContentAccess(ServerContentAccess):
+  pass
 
 
 class UsersWikiCreateVersion1(BaseModel):
@@ -36,6 +41,7 @@ class UsersWikiVersionItem1(BaseModel):
 
 class UsersWikiVersionList1(BaseModel):
   versions: list[UsersWikiVersionItem1]
+  access: ContentAccess
 
 
 class UsersWikiVersionContent1(BaseModel):
@@ -45,3 +51,4 @@ class UsersWikiVersionContent1(BaseModel):
   element_edit_summary: Optional[str] = None
   element_created_by: str
   element_created_on: Optional[str] = None
+  access: ContentAccess
