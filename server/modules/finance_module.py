@@ -9,6 +9,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from rpc.users.products.models import UsersProductItem1, UsersProductList1, UsersProductPurchaseResult1
+
 from . import BaseModule
 from .db_module import DbModule
 from queryregistry.finance.ledgers import (
@@ -1345,11 +1347,11 @@ class FinanceModule(BaseModule):
     res = await self.db.run(list_products_request(ListProductsParams(category=category, status=status)))
     return [self._map_product(dict(row)) for row in res.rows]
 
-  async def list_products_with_enablement(self, users_guid: str) -> list[dict[str, Any]]:
+  async def list_products_with_enablement(self, users_guid: str) -> UsersProductList1:
     products = await self.list_products(status=1)
     user_enablements = await self.get_user_enablements(users_guid)
     user_roles = await self.get_user_roles_mask(users_guid)
-    out: list[dict[str, Any]] = []
+    out: list[UsersProductItem1] = []
     for product in products:
       already_enabled = False
       enablement_key = product.get("enablement_key")
@@ -1357,8 +1359,8 @@ class FinanceModule(BaseModule):
         already_enabled = bool(user_enablements & 1)
       elif enablement_key == "ROLE_DISCORD_BOT":
         already_enabled = bool(user_roles & 0x10)
-      out.append({**product, "already_enabled": already_enabled})
-    return out
+      out.append(UsersProductItem1(**{**product, "already_enabled": already_enabled}))
+    return UsersProductList1(products=out)
 
   async def get_product(self, recid: int | None = None, sku: str | None = None) -> dict[str, Any] | None:
     assert self.db
@@ -1934,7 +1936,7 @@ class FinanceModule(BaseModule):
     sku: str,
     actor_guid: str | None = None,
     periods_guid: str | None = None,
-  ) -> dict[str, Any]:
+  ) -> UsersProductPurchaseResult1:
     product = await self.get_product(sku=sku)
     if not product or int(product.get("status") or 0) != ELEMENT_ACTIVE:
       raise ValueError("Product is not available for purchase")
@@ -1982,13 +1984,13 @@ class FinanceModule(BaseModule):
         amount=amount,
         description=description,
       )
-      return {
-        "product": sku,
-        "credits_granted": int(product.get("credits") or 0),
-        "lot_number": lot["lot_number"],
-        "transaction_token": transaction_token,
-        "journal_lines_added": True,
-      }
+      return UsersProductPurchaseResult1(
+        product=sku,
+        credits_granted=int(product.get("credits") or 0),
+        lot_number=lot["lot_number"],
+        transaction_token=transaction_token,
+        journal_lines_added=True,
+      )
 
     if category == "enablement":
       enablement_key = str(product.get("enablement_key") or "")
@@ -2023,11 +2025,11 @@ class FinanceModule(BaseModule):
           description=f"Enablement purchase: {sku} - {transaction_token}",
         )
 
-      return {
-        "product": sku,
-        "enablement_granted": enablement_key,
-        "transaction_token": transaction_token,
-      }
+      return UsersProductPurchaseResult1(
+        product=sku,
+        enablement_granted=enablement_key,
+        transaction_token=transaction_token,
+      )
 
     raise ValueError(f"Unsupported product category: {category}")
 
