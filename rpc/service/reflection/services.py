@@ -11,6 +11,7 @@ from .models import (
   DescribeTableRequest1,
   DescribeTableResponse1,
   DomainsResponse1,
+  EdtMappingsResponse1,
   DumpTableRequest1,
   DumpTableResponse1,
   QueryInfoSchemaRequest1,
@@ -123,4 +124,13 @@ async def service_reflection_list_rpc_endpoints_v1(request: Request) -> RPCRespo
   await module.on_ready()
   endpoints = await module.list_rpc_endpoints()
   payload = RpcEndpointsResponse1(endpoints=endpoints)
+  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+
+
+async def service_reflection_list_edt_mappings_v1(request: Request) -> RPCResponse:
+  rpc_request, _, _ = await unbox_request(request)
+  module = request.app.state.rpcdispatch
+  await module.on_ready()
+  mappings = await module.list_edt_mappings()
+  payload = EdtMappingsResponse1(mappings=mappings)
   return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)

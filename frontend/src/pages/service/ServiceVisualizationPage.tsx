@@ -21,24 +21,33 @@ interface DomainColor {
     glow: string;
 }
 
-const DOMAIN_COLORS: Record<string, DomainColor> = {
-    account: { fill: '#4CAF50', stroke: '#81C784', glow: 'rgba(76,175,80,0.5)' },
-    users: { fill: '#388E3C', stroke: '#66BB6A', glow: 'rgba(56,142,60,0.4)' },
-    sessions: { fill: '#2E7D32', stroke: '#4CAF50', glow: 'rgba(46,125,50,0.35)' },
-    auth: { fill: '#1B5E20', stroke: '#43A047', glow: 'rgba(27,94,32,0.35)' },
-    finance: { fill: '#BF8C2C', stroke: '#D4A845', glow: 'rgba(191,140,44,0.5)' },
-    system: { fill: '#1565C0', stroke: '#42A5F5', glow: 'rgba(21,101,192,0.4)' },
-    assistant: { fill: '#00838F', stroke: '#26C6DA', glow: 'rgba(0,131,143,0.4)' },
-    discord: { fill: '#5865F2', stroke: '#7983F5', glow: 'rgba(88,101,242,0.4)' },
-    frontend: { fill: '#6A1B9A', stroke: '#AB47BC', glow: 'rgba(106,27,154,0.4)' },
-    service: { fill: '#6A1B9A', stroke: '#AB47BC', glow: 'rgba(106,27,154,0.4)' },
-    storage: { fill: '#546E7A', stroke: '#90A4AE', glow: 'rgba(84,110,122,0.3)' },
-    builder: { fill: '#546E7A', stroke: '#90A4AE', glow: 'rgba(84,110,122,0.3)' },
-};
+const PALETTE: DomainColor[] = [
+    { fill: '#4CAF50', stroke: '#81C784', glow: 'rgba(76,175,80,0.5)' },
+    { fill: '#BF8C2C', stroke: '#D4A845', glow: 'rgba(191,140,44,0.5)' },
+    { fill: '#1565C0', stroke: '#42A5F5', glow: 'rgba(21,101,192,0.4)' },
+    { fill: '#00838F', stroke: '#26C6DA', glow: 'rgba(0,131,143,0.4)' },
+    { fill: '#5865F2', stroke: '#7983F5', glow: 'rgba(88,101,242,0.4)' },
+    { fill: '#6A1B9A', stroke: '#AB47BC', glow: 'rgba(106,27,154,0.4)' },
+    { fill: '#546E7A', stroke: '#90A4AE', glow: 'rgba(84,110,122,0.3)' },
+    { fill: '#C62828', stroke: '#EF5350', glow: 'rgba(198,40,40,0.4)' },
+    { fill: '#2E7D32', stroke: '#66BB6A', glow: 'rgba(46,125,50,0.4)' },
+    { fill: '#E65100', stroke: '#FF9800', glow: 'rgba(230,81,0,0.4)' },
+    { fill: '#1B5E20', stroke: '#43A047', glow: 'rgba(27,94,32,0.35)' },
+    { fill: '#4527A0', stroke: '#7E57C2', glow: 'rgba(69,39,160,0.4)' },
+    { fill: '#00695C', stroke: '#26A69A', glow: 'rgba(0,105,92,0.4)' },
+    { fill: '#AD1457', stroke: '#EC407A', glow: 'rgba(173,20,87,0.4)' },
+    { fill: '#37474F', stroke: '#78909C', glow: 'rgba(55,71,79,0.3)' },
+    { fill: '#827717', stroke: '#C0CA33', glow: 'rgba(130,119,23,0.4)' },
+];
 
-function getDomain(name: string): DomainColor {
+function buildDomainColorMap(tables: TableDef[]): Map<string, DomainColor> {
+    const domains = [...new Set(tables.map((table) => table.name.split('_')[0]))].sort();
+    return new Map(domains.map((domain, i) => [domain, PALETTE[i % PALETTE.length]]));
+}
+
+function getDomain(name: string, domainColorMap: Map<string, DomainColor>): DomainColor {
     const prefix = name.split('_')[0];
-    return DOMAIN_COLORS[prefix] ?? DOMAIN_COLORS.system;
+    return domainColorMap.get(prefix) ?? PALETTE[0];
 }
 
 interface GraphNode extends TableDef {
@@ -54,7 +63,11 @@ interface GraphNode extends TableDef {
     incoming: { source: number; col: string }[];
 }
 
-function buildGraph(tables: TableDef[], fks: FKDef[]): { nodes: GraphNode[]; edges: FKDef[] } {
+function buildGraph(
+    tables: TableDef[],
+    fks: FKDef[],
+    domainColorMap: Map<string, DomainColor>,
+): { nodes: GraphNode[]; edges: FKDef[] } {
     const refCount: Record<number, number> = {};
     tables.forEach((table) => {
         refCount[table.recid] = 0;
@@ -96,7 +109,7 @@ function buildGraph(tables: TableDef[], fks: FKDef[]): { nodes: GraphNode[]; edg
             y: cy + Math.sin(angle) * spread,
             vx: 0,
             vy: 0,
-            domain: getDomain(table.name),
+            domain: getDomain(table.name, domainColorMap),
             outgoing: outgoing[table.recid],
             incoming: incoming[table.recid],
         };
@@ -171,16 +184,6 @@ function simulate(nodes: GraphNode[], edges: FKDef[], iterations = 250): void {
     }
 }
 
-const LEGEND = [
-    { label: 'Account / Identity', color: DOMAIN_COLORS.account },
-    { label: 'Finance', color: DOMAIN_COLORS.finance },
-    { label: 'System', color: DOMAIN_COLORS.system },
-    { label: 'Assistant', color: DOMAIN_COLORS.assistant },
-    { label: 'Discord', color: DOMAIN_COLORS.discord },
-    { label: 'Frontend / Service', color: DOMAIN_COLORS.frontend },
-    { label: 'Storage / Builder', color: DOMAIN_COLORS.storage },
-];
-
 const ServiceVisualizationPage = (): JSX.Element => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [hovered, setHovered] = useState<GraphNode | null>(null);
@@ -190,6 +193,7 @@ const ServiceVisualizationPage = (): JSX.Element => {
     const [loading, setLoading] = useState(true);
     const [tableCount, setTableCount] = useState(0);
     const [edgeCount, setEdgeCount] = useState(0);
+    const [domainColorMap, setDomainColorMap] = useState<Map<string, DomainColor>>(new Map());
     const graphRef = useRef<{ nodes: GraphNode[]; edges: FKDef[] } | null>(null);
     const panStart = useRef<{ mx: number; my: number; panX: number; panY: number } | null>(null);
     const dragOffset = useRef({ x: 0, y: 0 });
@@ -210,7 +214,9 @@ const ServiceVisualizationPage = (): JSX.Element => {
                     col: fk.element_column_name,
                 }));
 
-                const graph = buildGraph(tables, fks);
+                const colorMap = buildDomainColorMap(tables);
+                setDomainColorMap(colorMap);
+                const graph = buildGraph(tables, fks, colorMap);
                 simulate(graph.nodes, graph.edges);
                 graphRef.current = graph;
                 setTableCount(tables.length);
@@ -498,6 +504,10 @@ const ServiceVisualizationPage = (): JSX.Element => {
             byRecid[node.recid] = node;
         });
     }
+    const legend = Array.from(domainColorMap.entries()).map(([domain, color]) => ({
+        label: domain.charAt(0).toUpperCase() + domain.slice(1),
+        color,
+    }));
 
     if (loading) {
         return (
@@ -534,7 +544,7 @@ const ServiceVisualizationPage = (): JSX.Element => {
                     {tableCount} tables &middot; {edgeCount} relationships
                 </Typography>
                 <Box sx={{ ml: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                    {LEGEND.map((item) => (
+                    {legend.map((item) => (
                         <Box
                             key={item.label}
                             sx={{

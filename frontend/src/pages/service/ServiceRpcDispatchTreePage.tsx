@@ -23,24 +23,13 @@ import {
     fetchListModels,
     fetchListSubdomains,
 } from '../../rpc/service/rpcdispatch/index';
+import { fetchListEdtMappings } from '../../rpc/service/reflection';
 
-const EDT_NAMES: Record<number, string> = {
-    1: 'INT32',
-    2: 'INT64',
-    3: 'INT64_IDENTITY',
-    4: 'UUID',
-    5: 'BOOL',
-    7: 'DATETIME_TZ',
-    8: 'STRING',
-    9: 'TEXT',
-    11: 'INT8',
-    12: 'DATE',
-    13: 'DECIMAL_19_5',
-    14: 'DECIMAL_28_12',
-    15: 'JSON',
-};
-
-function describeFieldType(field: ServiceRpcdispatchModelFieldItem1, modelMap: Map<string, string>): string {
+function describeFieldType(
+    field: ServiceRpcdispatchModelFieldItem1,
+    modelMap: Map<string, string>,
+    edtMappings: Record<number, string>,
+): string {
     const parts: string[] = [];
 
     if (field.element_ref_model_guid) {
@@ -53,7 +42,7 @@ function describeFieldType(field: ServiceRpcdispatchModelFieldItem1, modelMap: M
     } else if (field.element_is_dict) {
         parts.push(field.element_is_list ? 'list[dict]' : 'JSON');
     } else if (field.element_edt_recid) {
-        const edtName = EDT_NAMES[field.element_edt_recid] ?? `EDT#${field.element_edt_recid}`;
+        const edtName = edtMappings[field.element_edt_recid] ?? `EDT#${field.element_edt_recid}`;
         if (field.element_is_list) {
             parts.push(`list[${edtName}]`);
         } else {
@@ -88,6 +77,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     const [functions, setFunctions] = useState<ServiceRpcdispatchFunctionItem1[]>([]);
     const [models, setModels] = useState<ServiceRpcdispatchModelItem1[]>([]);
     const [fields, setFields] = useState<ServiceRpcdispatchModelFieldItem1[]>([]);
+    const [edtMappings, setEdtMappings] = useState<Record<number, string>>({});
 
     const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -101,12 +91,13 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
     const loadAll = useCallback(async (): Promise<void> => {
         setLoading(true);
         try {
-            const [domainRes, subdomainRes, functionRes, modelRes, fieldRes] = await Promise.all([
+            const [domainRes, subdomainRes, functionRes, modelRes, fieldRes, edtRes] = await Promise.all([
                 fetchListDomains() as Promise<ServiceRpcdispatchDomainList1 & { domains: ServiceRpcdispatchDomainItem1[] }>,
                 fetchListSubdomains() as Promise<ServiceRpcdispatchSubdomainList1 & { subdomains: ServiceRpcdispatchSubdomainItem1[] }>,
                 fetchListFunctions() as Promise<ServiceRpcdispatchFunctionList1 & { functions: ServiceRpcdispatchFunctionItem1[] }>,
                 fetchListModels() as Promise<ServiceRpcdispatchModelList1 & { models: ServiceRpcdispatchModelItem1[] }>,
                 fetchListModelFields() as Promise<ServiceRpcdispatchModelFieldList1 & { fields: ServiceRpcdispatchModelFieldItem1[] }>,
+                fetchListEdtMappings() as Promise<{ mappings: { recid: number; element_name: string }[] }>,
             ]);
 
             const nextDomains = (domainRes.domains || []) as ServiceRpcdispatchDomainItem1[];
@@ -119,6 +110,11 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
             setFunctions(nextFunctions);
             setModels(nextModels);
             setFields(nextFields);
+            const edtMap: Record<number, string> = {};
+            for (const row of edtRes.mappings ?? []) {
+                edtMap[row.recid] = row.element_name;
+            }
+            setEdtMappings(edtMap);
             setForbidden(false);
             setExpandedItems(nextDomains.map((domain) => `domain-${domain.recid}`));
         } catch (error: any) {
@@ -321,7 +317,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                                                                         sx={treeItemSx}
                                                                         label={
                                                                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid)}</Typography>
+                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid, edtMappings)}</Typography>
                                                                                 {field.element_is_nullable && <Chip size="small" label="?" />}
                                                                                 {field.element_is_list && <Chip size="small" label="[]" />}
                                                                                 {field.element_is_dict && <Chip size="small" label="{}" />}
@@ -348,7 +344,7 @@ const ServiceRpcDispatchTreePage = (): JSX.Element => {
                                                                         sx={treeItemSx}
                                                                         label={
                                                                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid)}</Typography>
+                                                                                <Typography variant="body2">{field.element_name}: {describeFieldType(field, modelNameByGuid, edtMappings)}</Typography>
                                                                                 {field.element_is_nullable && <Chip size="small" label="?" />}
                                                                                 {field.element_is_list && <Chip size="small" label="[]" />}
                                                                                 {field.element_is_dict && <Chip size="small" label="{}" />}

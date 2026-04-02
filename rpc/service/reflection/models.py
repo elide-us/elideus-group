@@ -50,3 +50,7 @@ class DomainsResponse1(BaseModel):
 
 class RpcEndpointsResponse1(BaseModel):
   endpoints: list[str]
+
+
+class EdtMappingsResponse1(BaseModel):
+  mappings: list[dict[str, Any]]
