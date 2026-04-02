@@ -48,3 +48,12 @@ Adjacent guidance:
 - When RPC contracts change, regenerate bindings from Python RPC definitions using
   `python scripts/generate_rpc_bindings.py`.
 - Keep TypeScript types aligned with backend models via regeneration, not manual patching.
+
+### Generated artifacts are excluded from source control
+
+All files in `src/rpc/`, `src/shared/RpcModels.tsx`, `src/db/namespace.ts`, and
+`src/routes/registry.ts` are generated at build time and excluded from the repository
+via `.gitignore`. They are never committed. The TypeScript compiler validates them on
+every build — if a generated binding is incorrect, the build fails. This is a deliberate
+architectural decision that prevents drift between backend contracts and frontend types.
+See PATTERNS.md §6.2.1 for the full rationale and artifact inventory.
