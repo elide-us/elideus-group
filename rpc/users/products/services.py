@@ -4,22 +4,15 @@ from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.finance_module import FinanceModule
 
-from .models import (
-  UsersProductItem1,
-  UsersProductList1,
-  UsersProductPurchase1,
-  UsersProductPurchaseResult1,
-)
+from .models import UsersProductList1, UsersProductPurchase1, UsersProductPurchaseResult1
 
 
 async def users_products_list_v1(request: Request):
   rpc_request, auth_ctx, _ = await unbox_request(request)
   module: FinanceModule = request.app.state.finance
   await module.on_ready()
-  products = await module.list_products_with_enablement(auth_ctx.user_guid)
-  items = [UsersProductItem1(**product) for product in products]
-  payload = UsersProductList1(products=items)
-  return RPCResponse(op=rpc_request.op, payload=payload.model_dump(), version=rpc_request.version)
+  result: UsersProductList1 = await module.list_products_with_enablement(auth_ctx.user_guid)
+  return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
 
 
 async def users_products_purchase_v1(request: Request):
@@ -35,5 +28,4 @@ async def users_products_purchase_v1(request: Request):
     )
   except ValueError as exc:
     raise HTTPException(status_code=400, detail=str(exc)) from exc
-  response_payload = UsersProductPurchaseResult1(**result)
-  return RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
+  return RPCResponse(op=rpc_request.op, payload=result.model_dump(), version=rpc_request.version)
