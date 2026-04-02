@@ -191,19 +191,29 @@ def parse_service_contracts(path: str) -> dict[str, dict[str, str | None]]:
       if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
         target = stmt.targets[0]
         value = stmt.value
+        annotation = None
       elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
         target = stmt.target
         value = stmt.value
+        annotation = stmt.annotation
       else:
         continue
 
-      if not isinstance(target, ast.Name) or not isinstance(value, ast.Call):
+      if not isinstance(target, ast.Name):
+        continue
+
+      # If there's a type annotation, use it directly for var_models
+      if annotation is not None:
+        ann_name = _annotation_to_str(annotation)
+        if ann_name and ann_name[:1].isupper():
+          var_models[target.id] = ann_name
+
+      if not isinstance(value, ast.Call):
         continue
 
       model_name = _call_name(value)
       if model_name and model_name[:1].isupper():
         var_models[target.id] = model_name
-
       detected_input = _extract_input_model(value)
       if detected_input and detected_input[:1].isupper():
         input_model = detected_input
