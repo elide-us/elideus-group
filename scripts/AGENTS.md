@@ -36,6 +36,7 @@ operational tooling.
 - Active automation utilities in this folder include:
   - `generate_rpc_bindings.py`
   - `generate_db_namespace.py`
+  - `generate_nav_pages.py`
   - `seed_rpcdispatch.py`
   - `seed_workflows.py`
   - `run_tests.py`
