@@ -15,7 +15,7 @@ from .models import (
 async def account_user_get_displayname_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserGuid1(**(rpc_request.payload or {}))
-  module: UserAdminModule = request.app.state.module
+  module: UserAdminModule = request.app.state.user_admin
   display = await module.get_displayname(data.userGuid)
   res = AccountUserDisplayName1(userGuid=data.userGuid, displayName=display)
   return RPCResponse(
@@ -28,7 +28,7 @@ async def account_user_get_displayname_v1(request: Request):
 async def account_user_get_credits_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserGuid1(**(rpc_request.payload or {}))
-  module: UserAdminModule = request.app.state.module
+  module: UserAdminModule = request.app.state.user_admin
   credits = await module.get_credits(data.userGuid)
   res = AccountUserCredits1(userGuid=data.userGuid, credits=credits)
   return RPCResponse(
@@ -41,7 +41,7 @@ async def account_user_get_credits_v1(request: Request):
 async def account_user_set_credits_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserSetCredits1(**(rpc_request.payload or {}))
-  module: UserAdminModule = request.app.state.module
+  module: UserAdminModule = request.app.state.user_admin
   await module.set_credits(data.userGuid, data.credits)
   return RPCResponse(
     op=rpc_request.op,
@@ -53,7 +53,7 @@ async def account_user_set_credits_v1(request: Request):
 async def account_user_reset_display_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserGuid1(**(rpc_request.payload or {}))
-  module: UserAdminModule = request.app.state.module
+  module: UserAdminModule = request.app.state.user_admin
   await module.reset_display(data.userGuid)
   return RPCResponse(
     op=rpc_request.op,
@@ -65,7 +65,7 @@ async def account_user_reset_display_v1(request: Request):
 async def account_user_create_folder_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   data = AccountUserCreateFolder1(**(rpc_request.payload or {}))
-  module: StorageModule = request.app.state.module
+  module: StorageModule = request.app.state.storage
   await module.create_user_folder(data.userGuid, data.path)
   return RPCResponse(
     op=rpc_request.op,

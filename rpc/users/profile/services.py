@@ -26,7 +26,7 @@ async def users_profile_get_profile_v1(request: Request):
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
-  module: ProfileModule = request.app.state.module
+  module: ProfileModule = request.app.state.profile
   record = await module.get_profile(user_guid)
   if not record:
     raise HTTPException(status_code=404, detail="Profile not found")
@@ -50,7 +50,7 @@ async def users_profile_set_display_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetDisplay1(**(rpc_request.payload or {}))
-  module: ProfileModule = request.app.state.module
+  module: ProfileModule = request.app.state.profile
   await module.set_display(user_guid, payload.display_name)
   return RPCResponse(
     op=rpc_request.op,
@@ -65,7 +65,7 @@ async def users_profile_set_optin_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetOptin1(**(rpc_request.payload or {}))
-  module: ProfileModule = request.app.state.module
+  module: ProfileModule = request.app.state.profile
   await module.set_optin(user_guid, payload.display_email)
   return RPCResponse(
     op=rpc_request.op,
@@ -79,7 +79,7 @@ async def users_profile_get_roles_v1(request: Request):
   if user_guid is None:
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
-  module: ProfileModule = request.app.state.module
+  module: ProfileModule = request.app.state.profile
   roles = await module.get_roles(user_guid)
   payload = UsersProfileRoles1(roles=roles)
   return RPCResponse(
@@ -95,7 +95,7 @@ async def users_profile_set_profile_image_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   payload = UsersProfileSetProfileImage1(**(rpc_request.payload or {}))
-  module: ProfileModule = request.app.state.module
+  module: ProfileModule = request.app.state.profile
   await module.set_profile_image(
     user_guid,
     payload.provider,
