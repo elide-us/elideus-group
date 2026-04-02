@@ -20,6 +20,7 @@ COPY . .
 
 RUN python3 scripts/generate_rpc_bindings.py
 RUN python3 scripts/generate_db_namespace.py
+RUN python3 scripts/generate_nav_pages.py
 
 WORKDIR /app/frontend
 

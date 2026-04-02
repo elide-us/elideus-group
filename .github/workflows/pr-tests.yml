@@ -35,9 +35,11 @@ jobs:
         cd frontend
         npm ci
 
-    - name: Generate RPC bindings
+    - name: Generate bindings and namespaces
       run: |
         python scripts/generate_rpc_bindings.py
+        python scripts/generate_db_namespace.py
+        python scripts/generate_nav_pages.py
 
     - name: Run tests
       run: python scripts/run_tests.py --test
