@@ -31,3 +31,28 @@ class UsersProvidersCreateFromProvider1(BaseModel):
   provider_email: str
   provider_displayname: str
   provider_profile_image: str | None = None
+
+
+class UsersProvidersSetProviderResult1(BaseModel):
+  provider: str
+  code: str | None = None
+  id_token: str | None = None
+  access_token: str | None = None
+
+
+class UsersProvidersLinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersUnlinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersGetByProviderIdentifierResult1(BaseModel):
+  guid: str | None = None
+  element_soft_deleted_at: str | None = None
+
+
+class UsersProvidersCreateFromProviderResult1(BaseModel):
+  guid: str | None = None
+  element_soft_deleted_at: str | None = None
