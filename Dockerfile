@@ -3,7 +3,17 @@
 # ────────────────────────────────────────────────────────────────────────────────
 FROM node:22 AS builder
 
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv \
+    curl gnupg2 ca-certificates apt-transport-https
+
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+      > /etc/apt/sources.list.d/mssql-release.list
+
+RUN apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc libodbc2 \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY requirements.txt ./
