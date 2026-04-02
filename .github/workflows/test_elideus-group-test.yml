@@ -40,10 +40,6 @@ jobs:
         cd frontend
         npm ci
 
-    - name: Generate RPC bindings
-      run: |
-        python scripts/generate_rpc_bindings.py
-
     - name: Install MSSQL ODBC Driver
       run: |
         sudo apt-get update
@@ -52,6 +48,12 @@ jobs:
         echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | sudo tee /etc/apt/sources.list.d/mssql-release.list
         sudo apt-get update
         sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+    - name: Generate bindings and namespaces
+      run: |
+        python scripts/generate_rpc_bindings.py
+        python scripts/generate_db_namespace.py
+        python scripts/generate_nav_pages.py
 
     - name: Run tests
       run: python scripts/run_tests.py
@@ -72,6 +74,8 @@ jobs:
         push: true
         tags: elideus.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_375ace388d15453497189874787dd593 }}/elideus-group-test:${{ github.sha }}
         file: ./Dockerfile
+        build-args: |
+          AZURE_SQL_CONNECTION_STRING=${{ secrets.AZURE_SQL_CONNECTION_STRING_DEV }}
 
   deploy:
     runs-on: ubuntu-latest
