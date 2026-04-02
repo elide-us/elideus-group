@@ -19,7 +19,7 @@ async def users_providers_set_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  module: OauthModule = request.app.state.module
+  module: OauthModule = request.app.state.oauth
   await module.on_ready()
   result = await module.set_user_default_provider(
     auth_ctx.user_guid,
@@ -41,7 +41,7 @@ async def users_providers_link_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  module: OauthModule = request.app.state.module
+  module: OauthModule = request.app.state.oauth
   await module.on_ready()
   result = await module.link_user_provider(
     auth_ctx.user_guid,
@@ -59,7 +59,7 @@ async def users_providers_unlink_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  module: OauthModule = request.app.state.module
+  module: OauthModule = request.app.state.oauth
   await module.on_ready()
   result = await module.unlink_user_provider(
     auth_ctx.user_guid,
@@ -75,7 +75,7 @@ async def users_providers_get_by_provider_identifier_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  module: OauthModule = request.app.state.module
+  module: OauthModule = request.app.state.oauth
   await module.on_ready()
   row = await module.get_user_by_provider_identifier(
     provider, payload.provider_identifier
@@ -89,7 +89,7 @@ async def users_providers_create_from_provider_v1(request: Request):
   except ValidationError as e:
     raise HTTPException(status_code=400, detail=str(e))
   provider = payload.provider.lower()
-  module: OauthModule = request.app.state.module
+  module: OauthModule = request.app.state.oauth
   await module.on_ready()
   row = await module.create_user_from_provider(
     provider,
