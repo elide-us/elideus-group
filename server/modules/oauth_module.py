@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import base64, logging, uuid
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 import aiohttp
 from datetime import datetime, timezone, timedelta
 
@@ -48,6 +51,15 @@ from queryregistry.identity.sessions import (
 from queryregistry.finance.credits import set_credits_request
 from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.system.config import get_config_request
+
+if TYPE_CHECKING:
+  from rpc.users.providers.models import (
+    UsersProvidersCreateFromProviderResult1,
+    UsersProvidersGetByProviderIdentifierResult1,
+    UsersProvidersLinkProviderResult1,
+    UsersProvidersSetProviderResult1,
+    UsersProvidersUnlinkProviderResult1,
+  )
 
 
 class OauthModule(BaseModule):
@@ -177,7 +189,7 @@ class OauthModule(BaseModule):
     code: str | None = None,
     id_token: str | None = None,
     access_token: str | None = None,
-  ) -> dict:
+  ) -> UsersProvidersSetProviderResult1:
     original = {
       "provider": provider,
       "code": code,
@@ -206,7 +218,8 @@ class OauthModule(BaseModule):
         display_name=display_name,
       )
       await self.db.run(update_if_unedited_request(params))
-    return original
+    from rpc.users.providers.models import UsersProvidersSetProviderResult1
+    return UsersProvidersSetProviderResult1(**original)
 
   async def link_user_provider(
     self,
@@ -216,7 +229,7 @@ class OauthModule(BaseModule):
     code: str | None = None,
     id_token: str | None = None,
     access_token: str | None = None,
-  ) -> dict:
+  ) -> UsersProvidersLinkProviderResult1:
     provider_key = provider.lower()
     if provider_key == "google" and not code:
       raise HTTPException(status_code=400, detail="code required")
@@ -243,7 +256,8 @@ class OauthModule(BaseModule):
         provider_identifier=provider_uid,
       ),
     )
-    return {"provider": provider}
+    from rpc.users.providers.models import UsersProvidersLinkProviderResult1
+    return UsersProvidersLinkProviderResult1(provider=provider)
 
   async def unlink_user_provider(
     self,
@@ -251,7 +265,7 @@ class OauthModule(BaseModule):
     provider: str,
     *,
     new_default: str | None = None,
-  ) -> dict:
+  ) -> UsersProvidersUnlinkProviderResult1:
     res_prof = await self.db.run(
       get_profile_request(GuidParams(guid=user_guid))
     )
@@ -276,7 +290,8 @@ class OauthModule(BaseModule):
           RevokeProviderTokensParams(guid=user_guid, provider=provider)
         )
       )
-    return {"provider": provider}
+    from rpc.users.providers.models import UsersProvidersUnlinkProviderResult1
+    return UsersProvidersUnlinkProviderResult1(provider=provider)
 
   async def unlink_last_provider_record(self, guid: str, provider: str) -> None:
     assert self.db
@@ -286,7 +301,7 @@ class OauthModule(BaseModule):
 
   async def get_user_by_provider_identifier(
     self, provider: str, provider_identifier: str
-  ):
+  ) -> UsersProvidersGetByProviderIdentifierResult1:
     res = await self.db.run(
       get_by_provider_identifier_request(
         provider=provider,
@@ -294,7 +309,10 @@ class OauthModule(BaseModule):
       ),
     )
     rows = self._normalize_query_payload(res.payload)
-    return rows[0] if rows else None
+    from rpc.users.providers.models import UsersProvidersGetByProviderIdentifierResult1
+    if not rows:
+      return UsersProvidersGetByProviderIdentifierResult1()
+    return UsersProvidersGetByProviderIdentifierResult1(**rows[0])
 
   async def create_user_from_provider(
     self,
@@ -303,7 +321,7 @@ class OauthModule(BaseModule):
     provider_email: str,
     provider_displayname: str,
     provider_profile_image: str | None = None,
-  ):
+  ) -> UsersProvidersCreateFromProviderResult1:
     res = await self.db.run(
       get_user_by_email_request(email=provider_email),
     )
@@ -320,7 +338,10 @@ class OauthModule(BaseModule):
       ),
     )
     rows = self._normalize_query_payload(res.payload)
-    return rows[0] if rows else None
+    from rpc.users.providers.models import UsersProvidersCreateFromProviderResult1
+    if not rows:
+      return UsersProvidersCreateFromProviderResult1()
+    return UsersProvidersCreateFromProviderResult1(**rows[0])
 
   async def register_discord_user(self, discord_id: str) -> dict:
     auth: AuthModule = self.app.state.auth
@@ -355,9 +376,9 @@ class OauthModule(BaseModule):
       provider_email=f"{discord_id}@discord.placeholder",
       provider_displayname=display_name,
     )
-    if not created or not created.get("guid"):
+    if not created.guid:
       raise HTTPException(status_code=500, detail="Unable to create user")
-    new_user_guid = created["guid"]
+    new_user_guid = created.guid
     await self.db.run(set_credits_request(SetCreditsParams(guid=new_user_guid, credits=50)))
     logging.info(
       "[OauthModule] registered discord user",
