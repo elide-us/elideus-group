@@ -11,6 +11,7 @@ __all__ = [
   "get_home_links_request",
   "get_navbar_routes_request",
   "get_routes_request",
+  "list_frontend_pages_request",
   "upsert_route_request",
 ]
 
@@ -28,6 +29,10 @@ def get_navbar_routes_request(role_mask: int | None = None) -> DBRequest:
 
 def get_routes_request() -> DBRequest:
   return DBRequest(op="db:system:public:get_routes:1", payload={})
+
+
+def list_frontend_pages_request() -> DBRequest:
+  return DBRequest(op="db:system:public:list_frontend_pages:1", payload={})
 
 
 def upsert_route_request(params: UpsertRouteParams) -> DBRequest:

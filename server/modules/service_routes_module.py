@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from queryregistry.system.public import (
   delete_route_request,
   get_routes_request,
+  list_frontend_pages_request,
   upsert_route_request,
 )
 from queryregistry.system.public.models import RoutePathParams, UpsertRouteParams
@@ -61,6 +62,12 @@ class ServiceRoutesModule(BaseModule):
       len(routes),
     )
     return routes
+
+  async def list_frontend_pages(self) -> list[dict]:
+    if not self.db:
+      raise RuntimeError("ServiceRoutesModule not ready")
+    res = await self.db.run(list_frontend_pages_request())
+    return [dict(row) for row in (res.rows or [])]
 
   async def upsert_route(
     self,
