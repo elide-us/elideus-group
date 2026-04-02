@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
+from rpc.users.profile.models import UsersProfileProfile1, UsersProfileRoles1
 from . import BaseModule
 from .auth_module import AuthModule
 from .db_module import DbModule
@@ -33,10 +34,31 @@ class ProfileModule(BaseModule):
     self.auth = None
 
 
-  async def get_profile(self, guid: str) -> ProfileRecord | None:
+  async def get_profile(self, guid: str) -> UsersProfileProfile1:
     params = GuidParams(guid=guid)
     res = await self.db.run(get_profile_request(params))
-    return res.rows[0] if res.rows else None
+    if not res.rows:
+      raise HTTPException(status_code=404, detail="Profile not found")
+
+    record: ProfileRecord = res.rows[0]
+    auth_providers = record.get("auth_providers")
+    if auth_providers is None:
+      normalized_auth_providers = []
+    elif isinstance(auth_providers, list):
+      normalized_auth_providers = auth_providers
+    else:
+      raise HTTPException(status_code=500, detail="Invalid auth provider payload")
+
+    return UsersProfileProfile1(
+      guid=str(record.get("guid", "")),
+      display_name=record.get("display_name") or "",
+      email=record.get("email") or "",
+      display_email=bool(record.get("display_email", False)),
+      credits=int(record.get("credits", 0) or 0),
+      profile_image=record.get("profile_image"),
+      default_provider=record.get("default_provider") or "",
+      auth_providers=normalized_auth_providers,
+    )
 
   async def set_display(self, guid: str, display_name: str) -> None:
     params = UpdateProfileParams(guid=guid, display_name=display_name)
@@ -46,10 +68,10 @@ class ProfileModule(BaseModule):
     params = UpdateProfileParams(guid=guid, display_email=display_email)
     await self.db.run(update_profile_request(params))
 
-  async def get_roles(self, guid: str) -> int:
+  async def get_roles(self, guid: str) -> UsersProfileRoles1:
     assert self.auth
     _, mask = await self.auth.get_user_roles(guid)
-    return mask
+    return UsersProfileRoles1(roles=mask)
 
   async def set_profile_image(self, guid: str, provider: str, image_b64: str | None) -> None:
     params = UpdateProfileParams(guid=guid, provider=provider, image_b64=image_b64)

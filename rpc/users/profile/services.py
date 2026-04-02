@@ -27,19 +27,11 @@ async def users_profile_get_profile_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   module: ProfileModule = request.app.state.profile
-  record = await module.get_profile(user_guid)
-  if not record:
-    raise HTTPException(status_code=404, detail="Profile not found")
-  record["guid"] = str(record.get("guid", ""))
-  auth_providers = record.get("auth_providers")
-  if auth_providers is None:
-    record["auth_providers"] = []
-  elif not isinstance(auth_providers, list):
-    raise HTTPException(status_code=500, detail="Invalid auth provider payload")
-  profile_payload = UsersProfileProfile1(**record)
+  await module.on_ready()
+  result: UsersProfileProfile1 = await module.get_profile(user_guid)
   return RPCResponse(
     op=rpc_request.op,
-    payload=profile_payload.model_dump(),
+    payload=result.model_dump(),
     version=rpc_request.version,
   )
 
@@ -51,10 +43,12 @@ async def users_profile_set_display_v1(request: Request):
 
   payload = UsersProfileSetDisplay1(**(rpc_request.payload or {}))
   module: ProfileModule = request.app.state.profile
+  await module.on_ready()
   await module.set_display(user_guid, payload.display_name)
+  result: UsersProfileSetDisplay1 = payload
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=result.model_dump(),
     version=rpc_request.version,
   )
 
@@ -66,10 +60,12 @@ async def users_profile_set_optin_v1(request: Request):
 
   payload = UsersProfileSetOptin1(**(rpc_request.payload or {}))
   module: ProfileModule = request.app.state.profile
+  await module.on_ready()
   await module.set_optin(user_guid, payload.display_email)
+  result: UsersProfileSetOptin1 = payload
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=result.model_dump(),
     version=rpc_request.version,
   )
 
@@ -80,11 +76,11 @@ async def users_profile_get_roles_v1(request: Request):
     raise HTTPException(status_code=400, detail="Missing user GUID")
 
   module: ProfileModule = request.app.state.profile
-  roles = await module.get_roles(user_guid)
-  payload = UsersProfileRoles1(roles=roles)
+  await module.on_ready()
+  result: UsersProfileRoles1 = await module.get_roles(user_guid)
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=result.model_dump(),
     version=rpc_request.version,
   )
 
@@ -96,14 +92,15 @@ async def users_profile_set_profile_image_v1(request: Request):
 
   payload = UsersProfileSetProfileImage1(**(rpc_request.payload or {}))
   module: ProfileModule = request.app.state.profile
+  await module.on_ready()
   await module.set_profile_image(
     user_guid,
     payload.provider,
     payload.image_b64,
   )
+  result: UsersProfileSetProfileImage1 = payload
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=result.model_dump(),
     version=rpc_request.version,
   )
-
