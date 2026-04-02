@@ -15,6 +15,7 @@ __all__ = [
   "get_home_links_v1",
   "get_navbar_routes_v1",
   "get_routes_v1",
+  "list_frontend_pages_v1",
   "upsert_route_v1",
 ]
 
@@ -23,6 +24,7 @@ _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
 _HOME_LINKS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_home_links}
 _NAVBAR_ROUTES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_navbar_routes}
 _GET_ROUTES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_routes_v1}
+_LIST_FRONTEND_PAGES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_frontend_pages_v1}
 _UPSERT_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_route_v1}
 _DELETE_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_route_v1}
 
@@ -46,6 +48,11 @@ async def get_navbar_routes_v1(request: DBRequest, *, provider: str) -> DBRespon
 
 async def get_routes_v1(request: DBRequest, *, provider: str) -> DBResponse:
   result = await _select_dispatcher(provider, _GET_ROUTES_DISPATCHERS)(request.payload)
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def list_frontend_pages_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  result = await _select_dispatcher(provider, _LIST_FRONTEND_PAGES_DISPATCHERS)(request.payload)
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 

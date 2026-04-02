@@ -12,6 +12,7 @@ from .services import (
   get_home_links_v1,
   get_navbar_routes_v1,
   get_routes_v1,
+  list_frontend_pages_v1,
   upsert_route_v1,
 )
 from ..dispatch import SubdomainDispatcher
@@ -22,6 +23,7 @@ DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("get_home_links", "1"): get_home_links_v1,
   ("get_navbar_routes", "1"): get_navbar_routes_v1,
   ("get_routes", "1"): get_routes_v1,
+  ("list_frontend_pages", "1"): list_frontend_pages_v1,
   ("upsert_route", "1"): upsert_route_v1,
   ("delete_route", "1"): delete_route_v1,
 }

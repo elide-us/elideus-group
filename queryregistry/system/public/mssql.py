@@ -14,6 +14,7 @@ __all__ = [
   "get_home_links",
   "get_navbar_routes",
   "get_routes_v1",
+  "list_frontend_pages_v1",
   "upsert_route_v1",
 ]
 
@@ -76,6 +77,16 @@ async def get_routes_v1(_: Mapping[str, Any]) -> DBResponse:
     FROM frontend_routes
     ORDER BY element_sequence
     FOR JSON PATH;
+  """
+  return await run_json_many(sql)
+
+
+async def list_frontend_pages_v1(_: Mapping[str, Any]) -> DBResponse:
+  sql = """
+    SELECT element_path, element_component, element_sequence
+    FROM frontend_pages
+    ORDER BY element_sequence
+    FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
   return await run_json_many(sql)
 
