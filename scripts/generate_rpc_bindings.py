@@ -280,7 +280,7 @@ def _ast_annotation_to_ts(node: ast.AST | None) -> str:
     base = node.value
     base_name = base.id if isinstance(base, ast.Name) else (base.attr if isinstance(base, ast.Attribute) else "")
 
-    if base_name == "list":
+    if base_name in ("list", "List"):
       inner = _ast_annotation_to_ts(node.slice)
       return f"{inner}[]"
 
