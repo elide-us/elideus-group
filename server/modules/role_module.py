@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from fastapi import FastAPI
 
@@ -14,7 +14,10 @@ from queryregistry.system.roles import (
   update_system_role_request,
 )
 from queryregistry.system.roles.models import DeleteRoleParams, UpsertRoleParams
-from server.models import ContentAccess
+
+
+if TYPE_CHECKING:
+  from rpc.shared.models import ContentAccess
 
 from . import BaseModule
 from .db_module import DbModule
@@ -151,7 +154,7 @@ class RoleModule(BaseModule):
     role_mask: int = 0,
     owner_guid: str | None = None,
     admin_mask: int | None = None,
-  ) -> ContentAccess:
+  ) -> "ContentAccess":
     """Compute capability flags for a user against a content resource.
 
     Args:
@@ -171,6 +174,8 @@ class RoleModule(BaseModule):
     is_authenticated = user_guid is not None
     is_owner = is_authenticated and owner_guid is not None and user_guid == owner_guid
     is_admin = is_authenticated and bool(role_mask & admin_mask) if admin_mask else False
+
+    from rpc.shared.models import ContentAccess
 
     return ContentAccess(
       can_view=True,
