@@ -22,6 +22,7 @@ from rpc.account.role.models import (
   AccountRoleRoleItem1,
   AccountRoleUserItem1,
 )
+from rpc.support.roles.models import SupportRolesMembers1, SupportRolesUserItem1
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
@@ -152,6 +153,40 @@ class RoleAdminModule(BaseModule):
     await self.role.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
 
+  async def get_role_members_for_support(self, role: str) -> SupportRolesMembers1:
+    scope = RoleScopeParams(role=role)
+    mem_res = await self.db.run(list_role_memberships_request(scope))
+    non_res = await self.db.run(list_role_non_memberships_request(scope))
+    members = [
+      SupportRolesUserItem1(
+        guid=r.get("guid", ""),
+        displayName=r.get("display_name", ""),
+      )
+      for r in _normalize_payload(mem_res.payload)
+    ]
+    non_members = [
+      SupportRolesUserItem1(
+        guid=r.get("guid", ""),
+        displayName=r.get("display_name", ""),
+      )
+      for r in _normalize_payload(non_res.payload)
+    ]
+    return SupportRolesMembers1(members=members, nonMembers=non_members)
+
+  async def add_role_member_for_support(
+    self,
+    role: str,
+    user_guid: str,
+    actor_mask: int | None = None,
+  ) -> SupportRolesMembers1:
+    if actor_mask is not None:
+      role_mask = self.role.roles.get(role, 0)
+      self._ensure_can_manage(actor_mask, role_mask)
+    payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
+    await self.db.run(create_role_membership_request(payload))
+    await self.role.refresh_user_roles(user_guid)
+    return await self.get_role_members_for_support(role)
+
   async def remove_role_member(
     self,
     role: str,
@@ -165,6 +200,20 @@ class RoleAdminModule(BaseModule):
     await self.db.run(delete_role_membership_request(payload))
     await self.role.refresh_user_roles(user_guid)
     return await self.get_role_members(role)
+
+  async def remove_role_member_for_support(
+    self,
+    role: str,
+    user_guid: str,
+    actor_mask: int | None = None,
+  ) -> SupportRolesMembers1:
+    if actor_mask is not None:
+      role_mask = self.role.roles.get(role, 0)
+      self._ensure_can_manage(actor_mask, role_mask)
+    payload = ModifyRoleMemberParams(role=role, user_guid=user_guid)
+    await self.db.run(delete_role_membership_request(payload))
+    await self.role.refresh_user_roles(user_guid)
+    return await self.get_role_members_for_support(role)
 
   async def upsert_role(
     self,

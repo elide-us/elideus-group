@@ -4,6 +4,7 @@ from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.identity.profiles import get_profile_request, update_profile_request
 from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
 from rpc.account.user.models import AccountUserCredits1, AccountUserDisplayName1
+from rpc.support.users.models import SupportUsersCredits1, SupportUsersDisplayName1
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
@@ -46,6 +47,28 @@ class UserAdminModule(BaseModule):
     if credits is None:
       raise HTTPException(status_code=404, detail="Credits not found")
     return AccountUserCredits1(userGuid=guid, credits=credits)
+
+  async def get_displayname_for_support(self, guid: str) -> SupportUsersDisplayName1:
+    params = GuidParams(guid=guid)
+    res = await self.db.run(get_profile_request(params))
+    if not res.rows:
+      raise HTTPException(status_code=404, detail="Profile not found")
+    row = res.rows[0]
+    return SupportUsersDisplayName1(
+      userGuid=guid,
+      displayName=row.get("display_name", ""),
+    )
+
+  async def get_credits_for_support(self, guid: str) -> SupportUsersCredits1:
+    params = GuidParams(guid=guid)
+    res = await self.db.run(get_profile_request(params))
+    if not res.rows:
+      raise HTTPException(status_code=404, detail="Profile not found")
+    row = res.rows[0]
+    credits = row.get("credits")
+    if credits is None:
+      raise HTTPException(status_code=404, detail="Credits not found")
+    return SupportUsersCredits1(userGuid=guid, credits=credits)
 
   async def set_credits(self, guid: str, credits: int) -> None:
     await self.db.run(
