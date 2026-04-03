@@ -14,7 +14,7 @@ __all__ = ["list_edt_v1"]
 async def list_edt_v1(_: Mapping[str, Any]) -> DBResponse:
   sql = """
     SELECT recid, element_name
-    FROM system_edt_mappings
+    FROM reflection_db_edt_mappings
     ORDER BY recid
     FOR JSON PATH, INCLUDE_NULL_VALUES;
   """
