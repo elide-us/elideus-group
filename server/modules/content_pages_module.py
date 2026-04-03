@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException
 
 from . import BaseModule
 from .db_module import DbModule
-from server.models import ContentAccess
 from queryregistry.content.pages import (
   create_page_request,
   create_version_request,
@@ -32,6 +31,7 @@ from queryregistry.content.pages.models import (
 )
 
 if TYPE_CHECKING:
+  from rpc.shared.models import ContentAccess
   from rpc.users.pages.models import UsersPagesVersionContent1, UsersPagesVersionList1, UsersPagesVersionItem1
   from .role_module import RoleModule
 
@@ -229,7 +229,7 @@ class ContentPagesModule(BaseModule):
     slug: str,
     user_guid: str | None,
     role_mask: int,
-  ) -> tuple[dict[str, Any], ContentAccess]:
+  ) -> tuple[dict[str, Any], "ContentAccess"]:
     if user_guid is None:
       raise HTTPException(status_code=401, detail="Authentication required")
 

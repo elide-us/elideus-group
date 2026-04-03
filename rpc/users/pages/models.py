@@ -1,11 +1,7 @@
 from typing import Optional
 
 from pydantic import BaseModel
-from server.models import ContentAccess as ServerContentAccess
-
-
-class ContentAccess(ServerContentAccess):
-  pass
+from rpc.shared.models import ContentAccess
 
 
 class UsersPagesCreateVersion1(BaseModel):

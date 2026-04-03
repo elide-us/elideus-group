@@ -5,7 +5,6 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 
-from server.models import ContentAccess
 from queryregistry.content.wiki import (
   create_version_request,
   create_wiki_request,
@@ -37,6 +36,7 @@ from . import BaseModule
 from .db_module import DbModule
 
 if TYPE_CHECKING:
+  from rpc.shared.models import ContentAccess
   from rpc.users.wiki.models import UsersWikiVersionContent1, UsersWikiVersionList1, UsersWikiVersionItem1
   from .role_module import RoleModule
 
@@ -278,7 +278,7 @@ class ContentWikiModule(BaseModule):
     slug: str,
     user_guid: str | None,
     role_mask: int,
-  ) -> tuple[dict[str, Any], ContentAccess]:
+  ) -> tuple[dict[str, Any], "ContentAccess"]:
     self._ensure_authenticated(user_guid)
     page = await self.get_page_by_slug(slug)
     if not page:
