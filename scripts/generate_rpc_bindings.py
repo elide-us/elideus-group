@@ -315,12 +315,12 @@ def _ast_annotation_to_ts(node: ast.AST | None) -> str:
 
   return "any"
 
-
 def _extract_models_from_file(filepath: str) -> list[dict]:
   """Parse a single models.py via AST. Return list of model descriptors.
 
   Each descriptor: {"name": str, "fields": [(field_name, ts_type), ...]}
-  Only extracts classes that directly inherit from BaseModel (by name).
+  Handles local inheritance — a class inheriting from another BaseModel
+  subclass in the same file is included, and inherits parent fields.
   """
   with open(filepath, "r", encoding="utf-8") as f:
     source = f.read()
@@ -330,33 +330,84 @@ def _extract_models_from_file(filepath: str) -> list[dict]:
   except SyntaxError:
     return []
 
-  models = []
+  # First pass: collect all class nodes and their direct fields
+  class_nodes: dict[str, ast.ClassDef] = {}
+  class_fields: dict[str, list[tuple[str, str]]] = {}
+  class_bases: dict[str, list[str]] = {}
+
   for node in tree.body:
     if not isinstance(node, ast.ClassDef):
       continue
-
-    is_base_model = any(
-      (isinstance(b, ast.Name) and b.id == "BaseModel")
-      or (isinstance(b, ast.Attribute) and b.attr == "BaseModel")
-      for b in node.bases
-    )
-    if not is_base_model:
-      continue
-
     if node.name in ("RPCRequest", "RPCResponse"):
       continue
+
+    bases = []
+    for b in node.bases:
+      if isinstance(b, ast.Name):
+        bases.append(b.id)
+      elif isinstance(b, ast.Attribute):
+        bases.append(b.attr)
+
+    class_nodes[node.name] = node
+    class_bases[node.name] = bases
 
     fields: list[tuple[str, str]] = []
     for stmt in node.body:
       if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
-        field_name = stmt.target.id
-        ts_type = _ast_annotation_to_ts(stmt.annotation)
-        fields.append((field_name, ts_type))
+        fields.append((stmt.target.id, _ast_annotation_to_ts(stmt.annotation)))
+    class_fields[node.name] = fields
 
-    models.append({"name": node.name, "fields": fields})
+  # Second pass: determine which classes are BaseModel descendants
+  # A class is a model if it inherits from BaseModel directly, or
+  # from another class in this file that is itself a model.
+  is_model: dict[str, bool] = {}
+
+  def _check_model(name: str) -> bool:
+    if name in is_model:
+      return is_model[name]
+    if name == "BaseModel":
+      return True
+    if name not in class_bases:
+      return False
+    # Prevent infinite recursion on weird inheritance
+    is_model[name] = False
+    result = any(_check_model(b) for b in class_bases[name])
+    is_model[name] = result
+    return result
+
+  for name in class_nodes:
+    _check_model(name)
+
+  # Third pass: resolve inherited fields and build output
+  resolved_fields: dict[str, list[tuple[str, str]]] = {}
+
+  def _resolve_fields(name: str) -> list[tuple[str, str]]:
+    if name in resolved_fields:
+      return resolved_fields[name]
+    if name not in class_nodes:
+      return []
+
+    # Start with parent fields (in order)
+    inherited: list[tuple[str, str]] = []
+    for base_name in class_bases[name]:
+      if base_name != "BaseModel" and base_name in class_nodes:
+        inherited = _resolve_fields(base_name).copy()
+
+    # Merge own fields — own fields override parent fields by name
+    own = class_fields[name]
+    own_names = {f[0] for f in own}
+    merged = [(n, t) for n, t in inherited if n not in own_names] + own
+    resolved_fields[name] = merged
+    return merged
+
+  models = []
+  for name in class_nodes:
+    if not is_model.get(name, False):
+      continue
+    fields = _resolve_fields(name)
+    models.append({"name": name, "fields": fields})
 
   return models
-
 
 def _model_dict_to_ts(model: dict) -> str:
   """Convert a model descriptor to a tab-indented TypeScript interface."""
