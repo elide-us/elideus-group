@@ -1,8 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.role_admin_module import RoleAdminModule
 from .models import (
   AccountRoleAggregateList1,
   AccountRoleDeleteRole1,
@@ -12,6 +15,9 @@ from .models import (
   AccountRoleMembers1,
   AccountRoleUpsertRole1,
 )
+
+if TYPE_CHECKING:
+  from server.modules.role_admin_module import RoleAdminModule
 
 
 async def account_role_get_roles_v1(request: Request):

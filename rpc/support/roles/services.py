@@ -1,14 +1,20 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.role_admin_module import RoleAdminModule
 from .models import (
   SupportRolesGetMembersRequest1,
   SupportRolesMembers1,
   SupportRolesRoleMemberUpdate1,
   SupportRolesUserItem1,
 )
+
+if TYPE_CHECKING:
+  from server.modules.role_admin_module import RoleAdminModule
 
 
 async def support_roles_get_members_v1(request: Request):

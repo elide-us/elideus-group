@@ -1,8 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from fastapi import Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.user_admin_module import UserAdminModule
 
 from .models import (
   SupportUsersCredits1,
@@ -10,6 +13,9 @@ from .models import (
   SupportUsersGuid1,
   SupportUsersSetCredits1,
 )
+
+if TYPE_CHECKING:
+  from server.modules.user_admin_module import UserAdminModule
 
 
 async def support_users_get_displayname_v1(request: Request):
