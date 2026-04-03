@@ -35,7 +35,7 @@ class FullSchemaParams(BaseModel):
 
 
 class TableRecord(TypedDict):
-  """Table metadata record from system_schema_tables."""
+  """Table metadata record from reflection_db_tables."""
 
   recid: int
   element_schema: str
@@ -57,7 +57,7 @@ class ColumnRecord(TypedDict):
 
 
 class IndexRecord(TypedDict):
-  """Index metadata record from system_schema_indexes."""
+  """Index metadata record from reflection_db_indexes."""
 
   tables_recid: int
   element_name: str
@@ -66,7 +66,7 @@ class IndexRecord(TypedDict):
 
 
 class ForeignKeyRecord(TypedDict):
-  """Foreign key metadata record from system_schema_foreign_keys."""
+  """Foreign key metadata record from reflection_db_foreign_keys."""
 
   tables_recid: int
   element_column_name: str
@@ -75,7 +75,7 @@ class ForeignKeyRecord(TypedDict):
 
 
 class ViewRecord(TypedDict):
-  """View metadata record from system_schema_views."""
+  """View metadata record from reflection_db_views."""
 
   element_schema: str
   element_name: str
