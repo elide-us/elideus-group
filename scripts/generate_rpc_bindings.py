@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Generate RPC bindings for the frontend client and shared models."""
 
-import os
+import os, ast
 import sys
 from typing import Iterable
 
@@ -174,7 +174,8 @@ RPC_CALL_FUNC = [
 def main() -> None:
   colorama.init()
   print('Starting RPC model extraction and TS generation...')
-  interfaces = find_all_interfaces()
+  #interfaces = find_all_interfaces()
+  interfaces = find_all_interfaces_v2()
   write_interfaces_to_file(interfaces, FRONTEND_SHARED)
 
   print('\nStarting DISPATCHER-based RPC function generation...')
@@ -231,6 +232,165 @@ def main() -> None:
     print('  This is expected in environments without ODBC (e.g., Codex).')
     print('  Reflection tables will be seeded on next build in an environment with DB access.')
 
+# ============================================================
+# V2 Model Discovery — AST-based, no imports
+# ============================================================
+#
+# Drop-in replacement for find_all_interfaces().
+# Parses models.py files as text using the ast module.
+# Never imports or executes the files, so there is zero risk
+# of circular-import or sys.path issues.
+#
+# Returns list[str] — each entry is a tab-indented TypeScript
+# interface block, same shape as find_all_interfaces().
+# ============================================================
+
+# --- Type mapping (AST annotation node → TypeScript string) -----------
+
+_PRIMITIVE_MAP: dict[str, str] = {
+  "str": "string",
+  "int": "number",
+  "float": "number",
+  "bool": "boolean",
+  "dict": "Record<string, any>",
+  "datetime": "string",
+  "Any": "any",
+}
+
+
+def _ast_annotation_to_ts(node: ast.AST | None) -> str:
+  """Convert a Python type annotation AST node to a TypeScript type string."""
+  if node is None:
+    return "any"
+
+  # Simple name:  str, int, bool, ModelName, etc.
+  if isinstance(node, ast.Name):
+    return _PRIMITIVE_MAP.get(node.id, node.id)
+
+  # Attribute access:  e.g. module.ClassName — take the attribute name
+  if isinstance(node, ast.Attribute):
+    return _PRIMITIVE_MAP.get(node.attr, node.attr)
+
+  # String constant (forward reference):  "ModelName"
+  if isinstance(node, ast.Constant) and isinstance(node.value, str):
+    return _PRIMITIVE_MAP.get(node.value, node.value)
+
+  # Subscript:  list[X], Optional[X], dict[K, V]
+  if isinstance(node, ast.Subscript):
+    base = node.value
+    base_name = base.id if isinstance(base, ast.Name) else (base.attr if isinstance(base, ast.Attribute) else "")
+
+    if base_name == "list":
+      inner = _ast_annotation_to_ts(node.slice)
+      return f"{inner}[]"
+
+    if base_name == "Optional":
+      inner = _ast_annotation_to_ts(node.slice)
+      return f"{inner} | null"
+
+    if base_name == "dict":
+      return "Record<string, any>"
+
+    return "any"
+
+  # BinOp with |:  str | None, int | None  (PEP 604 union syntax)
+  if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+    left = _ast_annotation_to_ts(node.left)
+    right = _ast_annotation_to_ts(node.right)
+    if left == "None":
+      left = "null"
+    if right == "None":
+      right = "null"
+    return f"{left} | {right}"
+
+  # None constant
+  if isinstance(node, ast.Constant) and node.value is None:
+    return "null"
+  if isinstance(node, ast.Name) and node.id == "None":
+    return "null"
+
+  # Tuple (e.g. inside Subscript slice for dict[str, Any])
+  if isinstance(node, ast.Tuple):
+    return "any"
+
+  return "any"
+
+
+def _extract_models_from_file(filepath: str) -> list[dict]:
+  """Parse a single models.py via AST. Return list of model descriptors.
+
+  Each descriptor: {"name": str, "fields": [(field_name, ts_type), ...]}
+  Only extracts classes that directly inherit from BaseModel (by name).
+  """
+  with open(filepath, "r", encoding="utf-8") as f:
+    source = f.read()
+
+  try:
+    tree = ast.parse(source, filename=filepath)
+  except SyntaxError:
+    return []
+
+  models = []
+  for node in tree.body:
+    if not isinstance(node, ast.ClassDef):
+      continue
+
+    is_base_model = any(
+      (isinstance(b, ast.Name) and b.id == "BaseModel")
+      or (isinstance(b, ast.Attribute) and b.attr == "BaseModel")
+      for b in node.bases
+    )
+    if not is_base_model:
+      continue
+
+    if node.name in ("RPCRequest", "RPCResponse"):
+      continue
+
+    fields: list[tuple[str, str]] = []
+    for stmt in node.body:
+      if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+        field_name = stmt.target.id
+        ts_type = _ast_annotation_to_ts(stmt.annotation)
+        fields.append((field_name, ts_type))
+
+    models.append({"name": node.name, "fields": fields})
+
+  return models
+
+
+def _model_dict_to_ts(model: dict) -> str:
+  """Convert a model descriptor to a tab-indented TypeScript interface."""
+  name = model["name"]
+  fields = model["fields"]
+  if not fields:
+    return f"export type {name} = Record<string, never>;"
+  lines = [f"export interface {name} {{"]
+  for field_name, ts_type in fields:
+    lines.append(f"\t{field_name}: {ts_type};")
+  lines.append("}")
+  return "\n".join(lines)
+
+
+def find_all_interfaces_v2() -> list[str]:
+  """Walk RPC_ROOT, parse every models.py via AST, return TS interfaces.
+
+  Drop-in replacement for find_all_interfaces().
+  """
+  seen: set[str] = set()
+  interfaces: list[str] = []
+
+  for root, _, files in os.walk(RPC_ROOT):
+    if "models.py" not in files:
+      continue
+    models_path = os.path.join(root, "models.py")
+    models = _extract_models_from_file(models_path)
+    for model in models:
+      if model["name"] in seen:
+        continue
+      seen.add(model["name"])
+      interfaces.append(_model_dict_to_ts(model))
+
+  return interfaces
 
 if __name__ == '__main__':
   main()
