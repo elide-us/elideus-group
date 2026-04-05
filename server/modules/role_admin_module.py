@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from queryregistry.identity.roles import (
   create_role_membership_request,
   delete_role_membership_request,
@@ -14,19 +15,52 @@ from queryregistry.identity.roles.models import (
   RoleScopeParams,
 )
 from queryregistry.system.roles import list_system_roles_request
-from rpc.account.role.models import (
-  AccountRoleAggregateItem1,
-  AccountRoleAggregateList1,
-  AccountRoleList1,
-  AccountRoleMembers1,
-  AccountRoleRoleItem1,
-  AccountRoleUserItem1,
-)
-from rpc.support.roles.models import SupportRolesMembers1, SupportRolesUserItem1
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
 from server.modules.role_module import RoleModule
+
+
+class AccountRoleUserItem1(BaseModel):
+  guid: str
+  displayName: str
+
+
+class AccountRoleRoleItem1(BaseModel):
+  name: str
+  mask: str
+  display: str | None = None
+
+
+class AccountRoleList1(BaseModel):
+  roles: list[AccountRoleRoleItem1]
+
+
+class AccountRoleMembers1(BaseModel):
+  members: list[AccountRoleUserItem1]
+  nonMembers: list[AccountRoleUserItem1] = []
+
+
+class AccountRoleAggregateItem1(BaseModel):
+  name: str
+  mask: str
+  display: str | None = None
+  members: list[AccountRoleUserItem1]
+  nonMembers: list[AccountRoleUserItem1]
+
+
+class AccountRoleAggregateList1(BaseModel):
+  roles: list[AccountRoleAggregateItem1]
+
+
+class SupportRolesUserItem1(BaseModel):
+  guid: str
+  displayName: str
+
+
+class SupportRolesMembers1(BaseModel):
+  members: list[SupportRolesUserItem1]
+  nonMembers: list[SupportRolesUserItem1] = []
 
 
 def _normalize_payload(payload: Any | None) -> list[dict[str, Any]]:
