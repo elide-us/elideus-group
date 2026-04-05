@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Login as LoginIcon } from '@mui/icons-material';
 import { Typography, Box, Tooltip, IconButton, ListItemText } from '@mui/material';
 import { PublicClientApplication } from '@azure/msal-browser';
@@ -98,8 +98,6 @@ const Login = ({ open }: LoginProps): JSX.Element => {
 						userData ? (
 							<Box sx={{ minWidth: 0 }}>
 								<Typography
-									component={RouterLink}
-									to="/userpage"
 									sx={{
 										display: 'block',
 										fontSize: '0.7rem',
