@@ -1,17 +1,13 @@
-"""User namespace for profiles and authentication providers.
+"""User namespace for user-facing page and wiki RPCs.
 
 All subdomains require ROLE_REGISTERED.
 """
 
-from .profile.handler import handle_profile_request
 from .pages.handler import handle_pages_request
-from .providers.handler import handle_providers_request
 from .wiki.handler import handle_wiki_request
 
 
 HANDLERS: dict[str, callable] = {
-  "profile": handle_profile_request,
-  "providers": handle_providers_request,
   "pages": handle_pages_request,
   "wiki": handle_wiki_request
 }
