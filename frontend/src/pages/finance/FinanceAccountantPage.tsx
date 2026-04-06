@@ -34,7 +34,6 @@ import { fetchJournalSummary, fetchCreditLotSummary } from '../../rpc/finance/re
 import { fetchListImports, fetchListLineItems, fetchImport as fetchStagingImport, fetchImportInvoices, fetchDeleteImport, fetchPromote } from '../../rpc/finance/staging';
 import { fetchCreate as fetchJournalCreate, fetchLines as fetchJournalLines, fetchSubmitForApproval, fetchReverse as fetchJournalReverse } from '../../rpc/finance/journals';
 import { fetchCreate as fetchCreditLotCreate, fetchExpire as fetchCreditLotExpire, fetchListEvents as fetchCreditLotEvents } from '../../rpc/finance/credit_lots';
-import { fetchGet as fetchScheduledTaskGet } from '../../rpc/system/scheduled_tasks';
 
 type FinanceNumber = {
     recid: number | null;
