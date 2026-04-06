@@ -437,11 +437,10 @@ const FinanceAccountantPage = (): JSX.Element => {
         setter(res.line_items || []);
     }, []);
 
-    const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
-        // TODO: system:tasks:events not yet available as generated wrapper
-        const res = await (fetchScheduledTaskGet as any)({ guid });
-        setPromoteTaskEvents(res.events || []);
-    }, []);
+const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
+    // TODO: reimplemented under system:automation in future rebuild
+    setPromoteTaskEvents([]);
+}, []);
 
     const loadCloseReadiness = useCallback(async (guid: string): Promise<void> => {
         setSelectedReadinessPeriodGuid(guid);
@@ -520,7 +519,7 @@ const FinanceAccountantPage = (): JSX.Element => {
 
         const pollTask = async (): Promise<void> => {
             try {
-                const task = await (fetchScheduledTaskGet as any)({ guid: promoteTaskGuid });
+                const task = null;
                 if (!active) {
                     return;
                 }
