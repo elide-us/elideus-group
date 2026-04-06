@@ -509,55 +509,15 @@ const loadTaskEvents = useCallback(async (): Promise<void> => {
         void loadLineItems(selectedApprovedImport, setApprovedLineItems);
     }, [loadLineItems, selectedApprovedImport]);
 
+// TODO: Promote task polling disabled — system:scheduled_tasks removed, will be reimplemented under system:automation
     useEffect(() => {
         if (!promoteTaskGuid || tab !== 1) {
             return;
         }
-
-        let active = true;
-        let intervalId = 0;
-
-        const pollTask = async (): Promise<void> => {
-            try {
-                const task = null;
-                if (!active) {
-                    return;
-                }
-                setPromoteTaskStatus(task);
-                await loadTaskEvents(promoteTaskGuid);
-                if (!active) {
-                    return;
-                }
-                if (task.status === 4) {
-                    window.clearInterval(intervalId);
-                    const journalRecid = task.result?.journal_recid ?? task.result?.journals_recid;
-                    showNotification(journalRecid ? `Promotion completed — journal #${journalRecid}` : "Promotion completed.");
-                    await Promise.all([loadApprovedImports(), loadBillingImports(), loadJournals()]);
-                    return;
-                }
-                if (task.status >= 5) {
-                    window.clearInterval(intervalId);
-                    showNotification(task.error || "Promotion failed.", "error");
-                }
-            } catch (error: any) {
-                if (!active) {
-                    return;
-                }
-                if ((error?.response?.status ?? error?.status) !== 404) {
-                    showNotification(error?.message || "Unable to monitor promotion task.", "error");
-                }
-            }
-        };
-
-        void pollTask();
-        intervalId = window.setInterval(() => void pollTask(), 4000);
-
-        return () => {
-            active = false;
-            window.clearInterval(intervalId);
-        };
-    }, [loadApprovedImports, loadBillingImports, loadJournals, loadTaskEvents, promoteTaskGuid, tab]);
-
+        setPromoteTaskStatus(null);
+        setPromoteTaskEvents([]);
+    }, [promoteTaskGuid, tab]);
+    
     if (forbidden) {
         return (
             <Box sx={{ p: 2 }}>
