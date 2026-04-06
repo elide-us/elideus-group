@@ -1,13 +1,32 @@
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from queryregistry.finance.credits import set_credits_request
 from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.identity.profiles import get_profile_request, update_profile_request
 from queryregistry.identity.profiles.models import GuidParams, UpdateProfileParams
-from rpc.account.user.models import AccountUserCredits1, AccountUserDisplayName1
-from rpc.support.users.models import SupportUsersCredits1, SupportUsersDisplayName1
 from server.modules import BaseModule
 from server.modules.db_module import DbModule
 from server.modules.discord_bot_module import DiscordBotModule
+
+
+class AccountUserDisplayName1(BaseModel):
+  userGuid: str
+  displayName: str
+
+
+class AccountUserCredits1(BaseModel):
+  userGuid: str
+  credits: int
+
+
+class SupportUsersDisplayName1(BaseModel):
+  userGuid: str
+  displayName: str
+
+
+class SupportUsersCredits1(BaseModel):
+  userGuid: str
+  credits: int
 
 
 class UserAdminModule(BaseModule):

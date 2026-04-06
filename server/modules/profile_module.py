@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-from rpc.users.profile.models import UsersProfileProfile1, UsersProfileRoles1
 from . import BaseModule
 from .auth_module import AuthModule
 from .db_module import DbModule
@@ -14,6 +14,21 @@ from queryregistry.identity.profiles.models import (
   ProfileRecord,
   UpdateProfileParams,
 )
+
+
+class UsersProfileProfile1(BaseModel):
+  guid: str
+  display_name: str
+  email: str
+  display_email: bool
+  credits: int
+  profile_image: str | None = None
+  default_provider: str
+  auth_providers: list[dict]
+
+
+class UsersProfileRoles1(BaseModel):
+  roles: int
 
 
 class ProfileModule(BaseModule):
