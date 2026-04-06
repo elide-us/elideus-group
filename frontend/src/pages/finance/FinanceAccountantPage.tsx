@@ -437,7 +437,7 @@ const FinanceAccountantPage = (): JSX.Element => {
         setter(res.line_items || []);
     }, []);
 
-const loadTaskEvents = useCallback(async (guid: string): Promise<void> => {
+const loadTaskEvents = useCallback(async (): Promise<void> => {
     // TODO: reimplemented under system:automation in future rebuild
     setPromoteTaskEvents([]);
 }, []);
