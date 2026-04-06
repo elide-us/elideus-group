@@ -8,8 +8,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
 from fastapi import FastAPI
-
-from rpc.users.products.models import UsersProductItem1, UsersProductList1, UsersProductPurchaseResult1
+from pydantic import BaseModel
 
 from . import BaseModule
 from .db_module import DbModule
@@ -294,6 +293,31 @@ from .models.finance_statuses import (
   PERIOD_LOCKED,
   PERIOD_OPEN,
 )
+
+
+class UsersProductItem1(BaseModel):
+  sku: str
+  name: str
+  description: str | None = None
+  category: str
+  price: str
+  currency: str
+  credits: int
+  enablement_key: str | None = None
+  is_recurring: bool = False
+  sort_order: int = 0
+  already_enabled: bool = False
+
+
+class UsersProductList1(BaseModel):
+  products: list[UsersProductItem1]
+
+
+class UsersProductPurchaseResult1(BaseModel):
+  transaction_token: str
+  credits_granted: int | None = None
+  enablement_granted: str | None = None
+  lot_number: str | None = None
 
 
 _FIVE_PLACES = Decimal("0.00001")

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import base64, logging, uuid
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
 import aiohttp
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from queryregistry.identity.profiles import (
   get_profile_request,
   update_if_unedited_request,
@@ -52,14 +52,29 @@ from queryregistry.finance.credits import set_credits_request
 from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.system.config import get_config_request
 
-if TYPE_CHECKING:
-  from rpc.users.providers.models import (
-    UsersProvidersCreateFromProviderResult1,
-    UsersProvidersGetByProviderIdentifierResult1,
-    UsersProvidersLinkProviderResult1,
-    UsersProvidersSetProviderResult1,
-    UsersProvidersUnlinkProviderResult1,
-  )
+class UsersProvidersSetProviderResult1(BaseModel):
+  provider: str
+  code: str | None = None
+  id_token: str | None = None
+  access_token: str | None = None
+
+
+class UsersProvidersLinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersUnlinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersGetByProviderIdentifierResult1(BaseModel):
+  guid: str | None = None
+  provider: str | None = None
+  provider_identifier: str | None = None
+
+
+class UsersProvidersCreateFromProviderResult1(BaseModel):
+  guid: str | None = None
 
 
 class OauthModule(BaseModule):
@@ -218,7 +233,6 @@ class OauthModule(BaseModule):
         display_name=display_name,
       )
       await self.db.run(update_if_unedited_request(params))
-    from rpc.users.providers.models import UsersProvidersSetProviderResult1
     return UsersProvidersSetProviderResult1(**original)
 
   async def link_user_provider(
@@ -256,7 +270,6 @@ class OauthModule(BaseModule):
         provider_identifier=provider_uid,
       ),
     )
-    from rpc.users.providers.models import UsersProvidersLinkProviderResult1
     return UsersProvidersLinkProviderResult1(provider=provider)
 
   async def unlink_user_provider(
@@ -290,7 +303,6 @@ class OauthModule(BaseModule):
           RevokeProviderTokensParams(guid=user_guid, provider=provider)
         )
       )
-    from rpc.users.providers.models import UsersProvidersUnlinkProviderResult1
     return UsersProvidersUnlinkProviderResult1(provider=provider)
 
   async def unlink_last_provider_record(self, guid: str, provider: str) -> None:
@@ -309,7 +321,6 @@ class OauthModule(BaseModule):
       ),
     )
     rows = self._normalize_query_payload(res.payload)
-    from rpc.users.providers.models import UsersProvidersGetByProviderIdentifierResult1
     if not rows:
       return UsersProvidersGetByProviderIdentifierResult1()
     return UsersProvidersGetByProviderIdentifierResult1(**rows[0])
@@ -338,7 +349,6 @@ class OauthModule(BaseModule):
       ),
     )
     rows = self._normalize_query_payload(res.payload)
-    from rpc.users.providers.models import UsersProvidersCreateFromProviderResult1
     if not rows:
       return UsersProvidersCreateFromProviderResult1()
     return UsersProvidersCreateFromProviderResult1(**rows[0])
