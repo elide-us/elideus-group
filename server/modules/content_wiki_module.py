@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 from queryregistry.content.wiki import (
   create_version_request,
@@ -37,8 +38,30 @@ from .db_module import DbModule
 
 if TYPE_CHECKING:
   from rpc.shared.models import ContentAccess
-  from rpc.users.wiki.models import UsersWikiVersionContent1, UsersWikiVersionList1, UsersWikiVersionItem1
   from .role_module import RoleModule
+
+
+class UsersWikiVersionItem1(BaseModel):
+  recid: int
+  element_version: int
+  element_edit_summary: str | None = None
+  element_created_by: str
+  element_created_on: str | None = None
+
+
+class UsersWikiVersionList1(BaseModel):
+  versions: list[UsersWikiVersionItem1]
+  access: "ContentAccess"
+
+
+class UsersWikiVersionContent1(BaseModel):
+  recid: int
+  element_version: int
+  element_content: str
+  element_edit_summary: str | None = None
+  element_created_by: str
+  element_created_on: str | None = None
+  access: "ContentAccess"
 
 
 class ContentWikiModule(BaseModule):
@@ -119,8 +142,6 @@ class ContentWikiModule(BaseModule):
       )
     )
     page = dict(res.rows[0])
-    from rpc.users.wiki.models import UsersWikiVersionContent1
-
     return UsersWikiVersionContent1(
       recid=page.get("recid", 0),
       element_version=page.get("element_version", 1),
@@ -186,8 +207,6 @@ class ContentWikiModule(BaseModule):
       )
     )
     version = dict(res.rows[0])
-    from rpc.users.wiki.models import UsersWikiVersionContent1
-
     return UsersWikiVersionContent1(
       recid=version["recid"],
       element_version=version["element_version"],
@@ -208,8 +227,6 @@ class ContentWikiModule(BaseModule):
     assert self.db
     res = await self.db.run(list_versions_request(ListWikiVersionsParams(wiki_recid=page["recid"])))
     versions = [dict(row) for row in res.rows]
-    from rpc.users.wiki.models import UsersWikiVersionItem1, UsersWikiVersionList1
-
     return UsersWikiVersionList1(
       versions=[
         UsersWikiVersionItem1(
@@ -239,8 +256,6 @@ class ContentWikiModule(BaseModule):
     if not res.rows:
       raise HTTPException(status_code=404, detail="Version not found")
     version_row = dict(res.rows[0])
-    from rpc.users.wiki.models import UsersWikiVersionContent1
-
     return UsersWikiVersionContent1(
       recid=version_row["recid"],
       element_version=version_row["element_version"],
