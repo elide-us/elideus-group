@@ -343,14 +343,10 @@ const FinanceAccountantPage = (): JSX.Element => {
     const [promoteTaskEvents, setPromoteTaskEvents] = useState<AsyncTaskEvent[]>([]);
 
     const [notification, setNotification] = useState(false);
-    const [notificationMessage, setNotificationMessage] = useState("Done");
-    const [notificationSeverity, setNotificationSeverity] = useState<"success" | "error">("success");
+    const [notificationMessage] = useState("Done");
+    const [notificationSeverity] = useState<"success" | "error">("success");
 
-    const showNotification = (message: string, severity: "success" | "error" = "success"): void => {
-        setNotificationMessage(message);
-        setNotificationSeverity(severity);
-        setNotification(true);
-    };
+ 
 
     const fiscalYears = useMemo(() => {
         const years = new Set<number>();
@@ -437,11 +433,6 @@ const FinanceAccountantPage = (): JSX.Element => {
         setter(res.line_items || []);
     }, []);
 
-const loadTaskEvents = useCallback(async (): Promise<void> => {
-    // TODO: reimplemented under system:automation in future rebuild
-    setPromoteTaskEvents([]);
-}, []);
-
     const loadCloseReadiness = useCallback(async (guid: string): Promise<void> => {
         setSelectedReadinessPeriodGuid(guid);
         setReadinessLoading(true);
@@ -517,7 +508,7 @@ const loadTaskEvents = useCallback(async (): Promise<void> => {
         setPromoteTaskStatus(null);
         setPromoteTaskEvents([]);
     }, [promoteTaskGuid, tab]);
-    
+
     if (forbidden) {
         return (
             <Box sx={{ p: 2 }}>
