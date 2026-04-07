@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Optional
+
+from pydantic import BaseModel
 
 from fastapi import FastAPI, HTTPException
 
@@ -31,9 +34,32 @@ from queryregistry.content.pages.models import (
 )
 
 if TYPE_CHECKING:
-  from rpc.shared.models import ContentAccess
-  from rpc.users.pages.models import UsersPagesVersionContent1, UsersPagesVersionList1, UsersPagesVersionItem1
   from .role_module import RoleModule
+
+from rpc.shared.models import ContentAccess
+
+
+class UsersPagesVersionItem1(BaseModel):
+  recid: int
+  element_version: int
+  element_summary: Optional[str] = None
+  element_created_by: str
+  element_created_on: Optional[str] = None
+
+
+class UsersPagesVersionList1(BaseModel):
+  versions: list[UsersPagesVersionItem1]
+  access: ContentAccess
+
+
+class UsersPagesVersionContent1(BaseModel):
+  recid: int
+  element_version: int
+  element_content: str
+  element_summary: Optional[str] = None
+  element_created_by: str
+  element_created_on: Optional[str] = None
+  access: ContentAccess
 
 
 class ContentPagesModule(BaseModule):
@@ -155,8 +181,6 @@ class ContentPagesModule(BaseModule):
       )
     )
     version = dict(res.rows[0])
-    from rpc.users.pages.models import UsersPagesVersionContent1
-
     return UsersPagesVersionContent1(
       recid=version["recid"],
       element_version=version["element_version"],
@@ -177,8 +201,6 @@ class ContentPagesModule(BaseModule):
     assert self.db
     res = await self.db.run(list_versions_request(ListVersionsParams(pages_recid=page["recid"])))
     versions = [dict(row) for row in res.rows]
-    from rpc.users.pages.models import UsersPagesVersionItem1, UsersPagesVersionList1
-
     return UsersPagesVersionList1(
       versions=[
         UsersPagesVersionItem1(
@@ -208,8 +230,6 @@ class ContentPagesModule(BaseModule):
     if not res.rows:
       raise HTTPException(status_code=404, detail="Version not found")
     version_row = dict(res.rows[0])
-    from rpc.users.pages.models import UsersPagesVersionContent1
-
     return UsersPagesVersionContent1(
       recid=version_row["recid"],
       element_version=version_row["element_version"],
