@@ -1,6 +1,5 @@
 import { Box, Typography, Link as MuiLink, CardMedia, Button } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
 import type { PublicLinksLinkItem1, PublicVarsVersions1 } from '../shared/RpcModels';
 import Logo from '../assets/elideus_group_green.png';
 import { fetchVersions } from '../rpc/public/vars';
@@ -84,10 +83,10 @@ const Home = (): JSX.Element => {
 						flexWrap: 'wrap',
 					}}
 				>
-					<Button component={RouterLink} to="/pages/terms-of-service" variant="outlined">
+					<Button variant="outlined" disabled>
 						Terms of Service
 					</Button>
-					<Button component={RouterLink} to="/pages/privacy-policy" variant="outlined">
+					<Button variant="outlined" disabled>
 						Privacy Policy
 					</Button>
 				</Box>
