@@ -1,0 +1,71 @@
+## Account Mappings
+ 
+**Route:** `/finance/admin/mappings`
+ 
+*Configure the automated cost classification rules used by the billing import promote pipeline. Each mapping links a vendor's service and meter naming patterns to a GL posting account, so that imported line items are automatically assigned to the correct expense accounts.*
+ 
+### Functional Activity
+ 
+When the accountant promotes an approved billing import, the promote pipeline's `classify_costs` step runs each staging line item through the account mapping rules to determine which GL account it should post against. Mappings use SQL LIKE patterns to match the vendor's service name and meter category strings.
+ 
+This is the bridge between raw vendor billing data (which uses the vendor's own naming — e.g., "Microsoft Azure / Virtual Machines / B2s") and the organization's chart of accounts (e.g., account 5100 "Cloud Compute Expense").
+ 
+**When to use this page:**
+- **Initial setup:** After creating the chart of accounts and vendor registry, define mappings for each vendor-service combination that appears in billing imports. Start with broad patterns (e.g., service pattern `%` for a vendor to catch everything) and refine with specific patterns as needed.
+- **New services:** When a new cloud service or vendor line item appears in imports that isn't being classified, add a mapping for it. Unclassified items will fail the promote pipeline.
+- **Priority tuning:** When multiple mappings could match the same line item, priority determines which one wins. Lower number = higher priority. Use specific high-priority mappings to override broad catch-all mappings.
+- **Debugging classification failures:** If the promote pipeline fails at the `classify_costs` step, check this page to see if the failing service/meter combination has a matching mapping.
+ 
+**Pattern matching rules:**
+- Patterns use SQL LIKE syntax: `%` matches any sequence of characters, `_` matches a single character
+- Service pattern matches `element_service` on the staging line item
+- Meter pattern matches `element_category` (meter category) on the staging line item
+- If meter pattern is null, only the service pattern is matched
+- Mappings are evaluated in priority order — first match wins
+ 
+**Typical workflow:**
+1. Import a billing batch (Accountant page)
+2. Review the staging line items to see what service/meter strings the vendor uses
+3. Create account mappings that cover those strings, targeting the correct GL accounts
+4. Promote the import — the pipeline classifies each line item using these mappings
+5. If classification fails for unmatched items, add missing mappings and retry
+ 
+### Page Layout
+ 
+Vendor filter dropdown, refresh, and create mapping button. Collapsible inline form for create/edit with vendor dropdown, service pattern, meter pattern, account dropdown (posting accounts only), priority, description, and active toggle. Table below showing all mappings with vendor name, patterns, account, priority, status, and edit/delete actions.
+ 
+### Functions
+ 
+#### `readAccountMappings`
+ 
+- **Request:** `ReadAccountMappingsParams1` — `{ vendors_recid: int | null }`
+- **Response:** `ReadAccountMappingList1` — `{ elements: ReadAccountMappingElement1[] }`
+- `ReadAccountMappingElement1` — `{ recid: int | null, vendors_recid: int | null, vendor_name: string | null, service_pattern: string, meter_pattern: string | null, accounts_guid: string, account_number: string | null, account_name: string | null, priority: int, description: string | null, status: int }`
+ 
+*`vendor_name`, `account_number`, and `account_name` are denormalized display fields resolved from FK joins. Pass `vendors_recid: null` to list all mappings.*
+ 
+#### `upsertAccountMapping`
+ 
+- **Request:** `UpsertAccountMappingParams1` — `{ recid: int | null, vendors_recid: int | null, service_pattern: string, meter_pattern: string | null, accounts_guid: string, priority: int, description: string | null, status: int }`
+- **Response:** `UpsertAccountMappingResult1` — `{ recid: int }`
+ 
+#### `deleteAccountMapping`
+ 
+- **Request:** `DeleteAccountMappingParams1` — `{ recid: int }`
+- **Response:** `DeleteAccountMappingResult1` — `{ recid: int }`
+ 
+### Shared Lookups
+ 
+- `readVendors` — populates the vendor filter and vendor dropdown in the mapping form (from `finance:vendors`, managed on the Approver's Vendors page)
+- `readAccounts` — populates the posting account dropdown (filtered to `is_posting = true`)
+ 
+### Notes
+ 
+- `vendors_recid = null` in a mapping means "any vendor" — the pattern matches regardless of which vendor the line item came from. Vendor-specific mappings with a lower priority number take precedence over vendor-agnostic catch-alls.
+- Account mappings only affect the automated promote pipeline. Manual journal entries created by the accountant are not subject to account mapping rules — the accountant selects accounts directly.
+- The `element_status` field allows disabling a mapping without deleting it — useful for temporarily removing a classification rule during debugging.
+ 
+### Description
+ 
+Account mapping configuration page. Maps vendor service/meter LIKE patterns to GL posting accounts for automated cost classification during billing import promotion. Filterable by vendor, collapsible inline form for create/edit, table with vendor name, patterns, target account, priority, status, and edit/delete controls. Requires `ROLE_FINANCE_ADMIN`.
+ 
