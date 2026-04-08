@@ -10,7 +10,6 @@ from .public.handler import handle_public_request
 from .service.handler import handle_service_request
 from .storage.handler import handle_storage_request
 from .discord.handler import handle_discord_request
-from .finance.handler import handle_finance_request
 
 
 HANDLERS: dict[str, callable] = {
@@ -20,6 +19,4 @@ HANDLERS: dict[str, callable] = {
   "service": handle_service_request,
   "storage": handle_storage_request,
   "discord": handle_discord_request,
-  "finance": handle_finance_request,
 }
-
