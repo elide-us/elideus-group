@@ -1,11 +1,10 @@
 import logging
+from typing import Any
 
 from fastapi import HTTPException, Request
 
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
-from server.modules.discord_chat_module import DiscordChatModule
-from server.modules.openai_module import OpenaiModule
 
 from .models import (
   DiscordChatPersonaRequest1,
@@ -17,7 +16,7 @@ from .models import (
 async def discord_chat_summarize_channel_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   input_payload = DiscordChatSummarizeChannelRequest1(**(rpc_request.payload or {}))
-  module: DiscordChatModule = request.app.state.discord_chat
+  module: Any = request.app.state.discord_chat
   await module.on_ready()
   result: DiscordChatSummarizeChannelResponse1 = await module.summarize_and_deliver(
     guild_id=input_payload.guild_id,
@@ -37,7 +36,7 @@ async def discord_chat_persona_response_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload_dict = rpc_request.payload or {}
   req = DiscordChatPersonaRequest1(**payload_dict)
-  module: OpenaiModule = request.app.state.openai
+  module: Any = request.app.state.openai
   await module.on_ready()
   try:
     result: DiscordChatPersonaResponse1 = await module.persona_response(
