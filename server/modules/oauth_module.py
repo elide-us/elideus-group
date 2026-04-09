@@ -364,41 +364,11 @@ class OauthModule(BaseModule):
         "user_guid": guid,
         "credits": None,
       }
-
-    provider_identifier = str(uuid.uuid5(uuid.NAMESPACE_URL, f"discord:{discord_id}"))
-    discord_module = getattr(self.app.state, "discord_bot", None) or getattr(self.app.state, "discord", None)
-    bot = getattr(discord_module, "bot", None)
-    try:
-      if bot is None:
-        raise RuntimeError("Discord bot is unavailable")
-      user = await bot.fetch_user(int(discord_id))
-      display_name = user.display_name or str(discord_id)
-    except Exception:
-      logging.exception(
-        "[OauthModule] failed to fetch discord profile",
-        extra={"discord_id": discord_id},
-      )
-      display_name = str(discord_id)
-
-    created = await self.create_user_from_provider(
-      provider="discord",
-      provider_identifier=provider_identifier,
-      provider_email=f"{discord_id}@discord.placeholder",
-      provider_displayname=display_name,
-    )
-    if not created.guid:
-      raise HTTPException(status_code=500, detail="Unable to create user")
-    new_user_guid = created.guid
-    await self.db.run(set_credits_request(SetCreditsParams(guid=new_user_guid, credits=50)))
-    logging.info(
-      "[OauthModule] registered discord user",
-      extra={"discord_id": discord_id, "user_guid": new_user_guid},
-    )
     return {
-      "success": True,
-      "message": "Registration complete. You have been granted 50 credits.",
-      "user_guid": new_user_guid,
-      "credits": 50,
+      "success": False,
+      "message": "Registration is disabled.",
+      "user_guid": guid,
+      "credits": None,
     }
 
   async def exchange_code_for_tokens(
