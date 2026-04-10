@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export interface PathNode {
 	guid: string;
 	component: string;
@@ -11,5 +13,5 @@ export interface PathNode {
 export interface CmsComponentProps {
 	node: PathNode;
 	data: Record<string, unknown>;
-	children?: React.ReactNode;
+	children?: ReactNode;
 }
