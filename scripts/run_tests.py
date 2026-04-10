@@ -143,9 +143,9 @@ def main() -> None:
   else:
     asyncio.run(update_build_version())
 
-  subprocess.check_call([sys.executable, 'scripts/generate_rpc_bindings.py'], cwd=ROOT)
-  subprocess.check_call([sys.executable, 'scripts/generate_db_namespace.py'], cwd=ROOT)
-  subprocess.check_call([sys.executable, 'scripts/generate_nav_pages.py'], cwd=ROOT)
+  # subprocess.check_call([sys.executable, 'scripts/generate_rpc_bindings.py'], cwd=ROOT)
+  # subprocess.check_call([sys.executable, 'scripts/generate_db_namespace.py'], cwd=ROOT)
+  # subprocess.check_call([sys.executable, 'scripts/generate_nav_pages.py'], cwd=ROOT)
 
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'client')
   subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'client')
