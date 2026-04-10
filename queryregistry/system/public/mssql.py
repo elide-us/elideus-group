@@ -50,66 +50,20 @@ async def get_home_links(args: Mapping[str, Any]) -> DBResponse:
 
 
 async def get_navbar_routes(args: Mapping[str, Any]) -> DBResponse:
-  role_mask = int(args.get("role_mask", 0) or 0)
-  sql = """
-    SELECT
-      element_path AS path,
-      element_name AS name,
-      element_icon AS icon,
-      element_sequence AS sequence
-    FROM frontend_routes
-    WHERE element_roles = 0 OR (element_roles & ?) = element_roles
-    ORDER BY element_sequence
-    FOR JSON PATH;
-  """
-  response = await run_json_many(sql, (role_mask,))
-  return DBResponse(payload=_normalize_payload(response.rows))
+  return DBResponse(payload=[])
 
 
 async def get_routes_v1(_: Mapping[str, Any]) -> DBResponse:
-  sql = """
-    SELECT
-      element_path,
-      element_name,
-      element_icon,
-      element_sequence,
-      element_roles
-    FROM frontend_routes
-    ORDER BY element_sequence
-    FOR JSON PATH;
-  """
-  return await run_json_many(sql)
+  return DBResponse(payload=[])
 
 
 async def list_frontend_pages_v1(_: Mapping[str, Any]) -> DBResponse:
-  sql = """
-    SELECT element_path, element_component, element_sequence
-    FROM frontend_pages
-    ORDER BY element_sequence
-    FOR JSON PATH, INCLUDE_NULL_VALUES;
-  """
-  return await run_json_many(sql)
+  return DBResponse(payload=[])
 
 
 async def upsert_route_v1(args: Mapping[str, Any]) -> DBResponse:
-  path = args["path"]
-  name = args["name"]
-  icon = args.get("icon")
-  sequence = int(args["sequence"])
-  roles = int(args["roles"])
-  response = await run_exec(
-    "UPDATE frontend_routes SET element_name = ?, element_icon = ?, element_sequence = ?, element_roles = ? WHERE element_path = ?;",
-    (name, icon, sequence, roles, path),
-  )
-  if response.rowcount == 0:
-    response = await run_exec(
-      "INSERT INTO frontend_routes (element_path, element_name, element_icon, element_sequence, element_roles) VALUES (?, ?, ?, ?, ?);",
-      (path, name, icon, sequence, roles),
-    )
-  return response
+  return DBResponse(payload=[], rowcount=0)
 
 
 async def delete_route_v1(args: Mapping[str, Any]) -> DBResponse:
-  path = args["path"]
-  sql = "DELETE FROM frontend_routes WHERE element_path = ?;"
-  return await run_exec(sql, (path,))
+  return DBResponse(payload=[], rowcount=0)
