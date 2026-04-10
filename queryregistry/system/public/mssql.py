@@ -119,7 +119,6 @@ async def get_cms_tree_for_path_v1(args: Mapping[str, Any]) -> DBResponse:
       category,
       depth
     FROM tree
-    WHERE component IN ('Workbench', 'ContentPanel', 'StringControl')
     ORDER BY depth, sequence;
   """
   response = await run_rows_many(sql, (path,))
