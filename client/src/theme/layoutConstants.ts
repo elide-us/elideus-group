@@ -1,0 +1,6 @@
+export const LAYOUT = {
+	NAV_WIDTH_COLLAPSED: 48,
+	NAV_WIDTH_EXPANDED: 200,
+	PAGE_PADDING_X: 18,
+	PAGE_PADDING_Y: 14,
+} as const;

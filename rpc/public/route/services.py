@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from fastapi import Request
+
+from rpc.helpers import unbox_request
+from server.models import RPCResponse
+
+from .models import LoadPathParams1
+
+if TYPE_CHECKING:
+  from server.modules.cms_workbench_module import CmsWorkbenchModule
+
+
+async def public_route_load_path_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  params = LoadPathParams1.model_validate(rpc_request.payload or {})
+  result = await module.load_path(params.path, auth_ctx.model_dump())
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result.model_dump(),
+    version=rpc_request.version,
+  )
