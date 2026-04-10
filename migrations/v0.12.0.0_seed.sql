@@ -262,3 +262,62 @@ SELECT
   [pub_identifier_claim] AS [id_claim]
 FROM [dbo].[service_auth_providers]
 ORDER BY [pub_sequence];
+
+
+----------------
+
+
+-- ============================================================================
+-- Backfill: seed column definitions for v0.12.0.0 tables
+-- These were registered as tables but their columns were not seeded
+-- ============================================================================
+
+DECLARE @T_UUID  UNIQUEIDENTIFIER = N'4D2EB10B-363E-5AF4-826A-9294146244E4';
+DECLARE @T_INT64_ID UNIQUEIDENTIFIER = N'E0556F4C-ECA5-5475-B6C1-F60706632F06';
+DECLARE @T_BOOL  UNIQUEIDENTIFIER = N'12B2F03B-E315-50A5-B631-E6B1EB961A17';
+DECLARE @T_STR   UNIQUEIDENTIFIER = N'0093B404-1EEE-563D-9135-4B9E7EECA7A2';
+DECLARE @T_DTZ   UNIQUEIDENTIFIER = N'70F890D3-5AB5-5250-860E-4F7F9624190C';
+DECLARE @T_INT32 UNIQUEIDENTIFIER = N'E3EDE0CE-2A03-501E-A796-3487BEA03B7B';
+
+DECLARE @TBL_SAP   UNIQUEIDENTIFIER = N'6E74766A-38EA-583C-9E08-4060FB5FDC4B'; -- service_auth_providers
+DECLARE @TBL_USERS UNIQUEIDENTIFIER = N'DCC79235-8429-5731-AF60-092AF3A2E4B0'; -- system_users
+DECLARE @TBL_SUA   UNIQUEIDENTIFIER = N'D847D5C3-0D47-5668-9745-E394E6712B39'; -- system_user_auth
+
+-- system_users
+INSERT INTO [dbo].[system_objects_database_columns] ([key_guid],[ref_table_guid],[ref_type_guid],[pub_name],[pub_ordinal],[pub_is_nullable],[pub_is_primary_key],[pub_is_identity],[pub_default],[pub_max_length]) VALUES
+(N'1280BB1F-6504-5268-A49D-0C8F2FA52D3C',@TBL_USERS,@T_UUID,N'key_guid',        1,0,1,0,N'NEWID()',          NULL),
+(N'783A200B-F0E7-5197-9952-81A008B2A16A',@TBL_USERS,@T_STR, N'pub_display',     2,0,0,0,NULL,               256),
+(N'A5884C27-0DF8-50B5-94E7-21FE28F52AA9',@TBL_USERS,@T_STR, N'pub_email',       3,0,0,0,NULL,               320),
+(N'77961531-A18E-52C0-BFE6-9E1140C3B435',@TBL_USERS,@T_DTZ, N'priv_created_on', 4,0,0,0,N'SYSUTCDATETIME()',NULL),
+(N'FC954A0D-B3FC-5EEA-BD1C-21CA6EB5AB80',@TBL_USERS,@T_DTZ, N'priv_modified_on',5,0,0,0,N'SYSUTCDATETIME()',NULL);
+
+-- service_auth_providers (just key_guid for now — full column set can be added later)
+INSERT INTO [dbo].[system_objects_database_columns] ([key_guid],[ref_table_guid],[ref_type_guid],[pub_name],[pub_ordinal],[pub_is_nullable],[pub_is_primary_key],[pub_is_identity],[pub_default],[pub_max_length]) VALUES
+(N'94A894B1-763C-5B7F-803D-1F8E6605A2E2',@TBL_SAP,@T_UUID,N'key_guid',1,0,1,0,NULL,NULL);
+
+-- system_user_auth
+INSERT INTO [dbo].[system_objects_database_columns] ([key_guid],[ref_table_guid],[ref_type_guid],[pub_name],[pub_ordinal],[pub_is_nullable],[pub_is_primary_key],[pub_is_identity],[pub_default],[pub_max_length]) VALUES
+(N'A3E4C34C-CDC4-51A3-8578-44B83B57D1B4',@TBL_SUA,@T_INT64_ID,N'key_id',                 1,0,1,1,NULL,               NULL),
+(N'76FE6021-0CDE-5460-A937-CF966F79603E',@TBL_SUA,@T_UUID,    N'ref_user_guid',          2,0,0,0,NULL,               NULL),
+(N'707BB3AA-BB86-51FF-9D9D-23614F284C77',@TBL_SUA,@T_UUID,    N'ref_provider_guid',      3,0,0,0,NULL,               NULL),
+(N'6530EDD6-1906-5494-98CC-4FE2586A458A',@TBL_SUA,@T_STR,     N'pub_provider_identifier',4,0,0,0,NULL,               512),
+(N'0E98761C-30AE-5487-9421-BF15434D6EBA',@TBL_SUA,@T_BOOL,    N'pub_is_linked',          5,0,0,0,N'1',              NULL),
+(N'8CEC589C-7BBF-58B4-B335-014DFA180B88',@TBL_SUA,@T_DTZ,     N'priv_created_on',        6,0,0,0,N'SYSUTCDATETIME()',NULL),
+(N'373C9881-3093-561E-9848-A940597F926E',@TBL_SUA,@T_DTZ,     N'priv_modified_on',       7,0,0,0,N'SYSUTCDATETIME()',NULL);
+GO
+
+-- ============================================================================
+-- Now insert the FK constraints for roles/entitlements
+-- (these were failing because system_users.key_guid column didn't exist)
+-- ============================================================================
+
+INSERT INTO [dbo].[system_objects_database_constraints] ([ref_table_guid],[ref_column_guid],[ref_referenced_table_guid],[ref_referenced_column_guid]) VALUES
+-- system_user_roles.ref_user_guid → system_users.key_guid
+(N'F809FAD0-0D76-5B67-B986-0CB3B838EF24', N'647B9F7D-DB91-5764-AD18-EED31E4F73E6', N'DCC79235-8429-5731-AF60-092AF3A2E4B0', N'1280BB1F-6504-5268-A49D-0C8F2FA52D3C'),
+-- system_user_roles.ref_role_guid → system_auth_roles.key_guid
+(N'F809FAD0-0D76-5B67-B986-0CB3B838EF24', N'D5AA5306-BCB9-5E39-99B1-F2FB5023957A', N'A578EAB7-B6C4-5BF0-A14D-10BDDC22EA5B', N'AA276608-C963-592B-87BF-0B2C99A44148'),
+-- system_user_entitlements.ref_user_guid → system_users.key_guid
+(N'B993A463-FA66-5721-A2BA-85515D1C05DB', N'AD9A1519-312B-5406-9E0B-E58B224641A1', N'DCC79235-8429-5731-AF60-092AF3A2E4B0', N'1280BB1F-6504-5268-A49D-0C8F2FA52D3C'),
+-- system_user_entitlements.ref_entitlement_guid → system_auth_entitlements.key_guid
+(N'B993A463-FA66-5721-A2BA-85515D1C05DB', N'187129D0-12BE-5280-A0B9-2B5E75024A43', N'F975A8E7-62CA-5922-811E-97B5FE7C5998', N'52B0C21A-6284-5173-9044-3A61804C6167');
+GO
