@@ -16,6 +16,8 @@ from .services import (
   get_routes_v1,
   list_frontend_pages_v1,
   upsert_route_v1,
+  get_cms_shell_tree_v1,
+  get_page_data_bindings_v1,
 )
 from ..dispatch import SubdomainDispatcher
 
@@ -30,6 +32,8 @@ DISPATCHERS: dict[tuple[str, str], SubdomainDispatcher] = {
   ("list_frontend_pages", "1"): list_frontend_pages_v1,
   ("upsert_route", "1"): upsert_route_v1,
   ("delete_route", "1"): delete_route_v1,
+  ("get_cms_shell_tree", "1"): get_cms_shell_tree_v1,
+  ("get_page_data_bindings", "1"): get_page_data_bindings_v1,
 }
 
 
@@ -46,3 +50,6 @@ async def handle_public_request(
     dispatchers=DISPATCHERS,
     detail="Unknown system public operation",
   )
+
+
+
