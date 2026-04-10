@@ -31,11 +31,7 @@ ENV AZURE_SQL_CONNECTION_STRING=$AZURE_SQL_CONNECTION_STRING
 
 COPY . .
 
-RUN python3 scripts/generate_rpc_bindings.py
-RUN python3 scripts/generate_db_namespace.py
-RUN python3 scripts/generate_nav_pages.py
-
-WORKDIR /app/frontend
+WORKDIR /app/client
 
 RUN npm ci
 RUN npm run build
