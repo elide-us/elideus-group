@@ -8,8 +8,10 @@ from .models import RoutePathParams, UpsertRouteParams
 
 __all__ = [
   "delete_route_request",
+  "get_cms_shell_tree_request",
   "get_cms_tree_for_path_request",
   "get_config_value_request",
+  "get_page_data_bindings_request",
   "get_home_links_request",
   "get_navbar_routes_request",
   "get_routes_request",
@@ -47,6 +49,14 @@ def delete_route_request(params: RoutePathParams) -> DBRequest:
 
 def get_cms_tree_for_path_request(path: str) -> DBRequest:
   return DBRequest(op="db:system:public:get_cms_tree_for_path:1", payload={"path": path})
+
+
+def get_cms_shell_tree_request() -> DBRequest:
+  return DBRequest(op="db:system:public:get_cms_shell_tree:1", payload={})
+
+
+def get_page_data_bindings_request(path: str) -> DBRequest:
+  return DBRequest(op="db:system:public:get_page_data_bindings:1", payload={"path": path})
 
 
 def get_config_value_request(key: str) -> DBRequest:
