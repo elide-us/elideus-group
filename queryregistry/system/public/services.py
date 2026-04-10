@@ -31,6 +31,8 @@ _UPSERT_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_route
 _DELETE_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_route_v1}
 _CMS_TREE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_cms_tree_for_path_v1}
 _CONFIG_VALUE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_config_value_v1}
+_CMS_SHELL_TREE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_cms_shell_tree_v1}
+_PAGE_DATA_BINDINGS_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_page_data_bindings_v1}
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -81,4 +83,13 @@ async def get_cms_tree_for_path_v1(request: DBRequest, *, provider: str) -> DBRe
 async def get_config_value_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = ConfigKeyParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _CONFIG_VALUE_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+async def get_cms_shell_tree_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  result = await _select_dispatcher(provider, _CMS_SHELL_TREE_DISPATCHERS)(request.payload)
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def get_page_data_bindings_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  result = await _select_dispatcher(provider, _PAGE_DATA_BINDINGS_DISPATCHERS)(request.payload)
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
