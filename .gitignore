@@ -144,3 +144,6 @@ frontend/src/rpc/
 frontend/src/shared/RpcModels.tsx
 frontend/src/db/namespace.ts
 frontend/src/routes/registry.ts
+
+client/node_modules/
+frontend/mode_modules/
