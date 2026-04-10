@@ -8,10 +8,12 @@ from typing import Any
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
-from .models import RoutePathParams, UpsertRouteParams
+from .models import CmsPathParams, ConfigKeyParams, RoutePathParams, UpsertRouteParams
 
 __all__ = [
   "delete_route_v1",
+  "get_cms_tree_for_path_v1",
+  "get_config_value_v1",
   "get_home_links_v1",
   "get_navbar_routes_v1",
   "get_routes_v1",
@@ -27,6 +29,8 @@ _GET_ROUTES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_routes_v1}
 _LIST_FRONTEND_PAGES_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.list_frontend_pages_v1}
 _UPSERT_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.upsert_route_v1}
 _DELETE_ROUTE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.delete_route_v1}
+_CMS_TREE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_cms_tree_for_path_v1}
+_CONFIG_VALUE_DISPATCHERS: dict[str, _Dispatcher] = {"mssql": mssql.get_config_value_v1}
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -65,4 +69,16 @@ async def upsert_route_v1(request: DBRequest, *, provider: str) -> DBResponse:
 async def delete_route_v1(request: DBRequest, *, provider: str) -> DBResponse:
   params = RoutePathParams.model_validate(request.payload)
   result = await _select_dispatcher(provider, _DELETE_ROUTE_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def get_cms_tree_for_path_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = CmsPathParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _CMS_TREE_DISPATCHERS)(params.model_dump())
+  return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
+
+
+async def get_config_value_v1(request: DBRequest, *, provider: str) -> DBResponse:
+  params = ConfigKeyParams.model_validate(request.payload)
+  result = await _select_dispatcher(provider, _CONFIG_VALUE_DISPATCHERS)(params.model_dump())
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)

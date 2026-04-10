@@ -7,6 +7,8 @@ from typing import TypedDict
 from pydantic import BaseModel, ConfigDict
 
 __all__ = [
+  "CmsPathParams",
+  "ConfigKeyParams",
   "RoutePathParams",
   "RouteRecord",
   "UpsertRouteParams",
@@ -35,3 +37,15 @@ class RouteRecord(TypedDict):
   icon: str | None
   sequence: int
   roles: int
+
+
+class CmsPathParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  path: str
+
+
+class ConfigKeyParams(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  key: str
