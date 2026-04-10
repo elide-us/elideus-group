@@ -48,8 +48,6 @@ from queryregistry.identity.sessions import (
   revoke_provider_tokens_request,
   update_device_token_request,
 )
-from queryregistry.finance.credits import set_credits_request
-from queryregistry.finance.credits.models import SetCreditsParams
 from queryregistry.system.config import get_config_request
 
 class UsersProvidersSetProviderResult1(BaseModel):

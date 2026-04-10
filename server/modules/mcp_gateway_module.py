@@ -14,8 +14,6 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from jose import jwt
 
-from queryregistry.finance.credits import get_credits_request
-from queryregistry.finance.credits.models import GetCreditsParams
 from queryregistry.identity.mcp_agents import (
   consume_auth_code_request,
   create_agent_token_request,
@@ -417,10 +415,7 @@ class McpGatewayModule(BaseModule):
     if not agent or not agent.get("user_guid"):
       raise HTTPException(status_code=404, detail="Agent is not linked to a user")
     user_guid = str(agent["user_guid"])
-    credits_res = await self.db.run(get_credits_request(GetCreditsParams(guid=user_guid)))
-    credits_row = credits_res.rows[0] if credits_res.rows else {}
-    credits = int(credits_row.get("element_credits") or 0)
-    return user_guid, credits
+    return user_guid, 0
 
   async def check_user_mcp_role(self, user_guid: str) -> bool:
     return await self.auth.user_has_role(user_guid, self.ROLE_MCP_ACCESS_MASK)
