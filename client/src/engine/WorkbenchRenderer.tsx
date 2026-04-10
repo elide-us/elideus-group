@@ -39,7 +39,7 @@ export function WorkbenchRenderer({ pathData, componentData }: WorkbenchRenderer
 			<Box sx={{ p: 4, color: 'error.main' }}>
 				<Typography variant="h2">Rendering Error</Typography>
 				<Typography variant="body1">
-					Expected root component "Workbench", received "{pathData.component}".
+					Expected root component &quot;Workbench&quot;, received &quot;{pathData.component}&quot;.
 				</Typography>
 			</Box>
 		);
