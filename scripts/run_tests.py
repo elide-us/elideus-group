@@ -147,14 +147,14 @@ def main() -> None:
   subprocess.check_call([sys.executable, 'scripts/generate_db_namespace.py'], cwd=ROOT)
   subprocess.check_call([sys.executable, 'scripts/generate_nav_pages.py'], cwd=ROOT)
 
-  subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'frontend')
-  subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'frontend')
+  subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'client')
+  subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'client')
 
   try:
-    subprocess.check_call(['npx', 'vitest', 'run', '--coverage'], cwd=ROOT / 'frontend')
+    subprocess.check_call(['npx', 'vitest', 'run', '--coverage'], cwd=ROOT / 'client')
   except subprocess.CalledProcessError:
     print('vitest coverage failed, running without coverage')
-    subprocess.check_call(['npx', 'vitest', 'run'], cwd=ROOT / 'frontend')
+    subprocess.check_call(['npx', 'vitest', 'run'], cwd=ROOT / 'client')
 
   if importlib.util.find_spec('pytest_cov'):
     subprocess.check_call(['pytest', '--cov=.', '--cov-report=term-missing', '-q'], cwd=ROOT)
