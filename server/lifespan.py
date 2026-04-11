@@ -10,9 +10,9 @@ async def lifespan(app: FastAPI):
   await manager.startup_all()
   app.state.module_manager = manager
 
-  from server.mcp_server import session_manager
-  if session_manager is not None:
-    async with session_manager.run():
+  mcp_module = getattr(app.state, "mcp_io_service", None)
+  if mcp_module is not None and mcp_module.session_manager is not None:
+    async with mcp_module.session_manager.run():
       logging.info("[MCP] server mounted at /mcp")
       try:
         yield
