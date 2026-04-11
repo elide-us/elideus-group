@@ -1,3 +1,4 @@
+# MIGRATION NOTE: DROP TABLE frontend_links (data migrated to system_objects_page_data_bindings)
 """System public query registry request builders."""
 
 from __future__ import annotations
@@ -12,23 +13,10 @@ __all__ = [
   "get_cms_tree_for_path_request",
   "get_config_value_request",
   "get_page_data_bindings_request",
-  "get_home_links_request",
-  "get_navbar_routes_request",
   "get_routes_request",
   "list_frontend_pages_request",
   "upsert_route_request",
 ]
-
-
-def get_home_links_request() -> DBRequest:
-  return DBRequest(op="db:system:public:get_home_links:1", payload={})
-
-
-def get_navbar_routes_request(role_mask: int | None = None) -> DBRequest:
-  payload: dict[str, object] = {}
-  if role_mask is not None:
-    payload["role_mask"] = role_mask
-  return DBRequest(op="db:system:public:get_navbar_routes:1", payload=payload)
 
 
 def get_routes_request() -> DBRequest:

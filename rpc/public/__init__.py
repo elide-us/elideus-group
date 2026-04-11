@@ -1,10 +1,9 @@
-from .links.handler import handle_links_request
+# MIGRATION NOTE: DROP TABLE frontend_links (data migrated to system_objects_page_data_bindings)
 from .route.handler import handle_route_request
 from .vars.handler import handle_vars_request
 
 
 HANDLERS: dict[str, callable] = {
-  "links": handle_links_request,
   "route": handle_route_request,
   "vars": handle_vars_request,
 }
