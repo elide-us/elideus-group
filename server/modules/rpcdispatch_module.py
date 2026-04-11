@@ -12,89 +12,156 @@ from . import BaseModule
 from .db_module import DbModule
 
 _LIST_RPC_DOMAINS_SQL = """
-  SELECT *
-  FROM reflection_rpc_domains
-  ORDER BY recid
+  SELECT
+    key_guid,
+    pub_name,
+    pub_description,
+    ref_required_role_guid,
+    pub_is_active
+  FROM system_objects_rpc_domains
+  ORDER BY pub_name
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_RPC_SUBDOMAINS_SQL = """
-  SELECT *
-  FROM reflection_rpc_subdomains
-  ORDER BY recid
+  SELECT
+    s.key_guid,
+    s.pub_name,
+    s.pub_description,
+    s.ref_domain_guid,
+    d.pub_name AS domain_name,
+    s.ref_required_entitlement_guid,
+    s.pub_is_active
+  FROM system_objects_rpc_subdomains s
+  JOIN system_objects_rpc_domains d ON s.ref_domain_guid = d.key_guid
+  ORDER BY d.pub_name, s.pub_name
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_RPC_FUNCTIONS_SQL = """
-  SELECT *
-  FROM reflection_rpc_functions
-  ORDER BY recid
+  SELECT
+    f.key_guid,
+    f.pub_name,
+    f.pub_version,
+    f.pub_description,
+    f.ref_subdomain_guid,
+    s.pub_name AS subdomain_name,
+    d.pub_name AS domain_name,
+    f.ref_method_guid,
+    m.pub_name AS method_name,
+    mod.pub_state_attr AS module_attr,
+    f.ref_required_role_guid,
+    f.ref_required_entitlement_guid,
+    f.pub_is_active
+  FROM system_objects_rpc_functions f
+  JOIN system_objects_rpc_subdomains s ON f.ref_subdomain_guid = s.key_guid
+  JOIN system_objects_rpc_domains d ON s.ref_domain_guid = d.key_guid
+  JOIN system_objects_module_methods m ON f.ref_method_guid = m.key_guid
+  JOIN system_objects_modules mod ON m.ref_module_guid = mod.key_guid
+  ORDER BY d.pub_name, s.pub_name, f.pub_name
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_RPC_MODELS_SQL = """
-  SELECT *
-  FROM reflection_rpc_models
-  ORDER BY recid
+  SELECT
+    key_guid,
+    pub_name,
+    pub_description,
+    pub_version,
+    ref_parent_model_guid
+  FROM system_objects_rpc_models
+  ORDER BY pub_name
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_RPC_MODEL_FIELDS_SQL = """
-  SELECT *
-  FROM reflection_rpc_model_fields
-  ORDER BY recid
+  SELECT
+    f.key_guid,
+    f.ref_model_guid,
+    m.pub_name AS model_name,
+    f.pub_name,
+    f.pub_ordinal,
+    t.pub_name AS type_name,
+    nm.pub_name AS nested_model_name,
+    f.pub_is_nullable,
+    f.pub_is_list,
+    f.pub_default_value,
+    f.pub_max_length,
+    f.pub_description
+  FROM system_objects_rpc_model_fields f
+  JOIN system_objects_rpc_models m ON f.ref_model_guid = m.key_guid
+  LEFT JOIN system_objects_types t ON f.ref_type_guid = t.key_guid
+  LEFT JOIN system_objects_rpc_models nm ON f.ref_nested_model_guid = nm.key_guid
+  ORDER BY m.pub_name, f.pub_ordinal
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_EDT_MAPPINGS_SQL = """
-  SELECT recid, element_name
-  FROM reflection_db_edt_mappings
-  ORDER BY recid
+  SELECT pub_name AS element_name, pub_mssql_type, pub_python_type, pub_typescript_type
+  FROM system_objects_types
+  ORDER BY pub_name
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
 _LIST_TABLES_SQL = """
-  SELECT recid, element_schema, element_name
-  FROM reflection_db_tables
-  ORDER BY element_schema, element_name
+  SELECT pub_schema AS element_schema, pub_name AS element_name
+  FROM system_objects_database_tables
+  ORDER BY pub_schema, pub_name
   FOR JSON PATH;
 """
 
 _LIST_COLUMNS_SQL = """
-  SELECT c.tables_recid, c.element_name, c.element_nullable, c.element_default,
-         c.element_max_length, c.element_is_primary_key, c.element_is_identity,
-         c.element_ordinal, m.element_mssql_type
-  FROM reflection_db_columns c
-  JOIN reflection_db_edt_mappings m ON c.edt_recid = m.recid
-  JOIN reflection_db_tables t ON c.tables_recid = t.recid
-  WHERE t.element_schema = ? AND t.element_name = ?
-  ORDER BY c.element_ordinal
+  SELECT
+    c.ref_table_guid AS table_guid,
+    c.pub_name AS element_name,
+    c.pub_is_nullable AS element_nullable,
+    c.pub_default AS element_default,
+    c.pub_max_length AS element_max_length,
+    c.pub_is_primary_key AS element_is_primary_key,
+    c.pub_is_identity AS element_is_identity,
+    c.pub_ordinal AS element_ordinal,
+    t.pub_mssql_type AS element_mssql_type
+  FROM system_objects_database_columns c
+  JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
+  JOIN system_objects_database_tables tbl ON c.ref_table_guid = tbl.key_guid
+  WHERE tbl.pub_schema = ? AND tbl.pub_name = ?
+  ORDER BY c.pub_ordinal
   FOR JSON PATH;
 """
 
 _LIST_INDEXES_SQL = """
-  SELECT i.tables_recid, i.element_name, i.element_columns, i.element_is_unique
-  FROM reflection_db_indexes i
-  JOIN reflection_db_tables t ON i.tables_recid = t.recid
-  WHERE t.element_schema = ? AND t.element_name = ?
-  ORDER BY i.element_name
+  SELECT
+    i.ref_table_guid AS table_guid,
+    i.pub_name AS element_name,
+    i.pub_columns AS element_columns,
+    i.pub_is_unique AS element_is_unique
+  FROM system_objects_database_indexes i
+  JOIN system_objects_database_tables t ON i.ref_table_guid = t.key_guid
+  WHERE t.pub_schema = ? AND t.pub_name = ?
+  ORDER BY i.pub_name
   FOR JSON PATH;
 """
 
 _LIST_FOREIGN_KEYS_SQL = """
-  SELECT fk.tables_recid, fk.element_column_name, fk.referenced_tables_recid,
-         fk.element_referenced_column
-  FROM reflection_db_foreign_keys fk
-  JOIN reflection_db_tables t ON fk.tables_recid = t.recid
-  WHERE t.element_schema = ? AND t.element_name = ?
-  ORDER BY fk.element_column_name
+  SELECT
+    fk.ref_table_guid AS table_guid,
+    src_col.pub_name AS element_column_name,
+    fk.ref_referenced_table_guid AS referenced_table_guid,
+    ref_col.pub_name AS element_referenced_column
+  FROM system_objects_database_constraints fk
+  JOIN system_objects_database_tables t ON fk.ref_table_guid = t.key_guid
+  JOIN system_objects_database_columns src_col ON fk.ref_column_guid = src_col.key_guid
+  JOIN system_objects_database_columns ref_col ON fk.ref_referenced_column_guid = ref_col.key_guid
+  WHERE t.pub_schema = ? AND t.pub_name = ?
+  ORDER BY src_col.pub_name
   FOR JSON PATH;
 """
 
 _LIST_VIEWS_SQL = """
-  SELECT element_schema, element_name, element_definition
-  FROM reflection_db_views
-  ORDER BY element_schema, element_name
+  SELECT TABLE_SCHEMA AS element_schema, TABLE_NAME AS element_name,
+         VIEW_DEFINITION AS element_definition
+  FROM INFORMATION_SCHEMA.VIEWS
+  ORDER BY TABLE_SCHEMA, TABLE_NAME
   FOR JSON PATH;
 """
 
@@ -106,27 +173,43 @@ _GET_VERSION_SQL = """
 """
 
 _ALL_COLUMNS_SQL = """
-  SELECT c.tables_recid, c.element_name, c.element_nullable, c.element_default,
-         c.element_max_length, c.element_is_primary_key, c.element_is_identity,
-         c.element_ordinal, m.element_mssql_type
-  FROM reflection_db_columns c
-  JOIN reflection_db_edt_mappings m ON c.edt_recid = m.recid
-  ORDER BY c.tables_recid, c.element_ordinal
+  SELECT
+    c.ref_table_guid AS table_guid,
+    c.pub_name AS element_name,
+    c.pub_is_nullable AS element_nullable,
+    c.pub_default AS element_default,
+    c.pub_max_length AS element_max_length,
+    c.pub_is_primary_key AS element_is_primary_key,
+    c.pub_is_identity AS element_is_identity,
+    c.pub_ordinal AS element_ordinal,
+    t.pub_mssql_type AS element_mssql_type
+  FROM system_objects_database_columns c
+  JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
+  ORDER BY c.ref_table_guid, c.pub_ordinal
   FOR JSON PATH;
 """
 
 _ALL_INDEXES_SQL = """
-  SELECT i.tables_recid, i.element_name, i.element_columns, i.element_is_unique
-  FROM reflection_db_indexes i
-  ORDER BY i.tables_recid, i.element_name
+  SELECT
+    i.ref_table_guid AS table_guid,
+    i.pub_name AS element_name,
+    i.pub_columns AS element_columns,
+    i.pub_is_unique AS element_is_unique
+  FROM system_objects_database_indexes i
+  ORDER BY i.ref_table_guid, i.pub_name
   FOR JSON PATH;
 """
 
 _ALL_FOREIGN_KEYS_SQL = """
-  SELECT fk.tables_recid, fk.element_column_name, fk.referenced_tables_recid,
-         fk.element_referenced_column
-  FROM reflection_db_foreign_keys fk
-  ORDER BY fk.tables_recid, fk.element_column_name
+  SELECT
+    fk.ref_table_guid AS table_guid,
+    src_col.pub_name AS element_column_name,
+    fk.ref_referenced_table_guid AS referenced_table_guid,
+    ref_col.pub_name AS element_referenced_column
+  FROM system_objects_database_constraints fk
+  JOIN system_objects_database_columns src_col ON fk.ref_column_guid = src_col.key_guid
+  JOIN system_objects_database_columns ref_col ON fk.ref_referenced_column_guid = ref_col.key_guid
+  ORDER BY fk.ref_table_guid, src_col.pub_name
   FOR JSON PATH;
 """
 
@@ -147,34 +230,27 @@ _QUOTED_INFO_SCHEMA_VIEWS = frozenset({
 
 @dataclass
 class FunctionEntry:
-  recid: int
   guid: str
   name: str
   version: int
   module_attr: str
   method_name: str
-  request_model_guid: str | None
-  response_model_guid: str | None
 
 
 @dataclass
 class SubdomainEntry:
-  recid: int
   guid: str
   name: str
-  entitlement_mask: int
+  domain_guid: str
   functions: dict[tuple[str, int], FunctionEntry] = field(default_factory=dict)
 
 
 @dataclass
 class DomainEntry:
-  recid: int
   guid: str
   name: str
-  required_role: str | None
-  is_auth_exempt: bool
-  is_public: bool
-  is_discord: bool
+  required_role_guid: str | None
+  is_active: bool
   subdomains: dict[str, SubdomainEntry] = field(default_factory=dict)
 
 
@@ -221,43 +297,36 @@ class RpcdispatchModule(BaseModule):
 
     for row in domain_rows:
       entry = DomainEntry(
-        recid=int(row.get("recid")),
-        guid=str(row.get("element_guid")),
-        name=str(row.get("element_name")),
-        required_role=row.get("element_required_role"),
-        is_auth_exempt=bool(row.get("element_is_auth_exempt")),
-        is_public=bool(row.get("element_is_public")),
-        is_discord=bool(row.get("element_is_discord")),
+        guid=str(row.get("key_guid", "")),
+        name=str(row.get("pub_name", "")),
+        required_role_guid=row.get("ref_required_role_guid"),
+        is_active=bool(row.get("pub_is_active", True)),
       )
       domains[entry.name] = entry
       by_domain_guid[entry.guid] = entry
 
     for row in subdomain_rows:
-      domain_entry = by_domain_guid.get(str(row.get("domains_guid")))
+      domain_entry = by_domain_guid.get(str(row.get("ref_domain_guid", "")))
       if domain_entry is None:
         continue
       entry = SubdomainEntry(
-        recid=int(row.get("recid")),
-        guid=str(row.get("element_guid")),
-        name=str(row.get("element_name")),
-        entitlement_mask=int(row.get("element_entitlement_mask") or 0),
+        guid=str(row.get("key_guid", "")),
+        name=str(row.get("pub_name", "")),
+        domain_guid=str(row.get("ref_domain_guid", "")),
       )
       domain_entry.subdomains[entry.name] = entry
       by_subdomain_guid[entry.guid] = entry
 
     for row in function_rows:
-      subdomain_entry = by_subdomain_guid.get(str(row.get("subdomains_guid")))
+      subdomain_entry = by_subdomain_guid.get(str(row.get("ref_subdomain_guid", "")))
       if subdomain_entry is None:
         continue
       entry = FunctionEntry(
-        recid=int(row.get("recid")),
-        guid=str(row.get("element_guid")),
-        name=str(row.get("element_name")),
-        version=int(row.get("element_version") or 1),
-        module_attr=str(row.get("element_module_attr")),
-        method_name=str(row.get("element_method_name")),
-        request_model_guid=row.get("element_request_model_guid"),
-        response_model_guid=row.get("element_response_model_guid"),
+        guid=str(row.get("key_guid", "")),
+        name=str(row.get("pub_name", "")),
+        version=int(row.get("pub_version") or 1),
+        module_attr=str(row.get("module_attr", "")),
+        method_name=str(row.get("method_name", "")),
       )
       subdomain_entry.functions[(entry.name, entry.version)] = entry
 
