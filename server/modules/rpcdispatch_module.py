@@ -268,6 +268,8 @@ class RpcdispatchModule(BaseModule):
   def _as_list(payload: Any) -> list[dict[str, Any]]:
     if payload is None:
       return []
+    if hasattr(payload, "rows"):
+      return [dict(row) if isinstance(row, dict) else row for row in payload.rows]
     if isinstance(payload, list):
       return [dict(row) if isinstance(row, dict) else row for row in payload]
     if isinstance(payload, dict):
@@ -410,6 +412,11 @@ class RpcdispatchModule(BaseModule):
 
   async def get_schema_version(self) -> Any:
     data = await run_json_one(_GET_VERSION_SQL)
+    if hasattr(data, "rows") and data.rows:
+      row = data.rows[0]
+      if isinstance(row, dict):
+        return row.get("element_value", row)
+      return row
     if isinstance(data, dict):
       return data.get("element_value", data)
     return data
