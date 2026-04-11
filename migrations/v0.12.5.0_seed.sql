@@ -698,3 +698,55 @@ SELECT p.pub_slug, p.pub_title, c.pub_name AS root_component
 FROM system_objects_pages p
 LEFT JOIN system_objects_component_tree t ON t.key_guid = p.ref_root_component_guid
 LEFT JOIN system_objects_components c ON c.key_guid = t.ref_component_guid;
+
+
+
+
+
+
+
+
+
+-- ============================================================================
+-- Backfill: Column registrations for system_objects_modules and
+-- system_objects_module_methods (tables registered in v0.12.5.0,
+-- columns were never seeded)
+-- ============================================================================
+
+DECLARE @T_UUID  UNIQUEIDENTIFIER = N'4D2EB10B-363E-5AF4-826A-9294146244E4';
+DECLARE @T_STR   UNIQUEIDENTIFIER = N'0093B404-1EEE-563D-9135-4B9E7EECA7A2';
+DECLARE @T_BOOL  UNIQUEIDENTIFIER = N'12B2F03B-E315-50A5-B631-E6B1EB961A17';
+DECLARE @T_DTZ   UNIQUEIDENTIFIER = N'70F890D3-5AB5-5250-860E-4F7F9624190C';
+
+DECLARE @TBL_MOD UNIQUEIDENTIFIER = N'D039D8FB-3F95-5A66-B7FB-AB4BA1301FEA'; -- system_objects_modules
+DECLARE @TBL_MM  UNIQUEIDENTIFIER = N'65E5E8F3-7EFF-57F7-B4F9-087C191B7B5E'; -- system_objects_module_methods
+
+-- system_objects_modules columns
+INSERT INTO [dbo].[system_objects_database_columns]
+  ([key_guid],[ref_table_guid],[ref_type_guid],[pub_name],[pub_ordinal],
+   [pub_is_nullable],[pub_is_primary_key],[pub_is_identity],[pub_default],[pub_max_length])
+VALUES
+(N'A1B2C3D4-0001-5000-8000-000000000001',@TBL_MOD,@T_UUID,N'key_guid',         1,0,1,0,NULL,               NULL),
+(N'A1B2C3D4-0002-5000-8000-000000000001',@TBL_MOD,@T_STR, N'pub_name',         2,0,0,0,NULL,               128),
+(N'A1B2C3D4-0003-5000-8000-000000000001',@TBL_MOD,@T_STR, N'pub_state_attr',   3,0,0,0,NULL,               128),
+(N'A1B2C3D4-0004-5000-8000-000000000001',@TBL_MOD,@T_STR, N'pub_module_path',  4,0,0,0,NULL,               256),
+(N'A1B2C3D4-0005-5000-8000-000000000001',@TBL_MOD,@T_STR, N'pub_description',  5,1,0,0,NULL,               512),
+(N'A1B2C3D4-0006-5000-8000-000000000001',@TBL_MOD,@T_BOOL,N'pub_is_active',    6,0,0,0,N'1',              NULL),
+(N'A1B2C3D4-0007-5000-8000-000000000001',@TBL_MOD,@T_DTZ, N'priv_created_on',  7,0,0,0,N'SYSUTCDATETIME()',NULL),
+(N'A1B2C3D4-0008-5000-8000-000000000001',@TBL_MOD,@T_DTZ, N'priv_modified_on', 8,0,0,0,N'SYSUTCDATETIME()',NULL);
+
+-- system_objects_module_methods columns
+INSERT INTO [dbo].[system_objects_database_columns]
+  ([key_guid],[ref_table_guid],[ref_type_guid],[pub_name],[pub_ordinal],
+   [pub_is_nullable],[pub_is_primary_key],[pub_is_identity],[pub_default],[pub_max_length])
+VALUES
+(N'A1B2C3D4-0001-5000-8000-000000000002',@TBL_MM,@T_UUID,N'key_guid',                1,0,1,0,NULL,               NULL),
+(N'A1B2C3D4-0002-5000-8000-000000000002',@TBL_MM,@T_UUID,N'ref_module_guid',         2,0,0,0,NULL,               NULL),
+(N'A1B2C3D4-0003-5000-8000-000000000002',@TBL_MM,@T_STR, N'pub_name',                3,0,0,0,NULL,               128),
+(N'A1B2C3D4-0004-5000-8000-000000000002',@TBL_MM,@T_STR, N'pub_description',         4,1,0,0,NULL,               512),
+(N'A1B2C3D4-0005-5000-8000-000000000002',@TBL_MM,@T_UUID,N'ref_request_model_guid',  5,1,0,0,NULL,               NULL),
+(N'A1B2C3D4-0006-5000-8000-000000000002',@TBL_MM,@T_UUID,N'ref_response_model_guid', 6,1,0,0,NULL,               NULL),
+(N'A1B2C3D4-0007-5000-8000-000000000002',@TBL_MM,@T_BOOL,N'pub_is_active',           7,0,0,0,N'1',              NULL),
+(N'A1B2C3D4-0008-5000-8000-000000000002',@TBL_MM,@T_DTZ, N'priv_created_on',         8,0,0,0,N'SYSUTCDATETIME()',NULL),
+(N'A1B2C3D4-0009-5000-8000-000000000002',@TBL_MM,@T_DTZ, N'priv_modified_on',        9,0,0,0,N'SYSUTCDATETIME()',NULL);
+GO
