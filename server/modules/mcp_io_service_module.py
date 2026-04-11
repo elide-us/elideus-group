@@ -4,7 +4,6 @@ import base64
 import contextvars
 import hashlib
 import hmac
-import json
 import logging
 import secrets
 from collections import deque
@@ -58,7 +57,6 @@ class SlidingWindowRateLimiter:
 
 
 class McpIoServiceModule(BaseModule):
-  MODULE_GUID = '3898D988-258E-5529-8218-8F053886D48E'
   SESSION_TYPE_AGENT = '503A571B-2FAB-5828-AA12-E05FF018D4B7'
   TOKEN_TYPE_ACCESS = '8AA0F073-7CA1-5375-9989-67DB2688BDF5'
   TOKEN_TYPE_REFRESH = '8E312303-3EA8-5D6F-9341-D201D5A9ABA6'
@@ -93,22 +91,33 @@ class McpIoServiceModule(BaseModule):
     await self.refresh_runtime_config()
     await self._load_gateway_data()
     self._build_mcp()
-    self.session_manager = StreamableHTTPSessionManager(app=self.mcp._mcp_server, json_response=True, stateless=True)
+    self.session_manager = StreamableHTTPSessionManager(
+      app=self.mcp._mcp_server, json_response=True, stateless=True,
+    )
+    logging.info(
+      "[McpIoServiceModule] Loaded gateway=%s strategies=%d bindings=%d queries=%d",
+      self.gateway_guid, len(self.strategies), len(self.bindings), len(self._queries),
+    )
     self.mark_ready()
 
   async def shutdown(self):
     self.session_manager = None
     self.mcp = None
 
+  # ── Data-driven query loading ──────────────────────────────────────────
+  # Queries are registered in system_objects_queries under BOTH the
+  # SessionModule GUID (session/agent lifecycle) and potentially other
+  # modules.  Load ALL active queries — the pub_name namespace
+  # (security.sessions.*, security.agents.*) prevents collisions.
+
   async def _load_queries(self):
     sql = """
 SELECT pub_name, pub_query_text
 FROM system_objects_queries
-WHERE ref_module_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
-  AND pub_is_active = 1
+WHERE pub_is_active = 1
 FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
-    loaded = await run_json_many(sql, (self.MODULE_GUID,))
+    loaded = await run_json_many(sql)
     rows = loaded.rows if loaded else []
     self._queries = {
       str(row.get('pub_name')): str(row.get('pub_query_text'))
@@ -126,6 +135,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       return await run_json_many(sql, params)
     return await run_exec(sql, params)
 
+  # ── Gateway data loading ───────────────────────────────────────────────
+
   async def _load_gateway_data(self):
     assert self.db
     gateway_sql = """
@@ -139,10 +150,10 @@ FOR JSON PATH, WITHOUT_ARRAY_WRAPPER, INCLUDE_NULL_VALUES;
     if not gateway_row:
       raise RuntimeError('MCP gateway registration was not found')
     self.gateway_guid = str(gateway_row.get('key_guid') or '')
-    self.hostname = getenv('HOSTNAME', 'localhost')
 
     strategy_sql = """
-SELECT ip.key_guid, ip.ref_strategy_guid, ip.pub_priority, ip.pub_description, v.pub_name AS strategy_name
+SELECT ip.key_guid, ip.ref_strategy_guid, ip.pub_priority, ip.pub_description,
+       v.pub_name AS strategy_name
 FROM system_objects_gateway_identity_providers ip
 JOIN service_enum_values v ON v.key_guid = ip.ref_strategy_guid
 WHERE ip.ref_gateway_guid = ?
@@ -151,7 +162,10 @@ ORDER BY ip.pub_priority
 FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
     strategies_result = await run_json_many(strategy_sql, (self.gateway_guid,))
-    self.strategies = [self._coerce_dict(row) for row in (strategies_result.rows if strategies_result else [])]
+    self.strategies = [
+      self._coerce_dict(row)
+      for row in (strategies_result.rows if strategies_result else [])
+    ]
 
     binding_sql = """
 SELECT mb.key_guid, mb.pub_operation_name, mb.pub_required_scope,
@@ -173,64 +187,82 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       if op:
         self.bindings[op] = data
 
+  # ── MCP tool registration ─────────────────────────────────────────────
+
   def _build_mcp(self):
     self.mcp = FastMCP('oracle_rpc_mcp')
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_tables(ctx: Context) -> Any:
+      """List tables exposed by the reflection schema registry."""
       return await self.dispatch('oracle_list_tables', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_describe_table(ctx: Context, table_name: str, table_schema: str = 'dbo') -> Any:
+      """Describe a table by returning columns, indexes, and foreign keys."""
       return await self.dispatch('oracle_describe_table', ctx, table_name=table_name, table_schema=table_schema)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_views(ctx: Context) -> Any:
+      """List database views from reflection schema metadata."""
       return await self.dispatch('oracle_list_views', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_get_full_schema(ctx: Context) -> Any:
+      """Return the full reflection schema snapshot payload."""
       return await self.dispatch('oracle_get_full_schema', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_get_schema_version(ctx: Context) -> Any:
+      """Return the current schema version from reflection data metadata."""
       return await self.dispatch('oracle_get_schema_version', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_dump_table(ctx: Context, table_name: str, table_schema: str = 'dbo', max_rows: int = 100) -> Any:
+      """Dump table rows from reflection data and return a bounded result set."""
       return await self.dispatch('oracle_dump_table', ctx, table_name=table_name, table_schema=table_schema, max_rows=max_rows)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_query_info_schema(ctx: Context, view_name: str, filter_column: str | None = None, filter_value: str | None = None) -> Any:
+      """Query whitelisted INFORMATION_SCHEMA views with optional equality filter."""
       return await self.dispatch('oracle_query_info_schema', ctx, view_name=view_name, filter_column=filter_column, filter_value=filter_value)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_domains(ctx: Context) -> Any:
+      """Enumerate query registry domains, subdomains, and operation versions."""
       return await self.dispatch('oracle_list_domains', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_endpoints(ctx: Context) -> Any:
+      """List available top-level RPC domains."""
       return await self.dispatch('oracle_list_rpc_endpoints', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_domains(ctx: Context) -> Any:
+      """List RPC domain registrations from the reflection dispatch catalog."""
       return await self.dispatch('oracle_list_rpc_domains', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_subdomains(ctx: Context) -> Any:
+      """List RPC subdomain registrations from the reflection dispatch catalog."""
       return await self.dispatch('oracle_list_rpc_subdomains', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_functions(ctx: Context) -> Any:
+      """List RPC function registrations with module bindings and model references."""
       return await self.dispatch('oracle_list_rpc_functions', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_models(ctx: Context) -> Any:
+      """List RPC Pydantic model registrations with domain and version metadata."""
       return await self.dispatch('oracle_list_rpc_models', ctx)
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def oracle_list_rpc_model_fields(ctx: Context) -> Any:
+      """List RPC model field registrations with EDT types, nullability, and references."""
       return await self.dispatch('oracle_list_rpc_model_fields', ctx)
+
+  # ── Dispatch ───────────────────────────────────────────────────────────
 
   async def dispatch(self, operation_name: str, ctx: Context, **kwargs: Any) -> Any:
     binding = self.bindings.get(operation_name)
@@ -262,6 +294,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       raise HTTPException(status_code=500, detail='MCP method missing')
     return await method(**kwargs)
 
+  # ── Identity resolution ────────────────────────────────────────────────
+
   async def resolve_identity(self, bearer_token: str | None) -> dict[str, Any] | None:
     assert self.auth
     assert self.role
@@ -277,13 +311,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
             'roles': [],
             'entitlements': [],
             'scopes': {
-              'mcp:schema:read', 'mcp:data:read', 'mcp:rpc:list', 'mcp:schema:write',
-              'mcp:data:write', 'mcp:rpc:execute', 'mcp:admin',
+              'mcp:schema:read', 'mcp:data:read', 'mcp:rpc:list',
+              'mcp:schema:write', 'mcp:data:write', 'mcp:rpc:execute', 'mcp:admin',
             },
             'source': 'static_token',
           }
 
       if strategy_name == 'bearer_jwt' and bearer_token:
+        # Try session JWT first (browser-issued tokens)
         try:
           claims = await self.auth.decode_session_token(bearer_token)
           user_guid = str(claims.get('sub') or '')
@@ -298,10 +333,15 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
             'source': 'bearer_jwt',
           }
         except Exception:
-          if not self.auth.jwt_secret:
-            continue
+          pass
+
+        # Try MCP-issued access token (type=mcp_access)
+        if self.auth.jwt_secret:
           try:
-            claims = jwt.decode(bearer_token, self.auth.jwt_secret, algorithms=[self.auth.jwt_algo_int])
+            claims = jwt.decode(
+              bearer_token, self.auth.jwt_secret,
+              algorithms=[self.auth.jwt_algo_int],
+            )
             if claims.get('type') != 'mcp_access':
               continue
             user_guid = str(claims.get('sub') or '')
@@ -323,6 +363,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     return None
 
+  # ── Authorization ──────────────────────────────────────────────────────
+
   async def check_authorization(self, identity: dict[str, Any], binding: dict[str, Any]) -> bool:
     required_scope = binding.get('pub_required_scope')
     if required_scope and str(required_scope) not in set(identity.get('scopes') or []):
@@ -336,11 +378,16 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     required_entitlement = binding.get('ref_required_entitlement_guid')
     if required_entitlement:
-      entitlements = {str(entitlement).upper() for entitlement in (identity.get('entitlements') or [])}
+      entitlements = {str(e).upper() for e in (identity.get('entitlements') or [])}
       if str(required_entitlement).upper() not in entitlements:
         return False
 
     return True
+
+  # ── OAuth / Agent client operations ────────────────────────────────────
+  # These methods are called by oauth_router.py for the MCP OAuth flow.
+  # Column names align with the query aliases in system_objects_queries
+  # (security.agents.* namespace).
 
   async def is_dcr_enabled(self) -> bool:
     return False
@@ -351,75 +398,111 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   async def check_token_rate(self, ip: str) -> bool:
     return self.token_rate_limiter.check(ip, 60, 500)
 
-
-  async def register_client(
-    self,
-    client_name: str,
-    redirect_uris: Any,
-    grant_types: Any,
-    response_types: Any,
-    scopes: str,
-    ip_address: str | None,
-    user_agent: str | None,
-  ) -> dict:
+  async def register_client(self, **kwargs: Any) -> dict:
     raise HTTPException(status_code=503, detail='Dynamic client registration is disabled')
+
   async def get_client(self, client_id: str) -> dict | None:
+    """Look up agent client by external pub_client_id.
+
+    Returns dict with keys: client_guid, client_id, client_name,
+    redirect_uris, grant_types, response_types, scopes, is_dcr,
+    is_active, revoked_at.
+    """
     result = await self._run_query('security.agents.get_client_by_id', (client_id,))
-    return result.rows[0] if result and result.rows else None
+    row = result.rows[0] if result and result.rows else None
+    return self._coerce_dict(row) if row else None
 
-  async def link_client_to_user(self, client_id: str, users_guid: str) -> None:
-    await self._run_query('security.agents.link_client_user', (client_id, users_guid))
+  async def link_client_to_user(self, client_guid: str, user_guid: str) -> None:
+    """Link an agent client to a user by internal client key_guid."""
+    await self._run_query('security.agents.link_client_user', (client_guid, user_guid))
 
-  async def create_authorization_code(self, agents_recid: int, users_guid: str, code_challenge: str, code_method: str, redirect_uri: str, scopes: str) -> str:
+  async def create_authorization_code(
+    self, client_guid: str, user_guid: str,
+    code_challenge: str, code_method: str,
+    redirect_uri: str, scopes: str,
+  ) -> str:
+    """Create an OAuth authorization code for PKCE flow."""
     code = secrets.token_urlsafe(32)
-    expires_on = datetime.now(timezone.utc) + timedelta(seconds=60)
-    await self._run_query('security.agents.create_auth_code', (agents_recid, users_guid, code, code_challenge, code_method, redirect_uri, scopes, expires_on))
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat()
+    await self._run_query('security.agents.create_auth_code', (
+      client_guid, user_guid, code, code_challenge, code_method,
+      redirect_uri, scopes, expires_at,
+    ))
     return code
 
   async def exchange_authorization_code(self, code: str, code_verifier: str, client_id: str) -> dict:
-    consumed = await self._run_query('security.agents.consume_auth_code', (code,))
+    """Exchange an authorization code for access/refresh tokens.
+
+    The consume_auth_code query takes the code param twice
+    (once for UPDATE WHERE, once for SELECT WHERE).
+    """
+    consumed = await self._run_query('security.agents.consume_auth_code', (code, code))
     row = consumed.rows[0] if consumed and consumed.rows else None
     if not row:
       raise HTTPException(status_code=400, detail='Invalid or expired authorization code')
 
-    expected = str(row.get('element_code_challenge') or '')
+    # PKCE verification
+    expected = str(row.get('code_challenge') or '')
     digest = hashlib.sha256(str(code_verifier).encode('utf-8')).digest()
     verifier_challenge = base64.urlsafe_b64encode(digest).decode('utf-8').rstrip('=')
     if verifier_challenge != expected:
       raise HTTPException(status_code=400, detail='PKCE verification failed')
 
+    # Verify client matches the auth code
+    code_client_guid = str(row.get('client_guid') or '')
     client = await self.get_client(client_id)
-    if not client or int(client.get('recid') or 0) != int(row.get('agents_recid') or 0):
+    if not client:
+      raise HTTPException(status_code=400, detail='Unknown client')
+    if str(client.get('client_guid') or '') != code_client_guid:
       raise HTTPException(status_code=400, detail='Client does not match authorization code')
+    if not client.get('is_active'):
+      raise HTTPException(status_code=401, detail='Client revoked')
 
-    tokens = await self._issue_agent_tokens(str(row.get('users_guid') or ''), client_id, str(row.get('element_scopes') or ''))
-    return tokens
+    user_guid = str(row.get('user_guid') or '')
+    scopes = str(row.get('scopes') or '')
+    return await self._issue_agent_tokens(user_guid, client_id, scopes)
 
   async def refresh_access_token(self, refresh_token: str) -> dict:
-    validated = await self._run_query('security.sessions.validate_token', (self._hash_token(refresh_token),))
+    """Refresh an MCP access token using a refresh token."""
+    token_hash = self._hash_token(refresh_token)
+    validated = await self._run_query('security.sessions.validate_token', (token_hash,))
     row = validated.rows[0] if validated and validated.rows else None
     if not row or str(row.get('token_type') or '').lower() != 'refresh':
       raise HTTPException(status_code=401, detail='Invalid refresh token')
     user_guid = str(row.get('user_guid') or '')
-    tokens = await self._issue_agent_tokens(user_guid, str(row.get('client_id') or ''), 'mcp:schema:read mcp:data:read mcp:rpc:list', refresh_token=refresh_token, session_guid=str(row.get('session_guid') or ''))
-    return tokens
+    session_guid = str(row.get('session_guid') or '')
+    scopes = str(row.get('scopes') or 'mcp:schema:read mcp:data:read mcp:rpc:list')
+    return await self._issue_agent_tokens(
+      user_guid, '', scopes,
+      refresh_token=refresh_token, session_guid=session_guid,
+    )
 
   async def check_user_mcp_role(self, user_guid: str) -> bool:
     assert self.auth
     return await self.auth.user_has_role(user_guid, 32)
 
+  # ── Config ─────────────────────────────────────────────────────────────
+
   async def refresh_runtime_config(self):
     self.hostname = await self._get_config_value('Hostname', fallback='localhost')
 
   async def _get_config_value(self, key: str, *, fallback: str = '') -> str:
-    result = await run_json_many('SELECT element_value FROM system_config WHERE element_key = ? FOR JSON PATH, INCLUDE_NULL_VALUES;', (key,))
+    result = await run_json_many(
+      'SELECT element_value FROM system_config WHERE element_key = ? FOR JSON PATH, INCLUDE_NULL_VALUES;',
+      (key,),
+    )
     rows = result.rows if result else []
     if not rows:
       return fallback
     value = rows[0].get('element_value')
     return str(value) if value is not None else fallback
 
-  async def _issue_agent_tokens(self, user_guid: str, client_id: str, scopes: str, refresh_token: str | None = None, session_guid: str | None = None) -> dict:
+  # ── Token issuance ─────────────────────────────────────────────────────
+
+  async def _issue_agent_tokens(
+    self, user_guid: str, client_id: str, scopes: str,
+    refresh_token: str | None = None, session_guid: str | None = None,
+  ) -> dict:
     assert self.auth
     assert self.role
     if not user_guid:
@@ -444,27 +527,35 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     if not session_guid:
       created = await self._run_query('security.sessions.create_session', (
-        user_guid,
-        self.SESSION_TYPE_AGENT,
-        access_exp,
-        self._hash_token(access_token),
-        scopes,
-        access_exp,
-        self._hash_token(refresh_token),
-        scopes,
-        refresh_exp,
-        self._hash_token(secrets.token_urlsafe(32)),
-        refresh_exp,
-        f'mcp:{client_id}',
-        'mcp-oauth',
-        None,
+        user_guid,                              # user_guid
+        self.SESSION_TYPE_AGENT,                 # session_type_guid
+        access_exp.isoformat(),                  # expires_at
+        self._hash_token(access_token),          # access_hash
+        scopes,                                  # access_scopes
+        access_exp.isoformat(),                  # access_expires
+        self._hash_token(refresh_token),          # refresh_hash
+        scopes,                                  # refresh_scopes
+        refresh_exp.isoformat(),                 # refresh_expires
+        self._hash_token(secrets.token_urlsafe(32)),  # rotation_hash
+        refresh_exp.isoformat(),                 # rotation_expires
+        f'mcp:{client_id}',                      # device_fingerprint
+        'mcp-oauth',                             # user_agent
+        None,                                    # ip_address
       ))
       row = created.rows[0] if created and created.rows else None
       if not row:
         raise HTTPException(status_code=500, detail='Failed to create session')
       session_guid = str(row.get('session_guid') or '')
-    await self._run_query('security.sessions.create_token', (session_guid, self.TOKEN_TYPE_ACCESS, self._hash_token(access_token), scopes, access_exp))
-    await self._run_query('security.sessions.create_token', (session_guid, self.TOKEN_TYPE_REFRESH, self._hash_token(refresh_token), scopes, refresh_exp))
+    else:
+      # Existing session — add new tokens
+      await self._run_query('security.sessions.create_token', (
+        session_guid, self.TOKEN_TYPE_ACCESS,
+        self._hash_token(access_token), scopes, access_exp.isoformat(),
+      ))
+      await self._run_query('security.sessions.create_token', (
+        session_guid, self.TOKEN_TYPE_REFRESH,
+        self._hash_token(refresh_token), scopes, refresh_exp.isoformat(),
+      ))
 
     return {
       'access_token': access_token,
@@ -478,6 +569,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     assert self.auth
     key = self.auth.jwt_secret.encode('utf-8')
     return hmac.new(key, token.encode('utf-8'), hashlib.sha256).hexdigest()
+
+  # ── Helpers ────────────────────────────────────────────────────────────
 
   @staticmethod
   def _coerce_row(rows: Any) -> dict[str, Any] | None:
