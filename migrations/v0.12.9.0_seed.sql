@@ -1,5 +1,5 @@
 -- ==========================================================================
--- v0.13.0.0_rpc_gateway_bindings
+-- v0.12.9.0_rpc_gateway_bindings
 -- Phase 3: RPC gateway formalization seeds
 --   1) Register SessionModule methods in system_objects_module_methods
 --   2) Seed RPC gateway method bindings in system_objects_gateway_method_bindings
