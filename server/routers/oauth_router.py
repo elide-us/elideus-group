@@ -53,7 +53,7 @@ _PROVIDER_SECRET_VARS = {
 
 @router.get("/.well-known/oauth-protected-resource")
 async def get_protected_resource_metadata(request: Request):
-  hostname = request.app.state.mcp_gateway.hostname
+  hostname = request.app.state.mcp_io_service.hostname
   return {
     "resource": f"https://{hostname}/mcp",
     "authorization_servers": [f"https://{hostname}"],
@@ -68,7 +68,7 @@ async def get_protected_resource_metadata(request: Request):
 
 @router.get("/.well-known/oauth-authorization-server")
 async def get_authorization_server_metadata(request: Request):
-  hostname = request.app.state.mcp_gateway.hostname
+  hostname = request.app.state.mcp_io_service.hostname
   return {
     "issuer": f"https://{hostname}",
     "authorization_endpoint": f"https://{hostname}/oauth/authorize",
@@ -89,7 +89,7 @@ async def get_authorization_server_metadata(request: Request):
 
 @router.post("/oauth/register")
 async def post_oauth_register(request: Request):
-  gateway = request.app.state.mcp_gateway
+  gateway = request.app.state.mcp_io_service
 
   if not await gateway.is_dcr_enabled():
     raise HTTPException(status_code=403, detail="Dynamic client registration is disabled")
@@ -232,7 +232,7 @@ async def get_oauth_authorize(
   code_challenge: str | None = None,
   code_challenge_method: str | None = None,
 ):
-  gateway = request.app.state.mcp_gateway
+  gateway = request.app.state.mcp_io_service
   client = await gateway.get_client(client_id)
   if not client or not client.get("element_is_active"):
     raise HTTPException(status_code=400, detail="Unknown or inactive client")
@@ -274,7 +274,7 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
     raise HTTPException(status_code=400, detail="Unsupported provider")
 
   flow_payload = _decode_flow_state(request, flow)
-  hostname = request.app.state.mcp_gateway.hostname
+  hostname = request.app.state.mcp_io_service.hostname
   callback = _callback_uri(hostname, provider)
   provider_code_verifier = secrets.token_urlsafe(32)
   provider_code_challenge = base64.urlsafe_b64encode(
@@ -292,7 +292,7 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
 
   params = {
     "response_type": "code",
-    "client_id": _provider_client_id(request.app.state.mcp_gateway, provider),
+    "client_id": _provider_client_id(request.app.state.mcp_io_service, provider),
     "redirect_uri": callback,
     "scope": _PROVIDER_SCOPES[provider],
     "state": state_payload,
@@ -330,7 +330,7 @@ async def get_oauth_provider_callback(
   if not isinstance(flow, dict):
     raise HTTPException(status_code=400, detail="Authorization flow is invalid")
 
-  gateway = request.app.state.mcp_gateway
+  gateway = request.app.state.mcp_io_service
   hostname = gateway.hostname
   redirect_uri = _callback_uri(hostname, provider)
   provider_code_verifier = callback_state.get("provider_code_verifier")
@@ -400,7 +400,7 @@ async def get_oauth_provider_callback(
 
 @router.post("/oauth/token")
 async def post_oauth_token(request: Request):
-  gateway = request.app.state.mcp_gateway
+  gateway = request.app.state.mcp_io_service
 
   ip = request.client.host if request.client else "unknown"
   if not await gateway.check_token_rate(ip):
