@@ -15,9 +15,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
-from rpc.handler import dispatch_rpc_op
-from server.models import AuthContext
-
 if TYPE_CHECKING:
   from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
@@ -167,178 +164,127 @@ def _check_scope(ctx: Context, required_scope: str) -> dict[str, Any]:
   return mcp_auth
 
 
-async def _resolve_auth_to_rpc(ctx: Context) -> AuthContext:
-  """Resolve MCP auth to an RPCRequest-compatible AuthContext."""
-  mcp_auth = _check_scope(ctx, "mcp:schema:read")
-
-  auth_ctx = AuthContext()
-
-  if mcp_auth.get("type") == "static":
-    gateway = _get_gateway()
-    auth = getattr(gateway, "auth", None)
-    if auth:
-      service_admin_mask = auth.roles.get("ROLE_SERVICE_ADMIN", 0)
-      auth_ctx.role_mask = service_admin_mask
-      auth_ctx.roles = ["ROLE_SERVICE_ADMIN"]
-    return auth_ctx
-
-  user_guid = mcp_auth.get("user_guid")
-  if not user_guid:
-    raise HTTPException(status_code=401, detail="No user identity in token")
-
-  gateway = _get_gateway()
-  auth = getattr(gateway, "auth", None)
-  if not auth:
-    raise HTTPException(status_code=500, detail="Auth module unavailable")
-
-  roles, mask = await auth.get_user_roles(user_guid)
-  auth_ctx.user_guid = user_guid
-  auth_ctx.roles = roles
-  auth_ctx.role_mask = mask
-  return auth_ctx
-
-
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_tables(ctx: Context) -> Any:
   """List tables exposed by the reflection schema registry."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:list_tables:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_tables()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_describe_table(ctx: Context, table_name: str, table_schema: str = "dbo") -> Any:
   """Describe a table by returning columns, indexes, and foreign keys."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(
-    app,
-    "urn:service:reflection:describe_table:1",
-    {"table_name": table_name, "table_schema": table_schema},
-    auth_ctx=auth_ctx,
-  )
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.describe_table(table_name, table_schema)
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_views(ctx: Context) -> Any:
   """List database views from reflection schema metadata."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:list_views:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_views()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_get_full_schema(ctx: Context) -> Any:
   """Return the full reflection schema snapshot payload."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:get_full_schema:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.get_full_schema()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_get_schema_version(ctx: Context) -> Any:
   """Return the current schema version from reflection data metadata."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:get_schema_version:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return {"version": await module.get_schema_version()}
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_dump_table(ctx: Context, table_name: str, table_schema: str = "dbo", max_rows: int = 100) -> Any:
   """Dump table rows from reflection data and return a bounded result set."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(
-    app,
-    "urn:service:reflection:dump_table:1",
-    {"table_name": table_name, "table_schema": table_schema, "max_rows": max_rows},
-    auth_ctx=auth_ctx,
-  )
-  return response.payload
+  _check_scope(ctx, "mcp:data:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.dump_table(table_name, table_schema, max_rows)
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_query_info_schema(ctx: Context, view_name: str, filter_column: str | None = None, filter_value: str | None = None) -> Any:
   """Query whitelisted INFORMATION_SCHEMA views with optional equality filter."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  payload: dict[str, Any] = {"view_name": view_name}
-  if filter_column is not None:
-    payload["filter_column"] = filter_column
-  if filter_value is not None:
-    payload["filter_value"] = filter_value
-  response = await dispatch_rpc_op(
-    app,
-    "urn:service:reflection:query_info_schema:1",
-    payload,
-    auth_ctx=auth_ctx,
-  )
-  return response.payload
+  _check_scope(ctx, "mcp:schema:read")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.query_info_schema(view_name, filter_column, filter_value)
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_domains(ctx: Context) -> Any:
   """Enumerate query registry domains, subdomains, and operation versions."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:list_domains:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return {"domains": await module.list_domains()}
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_endpoints(ctx: Context) -> Any:
   """List available top-level RPC domains."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:reflection:list_rpc_endpoints:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return {"endpoints": await module.list_rpc_endpoints()}
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_domains(ctx: Context) -> Any:
   """List RPC domain registrations from the reflection dispatch catalog."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_domains:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_domains()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_subdomains(ctx: Context) -> Any:
   """List RPC subdomain registrations from the reflection dispatch catalog."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_subdomains:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_subdomains()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_functions(ctx: Context) -> Any:
   """List RPC function registrations with module bindings and model references."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_functions:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_functions()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_models(ctx: Context) -> Any:
   """List RPC Pydantic model registrations with domain and version metadata."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_models:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_models()
 
 
 @mcp.tool(annotations=_TOOL_ANNOTATIONS)
 async def oracle_list_rpc_model_fields(ctx: Context) -> Any:
   """List RPC model field registrations with EDT types, nullability, and references."""
-  auth_ctx = await _resolve_auth_to_rpc(ctx)
-  app = _get_gateway().app
-  response = await dispatch_rpc_op(app, "urn:service:rpcdispatch:list_model_fields:1", {}, auth_ctx=auth_ctx)
-  return response.payload
+  _check_scope(ctx, "mcp:rpc:list")
+  module = _get_gateway().app.state.rpcdispatch
+  await module.on_ready()
+  return await module.list_model_fields()

@@ -10,16 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
-from queryregistry.reflection.data import (
-  apply_batch_request,
-  dump_table_request,
-  get_version_request,
-  rebuild_indexes_request,
-  update_version_request,
-)
-from queryregistry.reflection.data.models import BatchParams, DumpTableParams, UpdateVersionParams
-from queryregistry.reflection.schema import get_full_schema_request, list_tables_request
-from queryregistry.reflection.schema.models import TableParams
+from queryregistry.providers.mssql import run_exec, run_json_many, run_json_one
 
 from . import BaseModule
 from .db_module import DbModule
@@ -32,6 +23,60 @@ def _quote(name: str) -> str:
 
 def _qualify(schema: str, name: str) -> str:
   return f"{_quote(schema)}.{_quote(name)}"
+
+
+async def _load_full_schema() -> dict[str, Any]:
+  tables = await run_json_many(
+    """
+    SELECT recid, element_schema, element_name
+    FROM reflection_db_tables
+    ORDER BY element_schema, element_name
+    FOR JSON PATH;
+    """
+  )
+  columns = await run_json_many(
+    """
+    SELECT c.tables_recid, c.element_name, c.element_nullable, c.element_default,
+           c.element_max_length, c.element_is_primary_key, c.element_is_identity,
+           c.element_ordinal, m.element_mssql_type
+    FROM reflection_db_columns c
+    JOIN reflection_db_edt_mappings m ON c.edt_recid = m.recid
+    ORDER BY c.tables_recid, c.element_ordinal
+    FOR JSON PATH;
+    """
+  )
+  indexes = await run_json_many(
+    """
+    SELECT i.tables_recid, i.element_name, i.element_columns, i.element_is_unique
+    FROM reflection_db_indexes i
+    ORDER BY i.tables_recid, i.element_name
+    FOR JSON PATH;
+    """
+  )
+  foreign_keys = await run_json_many(
+    """
+    SELECT fk.tables_recid, fk.element_column_name, fk.referenced_tables_recid,
+           fk.element_referenced_column
+    FROM reflection_db_foreign_keys fk
+    ORDER BY fk.tables_recid, fk.element_column_name
+    FOR JSON PATH;
+    """
+  )
+  views = await run_json_many(
+    """
+    SELECT element_schema, element_name, element_definition
+    FROM reflection_db_views
+    ORDER BY element_schema, element_name
+    FOR JSON PATH;
+    """
+  )
+  return {
+    "tables": tables or [],
+    "columns": columns or [],
+    "indexes": indexes or [],
+    "foreign_keys": foreign_keys or [],
+    "views": views or [],
+  }
 
 
 def _normalize_length(length: int | None) -> int | None:
@@ -182,28 +227,28 @@ class DatabaseCliModule(BaseModule):
 
   async def list_tables(self):
     await self.on_ready()
-    if not self.db:
-      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
-    res = await self.db.run(list_tables_request())
-    rows = res.rows
+    rows = await run_json_many(
+      """
+      SELECT recid, element_schema, element_name
+      FROM reflection_db_tables
+      ORDER BY element_schema, element_name
+      FOR JSON PATH;
+      """
+    )
     return [f"{row['element_schema']}.{row['element_name']}" for row in rows]
 
   async def get_schema_from_registry(self):
     await self.on_ready()
-    if not self.db:
-      raise RuntimeError("DatabaseCliModule missing DbModule dependency")
-    res = await self.db.run(get_full_schema_request())
-    payload = res.rows[0] if res.rows else {}
+    payload = await _load_full_schema()
 
     table_rows = payload.get("tables", [])
     tables: dict[int, dict] = {}
     for row in table_rows:
-      parsed = TableParams(table_schema=row["element_schema"], name=row["element_name"])
       table_recid = int(row["recid"])
       tables[table_recid] = {
         "recid": table_recid,
-        "schema": parsed.table_schema,
-        "name": parsed.name,
+        "schema": row["element_schema"],
+        "name": row["element_name"],
         "columns": [],
         "primary_key": None,
         "unique_constraints": [],
@@ -365,14 +410,8 @@ class DatabaseCliModule(BaseModule):
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
 
     schema = await self.get_schema_from_registry()
-    edt_res = await self.db.run(
-      dump_table_request(DumpTableParams(table_schema="dbo", name="system_edt_mappings"))
-    )
-    views_res = await self.db.run(
-      dump_table_request(DumpTableParams(table_schema="dbo", name="system_schema_views"))
-    )
-    edt_rows = edt_res.rows
-    view_rows = views_res.rows
+    edt_rows = await run_json_many("SELECT * FROM [dbo].[system_edt_mappings] FOR JSON PATH;")
+    view_rows = await run_json_many("SELECT * FROM [dbo].[system_schema_views] FOR JSON PATH;")
     edt_name_by_mssql_type = {
       str(row.get("element_mssql_type") or ""): str(row.get("element_name") or "")
       for row in edt_rows
@@ -561,7 +600,7 @@ class DatabaseCliModule(BaseModule):
     sql = Path(path).read_text(encoding="utf-8")
     batches = _iter_batches(sql)
     for batch in batches:
-      await self.db.run(apply_batch_request(BatchParams(sql=batch)))
+      await run_exec(batch)
     print("Schema applied.")
 
   async def dump_data(self, prefix: str = "dump_data"):
@@ -572,10 +611,9 @@ class DatabaseCliModule(BaseModule):
     data: dict[str, list[dict]] = {}
     for table in schema["tables"]:
       key = f"{table['schema']}.{table['name']}"
-      res = await self.db.run(
-        dump_table_request(DumpTableParams(table_schema=table["schema"], name=table["name"]))
+      table_rows = await run_json_many(
+        f"SELECT * FROM {_qualify(table['schema'], table['name'])} FOR JSON PATH;"
       )
-      table_rows = res.rows
       data[key] = table_rows
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_BACKUP")
     filename = f"{prefix}_{ts}.json"
@@ -590,14 +628,20 @@ class DatabaseCliModule(BaseModule):
     await self.on_ready()
     if not self.db:
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
-    version_res = await self.db.run(get_version_request())
-    version_payload = version_res.rows[0] if version_res.rows else {}
+    version_payload = await run_json_one(
+      """
+      SELECT element_value
+      FROM system_config
+      WHERE element_key='Version'
+      FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+      """
+    ) or {}
     current_version = version_payload.get("element_value")
     if not current_version:
       raise RuntimeError("Version entry not found in system_config")
 
     next_version = bump_version(current_version, part)
-    await self.db.run(update_version_request(UpdateVersionParams(version=next_version)))
+    await run_exec("UPDATE system_config SET element_value=? WHERE element_key='Version';", (next_version,))
     print(f"Updated Version: {current_version} -> {next_version}")
     return next_version
 
@@ -608,7 +652,7 @@ class DatabaseCliModule(BaseModule):
     await self.on_ready()
     if not self.db:
       raise RuntimeError("DatabaseCliModule missing DbModule dependency")
-    await self.db.run(rebuild_indexes_request())
+    await run_exec("EXEC sp_MSforeachtable 'ALTER INDEX ALL ON ? REBUILD'")
     print("Reindex complete.")
 
   async def get_database_rpc_namespace(self) -> dict[str, object]:

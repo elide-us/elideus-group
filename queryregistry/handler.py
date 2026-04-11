@@ -8,8 +8,6 @@ from queryregistry.models import DBRequest, DBResponse
 
 from .discord.handler import handle_discord_request
 from .identity.handler import handle_identity_request
-from .reflection.handler import handle_reflection_request
-from .rpcdispatch.handler import handle_rpcdispatch_request
 from .system.handler import handle_system_request
 from .helpers import parse_query_request
 
@@ -17,8 +15,6 @@ DomainHandler = Callable[[Sequence[str], DBRequest, str], Awaitable[DBResponse]]
 HANDLERS: dict[str, DomainHandler] = {
   "discord": handle_discord_request,
   "identity": handle_identity_request,
-  "reflection": handle_reflection_request,
-  "rpcdispatch": handle_rpcdispatch_request,
   "system": handle_system_request,
 }
 
