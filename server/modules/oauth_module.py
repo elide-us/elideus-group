@@ -1,454 +1,683 @@
-"""OAuth endpoints for MCP dynamic client registration and authorization flows."""
-
 from __future__ import annotations
 
-import base64
-import hashlib
-import json
-import logging
-import os
-import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Any
-from urllib.parse import urlencode
+import base64, logging, uuid
+from collections.abc import Mapping
+import aiohttp
+from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from jose import jwt
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from queryregistry.identity.profiles import (
+  get_profile_request,
+  update_if_unedited_request,
+  update_profile_request,
+)
+from queryregistry.identity.profiles.models import (
+  GuidParams,
+  UpdateIfUneditedParams,
+  UpdateProfileParams,
+)
+from queryregistry.identity.sessions.models import (
+  CreateSessionParams,
+  RevokeProviderTokensParams,
+  UpdateDeviceTokenParams,
+)
+from queryregistry.system.config.models import ConfigKeyParams
+from . import BaseModule
 
-from server.modules.providers.auth.discord_provider import AUTHORIZE_URL as DISCORD_AUTHORIZE_URL
+from server.modules.auth_module import AuthModule
+try:
+  from server.modules.auth_module import DEFAULT_SESSION_TOKEN_EXPIRY
+except Exception:
+  DEFAULT_SESSION_TOKEN_EXPIRY = 15
+from server.modules.db_module import DbModule
+from server.modules.discord_bot_module import DiscordBotModule
+from queryregistry.identity.auth import (
+  create_from_provider_request,
+  get_any_by_provider_identifier_request,
+  get_by_provider_identifier_request,
+  get_user_by_email_request,
+  link_provider_request,
+  relink_provider_request,
+  set_provider_request,
+  unlink_last_provider_request,
+  unlink_provider_request,
+)
+from queryregistry.identity.sessions import (
+  create_session_request,
+  revoke_provider_tokens_request,
+  update_device_token_request,
+)
+from queryregistry.system.config import get_config_request
 
-router = APIRouter()
-
-_SCOPE_DESCRIPTIONS = {
-  "mcp:schema:read": "Read schema metadata (tables, views, column information).",
-  "mcp:data:read": "Read reflected data and information schema payloads.",
-  "mcp:rpc:list": "List available RPC domains and endpoints.",
-}
-
-_PROVIDER_LABELS = {
-  "microsoft": "Microsoft",
-  "google": "Google",
-  "discord": "Discord",
-}
-
-_PROVIDER_AUTHORIZE_URLS = {
-  "microsoft": "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
-  "google": "https://accounts.google.com/o/oauth2/v2/auth",
-  "discord": DISCORD_AUTHORIZE_URL,
-}
-
-_PROVIDER_SCOPES = {
-  "microsoft": "openid profile email User.Read",
-  "google": "openid email profile",
-  "discord": "identify email",
-}
-
-_PROVIDER_SECRET_VARS = {
-  "microsoft": "MICROSOFT_AUTH_SECRET",
-  "google": "GOOGLE_AUTH_SECRET",
-  "discord": "DISCORD_AUTH_SECRET",
-}
+class UsersProvidersSetProviderResult1(BaseModel):
+  provider: str
+  code: str | None = None
+  id_token: str | None = None
+  access_token: str | None = None
 
 
-@router.get("/.well-known/oauth-protected-resource")
-async def get_protected_resource_metadata(request: Request):
-  hostname = request.app.state.mcp_io_service.hostname
-  return {
-    "resource": f"https://{hostname}/mcp",
-    "authorization_servers": [f"https://{hostname}"],
-    "scopes_supported": [
-      "mcp:schema:read",
-      "mcp:data:read",
-      "mcp:rpc:list",
-    ],
-    "bearer_methods_supported": ["header"],
+class UsersProvidersLinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersUnlinkProviderResult1(BaseModel):
+  provider: str
+
+
+class UsersProvidersGetByProviderIdentifierResult1(BaseModel):
+  guid: str | None = None
+  provider: str | None = None
+  provider_identifier: str | None = None
+
+
+class UsersProvidersCreateFromProviderResult1(BaseModel):
+  guid: str | None = None
+
+
+class OauthModule(BaseModule):
+  TOKEN_ENDPOINTS = {
+    "google": "https://oauth2.googleapis.com/token",
+    "microsoft": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+    "discord": "https://discord.com/api/oauth2/token",
   }
 
+  def __init__(self, app: FastAPI):
+    super().__init__(app)
+    self.discord: DiscordBotModule | None = None
+    self.env = None
+    self._redirect_uri: str | None = None
 
-@router.get("/.well-known/oauth-authorization-server")
-async def get_authorization_server_metadata(request: Request):
-  hostname = request.app.state.mcp_io_service.hostname
-  return {
-    "issuer": f"https://{hostname}",
-    "authorization_endpoint": f"https://{hostname}/oauth/authorize",
-    "token_endpoint": f"https://{hostname}/oauth/token",
-    "registration_endpoint": f"https://{hostname}/oauth/register",
-    "scopes_supported": [
-      "mcp:schema:read",
-      "mcp:data:read",
-      "mcp:rpc:list",
-    ],
-    "response_types_supported": ["code"],
-    "grant_types_supported": ["authorization_code", "refresh_token"],
-    "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
-    "code_challenge_methods_supported": ["S256"],
-    "service_documentation": f"https://{hostname}/docs/mcp",
-  }
+  async def startup(self):
+    self.auth: AuthModule = self.app.state.auth
+    await self.auth.on_ready()
+    self.db: DbModule = self.app.state.db
+    await self.db.on_ready()
+    self.env = getattr(self.app.state, "env", None)
+    if self.env:
+      await self.env.on_ready()
+    self.discord = getattr(self.app.state, "discord_bot", None)
+    if self.discord:
+      await self.discord.on_ready()
+    self.mark_ready()
 
-
-@router.post("/oauth/register")
-async def post_oauth_register(request: Request):
-  gateway = request.app.state.mcp_io_service
-
-  if not await gateway.is_dcr_enabled():
-    raise HTTPException(status_code=403, detail="Dynamic client registration is disabled")
-
-  ip = request.client.host if request.client else "unknown"
-  if not await gateway.check_register_rate(ip):
-    raise HTTPException(status_code=429, detail="Rate limit exceeded")
-
-  body = await request.json()
-  client_name = body.get("client_name")
-  if not client_name:
-    raise HTTPException(status_code=400, detail="client_name is required")
-
-  result = await gateway.register_client(
-    client_name=client_name,
-    redirect_uris=body.get("redirect_uris"),
-    grant_types=body.get("grant_types", "authorization_code"),
-    response_types=body.get("response_types", "code"),
-    scopes=body.get("scope", "mcp:schema:read mcp:data:read mcp:rpc:list"),
-    ip_address=ip,
-    user_agent=request.headers.get("user-agent"),
-  )
-  return JSONResponse(status_code=201, content=result)
-
-
-def _get_signing_secret(request: Request) -> str:
-  secret = getattr(request.app.state.auth, "jwt_secret", None)
-  if not secret:
-    raise HTTPException(status_code=500, detail="OAuth signing key is not configured")
-  return secret
-
-
-def _parse_redirect_uris(raw_value: Any) -> set[str]:
-  if not raw_value:
-    return set()
-  if isinstance(raw_value, list):
-    return {str(item) for item in raw_value if str(item).strip()}
-  raw = str(raw_value).strip()
-  if not raw:
-    return set()
-  try:
-    parsed = json.loads(raw)
-    if isinstance(parsed, list):
-      return {str(item) for item in parsed if str(item).strip()}
-  except json.JSONDecodeError:
+  async def shutdown(self):
     pass
-  if "," in raw:
-    return {item.strip() for item in raw.split(",") if item.strip()}
-  if " " in raw:
-    return {item.strip() for item in raw.split(" ") if item.strip()}
-  return {raw}
+
+  def _normalize_query_payload(self, payload: object | None) -> list[dict]:
+    if payload is None:
+      return []
+    if isinstance(payload, list):
+      return [dict(item) for item in payload]
+    if isinstance(payload, Mapping):
+      return [dict(payload)]
+    return [dict(payload)]
 
 
-def _sign_flow_state(request: Request, payload: dict[str, Any]) -> str:
-  secret = _get_signing_secret(request)
-  exp = datetime.now(timezone.utc) + timedelta(minutes=10)
-  return jwt.encode({**payload, "exp": int(exp.timestamp())}, secret, algorithm="HS256")
-
-
-def _decode_flow_state(request: Request, token: str) -> dict[str, Any]:
-  secret = _get_signing_secret(request)
-  try:
-    return jwt.decode(token, secret, algorithms=["HS256"])
-  except Exception as exc:
-    raise HTTPException(status_code=400, detail="Invalid authorization state") from exc
-
-
-def _provider_client_id(gateway: Any, provider: str) -> str:
-  provider_obj = gateway.oauth.auth.providers.get(provider)
-  audience = getattr(provider_obj, "audience", None) if provider_obj else None
-  if not audience:
-    raise HTTPException(status_code=500, detail=f"{provider.title()} OAuth is not configured")
-  return str(audience)
-
-
-def _provider_secret(gateway: Any, provider: str) -> str:
-  secret_var = _PROVIDER_SECRET_VARS.get(provider)
-  env_module = getattr(gateway.oauth, "env", None)
-  if not secret_var or not env_module:
-    raise HTTPException(status_code=500, detail=f"{provider.title()} OAuth is not configured")
-  secret = env_module.get(secret_var)
-  if not secret:
-    raise HTTPException(status_code=500, detail=f"{provider.title()} OAuth is not configured")
-  return secret
-
-
-def _callback_uri(hostname: str, provider: str) -> str:
-  return f"https://{hostname}/oauth/callback/{provider}"
-
-
-def _render_authorize_page(client_name: str, requested_scopes: list[str], provider_links: dict[str, str]) -> str:
-  scope_items = "".join(
-    f"<li><code>{scope}</code> — {_SCOPE_DESCRIPTIONS.get(scope, 'Requested access')}</li>"
-    for scope in requested_scopes
-  )
-  provider_buttons = "".join(
-    (
-      f"<a class='btn' href='{provider_links[provider]}'>{_PROVIDER_LABELS[provider]}</a>"
-      for provider in ("microsoft", "google", "discord")
+  def _provider_title(self, provider: str) -> str:
+    return {"google": "Google", "microsoft": "Microsoft", "discord": "Discord"}.get(
+      provider, provider.title()
     )
-  )
-  return f"""
-<!doctype html>
-<html lang=\"en\">
-  <head>
-    <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-    <title>MCP OAuth Consent</title>
-    <style>
-      body {{ font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 2rem; }}
-      .card {{ max-width: 720px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 1.5rem; }}
-      h1 {{ margin-top: 0; color: #f8fafc; }}
-      ul {{ line-height: 1.6; }}
-      code {{ color: #93c5fd; }}
-      .buttons {{ display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }}
-      .btn {{ background: #2563eb; color: white; text-decoration: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 600; }}
-    </style>
-  </head>
-  <body>
-    <div class=\"card\">
-      <h1>{client_name} wants to access Oracle RPC</h1>
-      <p>Requested permissions:</p>
-      <ul>{scope_items}</ul>
-      <p>Continue with a login provider:</p>
-      <div class=\"buttons\">{provider_buttons}</div>
-    </div>
-  </body>
-</html>
-"""
 
+  def _get_secret_var(self, provider: str) -> str | None:
+    return {
+      "google": "GOOGLE_AUTH_SECRET",
+      "microsoft": "MICROSOFT_AUTH_SECRET",
+      "discord": "DISCORD_AUTH_SECRET",
+    }.get(provider)
 
-# ── /oauth/authorize ─────────────────────────────────────────────────────
-# Client lookup returns new-table column names:
-#   client_guid, client_id, client_name, redirect_uris,
-#   grant_types, response_types, scopes, is_dcr, is_active, revoked_at
+  async def _get_redirect_uri(self, provider: str) -> str:
+    if self._redirect_uri:
+      return self._redirect_uri
+    res = await self.db.run(get_config_request(ConfigKeyParams(key="Hostname")))
+    if not res.rows:
+      raise HTTPException(
+        status_code=500,
+        detail=f"{self._provider_title(provider)} OAuth redirect URI not configured",
+      )
+    self._redirect_uri = f"https://{res.rows[0]['element_value']}"
+    return self._redirect_uri
 
-@router.get("/oauth/authorize", response_class=HTMLResponse)
-async def get_oauth_authorize(
-  request: Request,
-  client_id: str,
-  redirect_uri: str,
-  response_type: str,
-  scope: str = "mcp:schema:read mcp:data:read mcp:rpc:list",
-  state: str | None = None,
-  code_challenge: str | None = None,
-  code_challenge_method: str | None = None,
-):
-  gateway = request.app.state.mcp_io_service
-  client = await gateway.get_client(client_id)
-  if not client or not client.get("is_active"):
-    raise HTTPException(status_code=400, detail="Unknown or inactive client")
+  def _get_provider_client_id(self, provider: str) -> str:
+    providers = getattr(self.auth, "providers", {})
+    provider_data = providers.get(provider)
+    audience = getattr(provider_data, "audience", None) if provider_data else None
+    if not audience:
+      raise HTTPException(
+        status_code=500,
+        detail=f"{self._provider_title(provider)} OAuth client_id not configured",
+      )
+    return audience
 
-  registered_uris = _parse_redirect_uris(client.get("redirect_uris"))
-  if redirect_uri not in registered_uris:
-    raise HTTPException(status_code=400, detail="redirect_uri is not registered for this client")
+  async def _prepare_tokens(
+    self,
+    provider: str,
+    code: str | None,
+    id_token: str | None,
+    access_token: str | None,
+  ) -> tuple[str | None, str | None]:
+    provider = provider.lower()
+    if provider not in ("google", "microsoft", "discord"):
+      raise HTTPException(status_code=400, detail="Unsupported auth provider")
+    client_id = self._get_provider_client_id(provider)
+    if code:
+      secret_var = self._get_secret_var(provider)
+      if not self.env or not secret_var:
+        raise HTTPException(
+          status_code=500,
+          detail=f"{self._provider_title(provider)} OAuth client_secret not configured",
+        )
+      client_secret = self.env.get(secret_var)
+      if not client_secret:
+        raise HTTPException(
+          status_code=500,
+          detail=f"{self._provider_title(provider)} OAuth client_secret not configured",
+        )
+      redirect_uri = await self._get_redirect_uri(provider)
+      id_token, access_token = await self.exchange_code_for_tokens(
+        code, client_id, client_secret, redirect_uri, provider
+      )
+      if provider in ("google", "microsoft") and not id_token:
+        raise HTTPException(status_code=400, detail="Missing id_token")
+    else:
+      if provider == "discord" and not access_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+      if provider == "microsoft" and (not id_token or not access_token):
+        raise HTTPException(
+          status_code=400, detail="id_token and access_token required"
+        )
+    return id_token, access_token
 
-  if response_type != "code":
-    raise HTTPException(status_code=400, detail="Unsupported response_type")
-  if code_challenge_method != "S256" or not code_challenge:
-    raise HTTPException(status_code=400, detail="PKCE S256 code_challenge is required")
+  def normalize_provider_identifier(self, pid: str) -> str:
+    try:
+      return str(uuid.UUID(pid))
+    except ValueError:
+      return str(uuid.uuid5(uuid.NAMESPACE_URL, pid))
 
-  requested_scopes = [segment for segment in scope.split() if segment]
-  flow_state = _sign_flow_state(
-    request,
-    {
-      "client_id": client_id,
-      "redirect_uri": redirect_uri,
-      "state": state,
-      "scope": " ".join(requested_scopes),
-      "code_challenge": code_challenge,
-      "code_challenge_method": code_challenge_method,
-    },
-  )
-
-  provider_links: dict[str, str] = {}
-  for provider in ("microsoft", "google", "discord"):
-    login_params = urlencode({"provider": provider, "flow": flow_state})
-    provider_links[provider] = f"/oauth/provider-login?{login_params}"
-
-  return HTMLResponse(_render_authorize_page(
-    str(client.get("client_name") or "Client"),
-    requested_scopes,
-    provider_links,
-  ))
-
-
-@router.get("/oauth/provider-login")
-async def get_oauth_provider_login(request: Request, provider: str, flow: str):
-  provider = provider.lower()
-  if provider not in _PROVIDER_AUTHORIZE_URLS:
-    raise HTTPException(status_code=400, detail="Unsupported provider")
-
-  flow_payload = _decode_flow_state(request, flow)
-  hostname = request.app.state.mcp_io_service.hostname
-  callback = _callback_uri(hostname, provider)
-  provider_code_verifier = secrets.token_urlsafe(32)
-  provider_code_challenge = base64.urlsafe_b64encode(
-    hashlib.sha256(provider_code_verifier.encode("utf-8")).digest()
-  ).decode("utf-8").rstrip("=")
-  state_payload = _sign_flow_state(
-    request,
-    {
+  async def set_user_default_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+  ) -> UsersProvidersSetProviderResult1:
+    original = {
       "provider": provider,
-      "flow": flow_payload,
-      "nonce": base64.urlsafe_b64encode(os.urandom(12)).decode("utf-8").rstrip("="),
-      "provider_code_verifier": provider_code_verifier,
-    },
-  )
-
-  params = {
-    "response_type": "code",
-    "client_id": _provider_client_id(request.app.state.mcp_io_service, provider),
-    "redirect_uri": callback,
-    "scope": _PROVIDER_SCOPES[provider],
-    "state": state_payload,
-    "code_challenge": provider_code_challenge,
-    "code_challenge_method": "S256",
-  }
-  if provider == "google":
-    params["access_type"] = "offline"
-    params["prompt"] = "consent"
-
-  return RedirectResponse(f"{_PROVIDER_AUTHORIZE_URLS[provider]}?{urlencode(params)}", status_code=302)
-
-
-# ── /oauth/callback/{provider} ───────────────────────────────────────────
-# After identity provider login completes, we:
-#   1. Exchange provider code for tokens
-#   2. Resolve/create user via OauthModule
-#   3. Look up the MCP client by pub_client_id
-#   4. Link client to user (using internal client_guid)
-#   5. Create an authorization code
-#   6. Redirect back to the MCP client's redirect_uri
-
-@router.get("/oauth/callback/{provider}")
-async def get_oauth_provider_callback(
-  request: Request,
-  provider: str,
-  code: str | None = None,
-  state: str | None = None,
-  error: str | None = None,
-  error_description: str | None = None,
-):
-  provider = provider.lower()
-  if error:
-    detail = error_description or error
-    raise HTTPException(status_code=400, detail=f"Provider authentication failed: {detail}")
-  if not state or not code:
-    raise HTTPException(status_code=400, detail="Missing code or state")
-  callback_state = _decode_flow_state(request, state)
-  if callback_state.get("provider") != provider:
-    raise HTTPException(status_code=400, detail="Provider state mismatch")
-  logging.info("[MCP OAuth] Provider callback received: provider=%s", provider)
-
-  flow = callback_state.get("flow")
-  if not isinstance(flow, dict):
-    raise HTTPException(status_code=400, detail="Authorization flow is invalid")
-
-  gateway = request.app.state.mcp_io_service
-  hostname = gateway.hostname
-  redirect_uri = _callback_uri(hostname, provider)
-  provider_code_verifier = callback_state.get("provider_code_verifier")
-  id_token, access_token = await gateway.oauth.exchange_code_for_tokens(
-    code=code,
-    client_id=_provider_client_id(gateway, provider),
-    client_secret=_provider_secret(gateway, provider),
-    redirect_uri=redirect_uri,
-    provider=provider,
-    code_verifier=provider_code_verifier,
-  )
-  logging.info(
-    "[MCP OAuth] Provider %s token exchange complete for flow client_id=%s",
-    provider,
-    flow.get("client_id"),
-  )
-  provider_uid, profile, payload = await gateway.auth.handle_auth_login(provider, id_token, access_token)
-  logging.info(
-    "[MCP OAuth] Authenticated user: %s via %s",
-    profile.get("email") or profile.get("username"),
-    provider,
-  )
-  provider_uid = gateway.oauth.normalize_provider_identifier(provider_uid)
-  user = await gateway.oauth.resolve_user(provider, provider_uid, profile, payload)
-  logging.info("[MCP OAuth] Resolved user guid=%s", user.get("guid"))
-  user_guid = str(user.get("guid") or "")
-  if not user_guid or not await gateway.check_user_mcp_role(user_guid):
-    raise HTTPException(status_code=403, detail="User is not authorized for MCP access")
-
-  # Look up the MCP client by the external pub_client_id from the flow state
-  client_id = str(flow.get("client_id") or "")
-  client = await gateway.get_client(client_id)
-  if not client:
-    raise HTTPException(status_code=400, detail="Unknown OAuth client")
-
-  # Internal client_guid for FK references (NOT the external pub_client_id)
-  client_guid = str(client.get("client_guid") or "")
-  client_name = str(client.get("client_name") or "Client")
-
-  logging.info(
-    "[MCP OAuth] Resolved user_guid=%s for client '%s'",
-    user_guid, client_name,
-  )
-  if not user_guid:
-    raise HTTPException(status_code=400, detail="User account record is missing")
-
-  # Link using internal GUIDs
-  await gateway.link_client_to_user(client_guid, user_guid)
-  auth_code = await gateway.create_authorization_code(
-    client_guid=client_guid,
-    user_guid=user_guid,
-    code_challenge=str(flow.get("code_challenge") or ""),
-    code_method=str(flow.get("code_challenge_method") or "S256"),
-    redirect_uri=str(flow.get("redirect_uri") or ""),
-    scopes=str(flow.get("scope") or ""),
-  )
-
-  final_redirect_uri = str(flow.get("redirect_uri") or "")
-  final_state = flow.get("state")
-  params = {"code": auth_code}
-  if final_state is not None:
-    params["state"] = final_state
-
-  logging.info(
-    "[MCP OAuth] Authorization code issued for client '%s', redirecting to %s",
-    client_name, final_redirect_uri,
-  )
-
-  return RedirectResponse(f"{final_redirect_uri}?{urlencode(params)}", status_code=302)
-
-
-@router.post("/oauth/token")
-async def post_oauth_token(request: Request):
-  gateway = request.app.state.mcp_io_service
-
-  ip = request.client.host if request.client else "unknown"
-  if not await gateway.check_token_rate(ip):
-    raise HTTPException(status_code=429, detail="Rate limit exceeded")
-
-  content_type = request.headers.get("content-type", "")
-  if "application/x-www-form-urlencoded" in content_type:
-    form = await request.form()
-    body = dict(form)
-  else:
-    body = await request.json()
-
-  grant_type = body.get("grant_type")
-
-  if grant_type == "authorization_code":
-    result = await gateway.exchange_authorization_code(
-      code=body.get("code"),
-      code_verifier=body.get("code_verifier"),
-      client_id=body.get("client_id"),
+      "code": code,
+      "id_token": id_token,
+      "access_token": access_token,
+    }
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
     )
-    return result
-
-  if grant_type == "refresh_token":
-    result = await gateway.refresh_access_token(
-      refresh_token=body.get("refresh_token"),
+    profile = None
+    if id_token or access_token:
+      _, profile, _ = await self.auth.handle_auth_login(
+        provider, id_token, access_token
+      )
+    await self.db.run(
+      set_provider_request(guid=user_guid, provider=provider),
     )
-    return result
+    if profile:
+      raw_email = (profile.get("email") or "").strip()
+      raw_name = (profile.get("username") or "").strip()
+      email = raw_email
+      display_name = raw_name or (raw_email.split("@")[0] if raw_email else "User")
+      params = UpdateIfUneditedParams(
+        guid=user_guid,
+        email=email,
+        display_name=display_name,
+      )
+      await self.db.run(update_if_unedited_request(params))
+    return UsersProvidersSetProviderResult1(**original)
 
-  raise HTTPException(status_code=400, detail="Unsupported grant_type")
+  async def link_user_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+  ) -> UsersProvidersLinkProviderResult1:
+    provider_key = provider.lower()
+    if provider_key == "google" and not code:
+      raise HTTPException(status_code=400, detail="code required")
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
+    )
+    provider_uid, _, _ = await self.auth.handle_auth_login(
+      provider, id_token, access_token
+    )
+    provider_uid = self.normalize_provider_identifier(provider_uid)
+    res = await self.db.run(
+      get_by_provider_identifier_request(
+        provider=provider,
+        provider_identifier=provider_uid,
+      ),
+    )
+    rows = self._normalize_query_payload(res.payload)
+    if rows and rows[0].get("guid") != user_guid:
+      raise HTTPException(status_code=409, detail="Provider already linked")
+    await self.db.run(
+      link_provider_request(
+        guid=user_guid,
+        provider=provider,
+        provider_identifier=provider_uid,
+      ),
+    )
+    return UsersProvidersLinkProviderResult1(provider=provider)
+
+  async def unlink_user_provider(
+    self,
+    user_guid: str,
+    provider: str,
+    *,
+    new_default: str | None = None,
+  ) -> UsersProvidersUnlinkProviderResult1:
+    res_prof = await self.db.run(
+      get_profile_request(GuidParams(guid=user_guid))
+    )
+    default_provider = res_prof.rows[0].get("default_provider") if res_prof.rows else None
+    res = await self.db.run(
+      unlink_provider_request(guid=user_guid, provider=provider),
+    )
+    rows = self._normalize_query_payload(res.payload)
+    remaining = rows[0].get("providers_remaining") if rows else 0
+    if remaining == 0:
+      await self.db.run(
+        unlink_last_provider_request(guid=user_guid, provider=provider),
+      )
+    elif provider == default_provider:
+      if not new_default:
+        raise HTTPException(status_code=400, detail="new_default required")
+      await self.db.run(
+        set_provider_request(guid=user_guid, provider=new_default),
+      )
+      await self.db.run(
+        revoke_provider_tokens_request(
+          RevokeProviderTokensParams(guid=user_guid, provider=provider)
+        )
+      )
+    return UsersProvidersUnlinkProviderResult1(provider=provider)
+
+  async def unlink_last_provider_record(self, guid: str, provider: str) -> None:
+    assert self.db
+    await self.db.run(
+      unlink_last_provider_request(guid=guid, provider=provider),
+    )
+
+  async def get_user_by_provider_identifier(
+    self, provider: str, provider_identifier: str
+  ) -> UsersProvidersGetByProviderIdentifierResult1:
+    res = await self.db.run(
+      get_by_provider_identifier_request(
+        provider=provider,
+        provider_identifier=provider_identifier,
+      ),
+    )
+    rows = self._normalize_query_payload(res.payload)
+    if not rows:
+      return UsersProvidersGetByProviderIdentifierResult1()
+    return UsersProvidersGetByProviderIdentifierResult1(**rows[0])
+
+  async def create_user_from_provider(
+    self,
+    provider: str,
+    provider_identifier: str,
+    provider_email: str,
+    provider_displayname: str,
+    provider_profile_image: str | None = None,
+  ) -> UsersProvidersCreateFromProviderResult1:
+    res = await self.db.run(
+      get_user_by_email_request(email=provider_email),
+    )
+    rows = self._normalize_query_payload(res.payload)
+    if rows:
+      raise HTTPException(status_code=409, detail="Email already registered")
+    res = await self.db.run(
+      create_from_provider_request(
+        provider=provider,
+        provider_identifier=provider_identifier,
+        provider_email=provider_email,
+        provider_displayname=provider_displayname,
+        provider_profile_image=provider_profile_image,
+      ),
+    )
+    rows = self._normalize_query_payload(res.payload)
+    if not rows:
+      return UsersProvidersCreateFromProviderResult1()
+    return UsersProvidersCreateFromProviderResult1(**rows[0])
+
+  async def register_discord_user(self, discord_id: str) -> dict:
+    auth: AuthModule = self.app.state.auth
+    await auth.on_ready()
+    guid, _, _ = await auth.get_discord_user_security(discord_id)
+    if guid:
+      return {
+        "success": True,
+        "message": "You are already registered.",
+        "user_guid": guid,
+        "credits": None,
+      }
+    return {
+      "success": False,
+      "message": "Registration is disabled.",
+      "user_guid": guid,
+      "credits": None,
+    }
+
+  async def exchange_code_for_tokens(
+    self,
+    code: str,
+    client_id: str,
+    client_secret: str,
+    redirect_uri: str,
+    provider: str = "google",
+    code_verifier: str | None = None,
+  ) -> tuple[str | None, str]:
+    """Exchange an authorization code for tokens.
+
+    Args:
+      code: Authorization code from the provider.
+      client_id: OAuth client ID.
+      client_secret: OAuth client secret.
+      redirect_uri: Redirect URI registered with the provider.
+      provider: Provider identifier from the ``auth_providers`` table
+        (e.g., ``"discord"`` or its numeric ID) used to select the token
+        endpoint.
+
+    Returns:
+      A tuple of ``(id_token, access_token)``. ``id_token`` may be ``None``
+      for providers that do not issue one.
+    """
+    token_endpoint = self.TOKEN_ENDPOINTS.get(provider)
+    if not token_endpoint:
+      raise HTTPException(status_code=400, detail="Unsupported auth provider")
+    data = {
+      "code": code,
+      "client_id": client_id,
+      "client_secret": client_secret,
+      "redirect_uri": redirect_uri,
+      "grant_type": "authorization_code",
+    }
+    if code_verifier:
+      data["code_verifier"] = code_verifier
+    logging.debug(
+      "[exchange_code_for_tokens] data=%s",
+      {k: v for k, v in data.items() if k != "client_secret"},
+    )
+    logging.debug("[exchange_code_for_tokens] exchanging code for tokens")
+    async with aiohttp.ClientSession() as session:
+      async with session.post(token_endpoint, data=data) as resp:
+        if resp.status != 200:
+          error = await resp.text()
+          logging.error(
+            "[exchange_code_for_tokens] failed status=%s error=%s", resp.status, error,
+          )
+          raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+        token_data = await resp.json()
+    id_token = token_data.get("id_token")
+    access_token = token_data.get("access_token")
+    if not access_token:
+      logging.error("[exchange_code_for_tokens] missing access token in response")
+      raise HTTPException(status_code=400, detail="Invalid token response")
+    if not id_token:
+      logging.warning("[exchange_code_for_tokens] id_token missing in response")
+    return id_token, access_token
+
+  def extract_identifiers(
+    self,
+    provider_uid: str | None,
+    payload: dict,
+    provider: str = "google",
+  ) -> list[str]:
+    identifiers = []
+    if provider_uid:
+      identifiers.append(provider_uid)
+    oid = payload.get("oid")
+    sub = payload.get("sub")
+    if oid and oid not in identifiers:
+      identifiers.append(oid)
+    if sub and sub not in identifiers:
+      identifiers.append(sub)
+    base_id = None
+    for candidate in (oid, sub, provider_uid):
+      if not candidate:
+        continue
+      try:
+        base_id = str(uuid.UUID(candidate))
+        break
+      except ValueError:
+        continue
+    if base_id:
+      home_account_id = base64.urlsafe_b64encode(
+        b"\x00" * 16 + uuid.UUID(base_id).bytes
+      ).decode("utf-8").rstrip("=")
+      if home_account_id not in identifiers:
+        identifiers.append(home_account_id)
+      logging.debug(
+        f"[extract_identifiers] home_account_id={home_account_id[:40]}",
+      )
+    else:
+      bad = oid or sub or provider_uid
+      if bad and provider == "microsoft":
+        try:
+          uuid.UUID(bad)
+        except Exception as e:
+          logging.exception(
+            f"[extract_identifiers] home_account_id generation failed for {bad}: {e}",
+          )
+    return identifiers
+
+  async def lookup_user(self, provider: str, identifiers: list[str]):
+    def _norm(pid: str) -> str | None:
+      try:
+        return str(uuid.UUID(pid))
+      except ValueError:
+        try:
+          pad = pid + "=" * (-len(pid) % 4)
+          raw = base64.urlsafe_b64decode(pad)
+          if len(raw) >= 16:
+            return str(uuid.UUID(bytes=raw[-16:]))
+        except Exception:
+          return None
+      return None
+
+    checked = set()
+    for pid in identifiers:
+      uid = _norm(pid)
+      if not uid or uid in checked:
+        continue
+      checked.add(uid)
+      logging.debug(f"[lookup_user] checking identifier={pid[:40]}")
+      res = await self.db.run(
+        get_by_provider_identifier_request(
+          provider=provider,
+          provider_identifier=uid,
+        ),
+      )
+      rows = self._normalize_query_payload(res.payload)
+      if rows:
+        logging.debug(f"[lookup_user] user found with identifier={pid[:40]}")
+        return rows[0]
+    return None
+
+  async def create_session(
+    self,
+    user_guid: str,
+    provider: str,
+    fingerprint: str,
+    user_agent: str | None,
+    ip_address: str | None,
+  ):
+    rotation_token, rot_exp = self.auth.make_rotation_token(user_guid)
+    logging.debug(f"[create_session] rotation_token={rotation_token[:40]}")
+    now = datetime.now(timezone.utc)
+    roles, _ = await self.auth.get_user_roles(user_guid)
+    session_exp = now + timedelta(minutes=DEFAULT_SESSION_TOKEN_EXPIRY)
+    placeholder = uuid.uuid4().hex
+    res = await self.db.run(
+      create_session_request(
+        CreateSessionParams(
+          access_token=placeholder,
+          expires=session_exp,
+          fingerprint=fingerprint,
+          rotkey=rotation_token,
+          rotkey_iat=now,
+          rotkey_exp=rot_exp,
+          user_guid=user_guid,
+          provider=provider,
+          user_agent=user_agent,
+          ip_address=ip_address,
+        ),
+      ),
+    )
+    row = res.rows[0] if res.rows else {}
+    session_guid = row.get("session_guid")
+    device_guid = row.get("device_guid")
+    session_token, _ = self.auth.make_session_token(
+      user_guid, rotation_token, session_guid, device_guid, roles, exp=session_exp,
+    )
+    await self.db.run(
+      update_device_token_request(
+        UpdateDeviceTokenParams(device_guid=device_guid, access_token=session_token),
+      ),
+    )
+    logging.debug(f"[create_session] session_token={session_token[:40]}")
+    return session_token, session_exp, rotation_token, rot_exp
+
+  async def resolve_user(
+    self,
+    provider: str,
+    provider_uid: str,
+    profile: dict,
+    payload: dict,
+    confirm: bool | None = None,
+    reauth_token: str | None = None,
+  ):
+    identifiers = self.extract_identifiers(provider_uid, payload, provider)
+    user = await self.lookup_user(provider, identifiers)
+    needs_relink = False
+    if user and user.get("element_soft_deleted_at"):
+      needs_relink = True
+    elif not user:
+      await self.db.run(
+        get_any_by_provider_identifier_request(
+          provider_identifier=provider_uid,
+        ),
+      )
+      needs_relink = True
+
+    if needs_relink:
+      request = relink_provider_request(
+        provider=provider,
+        provider_identifier=provider_uid,
+        email=profile["email"],
+        display_name=profile["username"],
+        profile_image=profile.get("profilePicture"),
+        confirm=confirm,
+        reauth_token=reauth_token,
+      )
+      res = await self.db.run(request)
+      rows = self._normalize_query_payload(res.payload)
+      user = rows[0] if rows else None
+
+    if not user:
+      res = await self.db.run(
+        create_from_provider_request(
+          provider=provider,
+          provider_identifier=provider_uid,
+          provider_email=profile["email"],
+          provider_displayname=profile["username"],
+          provider_profile_image=profile.get("profilePicture"),
+        ),
+      )
+      rows = self._normalize_query_payload(res.payload)
+      user = rows[0] if rows else None
+      if not user:
+        res = await self.db.run(
+          get_by_provider_identifier_request(
+            provider=provider,
+            provider_identifier=provider_uid,
+          ),
+        )
+        rows = self._normalize_query_payload(res.payload)
+        user = rows[0] if rows else None
+      if not user:
+        logging.debug("[resolve_user] failed to create user")
+        raise HTTPException(status_code=500, detail="Unable to create user")
+
+    return user
+
+  async def login_provider(
+    self,
+    provider: str,
+    *,
+    fingerprint: str | None,
+    code: str | None = None,
+    id_token: str | None = None,
+    access_token: str | None = None,
+    confirm: bool | None = None,
+    reauth_token: str | None = None,
+    user_agent: str | None = None,
+    ip_address: str | None = None,
+  ):
+    provider = provider.lower()
+    if not fingerprint:
+      raise HTTPException(status_code=400, detail="Missing fingerprint")
+    id_token, access_token = await self._prepare_tokens(
+      provider, code, id_token, access_token
+    )
+    provider_uid, profile, payload = await self.auth.handle_auth_login(
+      provider, id_token, access_token
+    )
+    provider_uid = self.normalize_provider_identifier(provider_uid)
+    user = await self.resolve_user(
+      provider,
+      provider_uid,
+      profile,
+      payload,
+      confirm=confirm,
+      reauth_token=reauth_token,
+    )
+    user_guid = user["guid"]
+    new_img = profile.get("profilePicture")
+    if new_img and new_img != user.get("profile_image"):
+      await self.db.run(
+        update_profile_request(
+          UpdateProfileParams(
+            guid=user_guid,
+            provider=provider,
+            image_b64=new_img,
+          ),
+        )
+      )
+      user["profile_image"] = new_img
+    if user.get("provider_name") == provider:
+      params = UpdateIfUneditedParams(
+        guid=user_guid,
+        email=profile["email"],
+        display_name=profile["username"],
+      )
+      res_prof = await self.db.run(update_if_unedited_request(params))
+      rows = self._normalize_query_payload(res_prof.payload)
+      if rows:
+        updated = rows[0]
+        if updated.get("display_name"):
+          user["display_name"] = updated["display_name"]
+        if updated.get("email"):
+          user["email"] = updated["email"]
+    session_token, session_exp, rotation_token, rot_exp = await self.create_session(
+      user_guid, provider, fingerprint, user_agent, ip_address
+    )
+    return {
+      "session_token": session_token,
+      "session_exp": session_exp,
+      "rotation_token": rotation_token,
+      "rotation_exp": rot_exp,
+      "user": user,
+      "profile": profile,
+    }

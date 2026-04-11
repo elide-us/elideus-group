@@ -221,6 +221,11 @@ def _render_authorize_page(client_name: str, requested_scopes: list[str], provid
 """
 
 
+# ── /oauth/authorize ─────────────────────────────────────────────────────
+# Client lookup returns new-table column names:
+#   client_guid, client_id, client_name, redirect_uris,
+#   grant_types, response_types, scopes, is_dcr, is_active, revoked_at
+
 @router.get("/oauth/authorize", response_class=HTMLResponse)
 async def get_oauth_authorize(
   request: Request,
@@ -234,10 +239,10 @@ async def get_oauth_authorize(
 ):
   gateway = request.app.state.mcp_io_service
   client = await gateway.get_client(client_id)
-  if not client or not client.get("element_is_active"):
+  if not client or not client.get("is_active"):
     raise HTTPException(status_code=400, detail="Unknown or inactive client")
 
-  registered_uris = _parse_redirect_uris(client.get("element_redirect_uris"))
+  registered_uris = _parse_redirect_uris(client.get("redirect_uris"))
   if redirect_uri not in registered_uris:
     raise HTTPException(status_code=400, detail="redirect_uri is not registered for this client")
 
@@ -264,7 +269,11 @@ async def get_oauth_authorize(
     login_params = urlencode({"provider": provider, "flow": flow_state})
     provider_links[provider] = f"/oauth/provider-login?{login_params}"
 
-  return HTMLResponse(_render_authorize_page(str(client.get("element_client_name") or "Client"), requested_scopes, provider_links))
+  return HTMLResponse(_render_authorize_page(
+    str(client.get("client_name") or "Client"),
+    requested_scopes,
+    provider_links,
+  ))
 
 
 @router.get("/oauth/provider-login")
@@ -305,6 +314,15 @@ async def get_oauth_provider_login(request: Request, provider: str, flow: str):
 
   return RedirectResponse(f"{_PROVIDER_AUTHORIZE_URLS[provider]}?{urlencode(params)}", status_code=302)
 
+
+# ── /oauth/callback/{provider} ───────────────────────────────────────────
+# After identity provider login completes, we:
+#   1. Exchange provider code for tokens
+#   2. Resolve/create user via OauthModule
+#   3. Look up the MCP client by pub_client_id
+#   4. Link client to user (using internal client_guid)
+#   5. Create an authorization code
+#   6. Redirect back to the MCP client's redirect_uri
 
 @router.get("/oauth/callback/{provider}")
 async def get_oauth_provider_callback(
@@ -355,28 +373,33 @@ async def get_oauth_provider_callback(
   )
   provider_uid = gateway.oauth.normalize_provider_identifier(provider_uid)
   user = await gateway.oauth.resolve_user(provider, provider_uid, profile, payload)
-  logging.info("[MCP OAuth] Resolved user guid=%s, recid=%s", user.get("guid"), user.get("recid"))
+  logging.info("[MCP OAuth] Resolved user guid=%s", user.get("guid"))
   user_guid = str(user.get("guid") or "")
   if not user_guid or not await gateway.check_user_mcp_role(user_guid):
     raise HTTPException(status_code=403, detail="User is not authorized for MCP access")
 
+  # Look up the MCP client by the external pub_client_id from the flow state
   client_id = str(flow.get("client_id") or "")
   client = await gateway.get_client(client_id)
   if not client:
     raise HTTPException(status_code=400, detail="Unknown OAuth client")
 
+  # Internal client_guid for FK references (NOT the external pub_client_id)
+  client_guid = str(client.get("client_guid") or "")
+  client_name = str(client.get("client_name") or "Client")
+
   logging.info(
-    "[MCP OAuth] Resolved users_guid=%s for client '%s'",
-    user_guid,
-    client.get("element_client_name"),
+    "[MCP OAuth] Resolved user_guid=%s for client '%s'",
+    user_guid, client_name,
   )
   if not user_guid:
     raise HTTPException(status_code=400, detail="User account record is missing")
 
-  await gateway.link_client_to_user(client_id, user_guid)
+  # Link using internal GUIDs
+  await gateway.link_client_to_user(client_guid, user_guid)
   auth_code = await gateway.create_authorization_code(
-    agents_recid=int(client["recid"]),
-    users_guid=user_guid,
+    client_guid=client_guid,
+    user_guid=user_guid,
     code_challenge=str(flow.get("code_challenge") or ""),
     code_method=str(flow.get("code_challenge_method") or "S256"),
     redirect_uri=str(flow.get("redirect_uri") or ""),
@@ -391,8 +414,7 @@ async def get_oauth_provider_callback(
 
   logging.info(
     "[MCP OAuth] Authorization code issued for client '%s', redirecting to %s",
-    client.get("element_client_name"),
-    final_redirect_uri,
+    client_name, final_redirect_uri,
   )
 
   return RedirectResponse(f"{final_redirect_uri}?{urlencode(params)}", status_code=302)
