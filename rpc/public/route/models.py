@@ -26,4 +26,16 @@ class LoadPathResult1(BaseModel):
   componentData: dict[str, Any]
 
 
+class ObjectTreeCategory1(BaseModel):
+  guid: str
+  name: str
+  display: str | None = None
+  icon: str | None = None
+  sequence: int
+
+
+class ObjectTreeCategoryList1(BaseModel):
+  elements: list[ObjectTreeCategory1]
+
+
 PathNode1.model_rebuild()

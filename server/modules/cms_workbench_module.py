@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -194,3 +195,125 @@ class CmsWorkbenchModule(BaseModule):
       )
 
     return filtered
+
+  @staticmethod
+  def _quote_ident(identifier: str) -> str:
+    return "[" + identifier.replace("]", "]]") + "]"
+
+  async def read_object_tree_categories(self) -> list[dict[str, Any]]:
+    from queryregistry.providers.mssql import run_rows_many
+
+    result = await run_rows_many(
+      """
+      SELECT
+        sev.key_guid AS guid,
+        sev.pub_name AS name,
+        sev.pub_display AS display,
+        sev.pub_icon AS icon,
+        sev.pub_sequence AS sequence
+      FROM service_enum_values sev
+      WHERE sev.ref_category_guid = ?
+      ORDER BY sev.pub_sequence;
+      """,
+      ("9E735725-2EFF-5978-B92F-73A6CB36DF7F",),
+    )
+    return [dict(row) for row in result.rows]
+
+  async def read_object_tree_children(
+    self,
+    category_guid: str,
+    table_guid: str | None = None,
+  ) -> list[dict[str, Any]]:
+    from queryregistry.providers.mssql import run_rows_many
+
+    if table_guid:
+      result = await run_rows_many(
+        """
+        SELECT
+          c.key_guid AS guid,
+          c.pub_name AS name,
+          c.pub_ordinal AS ordinal,
+          c.pub_is_primary_key AS isPrimaryKey,
+          c.pub_is_nullable AS isNullable,
+          t.pub_name AS typeName,
+          c.pub_max_length AS maxLength
+        FROM system_objects_database_columns c
+        LEFT JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
+        WHERE c.ref_table_guid = ?
+        ORDER BY c.pub_ordinal;
+        """,
+        (table_guid,),
+      )
+      return [dict(row) for row in result.rows]
+
+    result = await run_rows_many(
+      """
+      SELECT
+        t.key_guid AS guid,
+        t.pub_name AS name,
+        t.pub_schema AS schema,
+        m.pub_is_root_table AS isRoot,
+        m.pub_sequence AS sequence
+      FROM system_objects_tree_category_tables m
+      JOIN system_objects_database_tables t ON m.ref_table_guid = t.key_guid
+      WHERE m.ref_category_guid = ?
+      ORDER BY m.pub_sequence;
+      """,
+      (category_guid,),
+    )
+    return [dict(row) for row in result.rows]
+
+  async def read_object_tree_detail(self, table_guid: str, max_rows: int = 100) -> dict[str, Any]:
+    from queryregistry.providers.mssql import run_rows_many, run_rows_one
+
+    bounded_max_rows = max(1, min(int(max_rows or 100), 1000))
+
+    resolved = await run_rows_one(
+      """
+      SELECT TOP 1 pub_name, pub_schema
+      FROM system_objects_database_tables
+      WHERE key_guid = ?;
+      """,
+      (table_guid,),
+    )
+    row = dict(resolved.rows[0]) if resolved.rows else None
+    if not row:
+      raise HTTPException(status_code=404, detail="Object tree table not found")
+
+    table_name = str(row.get("pub_name") or "")
+    schema_name = str(row.get("pub_schema") or "")
+    if not table_name or not schema_name:
+      raise HTTPException(status_code=400, detail="Object tree table metadata incomplete")
+
+    safe_schema = self._quote_ident(schema_name)
+    safe_table = self._quote_ident(table_name)
+    payload_result = await run_rows_many(
+      f"""
+      SELECT
+        (
+          SELECT TOP (?) *
+          FROM {safe_schema}.{safe_table}
+          FOR JSON PATH
+        ) AS rows_json,
+        (
+          SELECT COUNT(1)
+          FROM {safe_schema}.{safe_table}
+        ) AS row_count;
+      """,
+      (bounded_max_rows,),
+    )
+    payload_row = dict(payload_result.rows[0]) if payload_result.rows else {}
+    rows_json = payload_row.get("rows_json")
+
+    rows: list[dict[str, Any]] = []
+    if isinstance(rows_json, str) and rows_json.strip():
+      parsed = json.loads(rows_json)
+      if isinstance(parsed, list):
+        rows = parsed
+
+    return {
+      "tableName": table_name,
+      "schema": schema_name,
+      "rowCount": int(payload_row.get("row_count") or 0),
+      "rows": rows,
+    }
