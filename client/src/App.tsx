@@ -7,6 +7,7 @@ import { loadPath } from './api/rpc';
 import { WorkbenchRenderer } from './engine/WorkbenchRenderer';
 import type { PathNode } from './engine/types';
 import { ElideusTheme } from './theme';
+import { UserContextProvider } from './shared/UserContextProvider';
 
 function App(): JSX.Element {
 	const [pathData, setPathData] = useState<PathNode | null>(null);
@@ -37,10 +38,12 @@ function App(): JSX.Element {
 	}
 
 	return (
-		<ThemeProvider theme={ElideusTheme}>
-			<CssBaseline />
-			<WorkbenchRenderer pathData={pathData} componentData={componentData} />
-		</ThemeProvider>
+		<UserContextProvider>
+			<ThemeProvider theme={ElideusTheme}>
+				<CssBaseline />
+				<WorkbenchRenderer pathData={pathData} componentData={componentData} />
+			</ThemeProvider>
+		</UserContextProvider>
 	);
 }
 
