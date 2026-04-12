@@ -67,9 +67,30 @@ async def fetch_json(query: str, params: tuple[Any, ...] = (), *, many: bool = F
           parts.append(row[0])
         if not parts:
           return DBResponse()
-        data = json.loads("".join(parts))
+        raw = "".join(parts)
+        try:
+          data = json.loads(raw)
+        except json.JSONDecodeError:
+          # WITHOUT_ARRAY_WRAPPER with multiple rows produces concatenated
+          # JSON objects: {"a":1}{"a":2}. Wrap in array brackets to parse.
+          try:
+            # Insert commas between adjacent }{ boundaries
+            import re
+            wrapped = "[" + re.sub(r'\}\s*\{', '},{', raw) + "]"
+            data = json.loads(wrapped)
+            logging.warning(
+              "fetch_json recovered concatenated JSON objects (%d items). "
+              "Consider adding TOP 1 to the query or removing WITHOUT_ARRAY_WRAPPER.",
+              len(data) if isinstance(data, list) else 1,
+            )
+          except json.JSONDecodeError:
+            logging.error(f"[JSONDecodeError] fetch_json — unparseable JSON:\n{raw[:500]}")
+            raise
         if many and isinstance(data, list):
           return DBResponse(rows=data, rowcount=len(data))
+        if isinstance(data, list):
+          # many=False but got a list (recovered from concatenation) — return first
+          return DBResponse(rows=[data[0]] if data else [], rowcount=1)
         return DBResponse(rows=[data], rowcount=1)
   except Exception as e:
     logging.error(f"Query failed:\n{query}\nArgs: {params}\nError: {e}")
