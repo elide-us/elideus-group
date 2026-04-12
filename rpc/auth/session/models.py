@@ -20,7 +20,7 @@ class AuthSessionRefreshTokenRequest1(BaseModel):
 
 
 class AuthSessionGetTokenResponse1(BaseModel):
-  token: str
+  sessionToken: str
   profile: dict[str, Any]
 
 
