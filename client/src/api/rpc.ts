@@ -35,6 +35,39 @@ export interface ReadNavigationResult {
 	elements: NavigationRouteElement[];
 }
 
+export interface ObjectTreeCategory {
+	guid: string;
+	name: string;
+	display: string;
+	icon: string | null;
+	sequence: number;
+}
+
+export interface ObjectTreeTable {
+	guid: string;
+	name: string;
+	schema: string;
+	isRoot: boolean;
+	sequence: number;
+}
+
+export interface ObjectTreeColumn {
+	guid: string;
+	name: string;
+	ordinal: number;
+	isPrimaryKey: boolean;
+	isNullable: boolean;
+	typeName: string | null;
+	maxLength: number | null;
+}
+
+export interface ObjectTreeDetail {
+	tableName: string;
+	schema: string;
+	rowCount: number;
+	rows: Record<string, unknown>[];
+}
+
 export interface GetTokenPayload {
 	provider: string;
 	idToken?: string | null;
@@ -161,6 +194,27 @@ export async function loadPath(path: string): Promise<LoadPathResult> {
 
 export async function readNavigation(): Promise<ReadNavigationResult> {
 	return rpcCall<ReadNavigationResult>('urn:public:route:read_navigation:1');
+}
+
+export async function readObjectTreeCategories(): Promise<ObjectTreeCategory[]> {
+	return rpcCall<ObjectTreeCategory[]>('urn:public:route:read_object_tree_categories:1');
+}
+
+export async function readObjectTreeChildren(
+	categoryGuid: string,
+	tableGuid?: string,
+): Promise<ObjectTreeTable[] | ObjectTreeColumn[]> {
+	return rpcCall<ObjectTreeTable[] | ObjectTreeColumn[]>(
+		'urn:service:objects:read_object_tree_children:1',
+		{ categoryGuid, tableGuid },
+	);
+}
+
+export async function readObjectTreeDetail(
+	tableGuid: string,
+	maxRows?: number,
+): Promise<ObjectTreeDetail> {
+	return rpcCall<ObjectTreeDetail>('urn:service:objects:read_object_tree_detail:1', { tableGuid, maxRows });
 }
 
 export async function getToken(payload: GetTokenPayload): Promise<GetTokenResult> {
