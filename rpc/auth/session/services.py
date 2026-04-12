@@ -15,6 +15,7 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+  from server.modules.oauth_module import OauthModule
   from server.modules.session_module import SessionModule
 
 
@@ -22,30 +23,43 @@ async def auth_session_get_token_v1(request: Request):
   rpc_request, _, _ = await unbox_request(request)
   payload = AuthSessionGetTokenRequest1(**(rpc_request.payload or {}))
 
-  module: 'SessionModule' = request.app.state.session
+  module: 'OauthModule' = request.app.state.oauth
   await module.on_ready()
 
-  session_token, rotation_token, rot_exp, profile = await module.issue_token(
+  id_token = payload.idToken or payload.id_token
+  access_token = payload.accessToken or payload.access_token
+
+  result = await module.login_provider(
     payload.provider,
-    payload.id_token,
-    payload.access_token,
-    payload.fingerprint,
-    request.headers.get("user-agent"),
-    request.client.host if request.client else None,
-    payload.confirm,
-    payload.reAuthToken,
+    id_token=id_token,
+    access_token=access_token,
+    code=payload.code,
+    fingerprint=payload.fingerprint,
+    confirm=payload.confirm,
+    reauth_token=payload.reAuthToken,
+    user_agent=request.headers.get("user-agent"),
+    ip_address=request.client.host if request.client else None,
   )
 
-  response_payload = AuthSessionGetTokenResponse1(token=session_token, profile=profile)
+  user = result["user"]
+  response_payload = AuthSessionGetTokenResponse1(
+    token=result["session_token"],
+    profile={
+      "display_name": user.get("display_name"),
+      "email": user.get("email"),
+      "credits": user.get("credits"),
+      "profile_image": user.get("profile_image"),
+    },
+  )
   rpc_resp = RPCResponse(op=rpc_request.op, payload=response_payload.model_dump(), version=rpc_request.version)
   response = JSONResponse(content=jsonable_encoder(rpc_resp))
   response.set_cookie(
     "rotation_token",
-    rotation_token,
+    result["rotation_token"],
     httponly=True,
     secure=is_secure_request(request),
     samesite="lax",
-    expires=rot_exp,
+    expires=result["rotation_exp"],
   )
   return response
 
