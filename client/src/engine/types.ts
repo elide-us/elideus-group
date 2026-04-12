@@ -14,4 +14,5 @@ export interface CmsComponentProps {
 	node: PathNode;
 	data: Record<string, unknown>;
 	children?: ReactNode;
+	enrichData?: (data: Record<string, unknown>) => Record<string, unknown>;
 }
