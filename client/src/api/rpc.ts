@@ -23,6 +23,18 @@ interface LoadPathResult {
 	componentData: Record<string, unknown>;
 }
 
+export interface NavigationRouteElement {
+	path: string;
+	title: string;
+	icon: string | null;
+	sequence: number;
+	parentRouteGuid: string | null;
+}
+
+export interface ReadNavigationResult {
+	elements: NavigationRouteElement[];
+}
+
 export interface GetTokenPayload {
 	provider: string;
 	idToken?: string | null;
@@ -145,6 +157,10 @@ export async function rpcCall<T>(op: string, payload: unknown = {}): Promise<T> 
 
 export async function loadPath(path: string): Promise<LoadPathResult> {
 	return rpcCall<LoadPathResult>('urn:public:route:load_path:1', { path });
+}
+
+export async function readNavigation(): Promise<ReadNavigationResult> {
+	return rpcCall<ReadNavigationResult>('urn:public:route:read_navigation:1');
 }
 
 export async function getToken(payload: GetTokenPayload): Promise<GetTokenResult> {

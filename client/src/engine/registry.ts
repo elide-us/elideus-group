@@ -1,11 +1,13 @@
 import type { ComponentType } from 'react';
 
+import { DevModeToggle } from '../components/DevModeToggle';
 import { ContentPanel } from '../components/ContentPanel';
 import { HamburgerToggle } from '../components/HamburgerToggle';
 import { ImageElement } from '../components/ImageElement';
 import { LabelElement } from '../components/LabelElement';
 import { LoginControl } from '../components/LoginControl';
 import { LinkButton } from '../components/LinkButton';
+import { NavigationTreeView } from '../components/NavigationTreeView';
 import { NavigationSidebar } from '../components/NavigationSidebar';
 import { SidebarContent } from '../components/SidebarContent';
 import { SidebarFooter } from '../components/SidebarFooter';
@@ -23,7 +25,9 @@ export const COMPONENT_REGISTRY: Record<string, ComponentType<CmsComponentProps>
 	SidebarHeader,
 	SidebarContent,
 	SidebarFooter,
+	DevModeToggle,
 	HamburgerToggle,
+	NavigationTreeView,
 	ContentPanel,
 	SimplePage,
 	ImageElement,

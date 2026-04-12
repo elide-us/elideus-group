@@ -24,3 +24,18 @@ async def public_route_load_path_v1(request: Request):
     payload=result.model_dump(),
     version=rpc_request.version,
   )
+
+
+async def public_route_read_navigation_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+
+  user_roles = auth_ctx.roles if auth_ctx.user_guid else []
+  result = await module.read_navigation(user_roles)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload={"elements": result},
+    version=rpc_request.version,
+  )
