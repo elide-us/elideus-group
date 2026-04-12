@@ -1,4 +1,4 @@
-"""OAuth endpoints for MCP dynamic client registration and authorization flows."""
+###  """OAuth endpoints for MCP dynamic client registration and authorization flows."""
 
 from __future__ import annotations
 
