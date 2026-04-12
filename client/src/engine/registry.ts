@@ -8,6 +8,7 @@ import { LabelElement } from '../components/LabelElement';
 import { LoginControl } from '../components/LoginControl';
 import { LinkButton } from '../components/LinkButton';
 import { NavigationTreeView } from '../components/NavigationTreeView';
+import { ObjectEditor } from '../components/ObjectEditor';
 import { NavigationSidebar } from '../components/NavigationSidebar';
 import { SidebarContent } from '../components/SidebarContent';
 import { SidebarFooter } from '../components/SidebarFooter';
@@ -30,6 +31,7 @@ export const COMPONENT_REGISTRY: Record<string, ComponentType<CmsComponentProps>
 	NavigationTreeView,
 	ContentPanel,
 	SimplePage,
+	ObjectEditor,
 	ImageElement,
 	LinkButton,
 	LabelElement,
