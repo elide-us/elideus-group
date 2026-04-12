@@ -2,7 +2,11 @@ import { Container } from '@mui/material';
 
 import type { CmsComponentProps } from '../engine/types';
 
-export function SimplePage({ children }: CmsComponentProps): JSX.Element {
+export function SimplePage({ data, children }: CmsComponentProps): JSX.Element | null {
+	if (data.__devMode === true) {
+		return null;
+	}
+
 	return (
 		<Container
 			maxWidth="md"
