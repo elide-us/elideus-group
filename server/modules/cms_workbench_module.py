@@ -20,10 +20,27 @@ class CmsWorkbenchModule(BaseModule):
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
+    self._role_guid_to_name: dict[str, str] = {}
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
+
+    from queryregistry.providers.mssql import run_rows_many
+
+    role_result = await run_rows_many(
+      """
+      SELECT key_guid, pub_name
+      FROM system_auth_roles;
+      """,
+      (),
+    )
+    self._role_guid_to_name = {
+      str(row.get("key_guid") or "").upper(): str(row.get("pub_name") or "")
+      for row in role_result.rows
+      if row.get("key_guid")
+    }
+
     self.mark_ready()
 
   async def shutdown(self):
@@ -128,3 +145,52 @@ class CmsWorkbenchModule(BaseModule):
         pass
 
     return LoadPathResult1(pathData=shell_nodes[shell_root_guid], componentData=component_data)
+
+  async def read_navigation(self, user_role_names: list[str] | None = None) -> list[dict[str, Any]]:
+    """Return active routes filtered by user roles."""
+    assert self.db
+
+    from queryregistry.providers.mssql import run_rows_many
+
+    result = await run_rows_many(
+      """
+      SELECT
+        r.pub_path AS path,
+        r.pub_title AS title,
+        r.pub_icon AS icon,
+        r.pub_sequence AS sequence,
+        r.ref_parent_route_guid AS parent_route_guid,
+        r.ref_required_role_guid AS required_role_guid
+      FROM system_objects_routes r
+      WHERE r.pub_is_active = 1
+      ORDER BY r.pub_sequence;
+      """,
+      (),
+    )
+    rows = [dict(row) for row in result.rows]
+
+    role_names_upper = {
+      str(name).upper()
+      for name in (user_role_names or [])
+      if isinstance(name, str) and name.strip()
+    }
+    filtered: list[dict[str, Any]] = []
+
+    for row in rows:
+      required_guid = row.get("required_role_guid")
+      if required_guid:
+        role_name = self._role_guid_to_name.get(str(required_guid).upper())
+        if not role_name or role_name.upper() not in role_names_upper:
+          continue
+
+      filtered.append(
+        {
+          "path": str(row.get("path") or ""),
+          "title": str(row.get("title") or ""),
+          "icon": row.get("icon"),
+          "sequence": int(row.get("sequence") or 0),
+          "parentRouteGuid": row.get("parent_route_guid"),
+        }
+      )
+
+    return filtered

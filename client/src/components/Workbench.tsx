@@ -6,6 +6,7 @@ import { useUserContext } from '../shared/UserContextProvider';
 
 export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Element {
 	const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+	const [devMode, setDevMode] = useState<boolean>(false);
 	const { user, sessionToken, isLoading, login, logout } = useUserContext();
 
 	const dataEnricher = useCallback(
@@ -13,13 +14,15 @@ export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Elem
 			...baseData,
 			__sidebarOpen: sidebarOpen,
 			__toggleSidebar: (): void => setSidebarOpen((prev) => !prev),
+			__devMode: devMode,
+			__toggleDevMode: (): void => setDevMode((prev) => !prev),
 			__user: user,
 			__sessionToken: sessionToken,
 			__isAuthLoading: isLoading,
 			__login: login,
 			__logout: logout,
 		}),
-		[sidebarOpen, user, sessionToken, isLoading, login, logout],
+		[sidebarOpen, devMode, user, sessionToken, isLoading, login, logout],
 	);
 
 	useEffect(() => {
