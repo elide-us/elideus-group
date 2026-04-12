@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 
 import { COMPONENT_REGISTRY } from './registry';
-import type { PathNode } from './types';
+import type { CmsComponentProps, PathNode } from './types';
 
 interface WorkbenchRendererProps {
 	pathData: PathNode;
 	componentData: Record<string, unknown>;
 }
 
+type DataEnricher = (data: Record<string, unknown>) => Record<string, unknown>;
+
 function RenderNode({ node, data }: { node: PathNode; data: Record<string, unknown> }): JSX.Element {
 	const Component = COMPONENT_REGISTRY[node.component];
+	const [registeredEnricher, setRegisteredEnricher] = useState<DataEnricher | null>(null);
 
 	if (!Component) {
 		return (
@@ -21,13 +25,18 @@ function RenderNode({ node, data }: { node: PathNode; data: Record<string, unkno
 		);
 	}
 
+	const childData = registeredEnricher ? registeredEnricher(data) : data;
 	const sortedChildren = [...node.children].sort((a, b) => a.sequence - b.sequence);
 	const renderedChildren = sortedChildren.map((child) => (
-		<RenderNode key={child.guid} node={child} data={data} />
+		<RenderNode key={child.guid} node={child} data={childData} />
 	));
 
 	return (
-		<Component node={node} data={data}>
+		<Component
+			node={node}
+			data={data}
+			enrichData={setRegisteredEnricher as unknown as CmsComponentProps['enrichData']}
+		>
 			{renderedChildren}
 		</Component>
 	);
