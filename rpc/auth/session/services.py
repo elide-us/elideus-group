@@ -43,7 +43,7 @@ async def auth_session_get_token_v1(request: Request):
 
   user = result["user"]
   response_payload = AuthSessionGetTokenResponse1(
-    token=result["session_token"],
+    sessionToken=result["session_token"],
     profile={
       "display_name": user.get("display_name"),
       "email": user.get("email"),
