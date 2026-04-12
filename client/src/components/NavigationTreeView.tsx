@@ -44,8 +44,9 @@ const getUserRoleKey = (user: unknown): string => {
 	return normalized.join('|');
 };
 
-export function NavigationTreeView({ data }: CmsComponentProps): JSX.Element {
+export function NavigationTreeView({ data }: CmsComponentProps): JSX.Element | null {
 	const isOpen = data.__sidebarOpen === true;
+	const isDevMode = data.__devMode === true;
 	const userRoleKey = useMemo(() => getUserRoleKey(data.__user), [data.__user]);
 	const [routes, setRoutes] = useState<NavigationRouteElement[]>([]);
 
@@ -86,6 +87,10 @@ export function NavigationTreeView({ data }: CmsComponentProps): JSX.Element {
 		});
 		return Array.from(grouped.entries()).sort(([a], [b]) => a - b);
 	}, [routes]);
+
+	if (isDevMode) {
+		return null;
+	}
 
 	return (
 		<List sx={{ px: 0.5, py: 0 }}>

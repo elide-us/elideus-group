@@ -9,6 +9,7 @@ import { LoginControl } from '../components/LoginControl';
 import { LinkButton } from '../components/LinkButton';
 import { NavigationTreeView } from '../components/NavigationTreeView';
 import { ObjectEditor } from '../components/ObjectEditor';
+import { ObjectTreeView } from '../components/ObjectTreeView';
 import { NavigationSidebar } from '../components/NavigationSidebar';
 import { SidebarContent } from '../components/SidebarContent';
 import { SidebarFooter } from '../components/SidebarFooter';
@@ -29,6 +30,7 @@ export const COMPONENT_REGISTRY: Record<string, ComponentType<CmsComponentProps>
 	DevModeToggle,
 	HamburgerToggle,
 	NavigationTreeView,
+	ObjectTreeView,
 	ContentPanel,
 	SimplePage,
 	ObjectEditor,
