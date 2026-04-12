@@ -19,9 +19,9 @@ export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Elem
 		if (typeof enrichData === 'function') {
 			(
 				enrichData as unknown as (
-					enricher: (nextData: Record<string, unknown>) => Record<string, unknown>,
+					enricher: () => (nextData: Record<string, unknown>) => Record<string, unknown>,
 				) => void
-			)(dataEnricher);
+			)(() => dataEnricher);
 		}
 	}, [dataEnricher, enrichData]);
 
