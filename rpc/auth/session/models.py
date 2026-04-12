@@ -5,8 +5,11 @@ from pydantic import BaseModel
 
 class AuthSessionGetTokenRequest1(BaseModel):
   provider: str
-  id_token: str
-  access_token: str
+  id_token: str | None = None
+  access_token: str | None = None
+  idToken: str | None = None
+  accessToken: str | None = None
+  code: str | None = None
   fingerprint: str
   confirm: bool | None = None
   reAuthToken: str | None = None
