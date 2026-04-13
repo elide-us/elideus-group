@@ -34,8 +34,4 @@ class ObjectTreeCategory1(BaseModel):
   sequence: int
 
 
-class ObjectTreeCategoryList1(BaseModel):
-  elements: list[ObjectTreeCategory1]
-
-
 PathNode1.model_rebuild()

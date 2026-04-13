@@ -18,7 +18,7 @@ async def service_objects_read_object_tree_children_v1(request: Request):
 
   return RPCResponse(
     op=rpc_request.op,
-    payload={"elements": result},
+    payload=result,
     version=rpc_request.version,
   )
 
