@@ -239,7 +239,7 @@ class CmsWorkbenchModule(BaseModule):
           c.pub_max_length AS maxLength
         FROM system_objects_database_columns c
         LEFT JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
-        WHERE c.ref_table_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
+        WHERE c.ref_table_guid = ?
         ORDER BY c.pub_ordinal;
         """,
         (table_guid,),
@@ -256,7 +256,7 @@ class CmsWorkbenchModule(BaseModule):
         m.pub_sequence AS sequence
       FROM system_objects_tree_category_tables m
       JOIN system_objects_database_tables t ON m.ref_table_guid = t.key_guid
-      WHERE m.ref_category_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
+      WHERE m.ref_category_guid = ?
       ORDER BY m.pub_sequence;
       """,
       (category_guid,),
@@ -272,7 +272,7 @@ class CmsWorkbenchModule(BaseModule):
       """
       SELECT TOP 1 pub_name, pub_schema
       FROM system_objects_database_tables
-      WHERE key_guid = TRY_CAST(? AS UNIQUEIDENTIFIER);
+      WHERE key_guid = ?;
       """,
       (table_guid,),
     )
