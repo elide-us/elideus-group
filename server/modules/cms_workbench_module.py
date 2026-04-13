@@ -445,3 +445,46 @@ class CmsWorkbenchModule(BaseModule):
       (type_guid,),
     )
     return [dict(row) for row in (result.rows if result else [])]
+
+  async def get_module_methods(self, module_guid: str) -> list[dict[str, Any]]:
+    """Return methods for a module with joined model names."""
+    result = await self._run_query("cms.modules.get_methods", (module_guid,))
+    return [dict(row) for row in (result.rows if result else [])]
+
+  async def upsert_module(
+    self,
+    key_guid: str,
+    description: str | None,
+    is_active: bool,
+  ) -> dict[str, bool]:
+    """Update module description and is_active. Modules are code-loaded - no INSERT."""
+    await self._run_query(
+      "cms.modules.upsert_module",
+      (description, is_active, key_guid),
+    )
+    return {"ok": True}
+
+  async def upsert_module_method(
+    self,
+    key_guid: str | None,
+    module_guid: str,
+    name: str,
+    description: str | None,
+    is_active: bool,
+  ) -> dict[str, bool]:
+    """Insert or update a module method."""
+    await self._run_query(
+      "cms.modules.upsert_method",
+      (key_guid, module_guid, name, description, is_active),
+    )
+    return {"ok": True}
+
+  async def delete_module_method(self, key_guid: str) -> dict[str, bool]:
+    """Delete a module method by GUID."""
+    await self._run_query("cms.modules.delete_method", (key_guid,))
+    return {"ok": True}
+
+  async def get_method_contract(self, method_guid: str) -> list[dict[str, Any]]:
+    """Return contract info for a method, if one exists."""
+    result = await self._run_query("cms.modules.get_method_contract", (method_guid,))
+    return [dict(row) for row in (result.rows if result else [])]

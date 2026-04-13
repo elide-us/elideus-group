@@ -76,3 +76,39 @@ class ServiceObjectsGetTypeControlsParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   typeGuid: str
+
+
+class ServiceObjectsGetModuleMethodsParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  moduleGuid: str
+
+
+class ServiceObjectsUpsertModuleParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+  description: str | None = None
+  isActive: bool
+
+
+class ServiceObjectsUpsertModuleMethodParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str | None = None
+  moduleGuid: str
+  name: str
+  description: str | None = None
+  isActive: bool
+
+
+class ServiceObjectsDeleteModuleMethodParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+
+
+class ServiceObjectsGetMethodContractParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  methodGuid: str
