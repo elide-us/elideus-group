@@ -43,7 +43,7 @@ interface DatabaseBuilderProps {
 	selected: SelectedNode;
 }
 
-interface TableRow {
+interface DatabaseTableRow {
 	key_guid: string;
 	pub_name: string;
 	pub_schema: string;
@@ -64,7 +64,7 @@ interface TypeRow {
 
 export function DatabaseBuilder({ data, selected }: DatabaseBuilderProps): JSX.Element {
 	const selectNode = data.__selectNode as ((node: SelectedNode | null) => void) | undefined;
-	const [tables, setTables] = useState<TableRow[]>([]);
+	const [tables, setTables] = useState<DatabaseTableRow[]>([]);
 	const [columns, setColumns] = useState<ColumnRow[]>([]);
 	const [types, setTypes] = useState<TypeRow[]>([]);
 	const [tableDialogOpen, setTableDialogOpen] = useState(false);
