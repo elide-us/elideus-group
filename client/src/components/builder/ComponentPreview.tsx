@@ -19,6 +19,8 @@ function categoryShape(category: string | null): JSX.Element {
 }
 
 export function ComponentPreview({ componentName, componentCategory, treeRows }: ComponentPreviewProps): JSX.Element {
+	void treeRows;
+
 	return (
 		<Box
 			sx={{
@@ -38,9 +40,6 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 			<Typography variant="body2">{componentName ?? 'No component selected'}</Typography>
 			<Typography variant="caption" sx={{ color: '#4CAF50' }}>
 				{componentCategory ?? '—'}
-			</Typography>
-			<Typography variant="caption" sx={{ color: '#9E9E9E' }}>
-				Tree nodes: {treeRows.length}
 			</Typography>
 		</Box>
 	);
