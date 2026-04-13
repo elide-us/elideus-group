@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { DevModeToggle } from '../components/DevModeToggle';
 import { DatabaseBuilder } from '../components/DatabaseBuilder';
 import { ContentPanel } from '../components/ContentPanel';
+import { ComponentBuilder } from '../components/ComponentBuilder';
 import { HamburgerToggle } from '../components/HamburgerToggle';
 import { ImageElement } from '../components/ImageElement';
 import { LabelElement } from '../components/LabelElement';
@@ -46,4 +47,5 @@ export const COMPONENT_REGISTRY: Record<string, ComponentType<CmsComponentProps>
 	DatabaseBuilder: DatabaseBuilder as unknown as ComponentType<CmsComponentProps>,
 	TypesBuilder: TypesBuilder as unknown as ComponentType<CmsComponentProps>,
 	ModulesBuilder: ModulesBuilder as unknown as ComponentType<CmsComponentProps>,
+	ComponentBuilder: ComponentBuilder as unknown as ComponentType<CmsComponentProps>,
 };

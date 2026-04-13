@@ -12,6 +12,7 @@ from queryregistry.system.public import (
   get_page_data_bindings_request,
 )
 from rpc.public.route.models import LoadPathResult1, PathNode1
+from server.helpers.strings import deterministic_guid
 
 from . import BaseModule
 from .db_module import DbModule
@@ -485,3 +486,121 @@ class CmsWorkbenchModule(BaseModule):
     """Return contract info for a method, if one exists."""
     result = await self._run_query("cms.modules.get_method_contract", (method_guid,))
     return [dict(row) for row in (result.rows if result else [])]
+
+
+  async def get_page_tree(self, page_guid: str) -> list[dict[str, Any]]:
+    """Return the recursive component tree for a page."""
+    result = await self._run_query("cms.pages.get_page_tree", (page_guid,))
+    return [dict(row) for row in (result.rows if result else [])]
+
+  async def list_components(self) -> list[dict[str, Any]]:
+    """Return all registered components for the component picker."""
+    result = await self._run_query("cms.pages.list_components")
+    return [dict(row) for row in (result.rows if result else [])]
+
+  async def create_tree_node(
+    self,
+    page_guid: str,
+    parent_guid: str | None,
+    component_guid: str,
+    label: str | None = None,
+    field_binding: str | None = None,
+    sequence: int = 0,
+  ) -> dict[str, Any]:
+    """Insert a new component tree node with a deterministic GUID.
+
+    Computes the tree path by resolving the parent chain, then generates
+    uuid5(NS, 'tree:{full_path}') as the key_guid.
+    """
+    comp_result = await self._run_query("cms.pages.list_components")
+    comp_rows = [dict(row) for row in (comp_result.rows if comp_result else [])]
+    comp_name = next(
+      (row.get("name") for row in comp_rows if str(row.get("guid", "")).upper() == component_guid.upper()),
+      "Unknown",
+    )
+
+    segment = comp_name
+    if field_binding:
+      segment = f"{comp_name}:{field_binding}"
+    elif label:
+      segment = f"{comp_name}:{label}"
+
+    if parent_guid:
+      tree_result = await self._run_query("cms.pages.get_page_tree", (page_guid,))
+      tree_rows = [dict(row) for row in (tree_result.rows if tree_result else [])]
+      parent_path = self._resolve_tree_path(tree_rows, parent_guid)
+      full_path = f"{parent_path}.{segment}" if parent_path else segment
+    else:
+      full_path = segment
+
+    key_guid = deterministic_guid("tree", full_path)
+
+    result = await self._run_query(
+      "cms.pages.create_tree_node",
+      (key_guid, parent_guid, component_guid, label, field_binding, sequence, page_guid, key_guid),
+    )
+    row = dict(result.rows[0]) if result and result.rows else {}
+    return {"ok": True, "keyGuid": row.get("key_guid", key_guid)}
+
+  @staticmethod
+  def _resolve_tree_path(tree_rows: list[dict[str, Any]], target_guid: str) -> str:
+    """Walk the parent chain to build the full dot-delimited tree path."""
+    by_guid: dict[str, dict[str, Any]] = {}
+    for row in tree_rows:
+      guid = str(row.get("guid", "")).upper()
+      if guid:
+        by_guid[guid] = row
+
+    segments: list[str] = []
+    current = target_guid.upper()
+    while current and current in by_guid:
+      row = by_guid[current]
+      name = str(row.get("component_name", "Unknown"))
+      binding = row.get("field_binding")
+      label = row.get("label")
+      if binding:
+        segments.append(f"{name}:{binding}")
+      elif label:
+        segments.append(f"{name}:{label}")
+      else:
+        segments.append(name)
+      parent = row.get("parent_guid")
+      current = str(parent).upper() if parent else ""
+
+    segments.reverse()
+    return ".".join(segments)
+
+  async def update_tree_node(
+    self,
+    key_guid: str,
+    label: str | None = None,
+    field_binding: str | None = None,
+    sequence: int | None = None,
+    rpc_operation: str | None = None,
+    rpc_contract: str | None = None,
+    component_guid: str | None = None,
+  ) -> dict[str, bool]:
+    """Update tree node properties. COALESCE in SQL preserves existing when None."""
+    await self._run_query(
+      "cms.pages.update_tree_node",
+      (label, field_binding, sequence, rpc_operation, rpc_contract, component_guid, key_guid),
+    )
+    return {"ok": True}
+
+  async def delete_tree_node(self, key_guid: str) -> dict[str, bool]:
+    """Delete a tree node and cascade all descendants."""
+    await self._run_query("cms.pages.delete_tree_node", (key_guid,))
+    return {"ok": True}
+
+  async def move_tree_node(
+    self,
+    key_guid: str,
+    new_parent_guid: str | None,
+    new_sequence: int,
+  ) -> dict[str, bool]:
+    """Move a node to a new parent and/or sequence."""
+    await self._run_query(
+      "cms.pages.move_tree_node",
+      (new_parent_guid, new_sequence, key_guid),
+    )
+    return {"ok": True}

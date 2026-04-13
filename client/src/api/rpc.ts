@@ -348,3 +348,70 @@ export async function invalidateToken(): Promise<{ ok: boolean }> {
 export async function logoutDevice(): Promise<{ ok: boolean }> {
 	return rpcCall<{ ok: boolean }>('urn:auth:session:logout_device:1');
 }
+
+
+export interface PageTreeNode {
+	guid: string;
+	parent_guid: string | null;
+	component_name: string;
+	component_category: string;
+	component_guid: string;
+	label: string | null;
+	field_binding: string | null;
+	sequence: number;
+	rpc_operation: string | null;
+	rpc_contract: string | null;
+	mutation_operation: string | null;
+	is_editable: boolean;
+	depth: number;
+}
+
+export interface ComponentEntry {
+	guid: string;
+	name: string;
+	category: string;
+	description: string | null;
+}
+
+export async function getPageTree(pageGuid: string): Promise<PageTreeNode[]> {
+	return rpcCall<PageTreeNode[]>('urn:service:objects:get_page_tree:1', { pageGuid });
+}
+
+export async function listComponents(): Promise<ComponentEntry[]> {
+	return rpcCall<ComponentEntry[]>('urn:service:objects:list_components:1');
+}
+
+export async function createTreeNode(payload: {
+	pageGuid: string;
+	parentGuid: string | null;
+	componentGuid: string;
+	label?: string | null;
+	fieldBinding?: string | null;
+	sequence?: number;
+}): Promise<{ ok: boolean; keyGuid: string }> {
+	return rpcCall<{ ok: boolean; keyGuid: string }>('urn:service:objects:create_tree_node:1', payload);
+}
+
+export async function updateTreeNode(payload: {
+	keyGuid: string;
+	label?: string | null;
+	fieldBinding?: string | null;
+	sequence?: number | null;
+	rpcOperation?: string | null;
+	rpcContract?: string | null;
+	componentGuid?: string | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:update_tree_node:1', payload);
+}
+
+export async function deleteTreeNode(keyGuid: string): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_tree_node:1', { keyGuid });
+}
+
+export async function moveTreeNode(payload: {
+	keyGuid: string;
+	newParentGuid: string | null;
+	newSequence: number;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:move_tree_node:1', payload);
+}
