@@ -373,12 +373,35 @@ export interface ComponentEntry {
 	description: string | null;
 }
 
+export interface ComponentDetail {
+	guid: string;
+	name: string;
+	category: string;
+	description: string | null;
+	defaultTypeGuid: string | null;
+	defaultTypeName: string | null;
+	createdOn: string;
+	modifiedOn: string;
+}
+
 export async function getPageTree(pageGuid: string): Promise<PageTreeNode[]> {
 	return rpcCall<PageTreeNode[]>('urn:service:objects:get_page_tree:1', { pageGuid });
 }
 
 export async function listComponents(): Promise<ComponentEntry[]> {
 	return rpcCall<ComponentEntry[]>('urn:service:objects:list_components:1');
+}
+
+export async function getComponentDetail(componentGuid: string): Promise<ComponentDetail> {
+	return rpcCall<ComponentDetail>('urn:service:objects:get_component_detail:1', { componentGuid });
+}
+
+export async function upsertComponent(payload: {
+	keyGuid: string;
+	description?: string | null;
+	defaultTypeGuid?: string | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_component:1', payload);
 }
 
 export async function createTreeNode(payload: {

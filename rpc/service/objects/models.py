@@ -124,6 +124,20 @@ class ServiceObjectsListComponentsParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
 
+class ServiceObjectsGetComponentDetailParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  componentGuid: str
+
+
+class ServiceObjectsUpsertComponentParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+  description: str | None = None
+  defaultTypeGuid: str | None = None
+
+
 class ServiceObjectsCreateTreeNodeParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 

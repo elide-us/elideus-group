@@ -11,6 +11,7 @@ from .models import (
   ServiceObjectsDeleteTypeParams1,
   ServiceObjectsDeleteTreeNodeParams1,
   ServiceObjectsGetMethodContractParams1,
+  ServiceObjectsGetComponentDetailParams1,
   ServiceObjectsGetModuleMethodsParams1,
   ServiceObjectsGetPageTreeParams1,
   ServiceObjectsGetTypeControlsParams1,
@@ -21,6 +22,7 @@ from .models import (
   ServiceObjectsCreateTreeNodeParams1,
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
+  ServiceObjectsUpsertComponentParams1,
   ServiceObjectsUpdateTreeNodeParams1,
   ServiceObjectsUpsertModuleMethodParams1,
   ServiceObjectsUpsertModuleParams1,
@@ -305,6 +307,42 @@ async def service_objects_list_components_v1(request: Request):
   del auth_ctx
 
   result = await module.list_components()
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_component_detail_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetComponentDetailParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_component_detail(params.componentGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_component_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertComponentParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_component(
+    params.keyGuid,
+    params.description,
+    params.defaultTypeGuid,
+  )
 
   return RPCResponse(
     op=rpc_request.op,

@@ -498,6 +498,28 @@ class CmsWorkbenchModule(BaseModule):
     result = await self._run_query("cms.pages.list_components")
     return [dict(row) for row in (result.rows if result else [])]
 
+  async def get_component_detail(self, component_guid: str) -> dict[str, Any]:
+    """Return full detail for a single component."""
+    result = await self._run_query(
+      "cms.components.get_component_detail",
+      (component_guid,),
+    )
+    row = dict(result.rows[0]) if result and result.rows else {}
+    return row
+
+  async def upsert_component(
+    self,
+    key_guid: str,
+    description: str | None,
+    default_type_guid: str | None,
+  ) -> dict[str, bool]:
+    """Update component description and default type."""
+    await self._run_query(
+      "cms.components.upsert_component",
+      (description, default_type_guid, key_guid),
+    )
+    return {"ok": True}
+
   async def create_tree_node(
     self,
     page_guid: str,
