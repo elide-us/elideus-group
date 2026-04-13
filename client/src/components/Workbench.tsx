@@ -9,6 +9,12 @@ export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Elem
 	const [devMode, setDevMode] = useState<boolean>(false);
 	const { user, sessionToken, isLoading, login, logout } = useUserContext();
 
+	useEffect(() => {
+		if (devMode) {
+			setSidebarOpen(true);
+		}
+	}, [devMode]);
+
 	const dataEnricher = useCallback(
 		(baseData: Record<string, unknown>): Record<string, unknown> => ({
 			...baseData,

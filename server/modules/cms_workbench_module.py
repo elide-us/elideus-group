@@ -228,7 +228,7 @@ class CmsWorkbenchModule(BaseModule):
 
     if table_guid:
       result = await run_rows_many(
-        """
+        f"""
         SELECT
           c.key_guid AS guid,
           c.pub_name AS name,
@@ -239,15 +239,15 @@ class CmsWorkbenchModule(BaseModule):
           c.pub_max_length AS maxLength
         FROM system_objects_database_columns c
         LEFT JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
-        WHERE c.ref_table_guid = ?
+        WHERE c.ref_table_guid = '{table_guid}'
         ORDER BY c.pub_ordinal;
         """,
-        (table_guid,),
+        (),
       )
       return [dict(row) for row in result.rows]
 
     result = await run_rows_many(
-      """
+      f"""
       SELECT
         t.key_guid AS guid,
         t.pub_name AS name,
@@ -256,10 +256,10 @@ class CmsWorkbenchModule(BaseModule):
         m.pub_sequence AS sequence
       FROM system_objects_tree_category_tables m
       JOIN system_objects_database_tables t ON m.ref_table_guid = t.key_guid
-      WHERE m.ref_category_guid = ?
+      WHERE m.ref_category_guid = '{category_guid}'
       ORDER BY m.pub_sequence;
       """,
-      (category_guid,),
+      (),
     )
     return [dict(row) for row in result.rows]
 
