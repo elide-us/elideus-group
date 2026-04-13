@@ -7,12 +7,17 @@ from server.modules.cms_workbench_module import CmsWorkbenchModule
 from .models import (
   ServiceObjectsDeleteDatabaseColumnParams1,
   ServiceObjectsDeleteDatabaseTableParams1,
+  ServiceObjectsDeleteModuleMethodParams1,
   ServiceObjectsDeleteTypeParams1,
+  ServiceObjectsGetMethodContractParams1,
+  ServiceObjectsGetModuleMethodsParams1,
   ServiceObjectsGetTypeControlsParams1,
   ServiceObjectsReadChildrenParams1,
   ServiceObjectsReadDetailParams1,
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
+  ServiceObjectsUpsertModuleMethodParams1,
+  ServiceObjectsUpsertModuleParams1,
   ServiceObjectsUpsertTypeParams1,
 )
 
@@ -176,6 +181,92 @@ async def service_objects_get_type_controls_v1(request: Request):
   del auth_ctx
 
   result = await module.get_type_controls(params.typeGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_module_methods_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetModuleMethodsParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_module_methods(params.moduleGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_module_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertModuleParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_module(params.keyGuid, params.description, params.isActive)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_module_method_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertModuleMethodParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_module_method(
+    params.keyGuid,
+    params.moduleGuid,
+    params.name,
+    params.description,
+    params.isActive,
+  )
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_delete_module_method_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeleteModuleMethodParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.delete_module_method(params.keyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_method_contract_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetMethodContractParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_method_contract(params.methodGuid)
 
   return RPCResponse(
     op=rpc_request.op,
