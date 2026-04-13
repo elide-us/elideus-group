@@ -233,10 +233,7 @@ class CmsWorkbenchModule(BaseModule):
     return await run_json_many(sql, params)
 
   async def read_object_tree_categories(self) -> list[dict[str, Any]]:
-    result = await self._run_query(
-      "cms.object_tree.get_categories",
-      ("9E735725-2EFF-5978-B92F-73A6CB36DF7F",),
-    )
+    result = await self._run_query("cms.object_tree.get_categories")
     return [dict(row) for row in (result.rows if result else [])]
 
   async def read_object_tree_children(

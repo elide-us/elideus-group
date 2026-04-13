@@ -264,9 +264,13 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 										return (
 											<Box key={table.guid}>
 												<Box sx={{ display: 'flex', alignItems: 'center' }}>
-													<IconButton size="small" onClick={() => void toggleNode(category.guid, table.guid, table.guid)} sx={{ color: '#BBBBBB', width: 22, height: 22 }}>
-														{tableState.expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-													</IconButton>
+													{category.treeDepth >= 2 ? (
+														<IconButton size="small" onClick={() => void toggleNode(category.guid, table.guid, table.guid)} sx={{ color: '#BBBBBB', width: 22, height: 22 }}>
+															{tableState.expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+														</IconButton>
+													) : (
+														<Box sx={{ width: 22, height: 22 }} />
+													)}
 													<ListItemButton
 														onClick={() =>
 															selectNode?.({
@@ -286,7 +290,7 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 														{renderNodeText(table.name, '#BBBBBB')}
 													</ListItemButton>
 												</Box>
-												{tableState.expanded ? (
+												{category.treeDepth >= 2 && tableState.expanded ? (
 													<Box sx={{ pl: '24px' }}>
 														{tableColumns?.map((column) => {
 															const isColumnSelected =
