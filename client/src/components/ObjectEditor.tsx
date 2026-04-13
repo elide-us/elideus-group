@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import type { CmsComponentProps } from '../engine/types';
 import type { SelectedNode } from './Workbench';
 import { DatabaseBuilder } from './DatabaseBuilder';
+import { ModulesBuilder } from './ModulesBuilder';
 import { TypesBuilder } from './TypesBuilder';
 
 export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element | null {
@@ -28,6 +29,10 @@ export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element
 
 	if (selected.categoryName === 'types') {
 		return <TypesBuilder data={data} selected={selected} />;
+	}
+
+	if (selected.categoryName === 'modules') {
+		return <ModulesBuilder data={data} selected={selected} />;
 	}
 
 	return (
