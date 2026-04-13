@@ -18,16 +18,19 @@ from .db_module import DbModule
 
 
 class CmsWorkbenchModule(BaseModule):
+  MODULE_GUID = "CF85FB11-5981-56B7-8E43-9D453E611D43"
+
   def __init__(self, app: FastAPI):
     super().__init__(app)
     self.db: DbModule | None = None
     self._role_guid_to_name: dict[str, str] = {}
+    self._queries: dict[str, str] = {}
 
   async def startup(self):
     self.db = self.app.state.db
     await self.db.on_ready()
 
-    from queryregistry.providers.mssql import run_rows_many
+    from queryregistry.providers.mssql import run_json_many, run_rows_many
 
     role_result = await run_rows_many(
       """
@@ -41,6 +44,25 @@ class CmsWorkbenchModule(BaseModule):
       for row in role_result.rows
       if row.get("key_guid")
     }
+
+    query_sql = """
+      SELECT pub_name, pub_query_text
+      FROM system_objects_queries
+      WHERE ref_module_guid = TRY_CAST(? AS UNIQUEIDENTIFIER)
+        AND pub_is_active = 1
+      FOR JSON PATH, INCLUDE_NULL_VALUES;
+    """
+    loaded = await run_json_many(query_sql, (self.MODULE_GUID,))
+    rows = loaded.rows if loaded else []
+    self._queries = {
+      str(row.get("pub_name")): str(row.get("pub_query_text"))
+      for row in rows
+      if row.get("pub_name") and row.get("pub_query_text")
+    }
+
+    import logging
+
+    logging.info("[CmsWorkbenchModule] Loaded %s data-driven queries", len(self._queries))
 
     self.mark_ready()
 
@@ -200,68 +222,40 @@ class CmsWorkbenchModule(BaseModule):
   def _quote_ident(identifier: str) -> str:
     return "[" + identifier.replace("]", "]]") + "]"
 
-  async def read_object_tree_categories(self) -> list[dict[str, Any]]:
-    from queryregistry.providers.mssql import run_rows_many
+  async def _run_query(self, query_name: str, params: tuple = ()) -> Any:
+    from queryregistry.providers.mssql import run_json_many, run_json_one
 
-    result = await run_rows_many(
-      """
-      SELECT
-        sev.key_guid AS guid,
-        sev.pub_name AS name,
-        sev.pub_display AS display,
-        sev.pub_icon AS icon,
-        sev.pub_sequence AS sequence
-      FROM service_enum_values sev
-      WHERE sev.ref_category_guid = ?
-      ORDER BY sev.pub_sequence;
-      """,
+    sql = self._queries.get(query_name)
+    if not sql:
+      raise HTTPException(status_code=500, detail=f"Query not found: {query_name}")
+    if "WITHOUT_ARRAY_WRAPPER" in sql:
+      return await run_json_one(sql, params)
+    return await run_json_many(sql, params)
+
+  async def read_object_tree_categories(self) -> list[dict[str, Any]]:
+    result = await self._run_query(
+      "cms.object_tree.get_categories",
       ("9E735725-2EFF-5978-B92F-73A6CB36DF7F",),
     )
-    return [dict(row) for row in result.rows]
+    return [dict(row) for row in (result.rows if result else [])]
 
   async def read_object_tree_children(
     self,
     category_guid: str,
     table_guid: str | None = None,
   ) -> list[dict[str, Any]]:
-    from queryregistry.providers.mssql import run_rows_many
-
     if table_guid:
-      result = await run_rows_many(
-        f"""
-        SELECT
-          c.key_guid AS guid,
-          c.pub_name AS name,
-          c.pub_ordinal AS ordinal,
-          c.pub_is_primary_key AS isPrimaryKey,
-          c.pub_is_nullable AS isNullable,
-          t.pub_name AS typeName,
-          c.pub_max_length AS maxLength
-        FROM system_objects_database_columns c
-        LEFT JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
-        WHERE c.ref_table_guid = '{table_guid}'
-        ORDER BY c.pub_ordinal;
-        """,
-        (),
+      result = await self._run_query(
+        "cms.object_tree.get_table_columns",
+        (table_guid,),
       )
-      return [dict(row) for row in result.rows]
+      return [dict(row) for row in (result.rows if result else [])]
 
-    result = await run_rows_many(
-      f"""
-      SELECT
-        t.key_guid AS guid,
-        t.pub_name AS name,
-        t.pub_schema AS schema,
-        m.pub_is_root_table AS isRoot,
-        m.pub_sequence AS sequence
-      FROM system_objects_tree_category_tables m
-      JOIN system_objects_database_tables t ON m.ref_table_guid = t.key_guid
-      WHERE m.ref_category_guid = '{category_guid}'
-      ORDER BY m.pub_sequence;
-      """,
-      (),
+    result = await self._run_query(
+      "cms.object_tree.get_category_tables",
+      (category_guid,),
     )
-    return [dict(row) for row in result.rows]
+    return [dict(row) for row in (result.rows if result else [])]
 
   async def read_object_tree_detail(self, table_guid: str, max_rows: int = 100) -> dict[str, Any]:
     from queryregistry.providers.mssql import run_rows_many, run_rows_one
