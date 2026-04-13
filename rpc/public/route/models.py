@@ -32,6 +32,8 @@ class ObjectTreeCategory1(BaseModel):
   display: str | None = None
   icon: str | None = None
   sequence: int
+  treeDepth: int = 1
+  description: str | None = None
 
 
 PathNode1.model_rebuild()
