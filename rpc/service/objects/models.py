@@ -112,3 +112,50 @@ class ServiceObjectsGetMethodContractParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   methodGuid: str
+
+
+class ServiceObjectsGetPageTreeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  pageGuid: str
+
+
+class ServiceObjectsListComponentsParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+
+class ServiceObjectsCreateTreeNodeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  pageGuid: str
+  parentGuid: str | None = None
+  componentGuid: str
+  label: str | None = None
+  fieldBinding: str | None = None
+  sequence: int = 0
+
+
+class ServiceObjectsUpdateTreeNodeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+  label: str | None = None
+  fieldBinding: str | None = None
+  sequence: int | None = None
+  rpcOperation: str | None = None
+  rpcContract: str | None = None
+  componentGuid: str | None = None
+
+
+class ServiceObjectsDeleteTreeNodeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+
+
+class ServiceObjectsMoveTreeNodeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+  newParentGuid: str | None = None
+  newSequence: int = 0

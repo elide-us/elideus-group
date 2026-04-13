@@ -9,13 +9,19 @@ from .models import (
   ServiceObjectsDeleteDatabaseTableParams1,
   ServiceObjectsDeleteModuleMethodParams1,
   ServiceObjectsDeleteTypeParams1,
+  ServiceObjectsDeleteTreeNodeParams1,
   ServiceObjectsGetMethodContractParams1,
   ServiceObjectsGetModuleMethodsParams1,
+  ServiceObjectsGetPageTreeParams1,
   ServiceObjectsGetTypeControlsParams1,
+  ServiceObjectsListComponentsParams1,
+  ServiceObjectsMoveTreeNodeParams1,
   ServiceObjectsReadChildrenParams1,
   ServiceObjectsReadDetailParams1,
+  ServiceObjectsCreateTreeNodeParams1,
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
+  ServiceObjectsUpdateTreeNodeParams1,
   ServiceObjectsUpsertModuleMethodParams1,
   ServiceObjectsUpsertModuleParams1,
   ServiceObjectsUpsertTypeParams1,
@@ -267,6 +273,121 @@ async def service_objects_get_method_contract_v1(request: Request):
   del auth_ctx
 
   result = await module.get_method_contract(params.methodGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_page_tree_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetPageTreeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_page_tree(params.pageGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_list_components_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsListComponentsParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.list_components()
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_create_tree_node_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsCreateTreeNodeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.create_tree_node(
+    params.pageGuid,
+    params.parentGuid,
+    params.componentGuid,
+    params.label,
+    params.fieldBinding,
+    params.sequence,
+  )
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_update_tree_node_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpdateTreeNodeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.update_tree_node(
+    params.keyGuid,
+    params.label,
+    params.fieldBinding,
+    params.sequence,
+    params.rpcOperation,
+    params.rpcContract,
+    params.componentGuid,
+  )
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_delete_tree_node_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeleteTreeNodeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.delete_tree_node(params.keyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_move_tree_node_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsMoveTreeNodeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.move_tree_node(
+    params.keyGuid,
+    params.newParentGuid,
+    params.newSequence,
+  )
 
   return RPCResponse(
     op=rpc_request.op,
