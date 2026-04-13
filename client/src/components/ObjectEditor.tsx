@@ -1,11 +1,28 @@
 import { Box, Typography } from '@mui/material';
 
 import type { CmsComponentProps } from '../engine/types';
+import type { SelectedNode } from './Workbench';
+import { DatabaseBuilder } from './DatabaseBuilder';
 
 export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element | null {
-	const isDevMode = data.__devMode === true;
-	if (!isDevMode) {
+	if (data.__devMode !== true) {
 		return null;
+	}
+
+	const selected = (data.__selectedNode as SelectedNode | null) ?? null;
+	if (!selected) {
+		return (
+			<Box sx={{ p: 2 }}>
+				<Typography variant="h2">Object Editor</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Select a node in the Object Tree to edit.
+				</Typography>
+			</Box>
+		);
+	}
+
+	if (selected.categoryName === 'database') {
+		return <DatabaseBuilder data={data} selected={selected} />;
 	}
 
 	return (
@@ -19,9 +36,9 @@ export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element
 				gap: 1,
 			}}
 		>
-			<Typography variant="h2">Object Editor</Typography>
+			<Typography variant="h2">{selected.categoryName}</Typography>
 			<Typography variant="body2" color="text.secondary">
-				Component Builder will render here.
+				Editor not available for this category yet.
 			</Typography>
 			{children}
 		</Box>

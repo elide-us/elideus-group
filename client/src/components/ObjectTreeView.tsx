@@ -5,6 +5,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
 	Box,
 	CircularProgress,
+	IconButton,
 	List,
 	ListItemButton,
 	ListItemIcon,
@@ -21,6 +22,7 @@ import {
 } from '../api/rpc';
 import { DynamicIcon } from './DynamicIcon';
 import type { CmsComponentProps } from '../engine/types';
+import type { SelectedNode } from './Workbench';
 
 interface TreeNodeState {
 	expanded: boolean;
@@ -61,6 +63,8 @@ const sortColumns = (items: ObjectTreeColumn[]): ObjectTreeColumn[] =>
 export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null {
 	const isDevMode = data.__devMode === true;
 	const isOpen = data.__sidebarOpen === true;
+	const selected = (data.__selectedNode as SelectedNode | null) ?? null;
+	const selectNode = data.__selectNode as ((node: SelectedNode | null) => void) | undefined;
 	const [categories, setCategories] = useState<ObjectTreeCategory[]>([]);
 	const [categoriesLoading, setCategoriesLoading] = useState(false);
 	const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -168,6 +172,21 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 		}
 	};
 
+	const rowSx = (active: boolean, color: string) => ({
+		minHeight: 28,
+		px: '8px',
+		py: '5px',
+		borderRadius: 1,
+		justifyContent: isOpen ? 'flex-start' : 'center',
+		gap: isOpen ? 1 : 0,
+		color,
+		backgroundColor: active ? 'rgba(76, 175, 80, 0.12)' : 'transparent',
+		'&:hover': {
+			backgroundColor: active ? 'rgba(76, 175, 80, 0.18)' : 'rgba(255, 255, 255, 0.04)',
+			color,
+		},
+	});
+
 	const renderNodeText = (label: string, color: string): JSX.Element | null =>
 		isOpen ? (
 			<ListItemText
@@ -186,17 +205,7 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 	return (
 		<Box sx={{ px: 0.5, py: 0.5 }}>
 			{isOpen ? (
-				<Typography
-					variant="body2"
-					sx={{
-						fontSize: '0.65rem',
-						textTransform: 'uppercase',
-						letterSpacing: '0.06em',
-						color: '#555555',
-						px: 1,
-						py: 0.5,
-					}}
-				>
+				<Typography variant="body2" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#555555', px: 1, py: 0.5 }}>
 					Object Tree
 				</Typography>
 			) : null}
@@ -209,224 +218,101 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 				{categoriesError ? (
 					<Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5, color: '#E57373', gap: 0.5 }}>
 						<ErrorOutlineIcon sx={{ fontSize: 14 }} />
-						{isOpen ? (
-							<Typography sx={{ fontSize: '0.7rem', lineHeight: 1.2, color: 'inherit' }}>
-								{categoriesError}
-							</Typography>
-						) : null}
+						{isOpen ? <Typography sx={{ fontSize: '0.7rem', lineHeight: 1.2, color: 'inherit' }}>{categoriesError}</Typography> : null}
 					</Box>
 				) : null}
 				{categories.map((category) => {
 					const categoryState = getNodeState(nodeStates, category.guid);
-					const categoryTables = categoryState.children?.filter(
-						(child): child is ObjectTreeTable => !isObjectTreeColumn(child),
-					);
+					const categoryTables = categoryState.children?.filter((child): child is ObjectTreeTable => !isObjectTreeColumn(child));
+					const isCategorySelected = selected?.categoryGuid === category.guid && !selected.nodeGuid && !selected.childGuid;
 
 					return (
 						<Box key={category.guid}>
-							<ListItemButton
-								onClick={() => {
-									void toggleNode(category.guid, category.guid);
-								}}
-								sx={{
-									minHeight: 28,
-									px: '8px',
-									py: '5px',
-									borderRadius: 1,
-									justifyContent: isOpen ? 'flex-start' : 'center',
-									gap: isOpen ? 1 : 0,
-									color: '#FFFFFF',
-									'&:hover': {
-										backgroundColor: 'rgba(255, 255, 255, 0.04)',
-										color: '#FFFFFF',
-									},
-								}}
-							>
-								{isOpen ? (
-									<ListItemIcon
-										sx={{
-											minWidth: 0,
-											width: 16,
-											height: 18,
-											color: 'inherit',
-											justifyContent: 'center',
-											'& .MuiSvgIcon-root': { fontSize: 16 },
-										}}
-									>
-										{categoryState.expanded ? <ExpandMoreIcon /> : <ChevronRightIcon />}
-									</ListItemIcon>
-								) : null}
-								<ListItemIcon
-									sx={{
-										minWidth: 0,
-										width: 18,
-										height: 18,
-										color: 'inherit',
-										justifyContent: 'center',
-										'& .MuiSvgIcon-root': { fontSize: 18 },
-									}}
+							<Box sx={{ display: 'flex', alignItems: 'center' }}>
+								<IconButton size="small" onClick={() => void toggleNode(category.guid, category.guid)} sx={{ color: '#FFFFFF', width: 22, height: 22 }}>
+									{categoryState.expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+								</IconButton>
+								<ListItemButton
+									onClick={() =>
+										selectNode?.({
+											categoryGuid: category.guid,
+											categoryName: category.name,
+											nodeGuid: null,
+											nodeName: null,
+											childGuid: null,
+											childName: null,
+										})
+									}
+									sx={rowSx(isCategorySelected, '#FFFFFF')}
 								>
-									<DynamicIcon name={category.icon} />
-								</ListItemIcon>
-								{renderNodeText(category.display, '#FFFFFF')}
-							</ListItemButton>
+									<ListItemIcon sx={{ minWidth: 0, width: 18, height: 18, color: 'inherit', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+										<DynamicIcon name={category.icon} />
+									</ListItemIcon>
+									{renderNodeText(category.display, '#FFFFFF')}
+								</ListItemButton>
+							</Box>
 							{categoryState.expanded && isOpen ? (
-								<Box sx={{ pl: isOpen ? '16px' : 0 }}>
-									{categoryState.loading ? (
-										<Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5 }}>
-											<CircularProgress size={12} thickness={5} />
-										</Box>
-									) : null}
-									{categoryState.error ? (
-										<Box
-											sx={{
-												display: 'flex',
-												alignItems: 'center',
-												px: 1,
-												py: 0.5,
-												color: '#E57373',
-												gap: 0.5,
-											}}
-										>
-											<ErrorOutlineIcon sx={{ fontSize: 14 }} />
-											{isOpen ? (
-												<Typography sx={{ fontSize: '0.7rem', lineHeight: 1.2, color: 'inherit' }}>
-													{categoryState.error}
-												</Typography>
-											) : null}
-										</Box>
-									) : null}
-									{!categoryState.loading &&
-									!categoryState.error &&
-									Array.isArray(categoryTables) &&
-									categoryTables.length === 0 &&
-									isOpen ? (
-										<Typography sx={{ fontSize: '0.7rem', color: '#777777', px: 1, py: 0.5 }}>
-											No items
-										</Typography>
-									) : null}
+								<Box sx={{ pl: '16px' }}>
+									{categoryState.loading ? <Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5 }}><CircularProgress size={12} thickness={5} /></Box> : null}
+									{categoryState.error ? <Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5, color: '#E57373', gap: 0.5 }}><ErrorOutlineIcon sx={{ fontSize: 14 }} /><Typography sx={{ fontSize: '0.7rem', lineHeight: 1.2, color: 'inherit' }}>{categoryState.error}</Typography></Box> : null}
+									{!categoryState.loading && !categoryState.error && Array.isArray(categoryTables) && categoryTables.length === 0 ? <Typography sx={{ fontSize: '0.7rem', color: '#777777', px: 1, py: 0.5 }}>No items</Typography> : null}
 									{categoryTables?.map((table) => {
 										const tableState = getNodeState(nodeStates, table.guid);
 										const tableColumns = tableState.children?.filter(isObjectTreeColumn);
+										const isTableSelected = selected?.categoryGuid === category.guid && selected?.nodeGuid === table.guid && !selected?.childGuid;
+
 										return (
 											<Box key={table.guid}>
-												<ListItemButton
-													onClick={() => {
-														void toggleNode(category.guid, table.guid, table.guid);
-													}}
-													sx={{
-														minHeight: 28,
-														px: isOpen ? '8px' : '0px',
-														py: '5px',
-														borderRadius: 1,
-														justifyContent: isOpen ? 'flex-start' : 'center',
-														gap: isOpen ? 1 : 0,
-														color: '#BBBBBB',
-														'&:hover': {
-															backgroundColor: 'rgba(255, 255, 255, 0.04)',
-															color: '#BBBBBB',
-														},
-													}}
-												>
-													{isOpen ? (
-														<ListItemIcon
-															sx={{
-																minWidth: 0,
-																width: 16,
-																height: 18,
-																color: 'inherit',
-																justifyContent: 'center',
-																'& .MuiSvgIcon-root': { fontSize: 16 },
-															}}
-														>
-															{tableState.expanded ? <ExpandMoreIcon /> : <ChevronRightIcon />}
-														</ListItemIcon>
-													) : null}
-													<ListItemIcon
-														sx={{
-															minWidth: 0,
-															width: 18,
-															height: 18,
-															color: 'inherit',
-															justifyContent: 'center',
-															'& .MuiSvgIcon-root': { fontSize: 18 },
-														}}
+												<Box sx={{ display: 'flex', alignItems: 'center' }}>
+													<IconButton size="small" onClick={() => void toggleNode(category.guid, table.guid, table.guid)} sx={{ color: '#BBBBBB', width: 22, height: 22 }}>
+														{tableState.expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+													</IconButton>
+													<ListItemButton
+														onClick={() =>
+															selectNode?.({
+																categoryGuid: category.guid,
+																categoryName: category.name,
+																nodeGuid: table.guid,
+																nodeName: table.name,
+																childGuid: null,
+																childName: null,
+															})
+														}
+														sx={rowSx(isTableSelected, '#BBBBBB')}
 													>
-														<DynamicIcon name="DataObject" />
-													</ListItemIcon>
-													{renderNodeText(table.name, '#BBBBBB')}
-												</ListItemButton>
-												{tableState.expanded && isOpen ? (
-													<Box sx={{ pl: isOpen ? '24px' : 0 }}>
-														{tableState.loading ? (
-															<Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 0.5 }}>
-																<CircularProgress size={12} thickness={5} />
-															</Box>
-														) : null}
-														{tableState.error ? (
-															<Box
-																sx={{
-																	display: 'flex',
-																	alignItems: 'center',
-																	px: 1,
-																	py: 0.5,
-																	color: '#E57373',
-																	gap: 0.5,
-																}}
-															>
-																<ErrorOutlineIcon sx={{ fontSize: 14 }} />
-																{isOpen ? (
-																	<Typography
-																		sx={{ fontSize: '0.7rem', lineHeight: 1.2, color: 'inherit' }}
-																	>
-																		{tableState.error}
-																	</Typography>
-																) : null}
-															</Box>
-														) : null}
-														{!tableState.loading &&
-														!tableState.error &&
-														Array.isArray(tableColumns) &&
-														tableColumns.length === 0 &&
-														isOpen ? (
-															<Typography
-																sx={{ fontSize: '0.7rem', color: '#777777', px: 1, py: 0.5 }}
-															>
-																No items
-															</Typography>
-														) : null}
-														{tableColumns?.map((column) => (
-															<ListItemButton
-																key={column.guid}
-																sx={{
-																	minHeight: 28,
-																	px: isOpen ? '8px' : '0px',
-																	py: '5px',
-																	borderRadius: 1,
-																	justifyContent: isOpen ? 'flex-start' : 'center',
-																	gap: isOpen ? 1 : 0,
-																	color: '#888888',
-																	'&:hover': {
-																		backgroundColor: 'rgba(255, 255, 255, 0.04)',
-																		color: '#888888',
-																	},
-																}}
-															>
-																<ListItemIcon
-																	sx={{
-																		minWidth: 0,
-																		width: 18,
-																		height: 18,
-																		color: 'inherit',
-																		justifyContent: 'center',
-																		'& .MuiSvgIcon-root': { fontSize: 18 },
-																	}}
+														<ListItemIcon sx={{ minWidth: 0, width: 18, height: 18, color: 'inherit', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+															<DynamicIcon name="DataObject" />
+														</ListItemIcon>
+														{renderNodeText(table.name, '#BBBBBB')}
+													</ListItemButton>
+												</Box>
+												{tableState.expanded ? (
+													<Box sx={{ pl: '24px' }}>
+														{tableColumns?.map((column) => {
+															const isColumnSelected =
+																selected?.categoryGuid === category.guid && selected?.nodeGuid === table.guid && selected?.childGuid === column.guid;
+															return (
+																<ListItemButton
+																	key={column.guid}
+																	onClick={() =>
+																		selectNode?.({
+																			categoryGuid: category.guid,
+																			categoryName: category.name,
+																			nodeGuid: table.guid,
+																			nodeName: table.name,
+																			childGuid: column.guid,
+																			childName: column.name,
+																		})
+																	}
+																	sx={rowSx(isColumnSelected, '#888888')}
 																>
-																	<DynamicIcon name="List" />
-																</ListItemIcon>
-																{renderNodeText(column.name, '#888888')}
-															</ListItemButton>
-														))}
+																	<ListItemIcon sx={{ minWidth: 0, width: 18, height: 18, color: 'inherit', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+																		<DynamicIcon name="List" />
+																	</ListItemIcon>
+																	{renderNodeText(column.name, '#888888')}
+																</ListItemButton>
+															);
+														})}
 													</Box>
 												) : null}
 											</Box>

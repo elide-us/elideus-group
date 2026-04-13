@@ -217,6 +217,37 @@ export async function readObjectTreeDetail(
 	return rpcCall<ObjectTreeDetail>('urn:service:objects:read_object_tree_detail:1', { tableGuid, maxRows });
 }
 
+export async function upsertDatabaseTable(payload: {
+	keyGuid?: string;
+	name: string;
+	schema: string;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_database_table:1', payload);
+}
+
+export async function deleteDatabaseTable(keyGuid: string): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_database_table:1', { keyGuid });
+}
+
+export async function upsertDatabaseColumn(payload: {
+	keyGuid?: string;
+	tableGuid: string;
+	typeGuid: string;
+	name: string;
+	ordinal: number;
+	isNullable: boolean;
+	isPrimaryKey: boolean;
+	isIdentity: boolean;
+	defaultValue?: string | null;
+	maxLength?: number | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_database_column:1', payload);
+}
+
+export async function deleteDatabaseColumn(keyGuid: string): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_database_column:1', { keyGuid });
+}
+
 export async function getToken(payload: GetTokenPayload): Promise<GetTokenResult> {
 	return rpcCall<GetTokenResult>('urn:auth:session:get_token:1', payload);
 }

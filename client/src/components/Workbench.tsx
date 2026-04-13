@@ -4,9 +4,19 @@ import { Box } from '@mui/material';
 import type { CmsComponentProps } from '../engine/types';
 import { useUserContext } from '../shared/UserContextProvider';
 
+export interface SelectedNode {
+	categoryGuid: string;
+	categoryName: string;
+	nodeGuid: string | null;
+	nodeName: string | null;
+	childGuid: string | null;
+	childName: string | null;
+}
+
 export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Element {
 	const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 	const [devMode, setDevMode] = useState<boolean>(false);
+	const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
 	const { user, sessionToken, isLoading, login, logout } = useUserContext();
 
 	useEffect(() => {
@@ -22,13 +32,15 @@ export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Elem
 			__toggleSidebar: (): void => setSidebarOpen((prev) => !prev),
 			__devMode: devMode,
 			__toggleDevMode: (): void => setDevMode((prev) => !prev),
+			__selectedNode: selectedNode,
+			__selectNode: (node: SelectedNode | null): void => setSelectedNode(node),
 			__user: user,
 			__sessionToken: sessionToken,
 			__isAuthLoading: isLoading,
 			__login: login,
 			__logout: logout,
 		}),
-		[sidebarOpen, devMode, user, sessionToken, isLoading, login, logout],
+		[sidebarOpen, devMode, selectedNode, user, sessionToken, isLoading, login, logout],
 	);
 
 	useEffect(() => {

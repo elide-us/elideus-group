@@ -348,3 +348,54 @@ class CmsWorkbenchModule(BaseModule):
       "rowCount": int(payload_row.get("row_count") or 0),
       "rows": rows,
     }
+
+  async def upsert_database_table(self, key_guid: str | None, name: str, schema: str) -> dict[str, bool]:
+    await self._run_query(
+      "cms.database.upsert_table",
+      (key_guid, name, schema),
+    )
+    return {"ok": True}
+
+  async def delete_database_table(self, key_guid: str) -> dict[str, bool]:
+    await self._run_query(
+      "cms.database.delete_table",
+      (key_guid,),
+    )
+    return {"ok": True}
+
+  async def upsert_database_column(
+    self,
+    key_guid: str | None,
+    table_guid: str,
+    type_guid: str,
+    name: str,
+    ordinal: int,
+    is_nullable: bool,
+    is_primary_key: bool,
+    is_identity: bool,
+    default_value: str | None = None,
+    max_length: int | None = None,
+  ) -> dict[str, bool]:
+    await self._run_query(
+      "cms.database.upsert_column",
+      (
+        key_guid,
+        table_guid,
+        type_guid,
+        name,
+        ordinal,
+        is_nullable,
+        is_primary_key,
+        is_identity,
+        default_value,
+        max_length,
+      ),
+    )
+    return {"ok": True}
+
+  async def delete_database_column(self, key_guid: str) -> dict[str, bool]:
+    await self._run_query(
+      "cms.database.delete_column",
+      (key_guid,),
+    )
+    return {"ok": True}
