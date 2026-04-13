@@ -251,11 +251,48 @@ class CmsWorkbenchModule(BaseModule):
       )
       return [dict(row) for row in (result.rows if result else [])]
 
-    result = await self._run_query(
+    tables_result = await self._run_query(
       "cms.object_tree.get_category_tables",
       (category_guid,),
     )
-    return [dict(row) for row in (result.rows if result else [])]
+    tables = [dict(row) for row in (tables_result.rows if tables_result else [])]
+    root_table = next((table for table in tables if table.get("isRoot")), None)
+    if not root_table:
+      return []
+
+    root_table_guid = str(root_table.get("guid") or "")
+    root_table_name = str(root_table.get("name") or "")
+    if not root_table_guid:
+      return []
+
+    try:
+      detail = await self.read_object_tree_detail(root_table_guid, max_rows=500)
+    except Exception:
+      return []
+
+    children: list[dict[str, Any]] = []
+    for row in detail.get("rows", []):
+      key_guid = str(row.get("key_guid") or "")
+      if not key_guid:
+        continue
+      name = (
+        row.get("pub_name")
+        or row.get("pub_display")
+        or row.get("pub_path")
+        or row.get("pub_title")
+        or key_guid[:8]
+      )
+      children.append(
+        {
+          "guid": key_guid,
+          "name": str(name),
+          "tableName": root_table_name,
+          "isRoot": False,
+          "sequence": row.get("pub_sequence") or row.get("pub_ordinal") or 0,
+        }
+      )
+
+    return children
 
   async def read_object_tree_detail(self, table_guid: str, max_rows: int = 100) -> dict[str, Any]:
     from queryregistry.providers.mssql import run_rows_many, run_rows_one
