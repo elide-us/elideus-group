@@ -248,6 +248,35 @@ export async function deleteDatabaseColumn(keyGuid: string): Promise<{ ok: boole
 	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_database_column:1', { keyGuid });
 }
 
+export async function upsertType(payload: {
+	keyGuid?: string | null;
+	name: string;
+	mssqlType: string;
+	postgresqlType?: string | null;
+	mysqlType?: string | null;
+	pythonType: string;
+	typescriptType: string;
+	jsonType: string;
+	odbcTypeCode?: number | null;
+	maxLength?: number | null;
+	notes?: string | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_type:1', payload);
+}
+
+export async function deleteType(keyGuid: string): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_type:1', { keyGuid });
+}
+
+export async function getTypeControls(
+	typeGuid: string,
+): Promise<{ guid: string; componentName: string; isDefault: boolean }[]> {
+	return rpcCall<{ guid: string; componentName: string; isDefault: boolean }[]>(
+		'urn:service:objects:get_type_controls:1',
+		{ typeGuid },
+	);
+}
+
 export async function getToken(payload: GetTokenPayload): Promise<GetTokenResult> {
 	return rpcCall<GetTokenResult>('urn:auth:session:get_token:1', payload);
 }

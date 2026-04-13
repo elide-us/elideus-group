@@ -7,10 +7,13 @@ from server.modules.cms_workbench_module import CmsWorkbenchModule
 from .models import (
   ServiceObjectsDeleteDatabaseColumnParams1,
   ServiceObjectsDeleteDatabaseTableParams1,
+  ServiceObjectsDeleteTypeParams1,
+  ServiceObjectsGetTypeControlsParams1,
   ServiceObjectsReadChildrenParams1,
   ServiceObjectsReadDetailParams1,
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
+  ServiceObjectsUpsertTypeParams1,
 )
 
 
@@ -113,6 +116,66 @@ async def service_objects_delete_database_column_v1(request: Request):
   del auth_ctx
 
   result = await module.delete_database_column(params.keyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_type_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertTypeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_type(
+    params.keyGuid,
+    params.name,
+    params.mssqlType,
+    params.postgresqlType,
+    params.mysqlType,
+    params.pythonType,
+    params.typescriptType,
+    params.jsonType,
+    params.odbcTypeCode,
+    params.maxLength,
+    params.notes,
+  )
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_delete_type_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeleteTypeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.delete_type(params.keyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_type_controls_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetTypeControlsParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_type_controls(params.typeGuid)
 
   return RPCResponse(
     op=rpc_request.op,
