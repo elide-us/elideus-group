@@ -7,7 +7,7 @@ from fastapi import Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 
-from .models import LoadPathParams1, ObjectTreeCategory1, ObjectTreeCategoryList1
+from .models import LoadPathParams1, ObjectTreeCategory1
 
 if TYPE_CHECKING:
   from server.modules.cms_workbench_module import CmsWorkbenchModule
@@ -48,10 +48,9 @@ async def public_route_read_object_tree_categories_v1(request: Request):
   del auth_ctx
 
   result = await module.read_object_tree_categories()
-  payload = ObjectTreeCategoryList1(elements=[ObjectTreeCategory1(**item) for item in result])
 
   return RPCResponse(
     op=rpc_request.op,
-    payload=payload.model_dump(),
+    payload=[ObjectTreeCategory1(**item).model_dump() for item in result],
     version=rpc_request.version,
   )
