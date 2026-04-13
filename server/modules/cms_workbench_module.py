@@ -399,3 +399,49 @@ class CmsWorkbenchModule(BaseModule):
       (key_guid,),
     )
     return {"ok": True}
+
+  async def upsert_type(
+    self,
+    key_guid: str | None,
+    name: str,
+    mssql_type: str,
+    postgresql_type: str | None,
+    mysql_type: str | None,
+    python_type: str,
+    typescript_type: str,
+    json_type: str,
+    odbc_type_code: int | None,
+    max_length: int | None,
+    notes: str | None,
+  ) -> dict[str, bool]:
+    await self._run_query(
+      "cms.types.upsert_type",
+      (
+        key_guid,
+        name,
+        mssql_type,
+        postgresql_type,
+        mysql_type,
+        python_type,
+        typescript_type,
+        json_type,
+        odbc_type_code,
+        max_length,
+        notes,
+      ),
+    )
+    return {"ok": True}
+
+  async def delete_type(self, key_guid: str) -> dict[str, bool]:
+    await self._run_query(
+      "cms.types.delete_type",
+      (key_guid,),
+    )
+    return {"ok": True}
+
+  async def get_type_controls(self, type_guid: str) -> list[dict[str, Any]]:
+    result = await self._run_query(
+      "cms.types.get_type_controls",
+      (type_guid,),
+    )
+    return [dict(row) for row in (result.rows if result else [])]

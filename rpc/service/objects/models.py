@@ -48,3 +48,31 @@ class ServiceObjectsDeleteDatabaseColumnParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   keyGuid: str
+
+
+class ServiceObjectsUpsertTypeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str | None = None
+  name: str
+  mssqlType: str
+  postgresqlType: str | None = None
+  mysqlType: str | None = None
+  pythonType: str
+  typescriptType: str
+  jsonType: str
+  odbcTypeCode: int | None = None
+  maxLength: int | None = None
+  notes: str | None = None
+
+
+class ServiceObjectsDeleteTypeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  keyGuid: str
+
+
+class ServiceObjectsGetTypeControlsParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  typeGuid: str
