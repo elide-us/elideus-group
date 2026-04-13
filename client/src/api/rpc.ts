@@ -277,6 +277,60 @@ export async function getTypeControls(
 	);
 }
 
+export interface ModuleMethod {
+	guid: string;
+	name: string;
+	description: string | null;
+	isActive: boolean;
+	requestModelGuid: string | null;
+	responseModelGuid: string | null;
+	requestModelName: string | null;
+	responseModelName: string | null;
+}
+
+export interface MethodContract {
+	contractGuid: string;
+	contractName: string;
+	version: number;
+	isAsync: boolean;
+	isInternalOnly: boolean;
+	isActive: boolean;
+	requestModelGuid: string | null;
+	responseModelGuid: string | null;
+	requestModelName: string | null;
+	responseModelName: string | null;
+}
+
+export async function getModuleMethods(moduleGuid: string): Promise<ModuleMethod[]> {
+	return rpcCall<ModuleMethod[]>('urn:service:objects:get_module_methods:1', { moduleGuid });
+}
+
+export async function upsertModule(payload: {
+	keyGuid: string;
+	description: string | null;
+	isActive: boolean;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_module:1', payload);
+}
+
+export async function upsertModuleMethod(payload: {
+	keyGuid?: string | null;
+	moduleGuid: string;
+	name: string;
+	description: string | null;
+	isActive: boolean;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_module_method:1', payload);
+}
+
+export async function deleteModuleMethod(keyGuid: string): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_module_method:1', { keyGuid });
+}
+
+export async function getMethodContract(methodGuid: string): Promise<MethodContract[]> {
+	return rpcCall<MethodContract[]>('urn:service:objects:get_method_contract:1', { methodGuid });
+}
+
 export async function getToken(payload: GetTokenPayload): Promise<GetTokenResult> {
 	return rpcCall<GetTokenResult>('urn:auth:session:get_token:1', payload);
 }
