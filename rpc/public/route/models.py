@@ -34,6 +34,7 @@ class ObjectTreeCategory1(BaseModel):
   sequence: int
   treeDepth: int = 1
   description: str | None = None
+  builderComponent: str | None = None
 
 
 PathNode1.model_rebuild()

@@ -241,6 +241,7 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 											nodeName: null,
 											childGuid: null,
 											childName: null,
+											builderComponent: category.builderComponent ?? null,
 										})
 									}
 									sx={rowSx(isCategorySelected, '#FFFFFF')}
@@ -280,6 +281,7 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 																nodeName: table.name,
 																childGuid: null,
 																childName: null,
+																builderComponent: category.builderComponent ?? null,
 															})
 														}
 														sx={rowSx(isTableSelected, '#BBBBBB')}
@@ -306,6 +308,7 @@ export function ObjectTreeView({ data }: CmsComponentProps): JSX.Element | null 
 																			nodeName: table.name,
 																			childGuid: column.guid,
 																			childName: column.name,
+																			builderComponent: category.builderComponent ?? null,
 																		})
 																	}
 																	sx={rowSx(isColumnSelected, '#888888')}

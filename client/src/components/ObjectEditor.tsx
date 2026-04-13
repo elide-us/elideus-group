@@ -2,9 +2,7 @@ import { Box, Typography } from '@mui/material';
 
 import type { CmsComponentProps } from '../engine/types';
 import type { SelectedNode } from './Workbench';
-import { DatabaseBuilder } from './DatabaseBuilder';
-import { ModulesBuilder } from './ModulesBuilder';
-import { TypesBuilder } from './TypesBuilder';
+import { COMPONENT_REGISTRY } from '../engine/registry';
 
 export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element | null {
 	if (data.__devMode !== true) {
@@ -23,16 +21,12 @@ export function ObjectEditor({ data, children }: CmsComponentProps): JSX.Element
 		);
 	}
 
-	if (selected.categoryName === 'database') {
-		return <DatabaseBuilder data={data} selected={selected} />;
-	}
-
-	if (selected.categoryName === 'types') {
-		return <TypesBuilder data={data} selected={selected} />;
-	}
-
-	if (selected.categoryName === 'modules') {
-		return <ModulesBuilder data={data} selected={selected} />;
+	if (selected.builderComponent) {
+		const BuilderComponent = COMPONENT_REGISTRY[selected.builderComponent];
+		if (BuilderComponent) {
+			const builderProps = { data, selected } as any;
+			return <BuilderComponent {...builderProps} />;
+		}
 	}
 
 	return (

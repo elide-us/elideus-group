@@ -11,6 +11,7 @@ export interface SelectedNode {
 	nodeName: string | null;
 	childGuid: string | null;
 	childName: string | null;
+	builderComponent?: string | null;
 }
 
 export function Workbench({ children, enrichData }: CmsComponentProps): JSX.Element {

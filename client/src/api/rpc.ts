@@ -42,6 +42,7 @@ export interface ObjectTreeCategory {
 	icon: string | null;
 	sequence: number;
 	treeDepth: number;
+	builderComponent: string | null;
 }
 
 export interface ObjectTreeTable {
