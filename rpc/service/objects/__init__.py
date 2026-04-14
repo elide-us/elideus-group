@@ -4,11 +4,13 @@ Requires ROLE_SERVICE_ADMIN.
 """
 
 from .services import (
+  service_objects_analyze_page_v1,
   service_objects_create_tree_node_v1,
   service_objects_delete_database_column_v1,
   service_objects_delete_database_table_v1,
   service_objects_delete_module_method_v1,
   service_objects_delete_tree_node_v1,
+  service_objects_derive_query_v1,
   service_objects_get_component_detail_v1,
   service_objects_get_component_tree_v1,
   service_objects_delete_type_v1,
@@ -31,6 +33,7 @@ from .services import (
 
 
 DISPATCHERS: dict[tuple[str, str], callable] = {
+  ("analyze_page", "1"): service_objects_analyze_page_v1,
   ("read_object_tree_children", "1"): service_objects_read_object_tree_children_v1,
   ("read_object_tree_detail", "1"): service_objects_read_object_tree_detail_v1,
   ("upsert_database_table", "1"): service_objects_upsert_database_table_v1,
@@ -53,5 +56,6 @@ DISPATCHERS: dict[tuple[str, str], callable] = {
   ("create_tree_node", "1"): service_objects_create_tree_node_v1,
   ("update_tree_node", "1"): service_objects_update_tree_node_v1,
   ("delete_tree_node", "1"): service_objects_delete_tree_node_v1,
+  ("derive_query", "1"): service_objects_derive_query_v1,
   ("move_tree_node", "1"): service_objects_move_tree_node_v1,
 }

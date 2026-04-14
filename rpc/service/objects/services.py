@@ -3,6 +3,7 @@ from fastapi import Request
 from rpc.helpers import unbox_request
 from server.models import RPCResponse
 from server.modules.cms_workbench_module import CmsWorkbenchModule
+from server.modules.contract_query_builder_module import ContractQueryBuilderModule
 
 from .models import (
   ServiceObjectsDeleteDatabaseColumnParams1,
@@ -10,6 +11,7 @@ from .models import (
   ServiceObjectsDeleteModuleMethodParams1,
   ServiceObjectsDeleteTypeParams1,
   ServiceObjectsDeleteTreeNodeParams1,
+  ServiceObjectsDeriveQueryParams1,
   ServiceObjectsGetMethodContractParams1,
   ServiceObjectsGetComponentDetailParams1,
   ServiceObjectsGetComponentTreeParams1,
@@ -20,6 +22,7 @@ from .models import (
   ServiceObjectsMoveTreeNodeParams1,
   ServiceObjectsReadChildrenParams1,
   ServiceObjectsReadDetailParams1,
+  ServiceObjectsAnalyzePageParams1,
   ServiceObjectsCreateTreeNodeParams1,
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
@@ -447,5 +450,37 @@ async def service_objects_move_tree_node_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_analyze_page_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsAnalyzePageParams1.model_validate(rpc_request.payload or {})
+  module: ContractQueryBuilderModule = request.app.state.contract_query_builder
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.analyze_page(params.pageGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_derive_query_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeriveQueryParams1.model_validate(rpc_request.payload or {})
+  module: ContractQueryBuilderModule = request.app.state.contract_query_builder
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.derive_query(params.pageGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload={"query": result},
     version=rpc_request.version,
   )
