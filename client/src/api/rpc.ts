@@ -388,6 +388,10 @@ export async function getPageTree(pageGuid: string): Promise<PageTreeNode[]> {
 	return rpcCall<PageTreeNode[]>('urn:service:objects:get_page_tree:1', { pageGuid });
 }
 
+export async function getComponentTree(componentGuid: string): Promise<PageTreeNode[]> {
+	return rpcCall<PageTreeNode[]>('urn:service:objects:get_component_tree:1', { componentGuid });
+}
+
 export async function listComponents(): Promise<ComponentEntry[]> {
 	return rpcCall<ComponentEntry[]>('urn:service:objects:list_components:1');
 }

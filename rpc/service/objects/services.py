@@ -12,6 +12,7 @@ from .models import (
   ServiceObjectsDeleteTreeNodeParams1,
   ServiceObjectsGetMethodContractParams1,
   ServiceObjectsGetComponentDetailParams1,
+  ServiceObjectsGetComponentTreeParams1,
   ServiceObjectsGetModuleMethodsParams1,
   ServiceObjectsGetPageTreeParams1,
   ServiceObjectsGetTypeControlsParams1,
@@ -291,6 +292,22 @@ async def service_objects_get_page_tree_v1(request: Request):
   del auth_ctx
 
   result = await module.get_page_tree(params.pageGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_component_tree_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetComponentTreeParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_component_tree(params.componentGuid)
 
   return RPCResponse(
     op=rpc_request.op,
