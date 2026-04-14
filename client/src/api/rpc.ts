@@ -435,6 +435,63 @@ export async function deleteTreeNode(keyGuid: string): Promise<{ ok: boolean }> 
 	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_tree_node:1', { keyGuid });
 }
 
+
+
+export interface PropertyCatalogEntry {
+	guid: string;
+	name: string;
+	category: string;
+	description: string | null;
+	defaultValue: string | null;
+	typeName: string;
+	typeGuid: string;
+}
+
+export interface ResolvedProperty {
+	nodeGuid: string;
+	name: string;
+	category: string;
+	value: string | null;
+	source: 'override' | 'default' | 'catalog';
+}
+
+export async function getPropertyCatalog(): Promise<PropertyCatalogEntry[]> {
+	return rpcCall<PropertyCatalogEntry[]>('urn:service:objects:get_property_catalog:1', {});
+}
+
+export async function getResolvedProperties(componentGuid: string): Promise<ResolvedProperty[]> {
+	return rpcCall<ResolvedProperty[]>('urn:service:objects:get_resolved_properties:1', { componentGuid });
+}
+
+export async function upsertComponentProperty(payload: {
+	componentGuid: string;
+	propertyGuid: string;
+	value: string | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_component_property:1', payload);
+}
+
+export async function upsertTreeNodeProperty(payload: {
+	treeNodeGuid: string;
+	propertyGuid: string;
+	value: string | null;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:upsert_tree_node_property:1', payload);
+}
+
+export async function deleteComponentProperty(payload: {
+	componentGuid: string;
+	propertyGuid: string;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_component_property:1', payload);
+}
+
+export async function deleteTreeNodeProperty(payload: {
+	treeNodeGuid: string;
+	propertyGuid: string;
+}): Promise<{ ok: boolean }> {
+	return rpcCall<{ ok: boolean }>('urn:service:objects:delete_tree_node_property:1', payload);
+}
 export async function moveTreeNode(payload: {
 	keyGuid: string;
 	newParentGuid: string | null;

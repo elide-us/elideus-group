@@ -6,15 +6,18 @@ from server.modules.cms_workbench_module import CmsWorkbenchModule
 from server.modules.contract_query_builder_module import ContractQueryBuilderModule
 
 from .models import (
+  ServiceObjectsDeleteComponentPropertyParams1,
   ServiceObjectsDeleteDatabaseColumnParams1,
   ServiceObjectsDeleteDatabaseTableParams1,
   ServiceObjectsDeleteModuleMethodParams1,
   ServiceObjectsDeleteTypeParams1,
   ServiceObjectsDeleteTreeNodeParams1,
+  ServiceObjectsDeleteTreeNodePropertyParams1,
   ServiceObjectsDeriveQueryParams1,
   ServiceObjectsGetMethodContractParams1,
   ServiceObjectsGetComponentDetailParams1,
   ServiceObjectsGetComponentTreeParams1,
+  ServiceObjectsGetResolvedPropertiesParams1,
   ServiceObjectsGetModuleMethodsParams1,
   ServiceObjectsGetPageTreeParams1,
   ServiceObjectsGetTypeControlsParams1,
@@ -27,8 +30,10 @@ from .models import (
   ServiceObjectsUpsertDatabaseColumnParams1,
   ServiceObjectsUpsertDatabaseTableParams1,
   ServiceObjectsUpsertComponentParams1,
+  ServiceObjectsUpsertComponentPropertyParams1,
   ServiceObjectsUpdateTreeNodeParams1,
   ServiceObjectsUpsertModuleMethodParams1,
+  ServiceObjectsUpsertTreeNodePropertyParams1,
   ServiceObjectsUpsertModuleParams1,
   ServiceObjectsUpsertTypeParams1,
 )
@@ -482,5 +487,100 @@ async def service_objects_derive_query_v1(request: Request):
   return RPCResponse(
     op=rpc_request.op,
     payload={"query": result},
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_property_catalog_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_property_catalog()
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_get_resolved_properties_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsGetResolvedPropertiesParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.get_resolved_properties(params.componentGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_component_property_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertComponentPropertyParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_component_property(params.componentGuid, params.propertyGuid, params.value)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_upsert_tree_node_property_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsUpsertTreeNodePropertyParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.upsert_tree_node_property(params.treeNodeGuid, params.propertyGuid, params.value)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_delete_component_property_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeleteComponentPropertyParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.delete_component_property(params.componentGuid, params.propertyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
+    version=rpc_request.version,
+  )
+
+
+async def service_objects_delete_tree_node_property_v1(request: Request):
+  rpc_request, auth_ctx, _ = await unbox_request(request)
+  params = ServiceObjectsDeleteTreeNodePropertyParams1.model_validate(rpc_request.payload or {})
+  module: CmsWorkbenchModule = request.app.state.cms_workbench
+  await module.on_ready()
+  del auth_ctx
+
+  result = await module.delete_tree_node_property(params.treeNodeGuid, params.propertyGuid)
+
+  return RPCResponse(
+    op=rpc_request.op,
+    payload=result,
     version=rpc_request.version,
   )

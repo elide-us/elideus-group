@@ -191,3 +191,39 @@ class ServiceObjectsDeriveQueryParams1(BaseModel):
 
   pageGuid: str
 
+
+
+class ServiceObjectsGetResolvedPropertiesParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  componentGuid: str
+
+
+class ServiceObjectsUpsertComponentPropertyParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  componentGuid: str
+  propertyGuid: str
+  value: str | None = None
+
+
+class ServiceObjectsUpsertTreeNodePropertyParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  treeNodeGuid: str
+  propertyGuid: str
+  value: str | None = None
+
+
+class ServiceObjectsDeleteComponentPropertyParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  componentGuid: str
+  propertyGuid: str
+
+
+class ServiceObjectsDeleteTreeNodePropertyParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  treeNodeGuid: str
+  propertyGuid: str

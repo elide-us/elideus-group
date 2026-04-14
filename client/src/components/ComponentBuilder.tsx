@@ -5,12 +5,16 @@ import {
 	getComponentDetail,
 	getComponentTree,
 	getPageTree,
+	getPropertyCatalog,
+	getResolvedProperties,
 	getTypeControls,
 	listComponents,
 	readObjectTreeChildren,
 	type ComponentDetail,
 	type ComponentEntry,
 	type PageTreeNode,
+	type PropertyCatalogEntry,
+	type ResolvedProperty,
 	upsertComponent,
 } from '../api/rpc';
 import {
@@ -69,6 +73,8 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 	const selectNode = data.__selectNode as ((node: SelectedNode | null) => void) | undefined;
 	const [componentDetail, setComponentDetail] = useState<ComponentDetail | null>(null);
 	const [treeRows, setTreeRows] = useState<PageTreeNode[]>([]);
+	const [resolvedProps, setResolvedProps] = useState<ResolvedProperty[]>([]);
+	const [propertyCatalog, setPropertyCatalog] = useState<PropertyCatalogEntry[]>([]);
 	const [components, setComponents] = useState<ComponentEntry[]>([]);
 	const [types, setTypes] = useState<TypeRow[]>([]);
 	const [typeControls, setTypeControls] = useState<{ guid: string; componentName: string; isDefault: boolean }[]>([]);
@@ -80,18 +86,24 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 	const refreshTree = useCallback(async (): Promise<void> => {
 		if (!selected.nodeGuid) {
 			setTreeRows([]);
+			setResolvedProps([]);
 			return;
 		}
 		try {
 			const componentRows = await getComponentTree(selected.nodeGuid);
 			if (componentRows.length > 0) {
 				setTreeRows(componentRows);
+				const props = await getResolvedProperties(selected.nodeGuid);
+				setResolvedProps(props);
 				return;
 			}
 			const pageRows = await getPageTree(selected.nodeGuid);
 			setTreeRows(pageRows);
+			const props = await getResolvedProperties(selected.nodeGuid);
+			setResolvedProps(props);
 		} catch {
 			setTreeRows([]);
+			setResolvedProps([]);
 		}
 	}, [selected.nodeGuid]);
 
@@ -136,15 +148,17 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 	useEffect(() => {
 		let mounted = true;
 		const load = async (): Promise<void> => {
-			const [componentRows, typeRows] = await Promise.all([
+			const [componentRows, typeRows, catalog] = await Promise.all([
 				listComponents(),
 				readObjectTreeChildren(TYPES_CATEGORY_GUID),
+				getPropertyCatalog(),
 			]);
 			if (!mounted) {
 				return;
 			}
 			setComponents(componentRows);
 			setTypes((typeRows as { guid: string; name: string }[]).map((row) => ({ guid: row.guid, name: row.name })));
+			setPropertyCatalog(catalog);
 		};
 		void load();
 		return () => {
@@ -163,13 +177,21 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 			</Breadcrumbs>
 
 			<Box sx={{ display: 'flex', gap: 1, minHeight: 200 }}>
-				<ComponentPreview componentName={previewName} componentCategory={previewCategory} treeRows={treeRows} />
+				<ComponentPreview
+					componentName={previewName}
+					componentCategory={previewCategory}
+					treeRows={treeRows}
+					resolvedProperties={resolvedProps}
+				/>
 				<PropertyPanel
 					componentGuid={componentDetail?.guid ?? null}
 					componentDetail={componentDetail}
 					components={components}
 					types={types}
 					typeControls={typeControls}
+					propertyCatalog={propertyCatalog}
+					resolvedProperties={resolvedProps}
+					selectedTreeNodeGuid={selectedTreeNodeGuid}
 					onSave={async (updates) => {
 						await upsertComponent({
 							keyGuid: updates.keyGuid,
@@ -177,6 +199,14 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 							defaultTypeGuid: updates.defaultTypeGuid,
 						});
 						await refreshComponentDetail();
+					}}
+					onPropertyChange={async () => {
+						if (!selected.nodeGuid) {
+							setResolvedProps([]);
+							return;
+						}
+						const props = await getResolvedProperties(selected.nodeGuid);
+						setResolvedProps(props);
 					}}
 				/>
 			</Box>
