@@ -626,3 +626,16 @@ class CmsWorkbenchModule(BaseModule):
       (new_parent_guid, new_sequence, key_guid),
     )
     return {"ok": True}
+
+  async def get_component_tree(self, component_guid: str) -> list[dict[str, Any]]:
+    """Return the composition tree for a component.
+
+    Unlike get_page_tree (which starts from a page's root component),
+    this starts directly from the component_tree node whose
+    ref_component_guid matches and ref_parent_guid is NULL.
+    """
+    result = await self._run_query(
+      "cms.components.get_component_tree",
+      (component_guid,),
+    )
+    return [dict(row) for row in (result.rows if result else [])]

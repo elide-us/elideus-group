@@ -173,3 +173,9 @@ class ServiceObjectsMoveTreeNodeParams1(BaseModel):
   keyGuid: str
   newParentGuid: str | None = None
   newSequence: int = 0
+
+
+class ServiceObjectsGetComponentTreeParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  componentGuid: str

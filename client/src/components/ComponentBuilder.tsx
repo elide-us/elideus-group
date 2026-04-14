@@ -3,6 +3,7 @@ import { Box, Breadcrumbs, Typography } from '@mui/material';
 
 import {
 	getComponentDetail,
+	getComponentTree,
 	getPageTree,
 	getTypeControls,
 	listComponents,
@@ -82,8 +83,13 @@ export function ComponentBuilder({ data, selected }: ComponentBuilderProps): JSX
 			return;
 		}
 		try {
-			const rows = await getPageTree(selected.nodeGuid);
-			setTreeRows(rows);
+			const componentRows = await getComponentTree(selected.nodeGuid);
+			if (componentRows.length > 0) {
+				setTreeRows(componentRows);
+				return;
+			}
+			const pageRows = await getPageTree(selected.nodeGuid);
+			setTreeRows(pageRows);
 		} catch {
 			setTreeRows([]);
 		}
