@@ -442,3 +442,36 @@ export async function moveTreeNode(payload: {
 }): Promise<{ ok: boolean }> {
 	return rpcCall<{ ok: boolean }>('urn:service:objects:move_tree_node:1', payload);
 }
+
+
+export interface PageAnalysis {
+	page_slug: string;
+	query: string | null;
+	output_model: {
+		name: string;
+		fields: Array<{
+			name: string;
+			type: string;
+			nullable: boolean;
+			source: string;
+		}>;
+	};
+	input_model: {
+		name: string;
+		fields: Array<{
+			name: string;
+			type: string;
+			nullable: boolean;
+		}>;
+	} | null;
+	tables: string[];
+	joins: Array<{
+		from: string;
+		to: string;
+		type: string;
+	}>;
+}
+
+export async function analyzePage(pageGuid: string): Promise<PageAnalysis> {
+	return rpcCall<PageAnalysis>('urn:service:objects:analyze_page:1', { pageGuid });
+}

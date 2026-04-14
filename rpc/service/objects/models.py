@@ -179,3 +179,15 @@ class ServiceObjectsGetComponentTreeParams1(BaseModel):
   model_config = ConfigDict(extra="forbid")
 
   componentGuid: str
+
+class ServiceObjectsAnalyzePageParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  pageGuid: str
+
+
+class ServiceObjectsDeriveQueryParams1(BaseModel):
+  model_config = ConfigDict(extra="forbid")
+
+  pageGuid: str
+
