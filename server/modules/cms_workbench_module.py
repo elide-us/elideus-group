@@ -639,3 +639,71 @@ class CmsWorkbenchModule(BaseModule):
       (component_guid,),
     )
     return [dict(row) for row in (result.rows if result else [])]
+
+
+  async def get_property_catalog(self) -> list[dict[str, Any]]:
+    """Return all property definitions from the catalog."""
+    result = await self._run_query("cms.properties.get_catalog")
+    return [dict(row) for row in (result.rows if result else [])]
+
+  async def get_resolved_properties(self, component_guid: str) -> list[dict[str, Any]]:
+    """Return resolved properties for all nodes in a component tree.
+
+    Merges instance overrides, component defaults, and catalog defaults.
+    Returns one row per (nodeGuid, propertyName) with resolved value and source.
+    """
+    result = await self._run_query(
+      "cms.properties.get_resolved_tree_properties",
+      (component_guid,),
+    )
+    return [dict(row) for row in (result.rows if result else [])]
+
+  async def upsert_component_property(
+    self,
+    component_guid: str,
+    property_guid: str,
+    value: str | None,
+  ) -> dict[str, bool]:
+    """Set or update a component default property value."""
+    await self._run_query(
+      "cms.properties.upsert_component_property",
+      (component_guid, property_guid, value),
+    )
+    return {"ok": True}
+
+  async def upsert_tree_node_property(
+    self,
+    tree_node_guid: str,
+    property_guid: str,
+    value: str | None,
+  ) -> dict[str, bool]:
+    """Set or update an instance override on a tree node."""
+    await self._run_query(
+      "cms.properties.upsert_tree_node_property",
+      (tree_node_guid, property_guid, value),
+    )
+    return {"ok": True}
+
+  async def delete_component_property(
+    self,
+    component_guid: str,
+    property_guid: str,
+  ) -> dict[str, bool]:
+    """Remove a component default (reverts to catalog default)."""
+    await self._run_query(
+      "cms.properties.delete_component_property",
+      (component_guid, property_guid),
+    )
+    return {"ok": True}
+
+  async def delete_tree_node_property(
+    self,
+    tree_node_guid: str,
+    property_guid: str,
+  ) -> dict[str, bool]:
+    """Remove an instance override (reverts to component default)."""
+    await self._run_query(
+      "cms.properties.delete_tree_node_property",
+      (tree_node_guid, property_guid),
+    )
+    return {"ok": True}

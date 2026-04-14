@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type WheelEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type WheelEvent } from 'react';
 import { Box } from '@mui/material';
 
-import type { PageTreeNode } from '../../api/rpc';
+import type { PageTreeNode, ResolvedProperty } from '../../api/rpc';
 
 interface ComponentPreviewProps {
 	componentName: string | null;
 	componentCategory: string | null;
 	treeRows: PageTreeNode[];
+	resolvedProperties: ResolvedProperty[];
 }
 
 interface LayoutNode {
@@ -20,7 +21,11 @@ interface LayoutNode {
 	width: number;
 	height: number;
 	depth: number;
+	isCollapsible: boolean;
+	layoutSize: string;
+	layoutWidth: number | null;
 	children: LayoutNode[];
+	groupBoxes: { x: number; y: number; width: number; height: number }[];
 }
 
 interface TreeNode {
@@ -104,28 +109,20 @@ function buildTreeRows(treeRows: PageTreeNode[]): TreeNode[] {
 	return roots;
 }
 
-function computeLayout(treeRows: PageTreeNode[]): LayoutNode[] {
+function computeLayout(treeRows: PageTreeNode[], propsByNode: Map<string, Map<string, string | null>>): LayoutNode[] {
 	const roots = buildTreeRows(treeRows);
+	const nodeProp = (guid: string, key: string): string | null | undefined => propsByNode.get(guid)?.get(key);
 
 	const measureNode = (node: TreeNode, depth: number): LayoutNode => {
-		const isContainer = isContainerCategory(node.category);
 		const measuredChildren = node.children.map((child) => measureNode(child, depth + 1));
+		const isContainer = isContainerCategory(node.category);
+		const direction = nodeProp(node.guid, 'layout_direction') === 'row' ? 'row' : 'column';
+		const minHeight = Number(nodeProp(node.guid, 'layout_min_height') ?? 0) || 0;
+		const layoutSize = nodeProp(node.guid, 'layout_size') ?? 'auto';
+		const widthProp = Number(nodeProp(node.guid, 'layout_width') ?? 0) || null;
+		const isCollapsible = String(nodeProp(node.guid, 'layout_collapsible') ?? 'false').toLowerCase() === 'true';
+
 		if (!isContainer || measuredChildren.length === 0) {
-			if (!isContainer) {
-				return {
-					guid: node.guid,
-					componentName: node.componentName,
-					category: node.category,
-					label: node.label,
-					fieldBinding: node.fieldBinding,
-					x: 0,
-					y: 0,
-					width: LEAF_WIDTH,
-					height: LEAF_HEIGHT,
-					depth,
-					children: [],
-				};
-			}
 			return {
 				guid: node.guid,
 				componentName: node.componentName,
@@ -134,18 +131,67 @@ function computeLayout(treeRows: PageTreeNode[]): LayoutNode[] {
 				fieldBinding: node.fieldBinding,
 				x: 0,
 				y: 0,
-				width: 140,
-				height: 60,
+				width: widthProp ?? LEAF_WIDTH,
+				height: Math.max(LEAF_HEIGHT, minHeight),
 				depth,
+				isCollapsible,
+				layoutSize,
+				layoutWidth: widthProp,
 				children: [],
+				groupBoxes: [],
 			};
 		}
 
-		const maxChildWidth = Math.max(...measuredChildren.map((child) => child.width));
-		const childrenHeight = measuredChildren.reduce((sum, child) => sum + child.height, 0);
-		const gaps = (measuredChildren.length - 1) * CHILD_GAP;
-		const width = Math.max(maxChildWidth + CONTAINER_SIDE_PADDING * 2, 140);
-		const height = Math.max(childrenHeight + gaps + CONTAINER_TOP_PADDING + CONTAINER_BOTTOM_PADDING, 60);
+		const sizeChild = (children: LayoutNode[], available: number): LayoutNode[] => {
+			if (available <= 0) {
+				return children;
+			}
+			const fixed = children
+				.filter((child) => child.layoutSize === 'fixed' && child.layoutWidth)
+				.reduce((sum, child) => sum + (child.layoutWidth ?? 0), 0);
+			const flexChildren = children.filter((child) => child.layoutSize === 'flex');
+			const remaining = Math.max(100, available - fixed - (children.length - 1) * CHILD_GAP);
+			const flexWidth = flexChildren.length > 0 ? Math.floor(remaining / flexChildren.length) : 0;
+			return children.map((child) => ({
+				...child,
+				width: child.layoutSize === 'fixed' && child.layoutWidth ? child.layoutWidth : child.layoutSize === 'flex' ? flexWidth : child.width,
+			}));
+		};
+
+		const grouped = new Map<string, LayoutNode[]>();
+		for (const child of measuredChildren) {
+			const group = nodeProp(child.guid, 'layout_group');
+			const key = group && group !== '' ? `g:${group}` : `n:${child.guid}`;
+			if (!grouped.has(key)) {
+				grouped.set(key, []);
+			}
+			grouped.get(key)?.push(child);
+		}
+		const blocks = Array.from(grouped.values());
+		const sizedBlocks = blocks.map((block) => sizeChild(block, 520));
+
+		let width = 140;
+		let height = CONTAINER_TOP_PADDING + CONTAINER_BOTTOM_PADDING;
+		if (direction === 'row') {
+			const all = sizedBlocks.flat();
+			const totalWidth = all.reduce((sum, child) => sum + child.width, 0) + Math.max(0, all.length - 1) * CHILD_GAP;
+			const maxHeight = all.length ? Math.max(...all.map((child) => child.height)) : 0;
+			width = Math.max(totalWidth + CONTAINER_SIDE_PADDING * 2, width);
+			height += maxHeight;
+		} else {
+			for (const block of sizedBlocks) {
+				if (block.length > 1) {
+					const bw = block.reduce((sum, child) => sum + child.width, 0) + (block.length - 1) * CHILD_GAP;
+					const bh = Math.max(...block.map((child) => child.height));
+					width = Math.max(width, bw + CONTAINER_SIDE_PADDING * 2);
+					height += bh + CHILD_GAP;
+				} else {
+					width = Math.max(width, block[0].width + CONTAINER_SIDE_PADDING * 2);
+					height += block[0].height + CHILD_GAP;
+				}
+			}
+			height -= CHILD_GAP;
+		}
 
 		return {
 			guid: node.guid,
@@ -155,37 +201,75 @@ function computeLayout(treeRows: PageTreeNode[]): LayoutNode[] {
 			fieldBinding: node.fieldBinding,
 			x: 0,
 			y: 0,
-			width,
-			height,
+			width: widthProp ?? width,
+			height: Math.max(height, 60, minHeight),
 			depth,
-			children: measuredChildren,
+			isCollapsible,
+			layoutSize,
+			layoutWidth: widthProp,
+			children: sizedBlocks.flat(),
+			groupBoxes: [],
 		};
 	};
 
 	const placeNode = (node: LayoutNode, x: number, y: number): LayoutNode => {
+		const direction = nodeProp(node.guid, 'layout_direction') === 'row' ? 'row' : 'column';
+		const childrenByGroup = new Map<string, LayoutNode[]>();
+		for (const child of node.children) {
+			const group = nodeProp(child.guid, 'layout_group');
+			const key = group && group !== '' ? `g:${group}` : `n:${child.guid}`;
+			if (!childrenByGroup.has(key)) {
+				childrenByGroup.set(key, []);
+			}
+			childrenByGroup.get(key)?.push(child);
+		}
+		const groups = Array.from(childrenByGroup.values());
+
+		let cursorX = x + CONTAINER_SIDE_PADDING;
 		let cursorY = y + CONTAINER_TOP_PADDING;
-		const positionedChildren = node.children.map((child) => {
-			const positioned = placeNode(child, x + CONTAINER_SIDE_PADDING, cursorY);
-			cursorY += positioned.height + CHILD_GAP;
-			return positioned;
-		});
-		return {
-			...node,
-			x,
-			y,
-			children: positionedChildren,
-		};
+		const placed: LayoutNode[] = [];
+		const groupBoxes: LayoutNode['groupBoxes'] = [];
+
+		for (const group of groups) {
+			if (group.length > 1) {
+				let gx = direction === 'row' ? cursorX : x + CONTAINER_SIDE_PADDING;
+				let gy = cursorY;
+				let maxH = 0;
+				let totalW = 0;
+				for (const child of group) {
+					const p = placeNode(child, gx, gy);
+					placed.push(p);
+					gx += p.width + CHILD_GAP;
+					totalW += p.width;
+					maxH = Math.max(maxH, p.height);
+				}
+				groupBoxes.push({ x: direction === 'row' ? cursorX : x + 3, y: cursorY - 2, width: totalW + (group.length - 1) * CHILD_GAP + 6, height: maxH + 4 });
+				if (direction === 'row') {
+					cursorX += totalW + group.length * CHILD_GAP;
+				} else {
+					cursorY += maxH + CHILD_GAP;
+				}
+			} else {
+				const child = placeNode(group[0], cursorX, cursorY);
+				placed.push(child);
+				if (direction === 'row') {
+					cursorX += child.width + CHILD_GAP;
+				} else {
+					cursorY += child.height + CHILD_GAP;
+				}
+			}
+		}
+
+		return { ...node, x, y, children: placed, groupBoxes };
 	};
 
 	let rootY = 40;
-	const positionedRoots = roots.map((root) => {
+	return roots.map((root) => {
 		const measured = measureNode(root, 0);
 		const positioned = placeNode(measured, 40, rootY);
 		rootY += positioned.height + 20;
 		return positioned;
 	});
-
-	return positionedRoots;
 }
 
 function flattenLayout(nodes: LayoutNode[]): LayoutNode[] {
@@ -202,7 +286,7 @@ function flattenLayout(nodes: LayoutNode[]): LayoutNode[] {
 	return output;
 }
 
-export function ComponentPreview({ componentName, componentCategory, treeRows }: ComponentPreviewProps): JSX.Element {
+export function ComponentPreview({ componentName, componentCategory, treeRows, resolvedProperties }: ComponentPreviewProps): JSX.Element {
 	void componentName;
 	void componentCategory;
 
@@ -214,30 +298,36 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 	const [hoveredGuid, setHoveredGuid] = useState<string | null>(null);
 	const [isPanning, setIsPanning] = useState(false);
 
+	const propsByNode = useMemo(() => {
+		const map = new Map<string, Map<string, string | null>>();
+		for (const rp of resolvedProperties) {
+			if (!map.has(rp.nodeGuid)) {
+				map.set(rp.nodeGuid, new Map());
+			}
+			map.get(rp.nodeGuid)?.set(rp.name, rp.value);
+		}
+		return map;
+	}, [resolvedProperties]);
+
 	const allNodes = flattenLayout(layoutRef.current);
 
 	const toWorld = useCallback(
-		(screenX: number, screenY: number): { x: number; y: number } => {
-			return {
-				x: (screenX - pan.x) / zoom,
-				y: (screenY - pan.y) / zoom,
-			};
-		},
+		(screenX: number, screenY: number): { x: number; y: number } => ({
+			x: (screenX - pan.x) / zoom,
+			y: (screenY - pan.y) / zoom,
+		}),
 		[pan.x, pan.y, zoom],
 	);
 
-	const findNode = useCallback(
-		(worldX: number, worldY: number): LayoutNode | null => {
-			for (let i = allNodes.length - 1; i >= 0; i -= 1) {
-				const node = allNodes[i];
-				if (worldX >= node.x && worldX <= node.x + node.width && worldY >= node.y && worldY <= node.y + node.height) {
-					return node;
-				}
+	const findNode = useCallback((worldX: number, worldY: number): LayoutNode | null => {
+		for (let i = allNodes.length - 1; i >= 0; i -= 1) {
+			const node = allNodes[i];
+			if (worldX >= node.x && worldX <= node.x + node.width && worldY >= node.y && worldY <= node.y + node.height) {
+				return node;
 			}
-			return null;
-		},
-		[allNodes],
-	);
+		}
+		return null;
+	}, [allNodes]);
 
 	const draw = useCallback((): void => {
 		const canvas = canvasRef.current;
@@ -248,7 +338,6 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 		if (!ctx) {
 			return;
 		}
-
 		const rect = canvas.getBoundingClientRect();
 		const dpr = window.devicePixelRatio || 1;
 		const width = Math.max(1, Math.floor(rect.width));
@@ -278,6 +367,14 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 			const colors = getColors(node.category);
 			const isHovered = hoveredGuid === node.guid;
 
+			for (const box of node.groupBoxes) {
+				ctx.save();
+				ctx.setLineDash([4, 3]);
+				ctx.strokeStyle = 'rgba(180,180,180,0.45)';
+				ctx.strokeRect(box.x, box.y, box.width, box.height);
+				ctx.restore();
+			}
+
 			ctx.save();
 			if (isHovered) {
 				ctx.shadowColor = colors.glow;
@@ -291,32 +388,30 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 			ctx.stroke();
 			ctx.restore();
 
-			if (isContainerCategory(node.category)) {
-				ctx.save();
-				ctx.fillStyle = colors.fill;
-				roundRect(ctx, node.x + 1, node.y + 1, node.width - 2, HEADER_HEIGHT, 7);
-				ctx.fill();
-				ctx.fillStyle = '#FFFFFF';
-				ctx.font = 'bold 11px sans-serif';
-				ctx.textAlign = 'left';
-				ctx.textBaseline = 'middle';
-				ctx.fillText(node.componentName, node.x + 8, node.y + HEADER_HEIGHT / 2 + 1);
-				ctx.restore();
-			} else {
-				ctx.save();
-				ctx.fillStyle = colors.fill;
-				ctx.fillRect(node.x + 1, node.y + 1, 4, node.height - 2);
-				ctx.fillStyle = '#FFFFFF';
-				ctx.font = '11px sans-serif';
-				ctx.textAlign = 'left';
-				ctx.textBaseline = 'top';
-				ctx.fillText(node.componentName, node.x + 10, node.y + 8);
-				ctx.fillStyle = '#4CAF50';
-				ctx.font = '9px monospace';
-				const meta = node.label || node.fieldBinding || '—';
-				ctx.fillText(meta, node.x + 10, node.y + 22);
-				ctx.restore();
+			ctx.save();
+			ctx.fillStyle = colors.fill;
+			roundRect(ctx, node.x + 1, node.y + 1, node.width - 2, HEADER_HEIGHT, 7);
+			ctx.fill();
+			ctx.fillStyle = '#FFFFFF';
+			ctx.font = 'bold 11px sans-serif';
+			ctx.textAlign = 'left';
+			ctx.textBaseline = 'middle';
+			ctx.fillText(node.componentName, node.x + 8, node.y + HEADER_HEIGHT / 2 + 1);
+			if (node.isCollapsible) {
+				ctx.fillText('▾', node.x + node.width - 14, node.y + HEADER_HEIGHT / 2 + 1);
 			}
+			ctx.restore();
+
+			ctx.save();
+			ctx.fillStyle = '#4CAF50';
+			ctx.font = '9px monospace';
+			if (node.layoutSize === 'fixed' && node.layoutWidth) {
+				ctx.fillText(`W:${node.layoutWidth}`, node.x + node.width - 42, node.y + node.height - 8);
+			}
+			if (node.layoutSize === 'flex') {
+				ctx.fillText('⇔', node.x + node.width - 18, node.y + node.height - 8);
+			}
+			ctx.restore();
 
 			for (const child of node.children) {
 				drawNode(child);
@@ -326,18 +421,17 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 		for (const node of layoutRef.current) {
 			drawNode(node);
 		}
-
 		ctx.restore();
 	}, [hoveredGuid, pan.x, pan.y, treeRows.length, zoom]);
 
 	useEffect(() => {
-		layoutRef.current = computeLayout(treeRows);
+		layoutRef.current = computeLayout(treeRows, propsByNode);
 		setHoveredGuid(null);
-	}, [treeRows]);
+	}, [treeRows, propsByNode]);
 
 	useEffect(() => {
 		draw();
-	}, [draw, treeRows]);
+	}, [draw, treeRows, resolvedProperties]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -360,12 +454,7 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 		if (targetNode) {
 			return;
 		}
-		panStart.current = {
-			mx: event.clientX,
-			my: event.clientY,
-			px: pan.x,
-			py: pan.y,
-		};
+		panStart.current = { mx: event.clientX, my: event.clientY, px: pan.x, py: pan.y };
 		setIsPanning(true);
 	}, [findNode, pan.x, pan.y, toWorld]);
 
@@ -373,7 +462,6 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 		const rect = event.currentTarget.getBoundingClientRect();
 		const screenX = event.clientX - rect.left;
 		const screenY = event.clientY - rect.top;
-
 		if (panStart.current) {
 			setPan({
 				x: panStart.current.px + (event.clientX - panStart.current.mx),
@@ -381,7 +469,6 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 			});
 			return;
 		}
-
 		const world = toWorld(screenX, screenY);
 		const hoveredNode = findNode(world.x, world.y);
 		setHoveredGuid((prev) => (prev === hoveredNode?.guid ? prev : hoveredNode?.guid ?? null));
@@ -400,12 +487,8 @@ export function ComponentPreview({ componentName, componentCategory, treeRows }:
 		const before = toWorld(screenX, screenY);
 		const factor = event.deltaY < 0 ? 1.1 : 0.9;
 		const nextZoom = Math.max(0.2, Math.min(4, zoom * factor));
-		const nextPan = {
-			x: screenX - before.x * nextZoom,
-			y: screenY - before.y * nextZoom,
-		};
 		setZoom(nextZoom);
-		setPan(nextPan);
+		setPan({ x: screenX - before.x * nextZoom, y: screenY - before.y * nextZoom });
 	}, [toWorld, zoom]);
 
 	return (
