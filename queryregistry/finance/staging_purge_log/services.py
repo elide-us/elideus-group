@@ -7,6 +7,7 @@ from typing import Any
 from queryregistry.models import DBRequest, DBResponse
 
 from . import mssql
+from . import get_purge_log_request, upsert_purge_log_request
 from .models import (
   CheckPurgedKeyParams,
   GetPurgeLogParams,
@@ -15,6 +16,7 @@ from .models import (
 )
 
 _Dispatcher = Callable[[Mapping[str, Any]], Awaitable[DBResponse]]
+_RunRequest = Callable[[DBRequest], Awaitable[DBResponse]]
 
 
 def _select_dispatcher(provider: str, dispatchers: dict[str, _Dispatcher]) -> _Dispatcher:
@@ -48,12 +50,11 @@ async def upsert_purge_log_v1(request: DBRequest, *, provider: str) -> DBRespons
   return DBResponse(op=request.op, payload=result.payload, rowcount=result.rowcount)
 
 
-async def append_purged_keys(db, vendors_recid: int, period_key: str, new_keys: list[str]) -> None:
-  existing_res = await db.run(
-    DBRequest(
-      op="db:finance:staging_purge_log:get_purge_log:1",
-      payload={"vendors_recid": vendors_recid, "period_key": period_key},
-    )
+async def append_purged_keys(
+  run_request: _RunRequest, vendors_recid: int, period_key: str, new_keys: list[str]
+) -> None:
+  existing_res = await run_request(
+    get_purge_log_request(GetPurgeLogParams(vendors_recid=vendors_recid, period_key=period_key))
   )
   existing_keys: set[str] = set()
   if existing_res.rows:
@@ -65,14 +66,13 @@ async def append_purged_keys(db, vendors_recid: int, period_key: str, new_keys: 
   merged = existing_keys | set(new_keys)
   merged_json = json.dumps({"batch_purged": sorted(merged)})
 
-  await db.run(
-    DBRequest(
-      op="db:finance:staging_purge_log:upsert_purge_log:1",
-      payload={
-        "vendors_recid": vendors_recid,
-        "period_key": period_key,
-        "purged_keys_json": merged_json,
-        "purged_count": len(merged),
-      },
+  await run_request(
+    upsert_purge_log_request(
+      UpsertPurgeLogParams(
+        vendors_recid=vendors_recid,
+        period_key=period_key,
+        purged_keys_json=merged_json,
+        purged_count=len(merged),
+      )
     )
   )

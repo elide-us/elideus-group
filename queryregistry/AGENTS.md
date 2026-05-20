@@ -21,6 +21,12 @@ Do not add new code to `server/registry/`.
 - Not a place for business logic, conditional workflows, or application rules;
   those belong in `server/modules/`.
 
+## Direct execution guardrail
+
+- Business/module code must call canonical QueryRegistry operations/request builders.
+- Do **not** invoke provider execution directly from business/module code.
+- Direct `db.run(...)` usage is restricted to approved infrastructure boundaries.
+
 ---
 
 ## Core files and dispatch flow
