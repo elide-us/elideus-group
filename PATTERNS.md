@@ -328,7 +328,8 @@ Module lifecycle:
 1. `__init__(app)` — store app reference, initialize fields to None
 2. `startup()` — resolve dependencies via `self.app.state`, await their `on_ready()`, then call `self.mark_ready()`
 3. Business methods — all data access through `self.db.run(request_builder())`, return the RPC response Pydantic model directly
-4. `shutdown()` — release references
+4. Module/business code must use canonical QueryRegistry request builders/operations and must not invoke provider internals or direct `db.run(...)` outside approved infrastructure boundaries.
+5. `shutdown()` — release references
 
 ### 3.3 Model Ownership
 

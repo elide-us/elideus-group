@@ -147,6 +147,8 @@ def main() -> None:
   # subprocess.check_call([sys.executable, 'scripts/generate_db_namespace.py'], cwd=ROOT)
   # subprocess.check_call([sys.executable, 'scripts/generate_nav_pages.py'], cwd=ROOT)
 
+  subprocess.check_call([sys.executable, 'scripts/check_db_run_boundaries.py'], cwd=ROOT)
+
   subprocess.check_call(['npm', 'run', 'lint'], cwd=ROOT / 'client')
   subprocess.check_call(['npm', 'run', 'type-check'], cwd=ROOT / 'client')
 
