@@ -31,6 +31,7 @@ from .role_module import RoleModule
 
 _AUTH_CONTEXT: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar('mcp_auth', default=None)
 _TOOL_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+_WRITE_ANNOTATIONS = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
 
 
 class SlidingWindowRateLimiter:
@@ -265,6 +266,86 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       """List RPC model field registrations with EDT types, nullability, and references."""
       return await self.dispatch('oracle_list_rpc_model_fields', ctx)
 
+    # ── Memory bank tools ────────────────────────────────────────────────
+    # Persistent working context stored in agent_memory_entries/_threads.
+    # Reads require mcp:memory:read; writes require mcp:memory:write.
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_store(
+      ctx: Context, project: str, kind: str, title: str, body: str,
+      tags: str | None = None, thread_guid: str | None = None,
+      source: str | None = None,
+    ) -> Any:
+      """Store a memory entry and return its key_guid.
+
+      project: short slug e.g. 'flicker', 'oracle-unity', 'general'.
+      kind: one of decision|invariant|spec|note|session_summary|snippet.
+      title: one-line summary. body: markdown detail.
+      tags: optional space-delimited tags e.g. 'auth mcp schema'.
+      thread_guid: optional thread to attach to (see memory_thread_create)."""
+      return await self.dispatch(
+        'memory_store', ctx, project=project, kind=kind, title=title,
+        body=body, tags=tags, thread_guid=thread_guid, source=source,
+      )
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_update(
+      ctx: Context, key_guid: str, title: str | None = None,
+      body: str | None = None, tags: str | None = None,
+      kind: str | None = None, is_active: bool | None = None,
+    ) -> Any:
+      """Patch an existing memory entry by key_guid. Only the fields you pass
+      change; omit a field to leave it unchanged. Set is_active=false to
+      soft-delete. Returns the key_guid."""
+      return await self.dispatch(
+        'memory_update', ctx, key_guid=key_guid, title=title, body=body,
+        tags=tags, kind=kind, is_active=is_active,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_get(ctx: Context, key_guid: str) -> Any:
+      """Fetch a single memory entry by key_guid."""
+      return await self.dispatch('memory_get', ctx, key_guid=key_guid)
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_search(
+      ctx: Context, query: str | None = None, project: str | None = None,
+      kind: str | None = None, tags: str | None = None,
+      limit: int = 20, offset: int = 0,
+    ) -> Any:
+      """Search active memory entries. Returns {entries, total}.
+
+      query: free text matched (LIKE) against title/body/tags.
+      project/kind: exact-match filters. tags: LIKE filter.
+      limit: page size (max 100). offset: rows to skip for paging."""
+      return await self.dispatch(
+        'memory_search', ctx, query=query, project=project, kind=kind,
+        tags=tags, limit=limit, offset=offset,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_list_recent(
+      ctx: Context, project: str | None = None, limit: int = 20,
+    ) -> Any:
+      """List the most recently modified active entries (optionally filtered
+      to a project). Returns {entries}."""
+      return await self.dispatch('memory_list_recent', ctx, project=project, limit=limit)
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_thread_create(
+      ctx: Context, project: str, title: str, summary: str | None = None,
+    ) -> Any:
+      """Create a memory thread (a named grouping of related entries) and
+      return its key_guid. Pass that guid as thread_guid to memory_store."""
+      return await self.dispatch(
+        'memory_thread_create', ctx, project=project, title=title, summary=summary,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_thread_get(ctx: Context, thread_guid: str) -> Any:
+      """Fetch a thread and its active entries. Returns {thread, entries}."""
+      return await self.dispatch('memory_thread_get', ctx, thread_guid=thread_guid)
+
   # ── Dispatch ───────────────────────────────────────────────────────────
 
   async def dispatch(self, operation_name: str, ctx: Context, **kwargs: Any) -> Any:
@@ -316,6 +397,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
             'scopes': {
               'mcp:schema:read', 'mcp:data:read', 'mcp:rpc:list',
               'mcp:schema:write', 'mcp:data:write', 'mcp:rpc:execute', 'mcp:admin',
+              'mcp:memory:read', 'mcp:memory:write',
             },
             'source': 'static_token',
           }
