@@ -556,7 +556,10 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       raise HTTPException(status_code=401, detail='Invalid refresh token')
     user_guid = str(row.get('user_guid') or '')
     session_guid = str(row.get('session_guid') or '')
-    scopes = str(row.get('scopes') or 'mcp:schema:read mcp:data:read mcp:rpc:list')
+    scopes = str(
+      row.get('scopes')
+      or 'mcp:schema:read mcp:data:read mcp:rpc:list mcp:memory:read mcp:memory:write'
+    )
     return await self._issue_agent_tokens(
       user_guid, '', scopes,
       refresh_token=refresh_token, session_guid=session_guid,

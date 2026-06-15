@@ -24,6 +24,8 @@ _SCOPE_DESCRIPTIONS = {
   "mcp:schema:read": "Read schema metadata (tables, views, column information).",
   "mcp:data:read": "Read reflected data and information schema payloads.",
   "mcp:rpc:list": "List available RPC domains and endpoints.",
+  "mcp:memory:read": "Read stored agent memory entries and threads.",
+  "mcp:memory:write": "Create and update agent memory entries and threads.",
 }
 
 _PROVIDER_LABELS = {
@@ -61,6 +63,8 @@ async def get_protected_resource_metadata(request: Request):
       "mcp:schema:read",
       "mcp:data:read",
       "mcp:rpc:list",
+      "mcp:memory:read",
+      "mcp:memory:write",
     ],
     "bearer_methods_supported": ["header"],
   }
@@ -78,6 +82,8 @@ async def get_authorization_server_metadata(request: Request):
       "mcp:schema:read",
       "mcp:data:read",
       "mcp:rpc:list",
+      "mcp:memory:read",
+      "mcp:memory:write",
     ],
     "response_types_supported": ["code"],
     "grant_types_supported": ["authorization_code", "refresh_token"],
@@ -108,7 +114,10 @@ async def post_oauth_register(request: Request):
     redirect_uris=body.get("redirect_uris"),
     grant_types=body.get("grant_types", "authorization_code"),
     response_types=body.get("response_types", "code"),
-    scopes=body.get("scope", "mcp:schema:read mcp:data:read mcp:rpc:list"),
+    scopes=body.get(
+      "scope",
+      "mcp:schema:read mcp:data:read mcp:rpc:list mcp:memory:read mcp:memory:write",
+    ),
     ip_address=ip,
     user_agent=request.headers.get("user-agent"),
   )
@@ -232,7 +241,7 @@ async def get_oauth_authorize(
   client_id: str,
   redirect_uri: str,
   response_type: str,
-  scope: str = "mcp:schema:read mcp:data:read mcp:rpc:list",
+  scope: str = "mcp:schema:read mcp:data:read mcp:rpc:list mcp:memory:read mcp:memory:write",
   state: str | None = None,
   code_challenge: str | None = None,
   code_challenge_method: str | None = None,
