@@ -320,7 +320,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       kind: str | None = None, tags: str | None = None,
       limit: int = 20, offset: int = 0,
     ) -> Any:
-      """Search active memory entries. Returns {entries, total}.
+      """Search project IDEAS & topics — the evolving content you explore and
+      refine. Returns {entries, total}. For the rules that constrain HOW to
+      write code, use memory_coderules instead.
 
       query: free text matched (LIKE) against title/body/tags.
       project/kind: exact-match filters. tags: LIKE filter.
@@ -358,21 +360,25 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     # reinforce (raise authority); contradictions are recorded, not overwritten.
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_consult(
+    async def memory_coderules(
       ctx: Context, project: str | None = None, query: str | None = None,
-      kinds: str | None = None, limit: int = 20,
+      limit: int = 20,
     ) -> Any:
-      """Consult the bank for the rules to conform to BEFORE writing code.
+      """Your CODE-RULES bank — the behavioral constraints for HOW to write
+      code. Consult this BEFORE writing code to narrow your choices to the
+      architecturally-correct ones: black-box objects, strong typing, in/out
+      contracts, layer stability, single source of truth, no security-boundary
+      violations.
 
-      Returns active entries ranked by authority = confidence*(1+ref_count) — the
-      most-referenced, most-reinforced rules first (anti-decay).
-      project: scope to one project slug (recommended). query: optional free-text
-        task context; every whitespace-separated term must match title/body/tags.
-      kinds: comma-list to filter (default 'invariant,decision,spec').
-      Consult early and conform: black-box objects, strong typing, in/out
-      contracts, layer stability, no security-boundary violations."""
+      This is the RULES bank — distinct from project ideas/topics, which you
+      explore with memory_search / memory_list_recent. Returns only entries the
+      maintainer has affirmed as rules, ranked by authority =
+      confidence*(1+ref_count) (most-reinforced first — anti-decay).
+      project: scope to a project slug; its rules PLUS the universal 'general'
+        rules are returned. query: optional task context; every whitespace term
+        must match title/body/tags."""
       return await self.dispatch(
-        'memory_consult', ctx, project=project, query=query, kinds=kinds, limit=limit,
+        'memory_coderules', ctx, project=project, query=query, limit=limit,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
