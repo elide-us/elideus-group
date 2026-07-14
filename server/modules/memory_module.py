@@ -298,9 +298,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   ) -> dict[str, Any]:
     """Authority-ranked CODE RULES to conform to before writing code.
 
-    Backs the ``memory_coderules`` tool. Returns active entries TAGGED ``rule``
-    (the constraining subset — rule/idea is orthogonal to ``kind``) ordered by
-    authority = confidence*(1+ref_count). When ``project`` is given, the
+    Backs the ``memory_coderules`` tool. Returns active entries of kind
+    ``rule`` (the constraining subset — a rule is an idea that constrains a
+    choice) ordered by authority = confidence*(1+ref_count). When ``project`` is given, the
     universal ``general`` rules are folded in. ``query`` is an optional
     tokenised filter (every whitespace term must match title/body/tags)."""
     await self.on_ready()

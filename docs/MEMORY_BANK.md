@@ -28,7 +28,7 @@ methods. Writes use the non-read-only annotation; reads use the read-only one.
 | `memory_list_recent` | `list_recent_memory` | `mcp:memory:read` | `project?, limit=20` | `{ entries[] }` |
 | `memory_thread_create` | `create_thread` | `mcp:memory:write` | `project, title, summary?` | `{ key_guid }` |
 | `memory_thread_get` | `get_thread` | `mcp:memory:read` | `thread_guid` | `{ thread, entries[] }` |
-| `memory_coderules` | `consult_memory` | `mcp:memory:read` | `project?, query?, limit=20` | `{ entries[] }` (rule-tagged, authority-ranked) |
+| `memory_coderules` | `consult_memory` | `mcp:memory:read` | `project?, query?, limit=20` | `{ entries[] }` (kind=`rule`, authority-ranked) |
 | `memory_link_add` | `add_reference` | `mcp:memory:write` | `from_guid, to_guid, kind='cites', weight?` | `{ key_guid }` |
 | `memory_conflict_open` | `open_contradiction` | `mcp:memory:write` | `project, claim_a_guid, claim_b_guid, note?` | `{ key_guid }` |
 | `memory_conflict_resolve` | `resolve_contradiction` | `mcp:memory:write` | `conflict_guid, resolution, note?, resolved_source?` | `{ key_guid, resolution }` |
@@ -38,8 +38,10 @@ methods. Writes use the non-read-only annotation; reads use the read-only one.
 
 - **`project`** — short slug grouping related memory, e.g. `flicker`,
   `oracle-unity`, `general`.
-- **`kind`** — one of `decision | invariant | spec | note | session_summary |
-  snippet`. (Not constrained by the DB in v1 — keep to this vocabulary.)
+- **`kind`** — one of `rule | decision | invariant | spec | note |
+  session_summary | snippet`. `rule` is the classifier for a behavioral
+  constraint (the `memory_coderules` bank); the rest are ideas/topics. (Not
+  constrained by the DB — keep to this vocabulary.)
 - **`title`** — one-line summary (≤256 chars).
 - **`body`** — markdown detail.
 - **`tags`** — optional space-delimited tags, e.g. `auth mcp schema`.
@@ -193,16 +195,17 @@ not. So authority does **not** decay with age — reference and correction
 first and hold.
 
 - **`memory_coderules`** (`v0.13.4.0`, the renamed consult surface) — the "before
-  I code" entrypoint and the **RULES bank**. Returns only entries tagged `rule`
-  (the constraining subset — *rule/idea is orthogonal to `kind`*), ranked by
+  I code" entrypoint and the **RULES bank**. Returns only entries of kind `rule`
+  (the constraining subset — a rule is an idea that constrains a choice), ranked by
   **authority = `pub_confidence × (1 + pub_ref_count)`**. Naming a `project` folds
   in the universal `general` rules (those always apply). Optional **tokenised**
   `query` (every whitespace term must match title/body/tags). This is deliberately
   distinct from **`memory_search` / `memory_list_recent`**, the surface for project
   **ideas & topics** — so the tool list itself shows the split between *querying an
   idea* and *consulting the rules for how to write code*. A rule is an idea that
-  constrains a choice; an idea alone does not. No backfill — the bank fills as
-  entries are tagged `rule` going forward. (`memory_search` was also fixed to
+  constrains a choice; an idea alone does not — and `rule` is a **`kind`** (the
+  existing classifier), not a separate tag. No backfill — the bank fills as
+  entries are classified `rule` going forward. (`memory_search` was also fixed to
   tokenise; previously a multi-word query matched as one `LIKE` substring and
   returned nothing.)
 - **`memory_link_add`** — add a mind-map edge `from → to`. Inbound `cites`/`supports`
