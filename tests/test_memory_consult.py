@@ -1,9 +1,11 @@
 """Unit tests for the anti-decay consult loop (FDD-ORACLE-MEM-CONFLICT-01 Phase 2).
 
 Pure logic — no DB. Covers the edge-kind / resolution validators, the consult
-default kinds, and the authority formula (which must mirror the SQL in
+signature, and the authority formula (which must mirror the SQL in
 memory.entries.consult).
 """
+
+import inspect
 
 import pytest
 
@@ -11,7 +13,6 @@ from server.modules.memory_module import (
   MemoryModule,
   _VALID_REF_KINDS,
   _VALID_RESOLUTIONS,
-  _CONSULT_DEFAULT_KINDS,
 )
 
 ref_kind = MemoryModule._validate_ref_kind
@@ -77,5 +78,9 @@ def test_reinforcement_can_outrank_higher_base_confidence():
   assert authority(0.60, 3) > authority(0.90, 0)
 
 
-def test_consult_defaults_to_rule_kinds():
-  assert _CONSULT_DEFAULT_KINDS == 'invariant,decision,spec'
+def test_consult_memory_dropped_the_kinds_param():
+  # v0.13.4.0: consult (memory_coderules) filters by the 'rule' tag, not kind,
+  # so the kinds knob is gone; project/query/limit remain.
+  params = inspect.signature(MemoryModule.consult_memory).parameters
+  assert 'kinds' not in params
+  assert {'project', 'query', 'limit'} <= set(params)
