@@ -274,7 +274,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     async def memory_store(
       ctx: Context, project: str, kind: str, title: str, body: str,
       tags: str | None = None, thread_guid: str | None = None,
-      source: str | None = None,
+      source: str | None = None, confidence: float | None = None,
+      confidence_source: str | None = None,
     ) -> Any:
       """Store a memory entry and return its key_guid.
 
@@ -282,10 +283,16 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       kind: one of decision|invariant|spec|note|session_summary|snippet.
       title: one-line summary. body: markdown detail.
       tags: optional space-delimited tags e.g. 'auth mcp schema'.
-      thread_guid: optional thread to attach to (see memory_thread_create)."""
+      thread_guid: optional thread to attach to (see memory_thread_create).
+      confidence: 0..1 CONFIDENCE (never truth) in the claim; omit to take the
+        per-kind base weight, or 1.0 when confidence_source='human'.
+      confidence_source: agent|human|derived|imported (default agent). Human
+        statements are pinned to 1.0 as a source property — a human can still
+        typo, so this gates how loudly conflicts object, not correctness."""
       return await self.dispatch(
         'memory_store', ctx, project=project, kind=kind, title=title,
         body=body, tags=tags, thread_guid=thread_guid, source=source,
+        confidence=confidence, confidence_source=confidence_source,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)

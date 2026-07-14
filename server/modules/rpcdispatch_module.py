@@ -103,57 +103,120 @@ _LIST_EDT_MAPPINGS_SQL = """
   FOR JSON PATH, INCLUDE_NULL_VALUES;
 """
 
+# ── Live schema reflection (sys.* catalog) ─────────────────────────────────
+# Phase 1 of the deep-reflection rework: these formerly read the hand-seeded
+# system_objects_database_* mirror tables (still used by the web CMS); they now
+# read SQL Server's live catalog so the MCP oracle_* tools reflect reality.
+# Output field names are preserved; richer fields (element_type_full,
+# element_precision/scale, included columns, referenced schema/table, FK actions)
+# are added. table_guid now carries the live object_id correlation token.
+
 _LIST_TABLES_SQL = """
-  SELECT pub_schema AS element_schema, pub_name AS element_name
-  FROM system_objects_database_tables
-  ORDER BY pub_schema, pub_name
+  SELECT
+    s.name AS element_schema,
+    t.name AS element_name,
+    t.object_id AS table_guid
+  FROM sys.tables t
+  JOIN sys.schemas s ON t.schema_id = s.schema_id
+  WHERE t.is_ms_shipped = 0
+  ORDER BY s.name, t.name
   FOR JSON PATH;
 """
 
 _LIST_COLUMNS_SQL = """
   SELECT
-    c.ref_table_guid AS table_guid,
-    c.pub_name AS element_name,
-    c.pub_is_nullable AS element_nullable,
-    c.pub_default AS element_default,
-    c.pub_max_length AS element_max_length,
-    c.pub_is_primary_key AS element_is_primary_key,
-    c.pub_is_identity AS element_is_identity,
-    c.pub_ordinal AS element_ordinal,
-    t.pub_mssql_type AS element_mssql_type
-  FROM system_objects_database_columns c
-  JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
-  JOIN system_objects_database_tables tbl ON c.ref_table_guid = tbl.key_guid
-  WHERE tbl.pub_schema = ? AND tbl.pub_name = ?
-  ORDER BY c.pub_ordinal
+    c.object_id AS table_guid,
+    c.name AS element_name,
+    c.is_nullable AS element_nullable,
+    dc.definition AS element_default,
+    CASE
+      WHEN c.max_length = -1 THEN -1
+      WHEN ty.name IN ('nvarchar', 'nchar', 'sysname') THEN c.max_length / 2
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') THEN c.max_length
+      ELSE NULL
+    END AS element_max_length,
+    CAST(CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS element_is_primary_key,
+    c.is_identity AS element_is_identity,
+    c.column_id AS element_ordinal,
+    ty.name AS element_mssql_type,
+    c.precision AS element_precision,
+    c.scale AS element_scale,
+    c.collation_name AS element_collation,
+    c.is_computed AS element_is_computed,
+    ty.name + CASE
+      WHEN ty.name IN ('nvarchar', 'nchar') AND c.max_length = -1 THEN '(max)'
+      WHEN ty.name IN ('nvarchar', 'nchar') THEN '(' + CONVERT(VARCHAR(11), c.max_length / 2) + ')'
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') AND c.max_length = -1 THEN '(max)'
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') THEN '(' + CONVERT(VARCHAR(11), c.max_length) + ')'
+      WHEN ty.name IN ('decimal', 'numeric') THEN '(' + CONVERT(VARCHAR(11), c.precision) + ',' + CONVERT(VARCHAR(11), c.scale) + ')'
+      WHEN ty.name IN ('datetime2', 'datetimeoffset', 'time') THEN '(' + CONVERT(VARCHAR(11), c.scale) + ')'
+      ELSE ''
+    END AS element_type_full
+  FROM sys.columns c
+  JOIN sys.objects o ON c.object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+  LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
+  LEFT JOIN (
+    SELECT ic.object_id, ic.column_id
+    FROM sys.indexes i
+    JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+    WHERE i.is_primary_key = 1
+  ) pk ON pk.object_id = c.object_id AND pk.column_id = c.column_id
+  WHERE o.type IN ('U', 'V') AND s.name = ? AND o.name = ?
+  ORDER BY c.column_id
   FOR JSON PATH;
 """
 
 _LIST_INDEXES_SQL = """
   SELECT
-    i.ref_table_guid AS table_guid,
-    i.pub_name AS element_name,
-    i.pub_columns AS element_columns,
-    i.pub_is_unique AS element_is_unique
-  FROM system_objects_database_indexes i
-  JOIN system_objects_database_tables t ON i.ref_table_guid = t.key_guid
-  WHERE t.pub_schema = ? AND t.pub_name = ?
-  ORDER BY i.pub_name
+    i.object_id AS table_guid,
+    i.name AS element_name,
+    (
+      SELECT STRING_AGG(col.name, ',') WITHIN GROUP (ORDER BY ic.key_ordinal)
+      FROM sys.index_columns ic
+      JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+      WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0
+    ) AS element_columns,
+    (
+      SELECT STRING_AGG(col.name, ',') WITHIN GROUP (ORDER BY ic.index_column_id)
+      FROM sys.index_columns ic
+      JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+      WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 1
+    ) AS element_included_columns,
+    i.is_unique AS element_is_unique,
+    i.is_primary_key AS element_is_primary_key,
+    i.type_desc AS element_type,
+    i.filter_definition AS element_filter
+  FROM sys.indexes i
+  JOIN sys.objects o ON i.object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  WHERE i.index_id > 0 AND i.name IS NOT NULL AND s.name = ? AND o.name = ?
+  ORDER BY i.name
   FOR JSON PATH;
 """
 
 _LIST_FOREIGN_KEYS_SQL = """
   SELECT
-    fk.ref_table_guid AS table_guid,
-    src_col.pub_name AS element_column_name,
-    fk.ref_referenced_table_guid AS referenced_table_guid,
-    ref_col.pub_name AS element_referenced_column
-  FROM system_objects_database_constraints fk
-  JOIN system_objects_database_tables t ON fk.ref_table_guid = t.key_guid
-  JOIN system_objects_database_columns src_col ON fk.ref_column_guid = src_col.key_guid
-  JOIN system_objects_database_columns ref_col ON fk.ref_referenced_column_guid = ref_col.key_guid
-  WHERE t.pub_schema = ? AND t.pub_name = ?
-  ORDER BY src_col.pub_name
+    fk.parent_object_id AS table_guid,
+    pc.name AS element_column_name,
+    fk.referenced_object_id AS referenced_table_guid,
+    rc.name AS element_referenced_column,
+    fk.name AS element_constraint_name,
+    rs.name AS element_referenced_schema,
+    rt.name AS element_referenced_table,
+    fk.delete_referential_action_desc AS element_on_delete,
+    fk.update_referential_action_desc AS element_on_update
+  FROM sys.foreign_keys fk
+  JOIN sys.objects o ON fk.parent_object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+  JOIN sys.columns pc ON fkc.parent_object_id = pc.object_id AND fkc.parent_column_id = pc.column_id
+  JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
+  JOIN sys.objects rt ON fk.referenced_object_id = rt.object_id
+  JOIN sys.schemas rs ON rt.schema_id = rs.schema_id
+  WHERE s.name = ? AND o.name = ?
+  ORDER BY fk.name, fkc.constraint_column_id
   FOR JSON PATH;
 """
 
@@ -174,42 +237,92 @@ _GET_VERSION_SQL = """
 
 _ALL_COLUMNS_SQL = """
   SELECT
-    c.ref_table_guid AS table_guid,
-    c.pub_name AS element_name,
-    c.pub_is_nullable AS element_nullable,
-    c.pub_default AS element_default,
-    c.pub_max_length AS element_max_length,
-    c.pub_is_primary_key AS element_is_primary_key,
-    c.pub_is_identity AS element_is_identity,
-    c.pub_ordinal AS element_ordinal,
-    t.pub_mssql_type AS element_mssql_type
-  FROM system_objects_database_columns c
-  JOIN system_objects_types t ON c.ref_type_guid = t.key_guid
-  ORDER BY c.ref_table_guid, c.pub_ordinal
+    c.object_id AS table_guid,
+    s.name AS element_table_schema,
+    o.name AS element_table_name,
+    c.name AS element_name,
+    c.is_nullable AS element_nullable,
+    dc.definition AS element_default,
+    CASE
+      WHEN c.max_length = -1 THEN -1
+      WHEN ty.name IN ('nvarchar', 'nchar', 'sysname') THEN c.max_length / 2
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') THEN c.max_length
+      ELSE NULL
+    END AS element_max_length,
+    CAST(CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS element_is_primary_key,
+    c.is_identity AS element_is_identity,
+    c.column_id AS element_ordinal,
+    ty.name AS element_mssql_type,
+    c.precision AS element_precision,
+    c.scale AS element_scale,
+    ty.name + CASE
+      WHEN ty.name IN ('nvarchar', 'nchar') AND c.max_length = -1 THEN '(max)'
+      WHEN ty.name IN ('nvarchar', 'nchar') THEN '(' + CONVERT(VARCHAR(11), c.max_length / 2) + ')'
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') AND c.max_length = -1 THEN '(max)'
+      WHEN ty.name IN ('varchar', 'char', 'varbinary', 'binary') THEN '(' + CONVERT(VARCHAR(11), c.max_length) + ')'
+      WHEN ty.name IN ('decimal', 'numeric') THEN '(' + CONVERT(VARCHAR(11), c.precision) + ',' + CONVERT(VARCHAR(11), c.scale) + ')'
+      WHEN ty.name IN ('datetime2', 'datetimeoffset', 'time') THEN '(' + CONVERT(VARCHAR(11), c.scale) + ')'
+      ELSE ''
+    END AS element_type_full
+  FROM sys.columns c
+  JOIN sys.objects o ON c.object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+  LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
+  LEFT JOIN (
+    SELECT ic.object_id, ic.column_id
+    FROM sys.indexes i
+    JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+    WHERE i.is_primary_key = 1
+  ) pk ON pk.object_id = c.object_id AND pk.column_id = c.column_id
+  WHERE o.type = 'U' AND o.is_ms_shipped = 0
+  ORDER BY s.name, o.name, c.column_id
   FOR JSON PATH;
 """
 
 _ALL_INDEXES_SQL = """
   SELECT
-    i.ref_table_guid AS table_guid,
-    i.pub_name AS element_name,
-    i.pub_columns AS element_columns,
-    i.pub_is_unique AS element_is_unique
-  FROM system_objects_database_indexes i
-  ORDER BY i.ref_table_guid, i.pub_name
+    i.object_id AS table_guid,
+    s.name AS element_table_schema,
+    o.name AS element_table_name,
+    i.name AS element_name,
+    (
+      SELECT STRING_AGG(col.name, ',') WITHIN GROUP (ORDER BY ic.key_ordinal)
+      FROM sys.index_columns ic
+      JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+      WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.is_included_column = 0
+    ) AS element_columns,
+    i.is_unique AS element_is_unique,
+    i.is_primary_key AS element_is_primary_key,
+    i.type_desc AS element_type
+  FROM sys.indexes i
+  JOIN sys.objects o ON i.object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  WHERE i.index_id > 0 AND i.name IS NOT NULL AND o.type = 'U' AND o.is_ms_shipped = 0
+  ORDER BY s.name, o.name, i.name
   FOR JSON PATH;
 """
 
 _ALL_FOREIGN_KEYS_SQL = """
   SELECT
-    fk.ref_table_guid AS table_guid,
-    src_col.pub_name AS element_column_name,
-    fk.ref_referenced_table_guid AS referenced_table_guid,
-    ref_col.pub_name AS element_referenced_column
-  FROM system_objects_database_constraints fk
-  JOIN system_objects_database_columns src_col ON fk.ref_column_guid = src_col.key_guid
-  JOIN system_objects_database_columns ref_col ON fk.ref_referenced_column_guid = ref_col.key_guid
-  ORDER BY fk.ref_table_guid, src_col.pub_name
+    fk.parent_object_id AS table_guid,
+    s.name AS element_table_schema,
+    o.name AS element_table_name,
+    pc.name AS element_column_name,
+    fk.referenced_object_id AS referenced_table_guid,
+    rc.name AS element_referenced_column,
+    fk.name AS element_constraint_name,
+    rs.name AS element_referenced_schema,
+    rt.name AS element_referenced_table
+  FROM sys.foreign_keys fk
+  JOIN sys.objects o ON fk.parent_object_id = o.object_id
+  JOIN sys.schemas s ON o.schema_id = s.schema_id
+  JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+  JOIN sys.columns pc ON fkc.parent_object_id = pc.object_id AND fkc.parent_column_id = pc.column_id
+  JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
+  JOIN sys.objects rt ON fk.referenced_object_id = rt.object_id
+  JOIN sys.schemas rs ON rt.schema_id = rs.schema_id
+  ORDER BY s.name, o.name, fk.name, fkc.constraint_column_id
   FOR JSON PATH;
 """
 

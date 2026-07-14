@@ -27,6 +27,24 @@ from .db_module import DbModule
 _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
 
+# ── Confidence weighting policy (FDD-ORACLE-MEM-CONFLICT-01) ─────────────────
+# Base confidence assigned to a claim when the caller supplies none. Confidence
+# is CONFIDENCE, never truth: it gates how loudly the system objects to a
+# contradiction, not whether a claim is accepted. A human-sourced statement is
+# pinned to 1.0 as a *source* property — still not truth (a human can typo).
+# These numbers MIRROR the PHASE 2 backfill in migration v0.13.2.0; keep in sync.
+_BASE_CONFIDENCE: dict[str, float] = {
+  'invariant': 0.90,
+  'decision': 0.85,
+  'spec': 0.80,
+  'reference': 0.75,
+  'snippet': 0.70,
+  'note': 0.60,
+  'session_summary': 0.55,
+}
+_DEFAULT_CONFIDENCE = 0.70  # unknown / unlisted kind
+_VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
+
 
 class MemoryModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -91,18 +109,49 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   def _like(term: str | None) -> str | None:
     return f'%{term}%' if term else None
 
+  @staticmethod
+  def _resolve_confidence(
+    kind: str, confidence: float | None, confidence_source: str | None,
+  ) -> tuple[float, str]:
+    """Resolve the stored (confidence, source) for a new entry.
+
+    - source defaults to 'agent'; unknown sources are coerced to 'agent'.
+    - if confidence is omitted: a 'human' source yields 1.0, otherwise the
+      per-kind base weight (falling back to _DEFAULT_CONFIDENCE).
+    - an explicit confidence is honoured but clamped to [0, 1] (invariant #1:
+      confidence is always a 0..1 scalar).
+    """
+    source = (confidence_source or 'agent').strip().lower()
+    if source not in _VALID_CONFIDENCE_SOURCES:
+      source = 'agent'
+    if confidence is None:
+      value = 1.0 if source == 'human' else _BASE_CONFIDENCE.get(kind, _DEFAULT_CONFIDENCE)
+    else:
+      try:
+        value = float(confidence)
+      except (TypeError, ValueError):
+        value = _DEFAULT_CONFIDENCE
+    value = max(0.0, min(1.0, value))
+    return value, source
+
   # ── Entries ────────────────────────────────────────────────────────────
 
   async def store_memory(
     self, project: str, kind: str, title: str, body: str,
     tags: str | None = None, thread_guid: str | None = None,
-    source: str | None = None,
+    source: str | None = None, confidence: float | None = None,
+    confidence_source: str | None = None,
   ) -> dict[str, Any]:
-    """Insert a memory entry. Returns ``{key_guid}`` of the new row."""
+    """Insert a memory entry. Returns ``{key_guid}`` of the new row.
+
+    ``confidence`` is a 0..1 scalar; omit it to take the per-kind base weight
+    (or 1.0 when ``confidence_source='human'``). New rows start ``node_state``
+    ``active`` with ``ref_count`` 0 (DB defaults)."""
     await self.on_ready()
+    conf_value, conf_source = self._resolve_confidence(kind, confidence, confidence_source)
     result = await self._run_query(
       'memory.entries.insert',
-      (thread_guid, project, kind, title, body, tags, source),
+      (thread_guid, project, kind, title, body, tags, source, conf_value, conf_source),
     )
     rows = self._rows(result)
     if not rows:
