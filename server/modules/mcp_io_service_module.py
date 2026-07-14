@@ -280,7 +280,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       """Store a memory entry and return its key_guid.
 
       project: short slug e.g. 'flicker', 'oracle-unity', 'general'.
-      kind: one of decision|invariant|spec|note|session_summary|snippet.
+      kind: one of rule|decision|invariant|spec|note|session_summary|snippet
+        ('rule' = a behavioral constraint on how to write code — the classifier
+        the memory_coderules bank filters on; the rest are ideas/topics).
       title: one-line summary. body: markdown detail.
       tags: optional space-delimited tags e.g. 'auth mcp schema'.
       thread_guid: optional thread to attach to (see memory_thread_create).
@@ -371,8 +373,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       violations.
 
       This is the RULES bank — distinct from project ideas/topics, which you
-      explore with memory_search / memory_list_recent. Returns only entries the
-      maintainer has affirmed as rules, ranked by authority =
+      explore with memory_search / memory_list_recent. Returns only entries
+      classified kind='rule', ranked by authority =
       confidence*(1+ref_count) (most-reinforced first — anti-decay).
       project: scope to a project slug; its rules PLUS the universal 'general'
         rules are returned. query: optional task context; every whitespace term
