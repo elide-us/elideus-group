@@ -28,7 +28,7 @@ methods. Writes use the non-read-only annotation; reads use the read-only one.
 | `memory_list_recent` | `list_recent_memory` | `mcp:memory:read` | `project?, limit=20` | `{ entries[] }` |
 | `memory_thread_create` | `create_thread` | `mcp:memory:write` | `project, title, summary?` | `{ key_guid }` |
 | `memory_thread_get` | `get_thread` | `mcp:memory:read` | `thread_guid` | `{ thread, entries[] }` |
-| `memory_consult` | `consult_memory` | `mcp:memory:read` | `project?, query?, kinds?, limit=20` | `{ entries[] }` (authority-ranked) |
+| `memory_coderules` | `consult_memory` | `mcp:memory:read` | `project?, query?, limit=20` | `{ entries[] }` (rule-tagged, authority-ranked) |
 | `memory_link_add` | `add_reference` | `mcp:memory:write` | `from_guid, to_guid, kind='cites', weight?` | `{ key_guid }` |
 | `memory_conflict_open` | `open_contradiction` | `mcp:memory:write` | `project, claim_a_guid, claim_b_guid, note?` | `{ key_guid }` |
 | `memory_conflict_resolve` | `resolve_contradiction` | `mcp:memory:write` | `conflict_guid, resolution, note?, resolved_source?` | `{ key_guid, resolution }` |
@@ -192,12 +192,19 @@ not. So authority does **not** decay with age — reference and correction
 **reinforce** it. Retrieval ranks by that authority so the important rules surface
 first and hold.
 
-- **`memory_consult`** — the "before I code" entrypoint. Returns active entries
-  ranked by **authority = `pub_confidence × (1 + pub_ref_count)`**, filtered to
-  `kinds` (default `invariant,decision,spec`) and, if given, a **tokenised**
-  `query` (every whitespace term must match title/body/tags). `memory_search` was
-  also fixed to tokenise — previously it matched the whole query as one `LIKE`
-  substring, so multi-word queries returned nothing.
+- **`memory_coderules`** (`v0.13.4.0`, the renamed consult surface) — the "before
+  I code" entrypoint and the **RULES bank**. Returns only entries tagged `rule`
+  (the constraining subset — *rule/idea is orthogonal to `kind`*), ranked by
+  **authority = `pub_confidence × (1 + pub_ref_count)`**. Naming a `project` folds
+  in the universal `general` rules (those always apply). Optional **tokenised**
+  `query` (every whitespace term must match title/body/tags). This is deliberately
+  distinct from **`memory_search` / `memory_list_recent`**, the surface for project
+  **ideas & topics** — so the tool list itself shows the split between *querying an
+  idea* and *consulting the rules for how to write code*. A rule is an idea that
+  constrains a choice; an idea alone does not. No backfill — the bank fills as
+  entries are tagged `rule` going forward. (`memory_search` was also fixed to
+  tokenise; previously a multi-word query matched as one `LIKE` substring and
+  returned nothing.)
 - **`memory_link_add`** — add a mind-map edge `from → to`. Inbound `cites`/`supports`
   edges raise the target's `pub_ref_count` (recomputed on each add) — this is how a
   correction/note that *supports* a rule **reinforces** it.

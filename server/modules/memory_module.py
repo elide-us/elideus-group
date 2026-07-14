@@ -50,7 +50,6 @@ _VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
 # structural (supersede/contradict/disambiguate/derive).
 _VALID_REF_KINDS = ('cites', 'supports', 'supersedes', 'derived_from', 'contradicts', 'disambiguates')
 _VALID_RESOLUTIONS = ('correction', 'new_version', 'typo', 'contradiction', 'misunderstanding')
-_CONSULT_DEFAULT_KINDS = 'invariant,decision,spec'
 
 
 class MemoryModule(BaseModule):
@@ -295,18 +294,19 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
   async def consult_memory(
     self, project: str | None = None, query: str | None = None,
-    kinds: str | None = None, limit: int = _DEFAULT_LIMIT,
+    limit: int = _DEFAULT_LIMIT,
   ) -> dict[str, Any]:
-    """Authority-ranked rules to conform to before a coding task.
+    """Authority-ranked CODE RULES to conform to before writing code.
 
-    Returns active entries ordered by authority = confidence*(1+ref_count),
-    filtered to ``kinds`` (default 'invariant,decision,spec') and, if given, a
-    tokenised ``query`` (every whitespace term must match title/body/tags)."""
+    Backs the ``memory_coderules`` tool. Returns active entries TAGGED ``rule``
+    (the constraining subset — rule/idea is orthogonal to ``kind``) ordered by
+    authority = confidence*(1+ref_count). When ``project`` is given, the
+    universal ``general`` rules are folded in. ``query`` is an optional
+    tokenised filter (every whitespace term must match title/body/tags)."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
-    kinds = kinds or _CONSULT_DEFAULT_KINDS
     result = await self._run_query(
-      'memory.entries.consult', (limit, project, project, kinds, query, query),
+      'memory.entries.consult', (limit, project, project, query, query),
     )
     return {'entries': self._rows(result)}
 
