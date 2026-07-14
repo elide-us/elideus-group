@@ -45,6 +45,13 @@ _BASE_CONFIDENCE: dict[str, float] = {
 _DEFAULT_CONFIDENCE = 0.70  # unknown / unlisted kind
 _VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
 
+# Reference-edge kinds and contradiction resolution classes (FDD §4). Only
+# 'cites'/'supports' edges confer authority (feed pub_ref_count); the rest are
+# structural (supersede/contradict/disambiguate/derive).
+_VALID_REF_KINDS = ('cites', 'supports', 'supersedes', 'derived_from', 'contradicts', 'disambiguates')
+_VALID_RESOLUTIONS = ('correction', 'new_version', 'typo', 'contradiction', 'misunderstanding')
+_CONSULT_DEFAULT_KINDS = 'invariant,decision,spec'
+
 
 class MemoryModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -134,6 +141,32 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     value = max(0.0, min(1.0, value))
     return value, source
 
+  @staticmethod
+  def _validate_ref_kind(kind: str | None) -> str:
+    """Normalise + validate a reference-edge kind (default 'cites')."""
+    normalised = (kind or 'cites').strip().lower()
+    if normalised not in _VALID_REF_KINDS:
+      raise ValueError(
+        f'Invalid reference kind {kind!r}. One of: {", ".join(_VALID_REF_KINDS)}.'
+      )
+    return normalised
+
+  @staticmethod
+  def _validate_resolution(resolution: str | None) -> str:
+    """Normalise + validate a contradiction resolution class."""
+    normalised = (resolution or '').strip().lower()
+    if normalised not in _VALID_RESOLUTIONS:
+      raise ValueError(
+        f'Invalid resolution {resolution!r}. One of: {", ".join(_VALID_RESOLUTIONS)}.'
+      )
+    return normalised
+
+  @staticmethod
+  def _authority(confidence: float, ref_count: int) -> float:
+    """Anti-decay authority score used for consult ranking (mirrors the SQL in
+    memory.entries.consult): confidence * (1 + ref_count)."""
+    return float(confidence) * (1 + int(ref_count))
+
   # ── Entries ────────────────────────────────────────────────────────────
 
   async def store_memory(
@@ -204,14 +237,13 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       offset = max(0, int(offset))
     except (TypeError, ValueError):
       offset = 0
-    query_like = self._like(query)
     tags_like = self._like(tags)
     params = (
-      query, query_like, query_like, query_like,  # full-text-ish LIKE block
-      project, project,                            # project exact
-      kind, kind,                                  # kind exact
-      tags, tags_like,                             # tags LIKE
-      offset, limit,                               # paging
+      query, query,              # tokenised block: NULL-guard + STRING_SPLIT input
+      project, project,          # project exact
+      kind, kind,                # kind exact
+      tags, tags_like,           # tags LIKE
+      offset, limit,             # paging
     )
     result = await self._run_query('memory.entries.search', params)
     rows = self._rows(result)
@@ -258,3 +290,101 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     thread = rows[0]
     entries = thread.pop('entries', None) or []
     return {'thread': thread, 'entries': entries}
+
+  # ── Consult (anti-decay rule retrieval) ─────────────────────────────────
+
+  async def consult_memory(
+    self, project: str | None = None, query: str | None = None,
+    kinds: str | None = None, limit: int = _DEFAULT_LIMIT,
+  ) -> dict[str, Any]:
+    """Authority-ranked rules to conform to before a coding task.
+
+    Returns active entries ordered by authority = confidence*(1+ref_count),
+    filtered to ``kinds`` (default 'invariant,decision,spec') and, if given, a
+    tokenised ``query`` (every whitespace term must match title/body/tags)."""
+    await self.on_ready()
+    limit = self._clamp_limit(limit)
+    kinds = kinds or _CONSULT_DEFAULT_KINDS
+    result = await self._run_query(
+      'memory.entries.consult', (limit, project, project, kinds, query, query),
+    )
+    return {'entries': self._rows(result)}
+
+  # ── References (mind-map edges / reinforcement) ─────────────────────────
+
+  async def add_reference(
+    self, from_guid: str, to_guid: str, kind: str = 'cites',
+    weight: float | None = None,
+  ) -> dict[str, Any]:
+    """Add a directed reference edge and recompute the target's authority.
+
+    Idempotent on (from, to, kind). Inbound cites/supports edges raise the
+    target's ref_count — this is how reference/correction REINFORCES a claim
+    (anti-decay). Returns the edge ``{key_guid}``."""
+    await self.on_ready()
+    kind = self._validate_ref_kind(kind)
+    result = await self._run_query(
+      'memory.references.insert', (from_guid, to_guid, kind, weight),
+    )
+    rows = self._rows(result)
+    key = str(rows[0].get('key_guid')) if rows else None
+    # Recompute the referenced node's authority rollup now the edge exists.
+    await self._run_query('memory.entries.recompute_refcount', (to_guid,))
+    return {'key_guid': key}
+
+  # ── Contradictions (first-class conflict lifecycle) ─────────────────────
+
+  async def open_contradiction(
+    self, project: str, claim_a_guid: str, claim_b_guid: str,
+    note: str | None = None,
+  ) -> dict[str, Any]:
+    """Record a contradiction between two claims and flip both active nodes to
+    ``conflict``. Neither claim is destroyed (FDD §3). Returns ``{key_guid}``."""
+    await self.on_ready()
+    result = await self._run_query(
+      'memory.contradictions.open', (claim_a_guid, claim_b_guid, project, note),
+    )
+    rows = self._rows(result)
+    if not rows:
+      raise RuntimeError('open_contradiction failed to create the record')
+    return {'key_guid': str(rows[0].get('key_guid'))}
+
+  async def resolve_contradiction(
+    self, conflict_guid: str, resolution: str, note: str | None = None,
+    resolved_source: str | None = None,
+  ) -> dict[str, Any]:
+    """Resolve a contradiction with an explicit classified transition (FDD §4):
+
+    - ``correction``: A was always wrong → retire A, promote B, B supersedes A.
+    - ``new_version``: both true at different times → A historical, B supersedes A.
+    - ``typo``: B is malformed → keep A, retire B.
+    - ``misunderstanding``: A and B are different things → both active, disambiguated.
+    - ``contradiction``: genuine standoff → both active, a contradicts edge recorded.
+    """
+    await self.on_ready()
+    resolution = self._validate_resolution(resolution)
+    result = await self._run_query(
+      'memory.contradictions.resolve',
+      (conflict_guid, resolution, note, resolved_source),
+    )
+    rows = self._rows(result)
+    if not rows:
+      raise ValueError(
+        f'Unknown contradiction conflict_guid={conflict_guid!r}. '
+        'Use memory_conflicts_list to find open contradictions.'
+      )
+    return rows[0]
+
+  async def list_contradictions(
+    self, project: str | None = None, state: str | None = 'open',
+    limit: int = _DEFAULT_LIMIT,
+  ) -> dict[str, Any]:
+    """List contradictions (default ``state='open'`` — the interrupt queue).
+    Pass ``state=None`` for all states. Returns ``{contradictions[]}`` with both
+    claims' titles/confidence/state joined in."""
+    await self.on_ready()
+    limit = self._clamp_limit(limit)
+    result = await self._run_query(
+      'memory.contradictions.list', (limit, project, project, state, state),
+    )
+    return {'contradictions': self._rows(result)}

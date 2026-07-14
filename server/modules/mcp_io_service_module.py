@@ -353,6 +353,86 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       """Fetch a thread and its active entries. Returns {thread, entries}."""
       return await self.dispatch('memory_thread_get', ctx, thread_guid=thread_guid)
 
+    # ── Anti-decay consult loop (FDD-ORACLE-MEM-CONFLICT-01 Phase 2) ──────
+    # Before a coding task, CONSULT for the rules to conform to. Corrections
+    # reinforce (raise authority); contradictions are recorded, not overwritten.
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_consult(
+      ctx: Context, project: str | None = None, query: str | None = None,
+      kinds: str | None = None, limit: int = 20,
+    ) -> Any:
+      """Consult the bank for the rules to conform to BEFORE writing code.
+
+      Returns active entries ranked by authority = confidence*(1+ref_count) — the
+      most-referenced, most-reinforced rules first (anti-decay).
+      project: scope to one project slug (recommended). query: optional free-text
+        task context; every whitespace-separated term must match title/body/tags.
+      kinds: comma-list to filter (default 'invariant,decision,spec').
+      Consult early and conform: black-box objects, strong typing, in/out
+      contracts, layer stability, no security-boundary violations."""
+      return await self.dispatch(
+        'memory_consult', ctx, project=project, query=query, kinds=kinds, limit=limit,
+      )
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_link_add(
+      ctx: Context, from_guid: str, to_guid: str, kind: str = 'cites',
+      weight: float | None = None,
+    ) -> Any:
+      """Add a directed reference edge from_guid -> to_guid and recompute the
+      target's authority. kind: cites|supports|supersedes|derived_from|
+      contradicts|disambiguates (default cites). Inbound cites/supports edges
+      REINFORCE the target (raise its ref_count) — use this to capture that a
+      correction/note supports an existing rule. Idempotent on (from,to,kind)."""
+      return await self.dispatch(
+        'memory_link_add', ctx, from_guid=from_guid, to_guid=to_guid,
+        kind=kind, weight=weight,
+      )
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_conflict_open(
+      ctx: Context, project: str, claim_a_guid: str, claim_b_guid: str,
+      note: str | None = None,
+    ) -> Any:
+      """Record a contradiction between two existing claims. Both claims persist;
+      both nodes enter 'conflict' state. claim_a = incumbent, claim_b = challenger.
+      Does NOT resolve — resolution is an explicit classified step
+      (memory_conflict_resolve). Returns the contradiction {key_guid}."""
+      return await self.dispatch(
+        'memory_conflict_open', ctx, project=project,
+        claim_a_guid=claim_a_guid, claim_b_guid=claim_b_guid, note=note,
+      )
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_conflict_resolve(
+      ctx: Context, conflict_guid: str, resolution: str,
+      note: str | None = None, resolved_source: str | None = None,
+    ) -> Any:
+      """Resolve a contradiction with a classified transition. resolution is one of:
+      correction (A was wrong → retire A, promote B, B supersedes A),
+      new_version (both true at different times → A historical, B supersedes A),
+      typo (B malformed → keep A, retire B),
+      misunderstanding (different things → both stay, disambiguated),
+      contradiction (genuine standoff → both stay, contradicts edge recorded).
+      resolved_source: who resolved (human authority)."""
+      return await self.dispatch(
+        'memory_conflict_resolve', ctx, conflict_guid=conflict_guid,
+        resolution=resolution, note=note, resolved_source=resolved_source,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_conflicts_list(
+      ctx: Context, project: str | None = None, state: str | None = 'open',
+      limit: int = 20,
+    ) -> Any:
+      """List contradictions with both claims' titles/confidence/state. Default
+      state='open' is the interrupt queue (conflicts awaiting resolution); pass
+      state=None for all."""
+      return await self.dispatch(
+        'memory_conflicts_list', ctx, project=project, state=state, limit=limit,
+      )
+
   # ── Dispatch ───────────────────────────────────────────────────────────
 
   async def dispatch(self, operation_name: str, ctx: Context, **kwargs: Any) -> Any:

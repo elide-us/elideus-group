@@ -28,6 +28,11 @@ methods. Writes use the non-read-only annotation; reads use the read-only one.
 | `memory_list_recent` | `list_recent_memory` | `mcp:memory:read` | `project?, limit=20` | `{ entries[] }` |
 | `memory_thread_create` | `create_thread` | `mcp:memory:write` | `project, title, summary?` | `{ key_guid }` |
 | `memory_thread_get` | `get_thread` | `mcp:memory:read` | `thread_guid` | `{ thread, entries[] }` |
+| `memory_consult` | `consult_memory` | `mcp:memory:read` | `project?, query?, kinds?, limit=20` | `{ entries[] }` (authority-ranked) |
+| `memory_link_add` | `add_reference` | `mcp:memory:write` | `from_guid, to_guid, kind='cites', weight?` | `{ key_guid }` |
+| `memory_conflict_open` | `open_contradiction` | `mcp:memory:write` | `project, claim_a_guid, claim_b_guid, note?` | `{ key_guid }` |
+| `memory_conflict_resolve` | `resolve_contradiction` | `mcp:memory:write` | `conflict_guid, resolution, note?, resolved_source?` | `{ key_guid, resolution }` |
+| `memory_conflicts_list` | `list_contradictions` | `mcp:memory:read` | `project?, state='open', limit=20` | `{ contradictions[] }` |
 
 ### Field conventions
 
@@ -180,16 +185,46 @@ Resolution is an **explicit, classified transition** (FDD §4), never an implici
 side effect of a write. `IX_agent_memory_contradictions_state` is the
 "interrupt the human" queue (open conflicts, by project).
 
-### Phase 1 vs Phase 2
+### The anti-decay consult loop (Phase 2, `v0.13.3.0`)
 
-Phase 1 (this migration) is **schema + weighting foundation**: the columns and
-both tables exist and `memory_store` accepts `confidence`, but the reference and
-contradiction tables have no write/read tooling yet, so they start empty. **Phase
-2** wires the behaviour — proposed tools: `memory_link_add`,
-`memory_conflict_open`, `memory_conflict_resolve`, `memory_conflicts_list`, plus
-`pub_ref_count` recompute. Those are additive (new methods/queries/bindings on the
-existing `mcp:memory:*` scopes — no OAuth change), following the same
-wrapper→dispatch→binding→method→query pattern as the existing tools.
+The point of the system is **anti-decay**: the agent forgets; important rules must
+not. So authority does **not** decay with age — reference and correction
+**reinforce** it. Retrieval ranks by that authority so the important rules surface
+first and hold.
+
+- **`memory_consult`** — the "before I code" entrypoint. Returns active entries
+  ranked by **authority = `pub_confidence × (1 + pub_ref_count)`**, filtered to
+  `kinds` (default `invariant,decision,spec`) and, if given, a **tokenised**
+  `query` (every whitespace term must match title/body/tags). `memory_search` was
+  also fixed to tokenise — previously it matched the whole query as one `LIKE`
+  substring, so multi-word queries returned nothing.
+- **`memory_link_add`** — add a mind-map edge `from → to`. Inbound `cites`/`supports`
+  edges raise the target's `pub_ref_count` (recomputed on each add) — this is how a
+  correction/note that *supports* a rule **reinforces** it.
+- **`memory_conflict_open`** — record a contradiction between two claims; both nodes
+  enter `conflict`. Nothing is overwritten.
+- **`memory_conflict_resolve`** — the explicit **classified transition** (FDD §4):
+
+  | resolution | effect |
+  |---|---|
+  | `correction` | retire A, promote B, add `B → A` supersedes edge |
+  | `new_version` | A → historical, promote B, add `B → A` supersedes edge |
+  | `typo` | keep A, retire B (B was malformed) |
+  | `misunderstanding` | both stay active; add `A ↔ B` disambiguates edge |
+  | `contradiction` | both stay active; record a `contradicts` edge (genuine standoff) |
+
+  Runs as one atomic SQL batch and recomputes both claims' `ref_count`.
+- **`memory_conflicts_list`** — the interrupt queue (`state='open'` by default),
+  with both claims' titles/confidence/state joined in.
+
+All Phase 2 tools are additive on the existing `mcp:memory:*` scopes (no OAuth
+change), following the same wrapper→dispatch→binding→method→query pattern. Only
+`cites`/`supports` edges confer authority; `supersedes`/`contradicts`/
+`disambiguates`/`derived_from` are structural and don't inflate `ref_count`.
+
+**Still open (deliberately not built):** retirement *propagation* — when claim A is
+retired/superseded, how the entries that reference A are updated (FDD §7 #3).
+Today a `supersedes` edge is recorded but referencing nodes are not rewritten.
 
 ---
 
