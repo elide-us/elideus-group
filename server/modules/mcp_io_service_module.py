@@ -331,7 +331,10 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       refine. Returns {entries, total}. For the rules that constrain HOW to
       write code, use memory_coderules instead.
 
-      query: free text matched (LIKE) against title/body/tags.
+      query: free text; an entry matches if ANY whitespace term appears in
+        title/body/tags, and results are ranked by how many distinct terms
+        match (most relevant first, each row carries match_count), then recency.
+        Omit query to browse by recency.
       project/kind: exact-match filters. tags: LIKE filter.
       limit: page size (max 100). offset: rows to skip for paging."""
       return await self.dispatch(
