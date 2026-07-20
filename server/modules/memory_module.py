@@ -379,8 +379,12 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     kind: str | None = None, tags: str | None = None,
     limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
-    """Filter + paginate active entries. Returns ``{entries[], total}`` where
-    ``total`` is the full match count ignoring paging."""
+    """Filter + paginate active entries by relevance. Returns ``{entries[],
+    total}`` (``total`` = full match count ignoring paging). ``query`` matches
+    if ANY whitespace term hits title/body/tags; results are ordered by how many
+    distinct terms match (each row carries a ``match_count``), then recency. A
+    query-less call browses by recency. ``project``/``kind`` are exact filters;
+    ``tags`` is a LIKE filter."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
     try:
@@ -389,10 +393,10 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       offset = 0
     tags_like = self._like(tags)
     params = (
-      query, query,              # tokenised block: NULL-guard + STRING_SPLIT input
-      project, project,          # project exact
-      kind, kind,                # kind exact
-      tags, tags_like,           # tags LIKE
+      query,                     # relevance: matched OR-wise, ranked by term hits
+      project,                   # project exact
+      kind,                      # kind exact
+      tags, tags_like,           # tags NULL-guard + LIKE
       offset, limit,             # paging
     )
     result = await self._run_query('memory.entries.search', params)
