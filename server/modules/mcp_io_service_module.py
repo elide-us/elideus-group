@@ -446,9 +446,12 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     ) -> Any:
       """Export a project's memory sub-graph {nodes[], edges[], truncated} for
       visualization / mind-mapping. Nodes = active entries in project (its
-      universal 'general' entries folded in), kind-filtered, most-referenced
-      first, capped at limit (default 200, max 500). Edges = active reference
-      edges whose BOTH endpoints are in the node set (induced sub-graph)."""
+      universal 'general' entries folded in), most-referenced first, capped at
+      limit (default 200, max 500). Edges = active reference edges whose BOTH
+      endpoints are in the node set (induced sub-graph). kinds filters the EDGE
+      relationship types (cites|supports|supersedes|derived_from|contradicts|
+      disambiguates) — same meaning as in memory_links/memory_neighbors — not
+      the node kind; nodes are never dropped by kinds."""
       return await self.dispatch(
         'memory_graph', ctx, project=project, kinds=kinds, limit=limit,
       )
