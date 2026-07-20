@@ -312,9 +312,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       )
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_get(ctx: Context, key_guid: str) -> Any:
-      """Fetch a single memory entry by key_guid."""
-      return await self.dispatch('memory_get', ctx, key_guid=key_guid)
+    async def memory_get(ctx: Context, key_guid: str, include_links: bool = False) -> Any:
+      """Fetch a single memory entry by key_guid. Set include_links=true to also
+      return its reference edges (links[]: each {edge_guid, kind, weight,
+      is_active, direction:'out'|'in', other:{guid,title,kind,project,
+      node_state,is_active}}) so you can navigate the graph from the fetch."""
+      return await self.dispatch(
+        'memory_get', ctx, key_guid=key_guid, include_links=include_links,
+      )
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def memory_search(
@@ -396,6 +401,80 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       return await self.dispatch(
         'memory_link_add', ctx, from_guid=from_guid, to_guid=to_guid,
         kind=kind, weight=weight,
+      )
+
+    # ── Graph read / traverse + edge maintenance (the read half of the graph)
+    # The write path (memory_link_add) builds the mind-map; these walk it and
+    # let a mislinked edge be retracted. Reads carry EXPLICIT direction so
+    # 'supersedes -> X' vs '<- superseded by Y' is never guessed.
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_links(
+      ctx: Context, key_guid: str, direction: str = 'both',
+      kinds: str | None = None, include_inactive: bool = False,
+    ) -> Any:
+      """List the reference edges incident to one entry. Returns {key_guid,
+      links[]} with per-edge direction ('out'/'in') and the neighbor node
+      summarised. direction: both|out|in. kinds: optional comma/space filter
+      (cites|supports|supersedes|derived_from|contradicts|disambiguates).
+      include_inactive: include soft-deleted edges (default false)."""
+      return await self.dispatch(
+        'memory_links', ctx, key_guid=key_guid, direction=direction,
+        kinds=kinds, include_inactive=include_inactive,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_neighbors(
+      ctx: Context, key_guid: str, depth: int = 1,
+      kinds: str | None = None, direction: str = 'both', limit: int = 50,
+    ) -> Any:
+      """Explore related topics: breadth-first expansion of the memory graph
+      around key_guid. Returns {root, nodes[], edges[], truncated}. depth 1..3
+      (clamped); limit caps the node set (default 50, max 200). Cycle-guarded
+      and deduped; only active nodes are expanded and only active edges
+      followed (reached inactive nodes appear as leaves). kinds/direction filter
+      the walk. This is the navigator that makes the bank beat a doc pile."""
+      return await self.dispatch(
+        'memory_neighbors', ctx, key_guid=key_guid, depth=depth,
+        kinds=kinds, direction=direction, limit=limit,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_graph(
+      ctx: Context, project: str | None = None,
+      kinds: str | None = None, limit: int = 200,
+    ) -> Any:
+      """Export a project's memory sub-graph {nodes[], edges[], truncated} for
+      visualization / mind-mapping. Nodes = active entries in project (its
+      universal 'general' entries folded in), kind-filtered, most-referenced
+      first, capped at limit (default 200, max 500). Edges = active reference
+      edges whose BOTH endpoints are in the node set (induced sub-graph)."""
+      return await self.dispatch(
+        'memory_graph', ctx, project=project, kinds=kinds, limit=limit,
+      )
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_link_remove(ctx: Context, edge_guid: str) -> Any:
+      """Soft-delete a reference edge (pub_is_active=0) and recompute the
+      target's ref_count — the inverse of memory_link_add, so authority stays
+      honest and a wrong edge can be retracted. Get edge_guid from memory_links
+      or memory_get(include_links=true). Returns {edge_guid, to_guid,
+      ref_count}. Reversible via memory_link_update(is_active=true)."""
+      return await self.dispatch('memory_link_remove', ctx, edge_guid=edge_guid)
+
+    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
+    async def memory_link_update(
+      ctx: Context, edge_guid: str, weight: float | None = None,
+      kind: str | None = None, is_active: bool | None = None,
+    ) -> Any:
+      """Patch a reference edge: reweight, retype (cites|supports|supersedes|
+      derived_from|contradicts|disambiguates), or reactivate/deactivate. Only
+      the fields you pass change; the target's ref_count is recomputed. Returns
+      {edge_guid, to_guid, ref_count}. (from,to,kind) is unique — retyping to a
+      kind already present between the same endpoints errors."""
+      return await self.dispatch(
+        'memory_link_update', ctx, edge_guid=edge_guid, weight=weight,
+        kind=kind, is_active=is_active,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
