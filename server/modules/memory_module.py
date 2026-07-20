@@ -63,6 +63,22 @@ _MAX_NEIGHBOR_LIMIT = 200
 _DEFAULT_GRAPH_LIMIT = 200     # node-set cap for a project graph export
 _MAX_GRAPH_LIMIT = 500
 
+# ── Defensive write-path sanitiser ──────────────────────────────────────────
+# A recurring client/serialisation glitch leaks a store/update's trailing param
+# boundary into the body value — e.g. the body arrives as
+#   '…real body</body>\n<parameter name="tags">the tags",'
+# with the real `tags` argument absorbed into it (so tags itself arrives None),
+# nulling the column. This regex matches ONLY that trailing run of boundary junk
+# (a leaked close tag + an optional leaked tags param + quote/comma junk),
+# anchored to end-of-string, so a body that merely MENTIONS these tokens mid-text
+# (this bug's own writeup, say) is never touched. See _sanitize_body_tags.
+_BODY_LEAK_RE = re.compile(
+  r'\s*</(?:antml:)?(?:body|parameter|invoke)>'
+  r'\s*(?:<(?:antml:)?parameter\s+name="tags"\s*>(?P<tags>[^<\n]*))?'
+  r'\s*["\',]*\s*(?:</(?:antml:)?(?:parameter|invoke)>\s*)*$',
+  re.DOTALL,
+)
+
 
 class MemoryModule(BaseModule):
   def __init__(self, app: FastAPI):
@@ -255,6 +271,35 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       'is_active': bool(r.get('is_active')),
     }
 
+  @staticmethod
+  def _sanitize_body_tags(
+    body: str | None, tags: str | None,
+  ) -> tuple[str | None, str | None]:
+    """Heal a write-time tool-call boundary leak before persisting.
+
+    Some clients occasionally emit a store/update whose trailing param boundary
+    bled into ``body`` — e.g. it ends with
+    ``…real body</body>\\n<parameter name="tags">the tags",`` and the real
+    ``tags`` argument was absorbed (arriving as ``None``), nulling the column.
+    This strips that trailing leaked boundary from ``body`` and, when ``tags`` is
+    empty, recovers the leaked tag string. Only a TRAILING run of boundary junk
+    is removed, so a body that merely MENTIONS ``</body>`` / ``<parameter …>``
+    mid-text is left intact. No-op on clean input."""
+    if not body:
+      return body, tags
+    match = _BODY_LEAK_RE.search(body)
+    if not match:
+      return body, tags
+    cleaned = body[:match.start()].rstrip()
+    if not cleaned:            # body was nothing but boundary junk — don't destroy it
+      return body, tags
+    recovered = match.group('tags')
+    if recovered is not None:
+      recovered = recovered.strip().strip('"\',').strip() or None
+    if recovered and not (tags and str(tags).strip()):
+      tags = recovered
+    return cleaned, tags
+
   # ── Entries ────────────────────────────────────────────────────────────
 
   async def store_memory(
@@ -269,6 +314,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     (or 1.0 when ``confidence_source='human'``). New rows start ``node_state``
     ``active`` with ``ref_count`` 0 (DB defaults)."""
     await self.on_ready()
+    body, tags = self._sanitize_body_tags(body, tags)
     conf_value, conf_source = self._resolve_confidence(kind, confidence, confidence_source)
     result = await self._run_query(
       'memory.entries.insert',
@@ -287,6 +333,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     """Patch a memory entry (only non-null fields change) and bump
     ``priv_modified_on``. Returns ``{key_guid}``."""
     await self.on_ready()
+    if body is not None:
+      body, tags = self._sanitize_body_tags(body, tags)
     is_active_param = None if is_active is None else (1 if is_active else 0)
     result = await self._run_query(
       'memory.entries.update',
