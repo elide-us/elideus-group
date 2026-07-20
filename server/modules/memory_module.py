@@ -605,14 +605,20 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   ) -> dict[str, Any]:
     """Export a project's memory sub-graph as ``{nodes[], edges[], truncated}``
     for visualization / mind-mapping. Nodes = active entries in ``project`` (its
-    universal ``general`` entries folded in), kind-filtered, most-referenced
-    first, capped at ``limit`` (default 200, max 500). Edges = active reference
-    edges whose BOTH endpoints are in the node set (the induced sub-graph)."""
+    universal ``general`` entries folded in), most-referenced first, capped at
+    ``limit`` (default 200, max 500). Edges = active reference edges whose BOTH
+    endpoints are in the node set (the induced sub-graph).
+
+    ``kinds`` filters the EDGE relationship types (cites/supports/…), the same
+    meaning it carries in ``list_references``/``get_neighbors`` — NOT the node
+    ``pub_kind``. Nodes are never dropped by ``kinds``; only edges are."""
     await self.on_ready()
     kinds_csv = self._normalise_kinds(kinds)
     node_cap = self._clamp(limit, _DEFAULT_GRAPH_LIMIT, _MAX_GRAPH_LIMIT)
+    # Node set is picked by project only — pass None for the query's node-kind
+    # slot so `kinds` filters EDGES (below), consistent with the other graph tools.
     nrows = self._rows(await self._run_query(
-      'memory.graph.nodes', (project, kinds_csv, node_cap),
+      'memory.graph.nodes', (project, None, node_cap),
     ))
     node_guids = {str(r.get('key_guid')) for r in nrows}
     truncated = len(nrows) >= node_cap

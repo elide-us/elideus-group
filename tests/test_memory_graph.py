@@ -281,6 +281,18 @@ def test_export_graph_keeps_only_induced_edges():
   assert {e['edge_guid'] for e in out['edges']} == {'E1'}
 
 
+def test_export_graph_kinds_filters_edges_not_nodes():
+  # kinds must filter EDGE relationship types, never the node pub_kind. With
+  # kinds='supports' both nodes (decision, spec) remain; only the supports edge
+  # survives. (Regression: export_graph must NOT pass kinds to graph.nodes.)
+  nodes = {'A': _node('A', kind='decision'), 'B': _node('B', kind='spec')}
+  edges = [_edge('E1', 'A', 'B', kind='supports'),
+           _edge('E2', 'B', 'A', kind='cites')]
+  out = asyncio.run(_module(nodes, edges).export_graph(project='p', kinds='supports'))
+  assert {n['key_guid'] for n in out['nodes']} == {'A', 'B'}
+  assert {e['edge_guid'] for e in out['edges']} == {'E1'}
+
+
 def test_export_graph_folds_in_general():
   nodes = {
     'A': _node('A', project='p'),
