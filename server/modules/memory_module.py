@@ -49,8 +49,28 @@ _VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
 # Reference-edge kinds and contradiction resolution classes (FDD §4). Only
 # 'cites'/'supports' edges confer authority (feed pub_ref_count); the rest are
 # structural (supersede/contradict/disambiguate/derive).
-_VALID_REF_KINDS = ('cites', 'supports', 'supersedes', 'derived_from', 'contradicts', 'disambiguates')
+# 'violates' (incident -> rule) is semantic. 'contains'/'next' are STRUCTURAL —
+# spec-section chaining — and are excluded from traversal by default so hitting
+# section 3 of an FDD does not drag in the whole document (v0.13.8.0 §A7 derives
+# agent_memory_references.pub_is_structural from exactly this pair).
+_VALID_REF_KINDS = (
+  'cites', 'supports', 'supersedes', 'derived_from', 'contradicts', 'disambiguates',
+  'violates', 'contains', 'next',
+)
+_STRUCTURAL_REF_KINDS = ('contains', 'next')
 _VALID_RESOLUTIONS = ('correction', 'new_version', 'typo', 'contradiction', 'misunderstanding')
+
+# Entry lifecycle states (v0.13.8.0 CK_agent_memory_entries_node_state). The
+# first five are the §A3 set; retired/historical/conflict predate it and are
+# still written by the v0.13.3.0 conflict queries.
+_VALID_NODE_STATES = (
+  'active', 'legacy', 'superseded', 'archived', 'draft',
+  'retired', 'historical', 'conflict',
+)
+
+# memory_search ordering modes (§C1: these are what let one search tool absorb
+# memory_coderules and memory_list_recent).
+_VALID_ORDERS = ('relevance', 'authority', 'recent')
 
 # ── Graph read / traverse bounds ────────────────────────────────────────────
 # Edge reads carry an explicit direction so a client renders 'supersedes -> X'
@@ -142,6 +162,32 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   @staticmethod
   def _like(term: str | None) -> str | None:
     return f'%{term}%' if term else None
+
+  @staticmethod
+  def _validate_order(order: str | None) -> str:
+    """Coerce the search ordering mode. Unknown values fall back to relevance
+    rather than erroring — an ordering preference is not worth failing a read
+    over, and the SQL treats anything outside the set as relevance anyway."""
+    value = (order or '').strip().lower()
+    return value if value in _VALID_ORDERS else 'relevance'
+
+  @staticmethod
+  def _validate_node_state(node_state: str | None) -> str | None:
+    """Return the node_state filter, or None to let SQL default to 'active'.
+
+    An UNKNOWN state is rejected rather than silently coerced: quietly turning
+    node_state='drft' into 'active' would return a confident, wrong answer to
+    "show me the open conflicts", which is worse than an error."""
+    if node_state is None:
+      return None
+    value = node_state.strip().lower()
+    if not value:
+      return None
+    if value not in _VALID_NODE_STATES:
+      raise ValueError(
+        f'Unknown node_state {node_state!r}. Valid: {", ".join(_VALID_NODE_STATES)}.'
+      )
+    return value
 
   @staticmethod
   def _resolve_confidence(
@@ -377,36 +423,55 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   async def search_memory(
     self, query: str | None = None, project: str | None = None,
     kind: str | None = None, tags: str | None = None,
+    node_state: str | None = None, order: str | None = None,
+    include_body: bool = False,
     limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
-    """Filter + paginate active entries by relevance. Returns ``{entries[],
-    total}`` (``total`` = full match count ignoring paging). ``query`` matches
-    if ANY whitespace term hits title/body/tags; results are ordered by how many
-    distinct terms match (each row carries a ``match_count``), then recency. A
-    query-less call browses by recency. ``project``/``kind`` are exact filters;
-    ``tags`` is a LIKE filter."""
+    """Filter + paginate entries. Returns ``{entries[], total}``.
+
+    SEARCH IS A LOCATOR, NOT A READER. By default each hit is a stub —
+    ``pub_body_excerpt`` (300 chars) plus ``body_length``, with ``pub_body``
+    null. Read full text with ``memory_get``, or pass ``include_body=True`` to
+    get verbatim bodies here. The excerpt is a SEPARATE field and never a
+    truncated ``pub_body``: a caller reading ``pub_body`` gets the whole body or
+    an explicit null, never a lossy value masquerading as the real one.
+
+    ``total`` is the full match count INDEPENDENT of paging, so an ``offset``
+    past the end reports the real total with an empty ``entries`` — the caller
+    can distinguish "paged off the end" from "nothing matched". (Previously the
+    count rode on the rows as ``COUNT(*) OVER()`` and vanished with them.)
+
+    ``order``:
+      * ``relevance`` (default) — distinct query terms matched, then recency.
+        A query-less call falls through to recency.
+      * ``authority`` — ``confidence * (1 + LOG(1 + accrual))``. With
+        ``kind='rule'`` this is the coderules bank.
+      * ``recent`` — most recently modified first.
+
+    ``node_state`` defaults to ``active``; pass it explicitly to reach
+    non-active nodes (e.g. ``kind='conflict', node_state='draft'`` is the open
+    conflicts list). ``project``/``kind`` are exact filters; ``tags`` is LIKE."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
     try:
       offset = max(0, int(offset))
     except (TypeError, ValueError):
       offset = 0
-    tags_like = self._like(tags)
     params = (
-      query,                     # relevance: matched OR-wise, ranked by term hits
-      project,                   # project exact
-      kind,                      # kind exact
-      tags, tags_like,           # tags NULL-guard + LIKE
-      offset, limit,             # paging
+      query,                       # relevance: matched OR-wise, ranked by term hits
+      project,                     # project exact
+      kind,                        # kind exact
+      tags, self._like(tags),      # tags NULL-guard + LIKE
+      self._validate_node_state(node_state),
+      self._validate_order(order),
+      1 if include_body else 0,    # stub by default; see the docstring
+      offset, limit,               # paging
     )
     result = await self._run_query('memory.entries.search', params)
     rows = self._rows(result)
-    total = int(rows[0].get('total') or 0) if rows else 0
-    entries = []
-    for row in rows:
-      row.pop('total', None)
-      entries.append(row)
-    return {'entries': entries, 'total': total}
+    payload = rows[0] if rows else {}
+    entries = payload.get('entries') or []
+    return {'entries': list(entries), 'total': int(payload.get('total') or 0)}
 
   async def list_recent_memory(
     self, project: str | None = None, limit: int = _DEFAULT_LIMIT,
