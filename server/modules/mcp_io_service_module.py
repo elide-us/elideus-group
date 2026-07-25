@@ -279,6 +279,12 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       you ask for, in a single round trip. This is the reader — memory_search
       is the locator.
 
+      key_guid must be the FULL 36-char GUID. There is no 8-hex prefix lookup —
+      not here, and memory_search does not match on GUID either. If you only
+      have an abbreviated reference, no tool can resolve it; find the entry by
+      title with memory_search instead. Older bodies contain [[8HEX]] refs from
+      a retired convention: they are prose, not edges, and not resolvable.
+
       include_links: attach the active edges incident to this entry, each with
         an explicit direction ('out'/'in') and the neighbour summarised, so the
         graph is navigable straight from the fetch.
@@ -344,6 +350,15 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     ) -> Any:
       """Store a durable memory entry. Returns {key_guid}.
 
+      LINKS ARE NOT WRITTEN IN THE BODY. Writing [[GUID]] or [[8HEX]] in prose
+      creates NOTHING — no edge, no reachability. It reads like a link and is
+      not one. After storing, call memory_link for every relationship you meant.
+      An entry with no edges is one a future session will not find.
+
+      Always write GUIDs in full (36 chars). memory_get takes a full GUID and
+      nothing else; there is no 8-hex prefix lookup anywhere in this surface, so
+      an abbreviated reference is unresolvable by any tool.
+
       ONE ENTRY = ONE IDEA. Bodies are capped at 15000 characters; an entry that
       does not fit is usually several entries that should be linked with
       memory_link instead of concatenated.
@@ -377,6 +392,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       kind: str | None = None, is_active: bool | None = None,
     ) -> Any:
       """Patch an entry — only non-null fields change. Returns {key_guid}.
+
+      LINKS ARE NOT WRITTEN IN THE BODY. Editing prose to add [[GUID]] creates
+      no edge. Use memory_link. Write GUIDs in full — there is no prefix lookup.
 
       is_active drives lifecycle state: true -> active, false -> retired.
       Correct a wrong entry here; record a CONTRADICTION as its own entry with
