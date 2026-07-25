@@ -11,9 +11,11 @@ do not add new ones, and where a doc conflicts with MCP, MCP wins.
   "Where's the spec / rule / doc for X?" resolves to an MCP entry, never a file.
 - **The `memory_*` / `oracle_*` tools ARE available here** — TheOracleMCP is a connector that
   works in Claude Code, not just claude.ai chat. **If they are NOT in your tool list, the
-  memory is unavailable — DO NOT PROCEED:** state that the connector needs (re)attaching and
-  a fresh session (the tool list is snapshotted at session start), then stop and wait. Do not
-  fall back to files or reconstruct context from the repo.
+  memory is unavailable — DO NOT PROCEED:** state that the MCP server needs reconnecting,
+  then stop and wait. Do not fall back to files or reconstruct context from the repo.
+  Reconnecting refreshes the tool list in place — a fresh session is **not** required. (The
+  old "tool list is snapshotted at session start" behaviour was a Claude desktop bug that
+  Anthropic has since fixed; pre-2026-07-24 notes saying "fresh session" mean "reconnect".)
 - **Before creating any file, module, or query:** grep the repo *and* query
   `memory_coderules` + `memory_search`; if either surfaces a match, extend it in place —
   never write a parallel implementation.
