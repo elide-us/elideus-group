@@ -76,6 +76,12 @@ _VALID_ORDERS = ('relevance', 'authority', 'recent')
 # memory_maintenance verbs (§A8 ops ledger).
 _VALID_MAINTENANCE_OPS = ('list', 'apply', 'reject')
 
+# Delay before the sleep cycle's FIRST pass after startup. Short on purpose: a
+# full-interval first sleep means a 12-hour setting never fires on a service
+# redeployed several times a day. Not zero, so startup stays off the critical
+# path.
+_SLEEP_FIRST_RUN_SECONDS = 120
+
 # ── Graph read / traverse bounds ────────────────────────────────────────────
 # Edge reads carry an explicit direction so a client renders 'supersedes -> X'
 # vs '<- superseded by Y' without re-inverting the stored from->to.
@@ -168,16 +174,26 @@ class MemoryModule(BaseModule):
     logging.info('[MemoryModule] sleep cycle every %d min', interval)
 
   async def _sleep_loop(self, interval_minutes: int) -> None:
-    """Run the maintenance pass on an interval.
+    """Run the maintenance pass shortly after startup, then on the interval.
 
-    A failing pass logs and retries next interval rather than killing the loop:
-    one bad row must not silently stop all maintenance. The interval is re-read
-    each cycle so it can be changed — including to 0 to stop the loop — without
-    a redeploy.
+    The first delay is deliberately SHORT, not a full interval. Sleeping the
+    interval first means a 720-minute setting never fires on a service that gets
+    redeployed several times a day — every restart resets the timer, so the pass
+    runs never rather than twice daily. That is exactly what happened on first
+    deploy: interval set, queue empty, nothing had ever run.
+
+    The short delay (not zero) keeps startup off the critical path — the module
+    marks ready and serves traffic before any maintenance touches the graph.
+
+    A failing pass logs and retries on the next interval rather than killing the
+    loop: one bad row must not silently stop all maintenance. The interval is
+    re-read each cycle, so changing it — including to 0 to stop the loop — takes
+    effect without a redeploy.
     """
+    delay_seconds = _SLEEP_FIRST_RUN_SECONDS
     while True:
       try:
-        await asyncio.sleep(interval_minutes * 60)
+        await asyncio.sleep(delay_seconds)
         interval_minutes = await self._read_sleep_interval() or interval_minutes
         if interval_minutes <= 0:
           logging.info('[MemoryModule] MemorySleepInterval cleared; stopping sleep cycle')
@@ -187,6 +203,8 @@ class MemoryModule(BaseModule):
         raise
       except Exception:
         logging.exception('[MemoryModule] sleep cycle failed; will retry next interval')
+      finally:
+        delay_seconds = interval_minutes * 60
 
   # ── Query loading / execution ──────────────────────────────────────────
 
@@ -783,7 +801,33 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       'oversized_flagged': oversized if apply else 0, 'oversized_found': oversized,
       'orphan_edges': orphans, 'proposals_queued': queued, 'applied': apply,
     }
-    logging.info('[MemoryModule] sleep_cycle %s', result)
+
+    # Root logging is INFO (system_config LoggingLevel=3) and DiscordHandler is
+    # INFO, so anything logged at INFO lands in the Discord syschan. Two rules
+    # follow from that:
+    #   1. Say nothing at INFO when nothing happened. This runs on a 12-hour
+    #      timer; "nothing to do" twice a day is noise that trains you to ignore
+    #      the channel, which then hides the run that DID do something.
+    #   2. When something happened, one short human line — not a dict. The
+    #      structured result still goes back to the caller and to DEBUG.
+    did_something = (apply and drifted) or (apply and oversized) or queued or orphans
+    if not did_something:
+      logging.debug('[MemoryModule] sleep cycle: nothing to do %s', result)
+      return result
+
+    parts: list[str] = []
+    if apply and drifted:
+      parts.append(f'repaired {drifted} ref_count')
+    if apply and oversized:
+      parts.append(f'flagged {oversized} oversized as legacy')
+    if queued:
+      parts.append(f'queued {queued} proposal{"s" if queued != 1 else ""}')
+    if orphans:
+      parts.append(f'WARNING {orphans} orphan edges (should be impossible — FK-guaranteed)')
+    logging.info(
+      'Memory sleep cycle: %s%s', ', '.join(parts),
+      " — review with memory_maintenance(op='list')" if queued else '',
+    )
     return result
 
   @staticmethod
