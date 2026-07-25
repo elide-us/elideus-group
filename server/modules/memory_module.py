@@ -14,6 +14,7 @@ Conventions:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -108,6 +109,7 @@ class MemoryModule(BaseModule):
     super().__init__(app)
     self.db: DbModule | None = None
     self._queries: dict[str, str] = {}
+    self._sleep_task: asyncio.Task | None = None
 
   async def startup(self):
     self.db = self.app.state.db
@@ -115,10 +117,76 @@ class MemoryModule(BaseModule):
     await self._load_queries()
     logging.info("[MemoryModule] Loaded queries=%d", len(self._queries))
     self.mark_ready()
+    await self._start_sleep_loop()
 
   async def shutdown(self):
+    if self._sleep_task:
+      self._sleep_task.cancel()
+      try:
+        await self._sleep_task
+      except asyncio.CancelledError:
+        pass
+      self._sleep_task = None
     self.db = None
     self._queries = {}
+
+  # ── Sleep cycle scheduling (FDD Part D §6) ──────────────────────────────
+
+  async def _read_sleep_interval(self) -> int:
+    """Minutes between sleep-cycle runs, from system_config MemorySleepInterval.
+
+    0 / missing / unparseable means DO NOT RUN. Off is the correct default for a
+    pass that rewrites derived columns: it should be switched on deliberately,
+    by setting the key, not by deploying the code.
+
+    Read with inline SQL rather than through SystemConfigModule because that
+    module's methods are auth-gated RPC surface (they take user_guid/roles);
+    this is an internal read, the same tier as _load_queries above.
+    """
+    try:
+      result = await run_json_one(
+        "SELECT TOP 1 element_value FROM dbo.system_config "
+        "WHERE element_key = N'MemorySleepInterval' "
+        "FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;"
+      )
+      rows = self._rows(result)
+      return max(0, int(str(rows[0].get('element_value')).strip())) if rows else 0
+    except (TypeError, ValueError):
+      logging.warning('[MemoryModule] MemorySleepInterval is not an integer; sleep cycle off')
+      return 0
+    except Exception:
+      logging.exception('[MemoryModule] could not read MemorySleepInterval; sleep cycle off')
+      return 0
+
+  async def _start_sleep_loop(self) -> None:
+    interval = await self._read_sleep_interval()
+    if interval <= 0:
+      logging.info('[MemoryModule] sleep cycle off (set system_config MemorySleepInterval '
+                   'to a positive number of minutes to enable)')
+      return
+    self._sleep_task = asyncio.create_task(self._sleep_loop(interval), name='memory-sleep')
+    logging.info('[MemoryModule] sleep cycle every %d min', interval)
+
+  async def _sleep_loop(self, interval_minutes: int) -> None:
+    """Run the maintenance pass on an interval.
+
+    A failing pass logs and retries next interval rather than killing the loop:
+    one bad row must not silently stop all maintenance. The interval is re-read
+    each cycle so it can be changed — including to 0 to stop the loop — without
+    a redeploy.
+    """
+    while True:
+      try:
+        await asyncio.sleep(interval_minutes * 60)
+        interval_minutes = await self._read_sleep_interval() or interval_minutes
+        if interval_minutes <= 0:
+          logging.info('[MemoryModule] MemorySleepInterval cleared; stopping sleep cycle')
+          return
+        await self.sleep_cycle(apply=True)
+      except asyncio.CancelledError:
+        raise
+      except Exception:
+        logging.exception('[MemoryModule] sleep cycle failed; will retry next interval')
 
   # ── Query loading / execution ──────────────────────────────────────────
 
@@ -541,10 +609,21 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       raise RuntimeError('create_thread failed to create the thread')
     return {'key_guid': str(rows[0].get('key_guid'))}
 
-  async def get_thread(self, thread_guid: str) -> dict[str, Any]:
-    """Fetch a thread and its active entries. Returns ``{thread, entries[]}``."""
+  async def get_thread(self, thread_guid: str, limit: int = _DEFAULT_LIMIT,
+                       offset: int = 0) -> dict[str, Any]:
+    """Fetch a thread and a PAGE of its active entry stubs.
+
+    Returns ``{thread, entries[]}``; ``thread.entry_count`` is the full count so
+    the caller can page. Entries are stubs (excerpt + body_length, no pub_body):
+    a thread listing answers "which entry do I want?", and this thread holds 98
+    entries and grows every session. Read one verbatim with ``memory_get``."""
     await self.on_ready()
-    result = await self._run_query('memory.threads.get', (thread_guid,))
+    try:
+      offset = max(0, int(offset))
+    except (TypeError, ValueError):
+      offset = 0
+    result = await self._run_query(
+      'memory.threads.get', (thread_guid, self._clamp_limit(limit), offset))
     rows = self._rows(result)
     if not rows:
       raise ValueError(
@@ -610,13 +689,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   async def thread_memory(
     self, thread_guid: str | None = None, project: str | None = None,
     title: str | None = None, summary: str | None = None,
+    limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
     """Read a thread, or create one. Pass ``thread_guid`` to fetch; pass
     ``project`` + ``title`` to create. One noun, disambiguated by which
     identifying argument is present rather than by a mode flag."""
     await self.on_ready()
     if thread_guid:
-      return await self.get_thread(thread_guid)
+      return await self.get_thread(thread_guid, limit=limit, offset=offset)
     if not (project and title):
       raise ValueError(
         'memory_thread needs either thread_guid (to read) or project+title (to create).'
