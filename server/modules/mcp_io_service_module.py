@@ -416,6 +416,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     async def memory_thread(
       ctx: Context, thread_guid: str | None = None, project: str | None = None,
       title: str | None = None, summary: str | None = None,
+      limit: int = 20, offset: int = 0,
     ) -> Any:
       """Read or create a thread — a named grouping of entries for one
       workstream.
@@ -423,10 +424,15 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       Pass thread_guid to fetch it and its entries. Pass project + title to
       create one; the returned key_guid goes to memory_store as thread_guid.
 
+      Entries come back as STUBS, newest first, PAGED (limit default 20, max
+      100) with thread.entry_count for the full total — a big thread is an
+      orientation read, not a bulk export. Read one entry verbatim with
+      memory_get.
+
       Search for the active workstream thread rather than hardcoding a guid."""
       return await self.dispatch(
         'memory_thread', ctx, thread_guid=thread_guid, project=project,
-        title=title, summary=summary,
+        title=title, summary=summary, limit=limit, offset=offset,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
