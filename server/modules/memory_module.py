@@ -72,6 +72,9 @@ _VALID_NODE_STATES = (
 # memory_coderules and memory_list_recent).
 _VALID_ORDERS = ('relevance', 'authority', 'recent')
 
+# memory_maintenance verbs (§A8 ops ledger).
+_VALID_MAINTENANCE_OPS = ('list', 'apply', 'reject')
+
 # ── Graph read / traverse bounds ────────────────────────────────────────────
 # Edge reads carry an explicit direction so a client renders 'supersedes -> X'
 # vs '<- superseded by Y' without re-inverting the stored from->to.
@@ -395,14 +398,27 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     return {'key_guid': str(rows[0].get('key_guid'))}
 
   async def get_memory(
-    self, key_guid: str, include_links: bool = False,
+    self, key_guid: str, include_links: bool = False, depth: int = 0,
+    direction: str | None = None, kinds: str | None = None,
   ) -> dict[str, Any]:
-    """Fetch a single memory entry by ``key_guid``.
+    """Covering read: the entry verbatim, plus as much of its neighbourhood as
+    asked for, in one round trip.
 
-    When ``include_links`` is true, attach ``links`` — the active reference
-    edges incident to this entry, each with an explicit ``direction``
-    ('out'/'in') and the neighbor node summarised (so the graph is navigable
-    straight from a fetch)."""
+    This is the READ contract from §C3 — nodes come back verbatim, never
+    summarised. Bounded traversal, not summarisation, is what keeps the payload
+    predictable: N nodes x the 15000-char body cap is arithmetic a caller can
+    reason about before making the call.
+
+    ``include_links`` attaches ``links`` — active edges incident to this entry,
+    each carrying an explicit ``direction`` ('out'/'in') and a summary of the
+    neighbour, so the graph is navigable straight from a fetch.
+
+    ``depth`` 0 (default) reads just this node. 1-3 additionally walks the
+    graph breadth-first and attaches ``nodes``/``edges``/``truncated``.
+    STRUCTURAL EDGES ARE EXCLUDED unless named explicitly in ``kinds``: a spec
+    chained by contains/next would otherwise drag its whole document in behind
+    section 3, which is the megabyte-download behaviour this design exists to
+    stop."""
     await self.on_ready()
     result = await self._run_query('memory.entries.get', (key_guid,))
     rows = self._rows(result)
@@ -411,20 +427,41 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
         f'Unknown memory entry key_guid={key_guid!r}. '
         'Use memory_search to find an entry by title, project, or tag.'
       )
-    entry = rows[0]
-    if include_links:
+    entry = dict(rows[0])
+
+    depth = self._clamp_depth(depth)
+    if include_links or depth > 0:
       link_result = await self._run_query(
-        'memory.references.list', (key_guid, 'both', None, 0),
+        'memory.references.list', (key_guid, self._validate_direction(direction), None, 0),
       )
-      entry = dict(entry)
       entry['links'] = self._link_rows(self._rows(link_result))
+
+    if depth > 0:
+      neighbourhood = await self.get_neighbors(
+        key_guid, depth=depth, kinds=self._traversal_kinds(kinds),
+        direction=direction,
+      )
+      entry['nodes'] = neighbourhood.get('nodes', [])
+      entry['edges'] = neighbourhood.get('edges', [])
+      entry['truncated'] = neighbourhood.get('truncated', False)
     return entry
+
+  @staticmethod
+  def _traversal_kinds(kinds: str | None) -> str:
+    """Default traversal to SEMANTIC edges only.
+
+    An unfiltered walk would follow contains/next, so touching one section of a
+    chained spec would pull the entire document into the response. A caller who
+    genuinely wants the chain asks for it by naming those kinds explicitly."""
+    if kinds:
+      return kinds
+    return ','.join(k for k in _VALID_REF_KINDS if k not in _STRUCTURAL_REF_KINDS)
 
   async def search_memory(
     self, query: str | None = None, project: str | None = None,
     kind: str | None = None, tags: str | None = None,
     node_state: str | None = None, order: str | None = None,
-    include_body: bool = False,
+    include_body: bool = False, include_general: bool = True,
     limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
     """Filter + paginate entries. Returns ``{entries[], total}``.
@@ -450,7 +487,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     ``node_state`` defaults to ``active``; pass it explicitly to reach
     non-active nodes (e.g. ``kind='conflict', node_state='draft'`` is the open
-    conflicts list). ``project``/``kind`` are exact filters; ``tags`` is LIKE."""
+    conflicts list). ``project``/``kind`` are exact filters; ``tags`` is LIKE.
+
+    ``include_general`` (default True) folds the universal ``general`` project
+    in alongside ``project`` — this is what makes ``kind='rule',
+    order='authority'`` equal the old coderules bank. Without it the
+    highest-authority rules in the corpus, which live in ``general``, silently
+    vanish from a project-scoped rules query. Set False for a strictly
+    single-project search."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
     try:
@@ -460,6 +504,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     params = (
       query,                       # relevance: matched OR-wise, ranked by term hits
       project,                     # project exact
+      1 if include_general else 0, # fold in the universal 'general' project
       kind,                        # kind exact
       tags, self._like(tags),      # tags NULL-guard + LIKE
       self._validate_node_state(node_state),
@@ -504,11 +549,108 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     if not rows:
       raise ValueError(
         f'Unknown memory thread thread_guid={thread_guid!r}. '
-        'Use memory_search or memory_list_recent to discover entries.'
+        'Use memory_search to discover entries.'
       )
     thread = rows[0]
     entries = thread.pop('entries', None) or []
     return {'thread': thread, 'entries': entries}
+
+  # ── Consolidated §C1 surface ────────────────────────────────────────────
+  # These three back memory_link / memory_thread / memory_maintenance. The
+  # methods they supersede stay on the class and stay registered — only their
+  # gateway bindings are retired — so a tool can be restored by re-inserting a
+  # binding row, with no code deploy.
+
+  async def link_memory(
+    self, from_guid: str, to_guid: str, kind: str = 'cites',
+    weight: float | None = None, is_active: bool = True,
+  ) -> dict[str, Any]:
+    """Upsert a directed edge. One noun, one operation — not an op-enum.
+
+    Idempotent on ``(from_guid, to_guid, kind)``. Retraction is
+    ``is_active=False`` on the same triple, so a caller retracting a link
+    states what it linked rather than having to remember a surrogate edge id.
+
+    ``pub_accrual`` is incremented ONLY on an inactive->active transition:
+    re-asserting an already-active link must not inflate the ledger, and
+    retracting must not deflate it (accrual is monotonic — ref_count is the
+    field that falls when a link is withdrawn). Returns
+    ``{key_guid, kind, is_active, accrued}``."""
+    await self.on_ready()
+    kind = self._validate_ref_kind(kind)
+
+    existing = self._rows(await self._run_query(
+      'memory.references.resolve', (from_guid, to_guid, kind),
+    ))
+    prior = existing[0] if existing else None
+    was_active = bool(prior.get('pub_is_active')) if prior else False
+
+    if not is_active:
+      if not prior:
+        # Nothing to retract. Do NOT insert a row just to deactivate it.
+        return {'key_guid': None, 'kind': kind, 'is_active': False, 'accrued': False}
+      await self.update_reference(str(prior.get('key_guid')), is_active=False)
+      return {'key_guid': str(prior.get('key_guid')), 'kind': kind,
+              'is_active': False, 'accrued': False}
+
+    if prior:
+      edge_guid = str(prior.get('key_guid'))
+      if not was_active or weight is not None:
+        await self.update_reference(edge_guid, weight=weight, is_active=True)
+    else:
+      created = await self.add_reference(from_guid, to_guid, kind, weight)
+      edge_guid = str(created.get('key_guid'))
+
+    accrued = False
+    if not was_active:
+      await self._run_query('memory.entries.accrue', (to_guid, to_guid))
+      accrued = True
+    return {'key_guid': edge_guid, 'kind': kind, 'is_active': True, 'accrued': accrued}
+
+  async def thread_memory(
+    self, thread_guid: str | None = None, project: str | None = None,
+    title: str | None = None, summary: str | None = None,
+  ) -> dict[str, Any]:
+    """Read a thread, or create one. Pass ``thread_guid`` to fetch; pass
+    ``project`` + ``title`` to create. One noun, disambiguated by which
+    identifying argument is present rather than by a mode flag."""
+    await self.on_ready()
+    if thread_guid:
+      return await self.get_thread(thread_guid)
+    if not (project and title):
+      raise ValueError(
+        'memory_thread needs either thread_guid (to read) or project+title (to create).'
+      )
+    return await self.create_thread(project, title, summary)
+
+  async def maintenance_memory(
+    self, op: str = 'list', queue_guid: str | None = None,
+    rationale: str | None = None, limit: int = _DEFAULT_LIMIT,
+  ) -> dict[str, Any]:
+    """The maintenance queue (§A8) — deliberately an op-enum, unlike the two
+    above. These verbs share one subject (a queued proposal) and are only ever
+    reached by an agent already draining the queue, so multiplexing them costs
+    no tool-selection accuracy.
+
+    ``op``: ``list`` pending proposals | ``apply`` | ``reject`` an item.
+
+    NOTE: proposals are produced by the Part D sleep cycle, which is not built
+    yet, so ``list`` returns empty until then. This exists now so the tool
+    surface does not have to change again when Part D lands."""
+    await self.on_ready()
+    operation = (op or 'list').strip().lower()
+    if operation not in _VALID_MAINTENANCE_OPS:
+      raise ValueError(
+        f'Unknown maintenance op {op!r}. Valid: {", ".join(_VALID_MAINTENANCE_OPS)}.'
+      )
+    if operation == 'list':
+      result = await self._run_query('memory.maintenance.list', (self._clamp_limit(limit),))
+      return {'op': 'list', 'items': self._rows(result)}
+    if not queue_guid:
+      raise ValueError(f"maintenance op '{operation}' requires queue_guid.")
+    state = 'applied' if operation == 'apply' else 'rejected'
+    await self._run_query('memory.maintenance.decide', (state, rationale, queue_guid))
+    return {'op': operation, 'queue_guid': queue_guid, 'state': state}
 
   # ── Consult (anti-decay rule retrieval) ─────────────────────────────────
 
@@ -518,7 +660,10 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   ) -> dict[str, Any]:
     """Authority-ranked CODE RULES to conform to before writing code.
 
-    Backs the ``memory_coderules`` tool. Returns active entries of kind
+    RETIRED as a tool (v0.13.10.0): its gateway binding is gone and the bank
+    is now memory_search(kind='rule', order='authority'). The method stays
+    registered so re-inserting one binding row restores the old tool without
+    a code deploy. Returns active entries of kind
     ``rule`` (the constraining subset — a rule is an idea that constrains a
     choice) ordered by authority = confidence*(1+ref_count). When ``project`` is given, the
     universal ``general`` rules are folded in. ``query`` is an optional
@@ -591,7 +736,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     if not rows:
       raise ValueError(
         f'Unknown contradiction conflict_guid={conflict_guid!r}. '
-        'Use memory_conflicts_list to find open contradictions.'
+        "Use memory_search(kind='conflict', node_state='draft') to find open contradictions."
       )
     return rows[0]
 
