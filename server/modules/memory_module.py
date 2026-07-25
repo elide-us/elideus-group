@@ -652,6 +652,79 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     await self._run_query('memory.maintenance.decide', (state, rationale, queue_guid))
     return {'op': operation, 'queue_guid': queue_guid, 'state': state}
 
+  async def sleep_cycle(self, apply: bool = True) -> dict[str, Any]:
+    """The maintenance pass — FDD Part D, invoked by the automation scheduler.
+
+    Shares its SQL with scripts/memory_sleep.py via server.helpers.memory_sleep_ops
+    so the scheduled run and the hand run cannot drift apart. D1 repairs are
+    applied; D2 findings become PROPOSALS in agent_memory_maintenance_queue and
+    are never executed. Nothing here writes pub_body or touches
+    agent_memory_documents.
+
+    Returns a summary suitable for element_result on the workflow run."""
+    await self.on_ready()
+    from ..helpers import memory_sleep_ops as ops
+
+    drifted = self._scalar(await run_json_one(
+      ops.D1_REFCOUNT_DRIFT + ' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;'), 'drifted')
+    if apply and drifted:
+      await run_exec(ops.D1_REFCOUNT_REPAIR, ())
+
+    oversized = self._scalar(await run_json_one(
+      ops.D1_LEGACY_COUNT + ' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;', (ops.BODY_CAP,)), 'found')
+    if apply and oversized:
+      await run_exec(ops.D1_LEGACY_FLAG, (ops.BODY_CAP,))
+
+    orphans = self._scalar(await run_json_one(
+      ops.D1_ORPHAN_EDGES + ' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;'), 'found')
+
+    # D2 — propose only. The scheduled run enqueues the same candidates the
+    # hand run would; memory_maintenance is how a human decides on them.
+    queued = 0
+    if apply:
+      summaries = self._rows(await run_json_many(
+        ops.D2_UNLINKED_SUMMARIES + ' FOR JSON PATH, INCLUDE_NULL_VALUES;'))
+      for row in summaries:
+        queued += await self._enqueue(
+          'abstract', str(row.get('key_guid')), None,
+          'session_summary with zero outbound edges. It should cite decisions and '
+          'specs, not restate them.')
+
+      oversize_rows = self._rows(await run_json_many(
+        ops.D2_OVERSIZED + ' FOR JSON PATH, INCLUDE_NULL_VALUES;', (ops.BODY_CAP,)))
+      for row in oversize_rows:
+        queued += await self._enqueue(
+          'decompose', str(row.get('key_guid')), None,
+          f"Body is {row.get('body_len')} chars, over the {ops.BODY_CAP} cap. "
+          f"Cannot be UPDATEd until decomposed.")
+
+    result = {
+      'ref_count_drift': drifted, 'ref_count_repaired': bool(apply and drifted),
+      'oversized_flagged': oversized if apply else 0, 'oversized_found': oversized,
+      'orphan_edges': orphans, 'proposals_queued': queued, 'applied': apply,
+    }
+    logging.info('[MemoryModule] sleep_cycle %s', result)
+    return result
+
+  @staticmethod
+  def _scalar(result: Any, key: str) -> int:
+    rows = list(result.rows) if result and getattr(result, 'rows', None) else []
+    return int(rows[0].get(key) or 0) if rows else 0
+
+  async def _enqueue(self, op: str, subject: str | None, obj: str | None, rationale: str) -> int:
+    """Insert a proposal unless an identical one is already pending.
+
+    UX_ammq_open enforces this at the index level too; checking first keeps a
+    nightly run from raising on every already-known finding."""
+    from ..helpers import memory_sleep_ops as ops
+    existing = self._scalar(
+      await run_json_one(ops.QUEUE_EXISTS + ' FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;',
+                         (op, subject, subject, obj, obj)), 'n')
+    if existing:
+      return 0
+    await run_exec(ops.QUEUE_INSERT, (op, subject, obj, 'validate', rationale[:2000]))
+    return 1
+
   # ── Consult (anti-decay rule retrieval) ─────────────────────────────────
 
   async def consult_memory(
