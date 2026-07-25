@@ -270,6 +270,71 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     # Persistent working context stored in agent_memory_entries/_threads.
     # Reads require mcp:memory:read; writes require mcp:memory:write.
 
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_get(
+      ctx: Context, key_guid: str, include_links: bool = False,
+      depth: int = 0, direction: str | None = None, kinds: str | None = None,
+    ) -> Any:
+      """Read one memory entry VERBATIM, with as much of its neighbourhood as
+      you ask for, in a single round trip. This is the reader — memory_search
+      is the locator.
+
+      include_links: attach the active edges incident to this entry, each with
+        an explicit direction ('out'/'in') and the neighbour summarised, so the
+        graph is navigable straight from the fetch.
+      depth: 0 (default) = this node only. 1-3 = also walk the graph
+        breadth-first and attach nodes[]/edges[]/truncated. Structural edges
+        (contains/next — spec section chaining) are EXCLUDED unless you name
+        them in `kinds`, so reading one section never drags in a whole document.
+      direction: both (default) | out | in.
+      kinds: comma-separated edge kinds to follow.
+
+      Bodies are never summarised or truncated here. Payload is bounded by
+      depth, not by cutting content."""
+      return await self.dispatch(
+        'memory_get', ctx, key_guid=key_guid, include_links=include_links,
+        depth=depth, direction=direction, kinds=kinds,
+      )
+
+    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
+    async def memory_search(
+      ctx: Context, query: str | None = None, project: str | None = None,
+      kind: str | None = None, tags: str | None = None,
+      node_state: str | None = None, order: str | None = None,
+      include_body: bool = False, include_general: bool = True,
+      limit: int = 20, offset: int = 0,
+    ) -> Any:
+      """FIND entries. A locator, not a reader — read full text with memory_get.
+
+      Returns {entries[], total}. `total` is the full match count independent of
+      paging, so an offset past the end reports the real total with an empty
+      page (distinguishable from "nothing matched").
+
+      Each hit is a stub: pub_body_excerpt (300 chars) + body_length, with
+      pub_body null. Pass include_body=true for verbatim bodies — expensive, and
+      usually the wrong call when you only need to identify an entry.
+
+      query: free text; matches if ANY whitespace term hits title/body/tags,
+        ranked by how many distinct terms match. Omit to browse.
+      order: relevance (default) | authority | recent.
+        **kind='rule' + order='authority' IS THE CODE-RULES BANK** — the
+        behavioural constraints to conform to before writing code, most
+        reinforced first. Consult it before you code.
+      project: exact filter. include_general (default true) folds the universal
+        'general' project in alongside it — leave it on for rules, or the
+        highest-authority rules in the corpus disappear.
+      kind: rule|decision|invariant|spec|note|session_summary|snippet|reference|
+        incident|concept|conflict.
+      node_state: defaults to active. kind='conflict', node_state='draft' is the
+        open-contradictions list.
+      tags: LIKE filter. limit: max 100. offset: paging."""
+      return await self.dispatch(
+        'memory_search', ctx, query=query, project=project, kind=kind,
+        tags=tags, node_state=node_state, order=order,
+        include_body=include_body, include_general=include_general,
+        limit=limit, offset=offset,
+      )
+
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
     async def memory_store(
       ctx: Context, project: str, kind: str, title: str, body: str,
@@ -277,23 +342,31 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       source: str | None = None, confidence: float | None = None,
       confidence_source: str | None = None,
     ) -> Any:
-      """Store a memory entry and return its key_guid.
+      """Store a durable memory entry. Returns {key_guid}.
 
-      project: short slug e.g. 'flicker', 'oracle-unity', 'general'.
-      kind: one of rule|decision|invariant|spec|note|session_summary|snippet
-        ('rule' = a behavioral constraint on how to write code — the classifier
-        the memory_coderules bank filters on; the rest are ideas/topics).
-      title: one-line summary. body: markdown detail.
-      tags: optional space-delimited tags e.g. 'auth mcp schema'.
-      thread_guid: optional thread to attach to (see memory_thread_create).
-      confidence: 0..1 CONFIDENCE (never truth) in the claim; omit to take the
-        per-kind base weight, or 1.0 when confidence_source='human'.
-      confidence_source: agent|human|derived|imported (default agent). Human
-        statements are pinned to 1.0 as a source property — a human can still
-        typo, so this gates how loudly conflicts object, not correctness."""
+      ONE ENTRY = ONE IDEA. Bodies are capped at 15000 characters; an entry that
+      does not fit is usually several entries that should be linked with
+      memory_link instead of concatenated.
+
+      kind: rule (a behavioural constraint on HOW to write code — the classifier
+        the code-rules bank filters on) | decision | invariant | spec | note |
+        session_summary | snippet | reference | incident (a single observed
+        event: a violation, a correction, a stated preference — meant to be the
+        FROM side of an edge to a rule) | concept | conflict.
+
+      session_summary is RESUMABLE PROGRESS STATE for work in flight: what is
+        done, what is next, what is blocked, which forks are open. It LINKS OUT
+        and does not restate — decisions and specs live in their own entries;
+        cite them with memory_link rather than summarising them here.
+
+      confidence: 0..1 CONFIDENCE, never truth — it gates how loudly a
+        contradiction is objected to, not whether a claim is correct. Omit for
+        the per-kind base weight.
+      confidence_source: agent|human|derived|imported. 'human' pins 1.0 as a
+        SOURCE property; a human can still typo."""
       return await self.dispatch(
-        'memory_store', ctx, project=project, kind=kind, title=title,
-        body=body, tags=tags, thread_guid=thread_guid, source=source,
+        'memory_store', ctx, project=project, kind=kind, title=title, body=body,
+        tags=tags, thread_guid=thread_guid, source=source,
         confidence=confidence, confidence_source=confidence_source,
       )
 
@@ -303,227 +376,78 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       body: str | None = None, tags: str | None = None,
       kind: str | None = None, is_active: bool | None = None,
     ) -> Any:
-      """Patch an existing memory entry by key_guid. Only the fields you pass
-      change; omit a field to leave it unchanged. Set is_active=false to
-      soft-delete. Returns the key_guid."""
+      """Patch an entry — only non-null fields change. Returns {key_guid}.
+
+      is_active drives lifecycle state: true -> active, false -> retired.
+      Correct a wrong entry here; record a CONTRADICTION as its own entry with
+      edges, so both claims survive rather than one silently overwriting the
+      other."""
       return await self.dispatch(
         'memory_update', ctx, key_guid=key_guid, title=title, body=body,
         tags=tags, kind=kind, is_active=is_active,
       )
 
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_get(ctx: Context, key_guid: str, include_links: bool = False) -> Any:
-      """Fetch a single memory entry by key_guid. Set include_links=true to also
-      return its reference edges (links[]: each {edge_guid, kind, weight,
-      is_active, direction:'out'|'in', other:{guid,title,kind,project,
-      node_state,is_active}}) so you can navigate the graph from the fetch."""
-      return await self.dispatch(
-        'memory_get', ctx, key_guid=key_guid, include_links=include_links,
-      )
-
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_search(
-      ctx: Context, query: str | None = None, project: str | None = None,
-      kind: str | None = None, tags: str | None = None,
-      limit: int = 20, offset: int = 0,
-    ) -> Any:
-      """Search project IDEAS & topics — the evolving content you explore and
-      refine. Returns {entries, total}. For the rules that constrain HOW to
-      write code, use memory_coderules instead.
-
-      query: free text; an entry matches if ANY whitespace term appears in
-        title/body/tags, and results are ranked by how many distinct terms
-        match (most relevant first, each row carries match_count), then recency.
-        Omit query to browse by recency.
-      project/kind: exact-match filters. tags: LIKE filter.
-      limit: page size (max 100). offset: rows to skip for paging."""
-      return await self.dispatch(
-        'memory_search', ctx, query=query, project=project, kind=kind,
-        tags=tags, limit=limit, offset=offset,
-      )
-
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_list_recent(
-      ctx: Context, project: str | None = None, limit: int = 20,
-    ) -> Any:
-      """List the most recently modified active entries (optionally filtered
-      to a project). Returns {entries}."""
-      return await self.dispatch('memory_list_recent', ctx, project=project, limit=limit)
-
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_thread_create(
-      ctx: Context, project: str, title: str, summary: str | None = None,
-    ) -> Any:
-      """Create a memory thread (a named grouping of related entries) and
-      return its key_guid. Pass that guid as thread_guid to memory_store."""
-      return await self.dispatch(
-        'memory_thread_create', ctx, project=project, title=title, summary=summary,
-      )
-
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_thread_get(ctx: Context, thread_guid: str) -> Any:
-      """Fetch a thread and its active entries. Returns {thread, entries}."""
-      return await self.dispatch('memory_thread_get', ctx, thread_guid=thread_guid)
-
-    # ── Anti-decay consult loop (FDD-ORACLE-MEM-CONFLICT-01 Phase 2) ──────
-    # Before a coding task, CONSULT for the rules to conform to. Corrections
-    # reinforce (raise authority); contradictions are recorded, not overwritten.
-
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_coderules(
-      ctx: Context, project: str | None = None, query: str | None = None,
-      limit: int = 20,
-    ) -> Any:
-      """Your CODE-RULES bank — the behavioral constraints for HOW to write
-      code. Consult this BEFORE writing code to narrow your choices to the
-      architecturally-correct ones: black-box objects, strong typing, in/out
-      contracts, layer stability, single source of truth, no security-boundary
-      violations.
-
-      This is the RULES bank — distinct from project ideas/topics, which you
-      explore with memory_search / memory_list_recent. Returns only entries
-      classified kind='rule', ranked by authority =
-      confidence*(1+ref_count) (most-reinforced first — anti-decay).
-      project: scope to a project slug; its rules PLUS the universal 'general'
-        rules are returned. query: optional task context; every whitespace term
-        must match title/body/tags."""
-      return await self.dispatch(
-        'memory_coderules', ctx, project=project, query=query, limit=limit,
-      )
-
-    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_link_add(
+    async def memory_link(
       ctx: Context, from_guid: str, to_guid: str, kind: str = 'cites',
-      weight: float | None = None,
+      weight: float | None = None, is_active: bool = True,
     ) -> Any:
-      """Add a directed reference edge from_guid -> to_guid and recompute the
-      target's authority. kind: cites|supports|supersedes|derived_from|
-      contradicts|disambiguates (default cites). Inbound cites/supports edges
-      REINFORCE the target (raise its ref_count) — use this to capture that a
-      correction/note supports an existing rule. Idempotent on (from,to,kind)."""
-      return await self.dispatch(
-        'memory_link_add', ctx, from_guid=from_guid, to_guid=to_guid,
-        kind=kind, weight=weight,
-      )
+      """Link two entries. Idempotent on (from_guid, to_guid, kind).
 
-    # ── Graph read / traverse + edge maintenance (the read half of the graph)
-    # The write path (memory_link_add) builds the mind-map; these walk it and
-    # let a mislinked edge be retracted. Reads carry EXPLICIT direction so
-    # 'supersedes -> X' vs '<- superseded by Y' is never guessed.
+      LINK LIBERALLY — an unlinked entry is one a future session will not find.
+      Reachability is what makes this a graph rather than a document pile.
 
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_links(
-      ctx: Context, key_guid: str, direction: str = 'both',
-      kinds: str | None = None, include_inactive: bool = False,
-    ) -> Any:
-      """List the reference edges incident to one entry. Returns {key_guid,
-      links[]} with per-edge direction ('out'/'in') and the neighbor node
-      summarised. direction: both|out|in. kinds: optional comma/space filter
-      (cites|supports|supersedes|derived_from|contradicts|disambiguates).
-      include_inactive: include soft-deleted edges (default false)."""
-      return await self.dispatch(
-        'memory_links', ctx, key_guid=key_guid, direction=direction,
-        kinds=kinds, include_inactive=include_inactive,
-      )
+      kind: cites | supports (both REINFORCE the target — this is how reference
+        and correction raise a claim's authority instead of letting it decay) |
+        supersedes | derived_from | contradicts | disambiguates |
+        violates (incident -> rule) | contains / next (structural spec-section
+        chaining; excluded from traversal by default).
 
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_neighbors(
-      ctx: Context, key_guid: str, depth: int = 1,
-      kinds: str | None = None, direction: str = 'both', limit: int = 50,
-    ) -> Any:
-      """Explore related topics: breadth-first expansion of the memory graph
-      around key_guid. Returns {root, nodes[], edges[], truncated}. depth 1..3
-      (clamped); limit caps the node set (default 50, max 200). Cycle-guarded
-      and deduped; only active nodes are expanded and only active edges
-      followed (reached inactive nodes appear as leaves). kinds/direction filter
-      the walk. This is the navigator that makes the bank beat a doc pile."""
+      is_active=false retracts the link, addressed by the same triple — you do
+      not need the edge id. Retracting lowers the target's ref_count but never
+      its accrual: the accrual ledger is monotonic, so a link that was once made
+      is permanently recorded as having happened."""
       return await self.dispatch(
-        'memory_neighbors', ctx, key_guid=key_guid, depth=depth,
-        kinds=kinds, direction=direction, limit=limit,
-      )
-
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_graph(
-      ctx: Context, project: str | None = None,
-      kinds: str | None = None, limit: int = 200,
-    ) -> Any:
-      """Export a project's memory sub-graph {nodes[], edges[], truncated} for
-      visualization / mind-mapping. Nodes = active entries in project (its
-      universal 'general' entries folded in), most-referenced first, capped at
-      limit (default 200, max 500). Edges = active reference edges whose BOTH
-      endpoints are in the node set (induced sub-graph). kinds filters the EDGE
-      relationship types (cites|supports|supersedes|derived_from|contradicts|
-      disambiguates) — same meaning as in memory_links/memory_neighbors — not
-      the node kind; nodes are never dropped by kinds."""
-      return await self.dispatch(
-        'memory_graph', ctx, project=project, kinds=kinds, limit=limit,
+        'memory_link', ctx, from_guid=from_guid, to_guid=to_guid, kind=kind,
+        weight=weight, is_active=is_active,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_link_remove(ctx: Context, edge_guid: str) -> Any:
-      """Soft-delete a reference edge (pub_is_active=0) and recompute the
-      target's ref_count — the inverse of memory_link_add, so authority stays
-      honest and a wrong edge can be retracted. Get edge_guid from memory_links
-      or memory_get(include_links=true). Returns {edge_guid, to_guid,
-      ref_count}. Reversible via memory_link_update(is_active=true)."""
-      return await self.dispatch('memory_link_remove', ctx, edge_guid=edge_guid)
-
-    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_link_update(
-      ctx: Context, edge_guid: str, weight: float | None = None,
-      kind: str | None = None, is_active: bool | None = None,
+    async def memory_thread(
+      ctx: Context, thread_guid: str | None = None, project: str | None = None,
+      title: str | None = None, summary: str | None = None,
     ) -> Any:
-      """Patch a reference edge: reweight, retype (cites|supports|supersedes|
-      derived_from|contradicts|disambiguates), or reactivate/deactivate. Only
-      the fields you pass change; the target's ref_count is recomputed. Returns
-      {edge_guid, to_guid, ref_count}. (from,to,kind) is unique — retyping to a
-      kind already present between the same endpoints errors."""
+      """Read or create a thread — a named grouping of entries for one
+      workstream.
+
+      Pass thread_guid to fetch it and its entries. Pass project + title to
+      create one; the returned key_guid goes to memory_store as thread_guid.
+
+      Search for the active workstream thread rather than hardcoding a guid."""
       return await self.dispatch(
-        'memory_link_update', ctx, edge_guid=edge_guid, weight=weight,
-        kind=kind, is_active=is_active,
+        'memory_thread', ctx, thread_guid=thread_guid, project=project,
+        title=title, summary=summary,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_conflict_open(
-      ctx: Context, project: str, claim_a_guid: str, claim_b_guid: str,
-      note: str | None = None,
+    async def memory_maintenance(
+      ctx: Context, op: str = 'list', queue_guid: str | None = None,
+      rationale: str | None = None, limit: int = 20,
     ) -> Any:
-      """Record a contradiction between two existing claims. Both claims persist;
-      both nodes enter 'conflict' state. claim_a = incumbent, claim_b = challenger.
-      Does NOT resolve — resolution is an explicit classified step
-      (memory_conflict_resolve). Returns the contradiction {key_guid}."""
-      return await self.dispatch(
-        'memory_conflict_open', ctx, project=project,
-        claim_a_guid=claim_a_guid, claim_b_guid=claim_b_guid, note=note,
-      )
+      """The maintenance queue: deferred, judgment-requiring operations on the
+      memory graph (decompose an oversized entry, merge duplicates, abstract a
+      recurring instruction into a rule, strip irrelevant content).
 
-    @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
-    async def memory_conflict_resolve(
-      ctx: Context, conflict_guid: str, resolution: str,
-      note: str | None = None, resolved_source: str | None = None,
-    ) -> Any:
-      """Resolve a contradiction with a classified transition. resolution is one of:
-      correction (A was wrong → retire A, promote B, B supersedes A),
-      new_version (both true at different times → A historical, B supersedes A),
-      typo (B malformed → keep A, retire B),
-      misunderstanding (different things → both stay, disambiguated),
-      contradiction (genuine standoff → both stay, contradicts edge recorded).
-      resolved_source: who resolved (human authority)."""
-      return await self.dispatch(
-        'memory_conflict_resolve', ctx, conflict_guid=conflict_guid,
-        resolution=resolution, note=note, resolved_source=resolved_source,
-      )
+      op: list (default) — pending proposals, oldest first
+          apply  — accept a proposal (needs queue_guid)
+          reject — decline it (needs queue_guid, rationale recommended)
 
-    @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
-    async def memory_conflicts_list(
-      ctx: Context, project: str | None = None, state: str | None = 'open',
-      limit: int = 20,
-    ) -> Any:
-      """List contradictions with both claims' titles/confidence/state. Default
-      state='open' is the interrupt queue (conflicts awaiting resolution); pass
-      state=None for all."""
+      Proposals are never executed automatically; they are proposed and audited.
+      The producer is the Part D sleep cycle, which is not built yet, so `list`
+      returns empty until it lands."""
       return await self.dispatch(
-        'memory_conflicts_list', ctx, project=project, state=state, limit=limit,
+        'memory_maintenance', ctx, op=op, queue_guid=queue_guid,
+        rationale=rationale, limit=limit,
       )
 
   # ── Dispatch ───────────────────────────────────────────────────────────
