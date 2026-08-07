@@ -37,6 +37,7 @@ _DEFAULT_LIMIT = 20
 # These numbers MIRROR the PHASE 2 backfill in migration v0.13.2.0; keep in sync.
 _BASE_CONFIDENCE: dict[str, float] = {
   'invariant': 0.90,
+  'deadend': 0.90,   # an observed failure — you watched it not work
   'decision': 0.85,
   'spec': 0.80,
   'reference': 0.75,
@@ -47,6 +48,21 @@ _BASE_CONFIDENCE: dict[str, float] = {
 _DEFAULT_CONFIDENCE = 0.70  # unknown / unlisted kind
 _VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
 
+# Dead-end verdicts (v0.13.13.0). REQUIRED on kind='deadend', forbidden on every
+# other kind — a biconditional enforced by CK_agent_memory_entries_verdict, and
+# re-checked here so the caller gets a sentence instead of a raw SQL 547.
+#
+# This is the guard against the bank ossifying into superstition. A dead end
+# that never expires blocks an approach permanently, INCLUDING after the reason
+# it failed was fixed — which trades a retry loop for a silent, permanent loss
+# of capability. So the failure mode has to be stated at write time:
+#   'fundamental' — the approach cannot work; the reason is intrinsic.
+#   'conditional' — it failed because of a NAMED condition. The body must say
+#                   what that condition was, so a later session can test whether
+#                   it still holds instead of obeying the entry forever.
+_VALID_VERDICTS = ('fundamental', 'conditional')
+_DEADEND_KIND = 'deadend'
+
 # Reference-edge kinds and contradiction resolution classes (FDD §4). Only
 # 'cites'/'supports' edges confer authority (feed pub_ref_count); the rest are
 # structural (supersede/contradict/disambiguate/derive).
@@ -54,9 +70,13 @@ _VALID_CONFIDENCE_SOURCES = ('agent', 'human', 'derived', 'imported')
 # spec-section chaining — and are excluded from traversal by default so hitting
 # section 3 of an FDD does not drag in the whole document (v0.13.8.0 §A7 derives
 # agent_memory_references.pub_is_structural from exactly this pair).
+# 'attempted_for' (deadend -> the problem it attacked) is SEMANTIC, so traversal
+# follows it by default: walking out from a problem entry reaches the approaches
+# already tried on it. It confers no authority — pub_ref_count counts only
+# cites/supports — so a failed attempt never reinforces the claim it targeted.
 _VALID_REF_KINDS = (
   'cites', 'supports', 'supersedes', 'derived_from', 'contradicts', 'disambiguates',
-  'violates', 'contains', 'next',
+  'violates', 'attempted_for', 'contains', 'next',
 )
 _STRUCTURAL_REF_KINDS = ('contains', 'next')
 _VALID_RESOLUTIONS = ('correction', 'new_version', 'typo', 'contradiction', 'misunderstanding')
@@ -279,6 +299,47 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     return value
 
   @staticmethod
+  def _validate_verdict(kind: str | None, verdict: str | None) -> str | None:
+    """Resolve the dead-end verdict against the entry kind.
+
+    Mirrors CK_agent_memory_entries_verdict so the caller gets a sentence naming
+    the fix rather than a raw SQL 547 from the CHECK. The DB constraint remains
+    the authority — this is the friendly gate in front of it, not a replacement.
+
+    ``kind=None`` means a patch that does not restate the kind; the verdict then
+    lands on whatever kind the row already has and the DB constraint is the only
+    check that can run. Passing ``kind='deadend'`` REQUIRES a verdict even when
+    the row already carries one: without reading the row first there is no way
+    to tell "promoting a note to a deadend" (which must supply one) from
+    "restating the kind of an existing deadend" (which need not), and failing
+    closed on the ambiguous case is the correct side to err on."""
+    value = (verdict or '').strip().lower() or None
+    if value is not None and value not in _VALID_VERDICTS:
+      raise ValueError(
+        f'Invalid verdict {verdict!r}. One of: {", ".join(_VALID_VERDICTS)}. '
+        "'fundamental' = the approach cannot work, the reason is intrinsic. "
+        "'conditional' = it failed because of a named condition; say what that "
+        'condition was in the body so a later session can test whether it still holds.'
+      )
+    if kind is None:
+      return value
+    if kind.strip().lower() == _DEADEND_KIND:
+      if value is None:
+        raise ValueError(
+          "kind='deadend' requires a verdict: 'fundamental' (the approach cannot "
+          "work) or 'conditional' (it failed because of a named condition). "
+          'A dead end with no verdict is one nobody can ever safely retire, which '
+          'is how a record of what failed turns into a permanent block on what '
+          'might now work.'
+        )
+    elif value is not None:
+      raise ValueError(
+        f'verdict is only valid on kind=\'deadend\' (got kind={kind!r}). '
+        'It records why an attempted approach failed; other kinds have no such field.'
+      )
+    return value
+
+  @staticmethod
   def _resolve_confidence(
     kind: str, confidence: float | None, confidence_source: str | None,
   ) -> tuple[float, str]:
@@ -441,19 +502,26 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     self, project: str, kind: str, title: str, body: str,
     tags: str | None = None, thread_guid: str | None = None,
     source: str | None = None, confidence: float | None = None,
-    confidence_source: str | None = None,
+    confidence_source: str | None = None, verdict: str | None = None,
   ) -> dict[str, Any]:
     """Insert a memory entry. Returns ``{key_guid}`` of the new row.
 
     ``confidence`` is a 0..1 scalar; omit it to take the per-kind base weight
     (or 1.0 when ``confidence_source='human'``). New rows start ``node_state``
-    ``active`` with ``ref_count`` 0 (DB defaults)."""
+    ``active`` with ``ref_count`` 0 (DB defaults).
+
+    ``verdict`` is REQUIRED for ``kind='deadend'`` and rejected for every other
+    kind. Storing a dead end is only half the job: link it ``attempted_for`` the
+    entry describing the problem it attacked, or nothing will ever surface it —
+    that edge is what puts it in front of the next session via ``get_memory``."""
     await self.on_ready()
     body, tags = self._sanitize_body_tags(body, tags)
+    verdict = self._validate_verdict(kind, verdict)
     conf_value, conf_source = self._resolve_confidence(kind, confidence, confidence_source)
     result = await self._run_query(
       'memory.entries.insert',
-      (thread_guid, project, kind, title, body, tags, source, conf_value, conf_source),
+      (thread_guid, project, kind, title, body, tags, source, conf_value, conf_source,
+       verdict),
     )
     rows = self._rows(result)
     if not rows:
@@ -463,17 +531,26 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   async def update_memory(
     self, key_guid: str, title: str | None = None, body: str | None = None,
     tags: str | None = None, kind: str | None = None,
-    is_active: bool | None = None,
+    is_active: bool | None = None, verdict: str | None = None,
   ) -> dict[str, Any]:
     """Patch a memory entry (only non-null fields change) and bump
-    ``priv_modified_on``. Returns ``{key_guid}``."""
+    ``priv_modified_on``. Returns ``{key_guid}``.
+
+    ``verdict`` re-grades a dead end (``fundamental`` <-> ``conditional``);
+    omitting it leaves the stored value alone. To OVERTURN a dead end — the
+    named condition is gone and the approach works now — do not edit it here:
+    link the new working entry ``supersedes`` the dead end and set
+    ``is_active=False``. Both claims then survive, and the dead end stops being
+    attached to the problem by ``get_memory`` because that read only returns
+    active ones."""
     await self.on_ready()
     if body is not None:
       body, tags = self._sanitize_body_tags(body, tags)
+    verdict = self._validate_verdict(kind, verdict)
     is_active_param = None if is_active is None else (1 if is_active else 0)
     result = await self._run_query(
       'memory.entries.update',
-      (title, body, tags, kind, is_active_param, key_guid, key_guid),
+      (title, body, tags, kind, is_active_param, verdict, key_guid, key_guid),
     )
     rows = self._rows(result)
     if not rows:
@@ -494,6 +571,23 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     summarised. Bounded traversal, not summarisation, is what keeps the payload
     predictable: N nodes x the 15000-char body cap is arithmetic a caller can
     reason about before making the call.
+
+    ``deadends`` ALWAYS comes back — there is no flag, and that is the design.
+    It lists the active entries linked ``attempted_for`` THIS one: approaches
+    already tried on this problem and reverted, as stubs carrying the verdict.
+    You cannot read the entry describing a problem without being handed what has
+    already failed on it. A parameter you have to remember to pass is the same
+    advisory constraint that lets a fresh session re-try a reverted approach,
+    which is the whole failure this exists to close.
+
+    Overturned dead ends drop out: the query filters ``node_state='active'``, so
+    a dead end superseded by a working approach stops warning without anyone
+    having to delete it.
+
+    ``deadends`` is capped at 50 stubs (newest first) and ``deadend_count``
+    carries the true total, so a cap is visible rather than silent — on a
+    warning channel, "that is all of them" is the worst thing a truncated list
+    can imply.
 
     ``include_links`` attaches ``links`` — active edges incident to this entry,
     each carrying an explicit ``direction`` ('out'/'in') and a summary of the
@@ -564,12 +658,20 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     can distinguish "paged off the end" from "nothing matched". (Previously the
     count rode on the rows as ``COUNT(*) OVER()`` and vanished with them.)
 
+    Every stub carries ``deadend_count`` — how many active dead ends point
+    ``attempted_for`` at that entry. Non-zero means approaches have already been
+    tried on it and reverted; ``memory_get`` returns them in full.
+
     ``order``:
       * ``relevance`` (default) — distinct query terms matched, then recency.
         A query-less call falls through to recency.
       * ``authority`` — ``confidence * (1 + LOG(1 + accrual))``. With
         ``kind='rule'`` this is the coderules bank.
       * ``recent`` — most recently modified first.
+
+    ``kind='deadend'`` IS THE DEAD-END BANK — every approach tried and reverted
+    in a project, newest first with ``order='recent'``. Read it before choosing
+    an approach, the same way ``kind='rule'`` is read before writing code.
 
     ``node_state`` defaults to ``active``; pass it explicitly to reach
     non-active nodes (e.g. ``kind='conflict', node_state='draft'`` is the open
