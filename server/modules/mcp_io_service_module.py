@@ -285,6 +285,13 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       title with memory_search instead. Older bodies contain [[8HEX]] refs from
       a retired convention: they are prose, not edges, and not resolvable.
 
+      ALWAYS returns `deadends` — approaches already tried on THIS entry and
+      reverted (the entries linked attempted_for it), as stubs carrying their
+      verdict. There is no flag for this and it is not optional. READ IT BEFORE
+      CHOOSING AN APPROACH: if what you are about to propose is in that list, it
+      has already been tried and rolled back, and doing it again is the loop this
+      field exists to break. An overturned dead end drops out automatically.
+
       include_links: attach the active edges incident to this entry, each with
         an explicit direction ('out'/'in') and the neighbour summarised, so the
         graph is navigable straight from the fetch.
@@ -322,15 +329,22 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
       query: free text; matches if ANY whitespace term hits title/body/tags,
         ranked by how many distinct terms match. Omit to browse.
+      Every stub carries deadend_count — how many approaches were tried on that
+      entry and reverted. Non-zero is a warning to read the entry with
+      memory_get (which returns them) before proposing anything.
+
       order: relevance (default) | authority | recent.
         **kind='rule' + order='authority' IS THE CODE-RULES BANK** — the
         behavioural constraints to conform to before writing code, most
         reinforced first. Consult it before you code.
+        **kind='deadend' IS THE DEAD-END BANK** — every approach tried and
+        reverted, newest first with order='recent'. Consult it before you pick
+        an approach, the same way you consult the rules before you write code.
       project: exact filter. include_general (default true) folds the universal
         'general' project in alongside it — leave it on for rules, or the
         highest-authority rules in the corpus disappear.
       kind: rule|decision|invariant|spec|note|session_summary|snippet|reference|
-        incident|concept|conflict.
+        incident|concept|conflict|deadend.
       node_state: defaults to active. kind='conflict', node_state='draft' is the
         open-contradictions list.
       tags: LIKE filter. limit: max 100. offset: paging."""
@@ -346,7 +360,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       ctx: Context, project: str, kind: str, title: str, body: str,
       tags: str | None = None, thread_guid: str | None = None,
       source: str | None = None, confidence: float | None = None,
-      confidence_source: str | None = None,
+      confidence_source: str | None = None, verdict: str | None = None,
     ) -> Any:
       """Store a durable memory entry. Returns {key_guid}.
 
@@ -367,7 +381,25 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
         the code-rules bank filters on) | decision | invariant | spec | note |
         session_summary | snippet | reference | incident (a single observed
         event: a violation, a correction, a stated preference — meant to be the
-        FROM side of an edge to a rule) | concept | conflict.
+        FROM side of an edge to a rule) | concept | conflict | deadend.
+
+      deadend — AN APPROACH THAT WAS TRIED AND REVERTED. Bank one the moment an
+        attempt is rolled back, before moving on; the revert is the trigger. The
+        title must NAME THE APPROACH so a future session recognises its own idea
+        in the list. The body states: what was tried, what actually went wrong,
+        and what to do instead if known.
+        A deadend is inert until you link it — call memory_link(deadend,
+        problem, kind='attempted_for') pointing at the entry describing the
+        problem. That edge is the entire retrieval mechanism: it is what makes
+        memory_get on the problem hand the failure to the next session.
+
+      verdict: REQUIRED when kind='deadend', rejected otherwise.
+        'fundamental' — the approach cannot work; the reason is intrinsic.
+        'conditional' — it failed because of a SPECIFIC named condition. Say in
+          the body what that condition was, so a later session can test whether
+          it still holds. Without this a dead end becomes a permanent block on
+          an approach that may since have become viable — a bank of
+          superstitions is worse than the loop it was meant to stop.
 
       session_summary is RESUMABLE PROGRESS STATE for work in flight: what is
         done, what is next, what is blocked, which forks are open. It LINKS OUT
@@ -383,6 +415,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
         'memory_store', ctx, project=project, kind=kind, title=title, body=body,
         tags=tags, thread_guid=thread_guid, source=source,
         confidence=confidence, confidence_source=confidence_source,
+        verdict=verdict,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
@@ -390,6 +423,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       ctx: Context, key_guid: str, title: str | None = None,
       body: str | None = None, tags: str | None = None,
       kind: str | None = None, is_active: bool | None = None,
+      verdict: str | None = None,
     ) -> Any:
       """Patch an entry — only non-null fields change. Returns {key_guid}.
 
@@ -399,10 +433,19 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       is_active drives lifecycle state: true -> active, false -> retired.
       Correct a wrong entry here; record a CONTRADICTION as its own entry with
       edges, so both claims survive rather than one silently overwriting the
-      other."""
+      other.
+
+      verdict re-grades a dead end (fundamental <-> conditional); omit it to
+      leave the stored value alone. TO OVERTURN A DEAD END — its named condition
+      is gone and the approach works now — do NOT edit or delete it: store the
+      working approach, memory_link(new, deadend, kind='supersedes'), and set
+      is_active=false here. Both claims survive, and the dead end stops being
+      attached to the problem because memory_get only returns active ones. That
+      is the release valve that keeps this a record of what failed instead of a
+      permanent veto."""
       return await self.dispatch(
         'memory_update', ctx, key_guid=key_guid, title=title, body=body,
-        tags=tags, kind=kind, is_active=is_active,
+        tags=tags, kind=kind, is_active=is_active, verdict=verdict,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
@@ -418,8 +461,13 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       kind: cites | supports (both REINFORCE the target — this is how reference
         and correction raise a claim's authority instead of letting it decay) |
         supersedes | derived_from | contradicts | disambiguates |
-        violates (incident -> rule) | contains / next (structural spec-section
-        chaining; excluded from traversal by default).
+        violates (incident -> rule) |
+        attempted_for (deadend -> the problem it attacked: THE edge that makes a
+          dead end findable — memory_get on the problem returns everything
+          pointing at it this way, so a dead end without this edge warns nobody
+          and a session will re-try the reverted approach) |
+        contains / next (structural spec-section chaining; excluded from
+        traversal by default).
 
       is_active=false retracts the link, addressed by the same triple — you do
       not need the edge id. Retracting lowers the target's ref_count but never
