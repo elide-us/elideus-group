@@ -93,8 +93,9 @@ _VALID_NODE_STATES = (
 # memory_coderules and memory_list_recent).
 _VALID_ORDERS = ('relevance', 'authority', 'recent')
 
-# memory_maintenance verbs (§A8 ops ledger).
-_VALID_MAINTENANCE_OPS = ('list', 'apply', 'reject')
+# memory_maintenance verbs (§A8 ops ledger). 'run' is the on-demand trigger for
+# the Part D sleep cycle — the same pass the in-process loop fires on a timer.
+_VALID_MAINTENANCE_OPS = ('list', 'apply', 'reject', 'run')
 
 # Delay before the sleep cycle's FIRST pass after startup. Short on purpose: a
 # full-interval first sleep means a 12-hour setting never fires on a service
@@ -826,23 +827,32 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   async def maintenance_memory(
     self, op: str = 'list', queue_guid: str | None = None,
     rationale: str | None = None, limit: int = _DEFAULT_LIMIT,
+    apply: bool = True,
   ) -> dict[str, Any]:
     """The maintenance queue (§A8) — deliberately an op-enum, unlike the two
     above. These verbs share one subject (a queued proposal) and are only ever
     reached by an agent already draining the queue, so multiplexing them costs
     no tool-selection accuracy.
 
-    ``op``: ``list`` pending proposals | ``apply`` | ``reject`` an item.
+    ``op``: ``list`` pending proposals | ``apply`` | ``reject`` an item |
+    ``run`` the sleep-cycle maintenance pass now.
 
-    NOTE: proposals are produced by the Part D sleep cycle, which is not built
-    yet, so ``list`` returns empty until then. This exists now so the tool
-    surface does not have to change again when Part D lands."""
+    ``list``/``apply``/``reject`` read and decide on proposals. ``run`` is the
+    PRODUCER: it invokes the Part D sleep cycle on demand — the same pass the
+    in-process loop fires every ``MemorySleepInterval`` minutes — applying D1
+    repairs and enqueuing D2 proposals, then returns the run summary. Pass
+    ``apply=False`` for a preview that writes nothing. ``run`` is safe to call
+    while the timed loop is also running: D1 repairs are idempotent and D2
+    enqueue is guarded by ``UX_ammq_open``, so an overlap cannot double-apply."""
     await self.on_ready()
     operation = (op or 'list').strip().lower()
     if operation not in _VALID_MAINTENANCE_OPS:
       raise ValueError(
         f'Unknown maintenance op {op!r}. Valid: {", ".join(_VALID_MAINTENANCE_OPS)}.'
       )
+    if operation == 'run':
+      result = await self.sleep_cycle(apply=apply)
+      return {'op': 'run', 'applied': bool(apply), 'result': result}
     if operation == 'list':
       result = await self._run_query('memory.maintenance.list', (self._clamp_limit(limit),))
       return {'op': 'list', 'items': self._rows(result)}

@@ -18,6 +18,7 @@ from server.modules.memory_module import (
   _MAX_DEPTH,
   _MAX_NEIGHBOR_LIMIT,
   _VALID_DIRECTIONS,
+  _VALID_MAINTENANCE_OPS,
 )
 
 direction = MemoryModule._validate_direction
@@ -353,3 +354,48 @@ def test_remove_and_update_recompute_uses_same_reinforcing_kinds():
     sql = f.read()
   # Both maintenance queries recompute with the cites/supports reinforcing set.
   assert sql.count("pub_ref_kind IN (N''cites'', N''supports'')") >= 2
+
+
+# ── maintenance queue: the on-demand `run` verb triggers the sleep cycle ─────
+
+def _module_maintenance():
+  """A MemoryModule whose sleep_cycle is a recorder, so the maintenance
+  dispatch is testable without a DB. `run` must not touch _run_query."""
+  m = MemoryModule.__new__(MemoryModule)
+  calls = []
+
+  async def _ready():
+    return None
+
+  async def _sleep_cycle(apply=True):
+    calls.append(apply)
+    return {'applied': apply, 'proposals_queued': 3}
+
+  m.on_ready = _ready
+  m.sleep_cycle = _sleep_cycle
+  return m, calls
+
+
+def test_run_is_a_valid_maintenance_op():
+  assert 'run' in _VALID_MAINTENANCE_OPS
+
+
+def test_run_verb_triggers_sleep_cycle_and_applies_by_default():
+  m, calls = _module_maintenance()
+  out = asyncio.run(m.maintenance_memory(op='run'))
+  assert calls == [True]
+  assert out == {'op': 'run', 'applied': True,
+                 'result': {'applied': True, 'proposals_queued': 3}}
+
+
+def test_run_verb_preview_passes_apply_false_through():
+  m, calls = _module_maintenance()
+  out = asyncio.run(m.maintenance_memory(op='run', apply=False))
+  assert calls == [False]
+  assert out['applied'] is False
+
+
+def test_unknown_maintenance_op_raises():
+  m, _ = _module_maintenance()
+  with pytest.raises(ValueError):
+    asyncio.run(m.maintenance_memory(op='obliterate'))
