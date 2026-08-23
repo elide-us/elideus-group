@@ -504,7 +504,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
     async def memory_maintenance(
       ctx: Context, op: str = 'list', queue_guid: str | None = None,
-      rationale: str | None = None, limit: int = 20,
+      rationale: str | None = None, limit: int = 20, apply: bool = True,
     ) -> Any:
       """The maintenance queue: deferred, judgment-requiring operations on the
       memory graph (decompose an oversized entry, merge duplicates, abstract a
@@ -513,13 +513,16 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       op: list (default) — pending proposals, oldest first
           apply  — accept a proposal (needs queue_guid)
           reject — decline it (needs queue_guid, rationale recommended)
+          run    — run the sleep-cycle maintenance pass NOW (apply=False previews)
 
-      Proposals are never executed automatically; they are proposed and audited.
-      The producer is the Part D sleep cycle, which is not built yet, so `list`
-      returns empty until it lands."""
+      Proposals are never executed automatically; `apply`/`reject` are how a
+      human decides on them. The producer is the Part D sleep cycle: it runs
+      in-process every MemorySleepInterval minutes AND on demand via `op='run'`,
+      which applies D1 repairs and enqueues fresh D2 proposals for `list` to
+      surface."""
       return await self.dispatch(
         'memory_maintenance', ctx, op=op, queue_guid=queue_guid,
-        rationale=rationale, limit=limit,
+        rationale=rationale, limit=limit, apply=apply,
       )
 
   # ── Dispatch ───────────────────────────────────────────────────────────
