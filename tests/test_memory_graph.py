@@ -9,6 +9,7 @@ driven with ``asyncio.run`` (no pytest-asyncio dependency).
 """
 
 import asyncio
+import inspect
 import os
 
 import pytest
@@ -76,12 +77,11 @@ def _module(nodes, edges):
       return _FakeResult(out)
 
     if name == 'memory.graph.nodes':
-      project, kinds_csv, limit = params
+      kinds_csv, limit = params          # v0.13.14.0: no project slot
       kinds = set(_split(kinds_csv)) if kinds_csv else None
       rows = [
         dict(n) for n in nodes.values()
         if n.get('pub_is_active')
-        and (project is None or n.get('pub_project') in (project, 'general'))
         and (kinds is None or n.get('pub_kind') in kinds)
       ]
       rows.sort(key=lambda n: n.get('pub_ref_count', 0), reverse=True)
@@ -269,15 +269,15 @@ def test_neighbors_unknown_root_raises():
 # ── graph export (induced sub-graph) ────────────────────────────────────────
 
 def test_export_graph_keeps_only_induced_edges():
-  # Nodes A,B in project p; X is out-of-project. Edge A->B stays; A->X is dropped
-  # because X is not in the node set.
+  # Nodes A,B active; X is inactive so graph.nodes leaves it out. Edge A->B
+  # stays; A->X is dropped because X is not in the node set.
   nodes = {
-    'A': _node('A', project='p', ref_count=2),
-    'B': _node('B', project='p', ref_count=0),
-    'X': _node('X', project='other'),
+    'A': _node('A', ref_count=2),
+    'B': _node('B', ref_count=0),
+    'X': _node('X', active=False),
   }
   edges = [_edge('E1', 'A', 'B'), _edge('E2', 'A', 'X')]
-  out = asyncio.run(_module(nodes, edges).export_graph(project='p'))
+  out = asyncio.run(_module(nodes, edges).export_graph())
   assert {n['key_guid'] for n in out['nodes']} == {'A', 'B'}
   assert {e['edge_guid'] for e in out['edges']} == {'E1'}
 
@@ -289,19 +289,25 @@ def test_export_graph_kinds_filters_edges_not_nodes():
   nodes = {'A': _node('A', kind='decision'), 'B': _node('B', kind='spec')}
   edges = [_edge('E1', 'A', 'B', kind='supports'),
            _edge('E2', 'B', 'A', kind='cites')]
-  out = asyncio.run(_module(nodes, edges).export_graph(project='p', kinds='supports'))
+  out = asyncio.run(_module(nodes, edges).export_graph(kinds='supports'))
   assert {n['key_guid'] for n in out['nodes']} == {'A', 'B'}
   assert {e['edge_guid'] for e in out['edges']} == {'E1'}
 
 
-def test_export_graph_folds_in_general():
+def test_export_graph_spans_every_project():
+  # v0.13.14.0: project is a label, not a partition. An export is the whole
+  # active graph — p, general and other all come back, and the edge between
+  # two differently-labelled nodes is exactly the cross-project link the bank
+  # exists to hold.
   nodes = {
     'A': _node('A', project='p'),
     'G': _node('G', project='general'),
     'O': _node('O', project='other'),
   }
-  out = asyncio.run(_module(nodes, []).export_graph(project='p'))
-  assert {n['key_guid'] for n in out['nodes']} == {'A', 'G'}
+  out = asyncio.run(_module(nodes, [_edge('E1', 'G', 'O')]).export_graph())
+  assert {n['key_guid'] for n in out['nodes']} == {'A', 'G', 'O'}
+  assert {e['edge_guid'] for e in out['edges']} == {'E1'}
+  assert 'project' not in inspect.signature(MemoryModule.export_graph).parameters
 
 
 # ── edge maintenance: not-found paths raise ─────────────────────────────────
