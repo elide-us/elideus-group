@@ -78,9 +78,33 @@ def test_reinforcement_can_outrank_higher_base_confidence():
   assert authority(0.60, 3) > authority(0.90, 0)
 
 
-def test_consult_memory_dropped_the_kinds_param():
+def test_consult_memory_dropped_the_kinds_and_project_params():
   # v0.13.4.0: consult (memory_coderules) filters by the 'rule' tag, not kind,
-  # so the kinds knob is gone; project/query/limit remain.
+  # so the kinds knob is gone. v0.13.14.0: project is a label, not a partition,
+  # so the project knob is gone too — rules are universal. query/limit remain.
   params = inspect.signature(MemoryModule.consult_memory).parameters
   assert 'kinds' not in params
-  assert {'project', 'query', 'limit'} <= set(params)
+  assert 'project' not in params
+  assert {'query', 'limit'} <= set(params)
+
+
+def test_no_read_path_takes_a_project_filter():
+  # v0.13.14.0 — the whole point: the bank is one graph. Every READ method
+  # is project-blind; project survives only as an optional LABEL on writes.
+  for reader in ('search_memory', 'list_recent_memory', 'consult_memory',
+                 'list_contradictions', 'export_graph', 'get_memory',
+                 'get_neighbors', 'list_references', 'get_thread'):
+    params = inspect.signature(getattr(MemoryModule, reader)).parameters
+    assert 'project' not in params, reader
+    assert 'include_general' not in params, reader
+  for writer in ('store_memory', 'create_thread', 'thread_memory', 'open_contradiction'):
+    param = inspect.signature(getattr(MemoryModule, writer)).parameters['project']
+    assert param.default is None, writer   # optional, never required
+
+
+def test_project_label_defaults_to_general():
+  label = MemoryModule._label_project
+  assert label(None) == 'general'
+  assert label('') == 'general'
+  assert label('   ') == 'general'
+  assert label(' flicker ') == 'flicker'

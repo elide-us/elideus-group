@@ -29,6 +29,23 @@ from .db_module import DbModule
 _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
 
+# ── Project is a LABEL, not a partition (v0.13.14.0) ─────────────────────────
+# pub_project records which repo/product an entry is ABOUT. It is descriptive:
+# nothing on the read side filters by it. The bank is ONE institutional-
+# knowledge graph for every repository in the tenant — those repos share wire
+# protocols, back-end auth and database tables, and a rule banked from one of
+# them must be reachable, and linkable, from every module in every other that
+# shares the system. Filtering by project defeated exactly that (Aaron,
+# 2026-09-04: "that was never meant to be a silo").
+#
+# An entry stored without a label takes 'general' — the label the universal
+# rules already carry — so "not tied to one repo" has exactly ONE
+# representation (never NULL in one place and 'general' in another).
+#
+# Tenant partitioning (the real boundary, for the paid service) is a separate
+# design item. No tenant key exists yet; pub_project must not be reused as one.
+_DEFAULT_PROJECT = 'general'
+
 # ── Confidence weighting policy (FDD-ORACLE-MEM-CONFLICT-01) ─────────────────
 # Base confidence assigned to a claim when the caller supplies none. Confidence
 # is CONFIDENCE, never truth: it gates how loudly the system objects to a
@@ -111,7 +128,7 @@ _MAX_DEPTH = 3                 # BFS depth cap (traversal is not the whole DB)
 _DEFAULT_DEPTH = 1
 _DEFAULT_NEIGHBOR_LIMIT = 50   # node-set cap for neighbors
 _MAX_NEIGHBOR_LIMIT = 200
-_DEFAULT_GRAPH_LIMIT = 200     # node-set cap for a project graph export
+_DEFAULT_GRAPH_LIMIT = 200     # node-set cap for a graph export
 _MAX_GRAPH_LIMIT = 500
 
 # ── Defensive write-path sanitiser ──────────────────────────────────────────
@@ -272,6 +289,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   @staticmethod
   def _like(term: str | None) -> str | None:
     return f'%{term}%' if term else None
+
+  @staticmethod
+  def _label_project(project: str | None) -> str:
+    """Resolve the stored project LABEL for a write: the caller's value, or
+    ``'general'`` when omitted/blank. See _DEFAULT_PROJECT — this is a tag on
+    the row, never a partition, so defaulting it costs nothing on the read side."""
+    value = (project or '').strip()
+    return value or _DEFAULT_PROJECT
 
   @staticmethod
   def _validate_order(order: str | None) -> str:
@@ -500,12 +525,17 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   # ── Entries ────────────────────────────────────────────────────────────
 
   async def store_memory(
-    self, project: str, kind: str, title: str, body: str,
+    self, kind: str, title: str, body: str, project: str | None = None,
     tags: str | None = None, thread_guid: str | None = None,
     source: str | None = None, confidence: float | None = None,
     confidence_source: str | None = None, verdict: str | None = None,
   ) -> dict[str, Any]:
     """Insert a memory entry. Returns ``{key_guid}`` of the new row.
+
+    ``project`` is a descriptive LABEL — which repo/product the entry is about
+    — never a partition: no read filters by it, and an entry banked with one
+    label is found and linked from every other project. Omit it and the row is
+    labelled ``general``.
 
     ``confidence`` is a 0..1 scalar; omit it to take the per-kind base weight
     (or 1.0 when ``confidence_source='human'``). New rows start ``node_state``
@@ -521,8 +551,8 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     conf_value, conf_source = self._resolve_confidence(kind, confidence, confidence_source)
     result = await self._run_query(
       'memory.entries.insert',
-      (thread_guid, project, kind, title, body, tags, source, conf_value, conf_source,
-       verdict),
+      (thread_guid, self._label_project(project), kind, title, body, tags, source,
+       conf_value, conf_source, verdict),
     )
     rows = self._rows(result)
     if not rows:
@@ -557,7 +587,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     if not rows:
       raise ValueError(
         f'Unknown memory entry key_guid={key_guid!r}. '
-        'Use memory_search to find an entry by title, project, or tag.'
+        'Use memory_search to find an entry by title or tag.'
       )
     return {'key_guid': str(rows[0].get('key_guid'))}
 
@@ -606,7 +636,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     if not rows:
       raise ValueError(
         f'Unknown memory entry key_guid={key_guid!r}. '
-        'Use memory_search to find an entry by title, project, or tag.'
+        'Use memory_search to find an entry by title or tag.'
       )
     entry = dict(rows[0])
 
@@ -639,13 +669,19 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     return ','.join(k for k in _VALID_REF_KINDS if k not in _STRUCTURAL_REF_KINDS)
 
   async def search_memory(
-    self, query: str | None = None, project: str | None = None,
-    kind: str | None = None, tags: str | None = None,
-    node_state: str | None = None, order: str | None = None,
-    include_body: bool = False, include_general: bool = True,
+    self, query: str | None = None, kind: str | None = None,
+    tags: str | None = None, node_state: str | None = None,
+    order: str | None = None, include_body: bool = False,
     limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
-    """Filter + paginate entries. Returns ``{entries[], total}``.
+    """Filter + paginate entries ACROSS EVERY PROJECT. Returns
+    ``{entries[], total}``.
+
+    THERE IS NO PROJECT FILTER. The bank is one graph: a search from any repo
+    sees the rules, protocols, auth and DB knowledge banked from every other.
+    ``pub_project`` on a stub is a label saying which repo the entry is about,
+    not a boundary. (v0.13.14.0 — the project silo, and the ``include_general``
+    fold that patched it, are gone.)
 
     SEARCH IS A LOCATOR, NOT A READER. By default each hit is a stub —
     ``pub_body_excerpt`` (300 chars) plus ``body_length``, with ``pub_body``
@@ -665,25 +701,20 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     ``order``:
       * ``relevance`` (default) — distinct query terms matched, then recency.
-        A query-less call falls through to recency.
+        A query-less call falls through to recency. Terms match title/body/tags
+        AND the ``pub_project`` label, so naming a label surfaces its entries
+        without narrowing the result to it (matched, never filtered).
       * ``authority`` — ``confidence * (1 + LOG(1 + accrual))``. With
         ``kind='rule'`` this is the coderules bank.
       * ``recent`` — most recently modified first.
 
-    ``kind='deadend'`` IS THE DEAD-END BANK — every approach tried and reverted
-    in a project, newest first with ``order='recent'``. Read it before choosing
-    an approach, the same way ``kind='rule'`` is read before writing code.
+    ``kind='deadend'`` IS THE DEAD-END BANK — every approach tried and reverted,
+    newest first with ``order='recent'``. Read it before choosing an approach,
+    the same way ``kind='rule'`` is read before writing code.
 
     ``node_state`` defaults to ``active``; pass it explicitly to reach
     non-active nodes (e.g. ``kind='conflict', node_state='draft'`` is the open
-    conflicts list). ``project``/``kind`` are exact filters; ``tags`` is LIKE.
-
-    ``include_general`` (default True) folds the universal ``general`` project
-    in alongside ``project`` — this is what makes ``kind='rule',
-    order='authority'`` equal the old coderules bank. Without it the
-    highest-authority rules in the corpus, which live in ``general``, silently
-    vanish from a project-scoped rules query. Set False for a strictly
-    single-project search."""
+    conflicts list). ``kind`` is an exact filter; ``tags`` is LIKE."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
     try:
@@ -692,8 +723,6 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       offset = 0
     params = (
       query,                       # relevance: matched OR-wise, ranked by term hits
-      project,                     # project exact
-      1 if include_general else 0, # fold in the universal 'general' project
       kind,                        # kind exact
       tags, self._like(tags),      # tags NULL-guard + LIKE
       self._validate_node_state(node_state),
@@ -707,24 +736,24 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     entries = payload.get('entries') or []
     return {'entries': list(entries), 'total': int(payload.get('total') or 0)}
 
-  async def list_recent_memory(
-    self, project: str | None = None, limit: int = _DEFAULT_LIMIT,
-  ) -> dict[str, Any]:
-    """Most recently modified active entries (optionally per project)."""
+  async def list_recent_memory(self, limit: int = _DEFAULT_LIMIT) -> dict[str, Any]:
+    """Most recently modified active entries, across every project."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
-    result = await self._run_query('memory.entries.recent', (limit, project, project))
+    result = await self._run_query('memory.entries.recent', (limit,))
     return {'entries': self._rows(result)}
 
   # ── Threads ────────────────────────────────────────────────────────────
 
   async def create_thread(
-    self, project: str, title: str, summary: str | None = None,
+    self, title: str, project: str | None = None, summary: str | None = None,
   ) -> dict[str, Any]:
     """Create a memory thread (a named grouping of entries). Returns
-    ``{key_guid}``."""
+    ``{key_guid}``. ``project`` is a descriptive label (default ``general``),
+    never a partition."""
     await self.on_ready()
-    result = await self._run_query('memory.threads.insert', (project, title, summary))
+    result = await self._run_query(
+      'memory.threads.insert', (self._label_project(project), title, summary))
     rows = self._rows(result)
     if not rows:
       raise RuntimeError('create_thread failed to create the thread')
@@ -813,16 +842,17 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     limit: int = _DEFAULT_LIMIT, offset: int = 0,
   ) -> dict[str, Any]:
     """Read a thread, or create one. Pass ``thread_guid`` to fetch; pass
-    ``project`` + ``title`` to create. One noun, disambiguated by which
-    identifying argument is present rather than by a mode flag."""
+    ``title`` (and optionally a ``project`` label) to create. One noun,
+    disambiguated by which identifying argument is present rather than by a
+    mode flag."""
     await self.on_ready()
     if thread_guid:
       return await self.get_thread(thread_guid, limit=limit, offset=offset)
-    if not (project and title):
+    if not (title and title.strip()):
       raise ValueError(
-        'memory_thread needs either thread_guid (to read) or project+title (to create).'
+        'memory_thread needs either thread_guid (to read) or title (to create).'
       )
-    return await self.create_thread(project, title, summary)
+    return await self.create_thread(title, project=project, summary=summary)
 
   async def maintenance_memory(
     self, op: str = 'list', queue_guid: str | None = None,
@@ -964,8 +994,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   # ── Consult (anti-decay rule retrieval) ─────────────────────────────────
 
   async def consult_memory(
-    self, project: str | None = None, query: str | None = None,
-    limit: int = _DEFAULT_LIMIT,
+    self, query: str | None = None, limit: int = _DEFAULT_LIMIT,
   ) -> dict[str, Any]:
     """Authority-ranked CODE RULES to conform to before writing code.
 
@@ -974,14 +1003,12 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     registered so re-inserting one binding row restores the old tool without
     a code deploy. Returns active entries of kind
     ``rule`` (the constraining subset — a rule is an idea that constrains a
-    choice) ordered by authority = confidence*(1+ref_count). When ``project`` is given, the
-    universal ``general`` rules are folded in. ``query`` is an optional
-    tokenised filter (every whitespace term must match title/body/tags)."""
+    choice) ordered by authority = confidence*(1+ref_count), across every
+    project — rules are universal. ``query`` is an optional tokenised filter
+    (every whitespace term must match title/body/tags)."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
-    result = await self._run_query(
-      'memory.entries.consult', (limit, project, project, query, query),
-    )
+    result = await self._run_query('memory.entries.consult', (limit, query, query))
     return {'entries': self._rows(result)}
 
   # ── References (mind-map edges / reinforcement) ─────────────────────────
@@ -1009,14 +1036,16 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
   # ── Contradictions (first-class conflict lifecycle) ─────────────────────
 
   async def open_contradiction(
-    self, project: str, claim_a_guid: str, claim_b_guid: str,
+    self, claim_a_guid: str, claim_b_guid: str, project: str | None = None,
     note: str | None = None,
   ) -> dict[str, Any]:
     """Record a contradiction between two claims and flip both active nodes to
-    ``conflict``. Neither claim is destroyed (FDD §3). Returns ``{key_guid}``."""
+    ``conflict``. Neither claim is destroyed (FDD §3). ``project`` is a label
+    (default ``general``). Returns ``{key_guid}``."""
     await self.on_ready()
     result = await self._run_query(
-      'memory.contradictions.open', (claim_a_guid, claim_b_guid, project, note),
+      'memory.contradictions.open',
+      (claim_a_guid, claim_b_guid, self._label_project(project), note),
     )
     rows = self._rows(result)
     if not rows:
@@ -1050,17 +1079,14 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     return rows[0]
 
   async def list_contradictions(
-    self, project: str | None = None, state: str | None = 'open',
-    limit: int = _DEFAULT_LIMIT,
+    self, state: str | None = 'open', limit: int = _DEFAULT_LIMIT,
   ) -> dict[str, Any]:
-    """List contradictions (default ``state='open'`` — the interrupt queue).
-    Pass ``state=None`` for all states. Returns ``{contradictions[]}`` with both
-    claims' titles/confidence/state joined in."""
+    """List contradictions across every project (default ``state='open'`` —
+    the interrupt queue). Pass ``state=None`` for all states. Returns
+    ``{contradictions[]}`` with both claims' titles/confidence/state joined in."""
     await self.on_ready()
     limit = self._clamp_limit(limit)
-    result = await self._run_query(
-      'memory.contradictions.list', (limit, project, project, state, state),
-    )
+    result = await self._run_query('memory.contradictions.list', (limit, state, state))
     return {'contradictions': self._rows(result)}
 
   # ── Graph read / traverse (the read half of the mind-map) ───────────────
@@ -1099,7 +1125,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     and only *active* edges are followed (unless ``kinds`` widens the selection);
     a reached inactive node appears as a leaf. ``edges`` are those incident to an
     expanded node in the requested ``direction`` (use ``export_graph`` for the
-    full induced edge set of a project)."""
+    full induced edge set of the graph)."""
     await self.on_ready()
     root = str(key_guid)
     depth = self._clamp_depth(depth)
@@ -1111,7 +1137,7 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     if not root_rows:
       raise ValueError(
         f'Unknown memory entry key_guid={key_guid!r}. '
-        'Use memory_search to find an entry by title, project, or tag.'
+        'Use memory_search to find an entry by title or tag.'
       )
     nodes: dict[str, dict[str, Any]] = {str(r.get('key_guid')): r for r in root_rows}
     seen: set[str] = set(nodes)
@@ -1171,14 +1197,13 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     }
 
   async def export_graph(
-    self, project: str | None = None, kinds: str | None = None,
-    limit: int = _DEFAULT_GRAPH_LIMIT,
+    self, kinds: str | None = None, limit: int = _DEFAULT_GRAPH_LIMIT,
   ) -> dict[str, Any]:
-    """Export a project's memory sub-graph as ``{nodes[], edges[], truncated}``
-    for visualization / mind-mapping. Nodes = active entries in ``project`` (its
-    universal ``general`` entries folded in), most-referenced first, capped at
-    ``limit`` (default 200, max 500). Edges = active reference edges whose BOTH
-    endpoints are in the node set (the induced sub-graph).
+    """Export the memory graph as ``{nodes[], edges[], truncated}`` for
+    visualization / mind-mapping. Nodes = active entries across every project,
+    most-referenced first, capped at ``limit`` (default 200, max 500). Edges =
+    active reference edges whose BOTH endpoints are in the node set (the
+    induced sub-graph).
 
     ``kinds`` filters the EDGE relationship types (cites/supports/…), the same
     meaning it carries in ``list_references``/``get_neighbors`` — NOT the node
@@ -1186,11 +1211,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
     await self.on_ready()
     kinds_csv = self._normalise_kinds(kinds)
     node_cap = self._clamp(limit, _DEFAULT_GRAPH_LIMIT, _MAX_GRAPH_LIMIT)
-    # Node set is picked by project only — pass None for the query's node-kind
-    # slot so `kinds` filters EDGES (below), consistent with the other graph tools.
-    nrows = self._rows(await self._run_query(
-      'memory.graph.nodes', (project, None, node_cap),
-    ))
+    # Pass None for the query's node-kind slot so `kinds` filters EDGES (below),
+    # consistent with the other graph tools.
+    nrows = self._rows(await self._run_query('memory.graph.nodes', (None, node_cap)))
     node_guids = {str(r.get('key_guid')) for r in nrows}
     truncated = len(nrows) >= node_cap
     edges: list[dict[str, Any]] = []

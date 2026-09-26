@@ -311,13 +311,18 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
 
     @self.mcp.tool(annotations=_TOOL_ANNOTATIONS)
     async def memory_search(
-      ctx: Context, query: str | None = None, project: str | None = None,
-      kind: str | None = None, tags: str | None = None,
-      node_state: str | None = None, order: str | None = None,
-      include_body: bool = False, include_general: bool = True,
+      ctx: Context, query: str | None = None, kind: str | None = None,
+      tags: str | None = None, node_state: str | None = None,
+      order: str | None = None, include_body: bool = False,
       limit: int = 20, offset: int = 0,
     ) -> Any:
       """FIND entries. A locator, not a reader — read full text with memory_get.
+
+      SEARCHES EVERY PROJECT. The bank is ONE institutional-knowledge graph for
+      every repository: rules, protocols, auth and database knowledge banked
+      from one repo come back from any other. There is no project filter.
+      pub_project on a stub is a label saying which repo the entry is ABOUT,
+      not a boundary — link across labels freely.
 
       Returns {entries[], total}. `total` is the full match count independent of
       paging, so an offset past the end reports the real total with an empty
@@ -327,8 +332,10 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       pub_body null. Pass include_body=true for verbatim bodies — expensive, and
       usually the wrong call when you only need to identify an entry.
 
-      query: free text; matches if ANY whitespace term hits title/body/tags,
-        ranked by how many distinct terms match. Omit to browse.
+      query: free text; matches if ANY whitespace term hits title/body/tags or
+        the pub_project label, ranked by how many distinct terms match. Naming a
+        label (e.g. 'sapphire') surfaces its entries without narrowing the
+        result to it — the label is matched, never filtered. Omit to browse.
       Every stub carries deadend_count — how many approaches were tried on that
       entry and reverted. Non-zero is a warning to read the entry with
       memory_get (which returns them) before proposing anything.
@@ -340,24 +347,20 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
         **kind='deadend' IS THE DEAD-END BANK** — every approach tried and
         reverted, newest first with order='recent'. Consult it before you pick
         an approach, the same way you consult the rules before you write code.
-      project: exact filter. include_general (default true) folds the universal
-        'general' project in alongside it — leave it on for rules, or the
-        highest-authority rules in the corpus disappear.
       kind: rule|decision|invariant|spec|note|session_summary|snippet|reference|
         incident|concept|conflict|deadend.
       node_state: defaults to active. kind='conflict', node_state='draft' is the
         open-contradictions list.
       tags: LIKE filter. limit: max 100. offset: paging."""
       return await self.dispatch(
-        'memory_search', ctx, query=query, project=project, kind=kind,
-        tags=tags, node_state=node_state, order=order,
-        include_body=include_body, include_general=include_general,
+        'memory_search', ctx, query=query, kind=kind, tags=tags,
+        node_state=node_state, order=order, include_body=include_body,
         limit=limit, offset=offset,
       )
 
     @self.mcp.tool(annotations=_WRITE_ANNOTATIONS)
     async def memory_store(
-      ctx: Context, project: str, kind: str, title: str, body: str,
+      ctx: Context, kind: str, title: str, body: str, project: str | None = None,
       tags: str | None = None, thread_guid: str | None = None,
       source: str | None = None, confidence: float | None = None,
       confidence_source: str | None = None, verdict: str | None = None,
@@ -405,6 +408,13 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
         done, what is next, what is blocked, which forks are open. It LINKS OUT
         and does not restate — decisions and specs live in their own entries;
         cite them with memory_link rather than summarising them here.
+
+      project: OPTIONAL descriptive label — which repo/product the entry is
+        ABOUT (the GitHub repo name: elideus-group, flicker, clay-engine, …).
+        It is never a partition: no read filters by it, and the entry is found
+        and linkable from every project. Omit it for knowledge that is not
+        about one repo — it is stored as 'general', the label the universal
+        rules carry.
 
       confidence: 0..1 CONFIDENCE, never truth — it gates how loudly a
         contradiction is objected to, not whether a claim is correct. Omit for
@@ -487,8 +497,9 @@ FOR JSON PATH, INCLUDE_NULL_VALUES;
       """Read or create a thread — a named grouping of entries for one
       workstream.
 
-      Pass thread_guid to fetch it and its entries. Pass project + title to
-      create one; the returned key_guid goes to memory_store as thread_guid.
+      Pass thread_guid to fetch it and its entries. Pass title to create one
+      (project is an optional label, default 'general' — never a partition);
+      the returned key_guid goes to memory_store as thread_guid.
 
       Entries come back as STUBS, newest first, PAGED (limit default 20, max
       100) with thread.entry_count for the full total — a big thread is an
